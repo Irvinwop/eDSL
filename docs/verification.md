@@ -13,6 +13,12 @@ blocking, interruption, and resource failure.
 
 ## 1. The statement we eventually want
 
+The default route is now [direct binary verification](binary-first.md): prove
+the independently specified property of the exact executable under its platform
+contract. No complete source-language semantics is required for that theorem.
+The source-refinement formulation below is an additional guarantee for clients
+who also need evidence that compilation preserves their source's meaning.
+
 Start with an independently defined program specification: for example, every
 successful execution of a two-worker counter returns the sum of their work,
 each created worker is joined, and every failure path releases resources it
@@ -23,7 +29,7 @@ design, not existing APIs:
 
 | Object | Meaning |
 | --- | --- |
-| `S` | A typed source program with a pinned language-semantics revision |
+| `S` | Optional source-preservation route: a typed program with a pinned language-semantics revision |
 | `B` | The exact final executable bytes, including relevant linked code/data |
 | `M` | Artifact manifest, target profile, semantics revisions, and proof scope |
 | `P` | Preconditions on inputs, initial memory, resources, and environment |
@@ -31,7 +37,7 @@ design, not existing APIs:
 | `Q` | Independently specified predicate on observable executions |
 | `Obs` | Explicit projection from an execution to the observations used by `Q` |
 
-The intended refinement obligation is, schematically:
+The additional source-preservation obligation is, schematically:
 
 ```text
 For every permitted input and related source/target initial state,
@@ -87,9 +93,22 @@ linking need their own treatment. It is a reference for structuring obligations,
 not a claim that CompCert supports this project's GNU C23/C++26 scope.
 ([CompCert manual](https://compcert.org/man/manual001.html))
 
-## 3. Two compiler routes
+## 3. Direct verification and optional compiler-preservation routes
 
-### Translation validation: the main route for existing compilers
+### Direct binary verification: the primary route
+
+Treat the full native build as an untrusted producer and prove `Q` directly for
+all admitted executions of its final bytes. Reuse the same ISA/OS semantics
+for C, C++, Rust and other source languages on that target. Check certificate
+soundness against machine execution and an independent specification, rather
+than requiring a modeled frontend for every input language.
+
+This establishes the desired executable-property theorem; it does not assert
+source-language equivalence. LLVM IR, assembly listings, debug information and
+source annotations may assist proof search without being trusted. Calls,
+runtime code and OS effects still need concrete proofs or explicit contracts.
+
+### Translation validation: an additional source-preservation guarantee
 
 Accept a compiler as an untrusted producer of candidate code. For each
 compilation, attempt to prove a relation between the source semantics and the
@@ -147,8 +166,10 @@ Source-to-LLVM, LLVM-to-LLVM, and LLVM-to-machine-code are separate obligations.
 Every release proof should carry a machine-readable manifest, with a reviewed
 human-readable rendering. Required fields are planned as follows:
 
-- Exact input bytes, transitive included files, preprocessing configuration,
-  generated files, and resulting typed source representation.
+- Available build input bytes, transitive included files, preprocessing
+  configuration and generated files. Bind the typed source representation
+  when a source-preservation theorem is requested; it is not required for a
+  direct binary-property theorem.
 - Compiler executable identity and revision, complete ordered arguments,
   response-file contents, target triple, CPU features, data layout, optimization
   pipeline, relevant environment, and plugins. Record semantic options such as

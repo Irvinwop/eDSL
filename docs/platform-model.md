@@ -6,6 +6,12 @@ by this document. The first target is a **selected Linux/x86-64 userspace
 configuration**, formalized in Lean 4. Coverage must grow through explicit
 fragments rather than an implicit claim about every Linux machine.
 
+The default is [direct binary verification](binary-first.md); source-language
+preservation is an optional extra. The [OS implementation track](os-implementation.md)
+adds a separate privileged-mode target for concrete kernel components. Its
+proofs can discharge corresponding userspace OS contracts after composition;
+the userspace profile described below alone cannot execute or verify a kernel.
+
 ## The intended claim
 
 The useful end result is a theorem about the executable that is actually run:

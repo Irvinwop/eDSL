@@ -10,6 +10,11 @@
   parts of the program model across every language/backend.
 - Keep implementation status accurate. Design documents do not establish an
   implemented API or supported backend.
+- Prioritize direct verification of exact final machine code against independent
+  contracts. Source/IR semantics provide optional preservation guarantees and
+  proof hints, not mandatory frontends for every binary-verification input.
+- Keep security findings private. Proof failure, timeout, and unsupported code
+  do not establish a defect; record evidence and triage before reporting.
 - Document target limitations and failure behavior; never silently lower an
   operation to a weaker semantic contract.
 - Tests must check independently defined behavior and catch plausible defects.

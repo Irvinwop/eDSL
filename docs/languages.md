@@ -9,6 +9,13 @@ Lean value that represents thread creation must not create a host thread.
 Small native helpers may eventually use C/C++/assembly, with their effects and
 trust boundaries exposed separately.
 
+These language-domain work packages are optional dependencies for the
+[binary-first route](binary-first.md). Any language/compiler can supply candidate
+machine code; a direct proof against an independent specification uses the
+shared ISA/OS model. In particular, Rust-produced assembly or LLVM IR can be an
+input without implementing this project in Rust or first building a Rust eDSL.
+Source-preservation claims still need their own frontend evidence.
+
 ## 1. Share contracts without erasing differences
 
 Use typed Lean representations for each language and explicit relations

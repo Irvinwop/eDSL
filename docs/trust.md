@@ -67,9 +67,10 @@ new proof-generation routes.
 
 ## Release evidence required later
 
-A certified artifact needs exact source and final bytes, the complete build
-manifest, supported-feature/profile checks, named source and refinement proofs,
-link/load and runtime obligations, the observation/specification statement,
+A certified artifact needs exact final bytes, available build provenance,
+supported-feature/profile checks and named machine-property proofs. Add source
+identity, frontend evidence and refinement proofs for source-preservation claims.
+Every route also needs link/load and runtime obligations, the specification,
 explicit environmental assumptions, tool/library/model revisions, proof audit
 results, and reproduction commands. Cost/security/termination claims each need
 their own named theorem and scope. Changed dependencies invalidate cached
@@ -78,3 +79,11 @@ certificates until checked again.
 The first releases should say **proved under a stated Linux/ISA contract**.
 Reducing that boundary means proving more of the concrete runtime, loader,
 OS, or hardware relationship; renaming an assumption does not reduce trust.
+
+Direct [binary-first proofs](binary-first.md) can avoid a trusted frontend by
+stating the desired behavior directly over final machine-code execution. They
+do not thereby prove source equivalence. [OS implementation proofs](os-implementation.md)
+can discharge particular kernel/runtime contracts, including the required
+caller/interference and hardware assumptions. A failed proof is not evidence
+of unsafe code: use the [findings workflow](findings.md) to distinguish missing
+analysis support from a checked violation of a justified property.

@@ -7,6 +7,12 @@ C23, GNU C++26, LLVM IR, and assembly are languages described by the embedding.
 The initial platform is Linux/x86-64; its assumptions are specified in
 [the platform model](platform-model.md).
 
+The [OS implementation track](os-implementation.md) extends this plan from
+contracts to concrete kernel/runtime/driver machine code. C, Rust, assembly and
+other implementation languages feed the same binary verifier. This can
+incrementally replace contract assumptions with checked implementation results;
+kernel execution additionally requires the privileged architecture profile.
+
 ## What the OS contributes
 
 A program's arithmetic can be correct while its result is wrong because a

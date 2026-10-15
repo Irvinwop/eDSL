@@ -12,19 +12,26 @@ The implementation and proof language is **Lean 4**. C/C++, LLVM IR, and
 assembly are the languages being modeled and generated. Native fixtures and
 necessary runtime shims can use C/C++/assembly.
 
+Repository visibility is **private** during development. Security findings stay
+in the private [findings queue](findings/README.md) until a reporting decision.
+
 ## What the eventual guarantee means
 
-Given a source program, specification, compiler configuration, final executable
-bytes, and platform profile, produce a Lean-checked proof that every admitted
+Given an independent specification, final executable bytes, build identity,
+and platform profile, produce a Lean-checked proof that every admitted
 execution satisfies the specification, under its explicit input and environment
 assumptions. Termination and progress require their own proofs and scheduler
 assumptions. Unsupported code, invalid certificates, and timeouts are reported;
 they do not count as proofs.
 
-The main strategy is **translation validation**: the compiler produces candidate
-code, and we check a proof about that output. We can also prove small lowering
-passes correct in Lean. Neither strategy makes an arbitrary Linux kernel,
-physical CPU, library, or dynamic loader verified by assumption. Their contracts
+The main strategy is **direct binary verification**: any supported source
+language/compiler produces candidate code, and Lean checks that the final bytes
+meet the specification. One machine-code semantics serves those inputs.
+Source/IR semantics and translation validation add optional source-preservation
+guarantees; they are not prerequisites for a direct binary-property theorem.
+We can also prove small lowering passes correct in Lean. These routes do not
+make an arbitrary Linux kernel, physical CPU, library, or dynamic loader
+verified by assumption. Their contracts
 and remaining trust must appear in the result.
 
 ## Current status
@@ -48,10 +55,13 @@ The actual language eDSLs, validators, and OS/architecture models are planned.
 | --- | --- |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
+| [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |
 | [Verification](docs/verification.md) | What exact theorem connects the source to final executable bytes? |
 | [Language domains](docs/languages.md) | What semantics do GNU C23, GNU C++26, LLVM IR, and assembly each need? |
 | [OS semantics](docs/os-semantics.md) | Which OS facilities matter, and what must be proved or assumed about them? |
 | [Platform model](docs/platform-model.md) | How do ISA, ABI, memory, loader, libraries, and kernel compose? |
+| [OS implementation proofs](docs/os-implementation.md) | How can source/IR/assembly inputs discharge concrete OS contracts? |
+| [Findings and reporting](docs/findings.md) | How do checked defects enter a private reporting queue? |
 | [Costs and lower bounds](docs/cost-model.md) | When can we prove operation counts or optimality? |
 | [Trust and evidence](docs/trust.md) | What is currently trusted, checked, assumed, or outside the claim? |
 | [Reuse assessment](docs/research-map.md) | Which existing projects should be evaluated before building new machinery? |

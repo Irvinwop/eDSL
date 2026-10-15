@@ -8,13 +8,15 @@ ordered by proof dependencies. There are no completion-date promises.
 
 - Lean 4 is the implementation/proof/embedding language.
 - OS behavior is a first-class semantic domain across every language layer.
-- Existing compilers are untrusted producers; artifact-specific translation
-  validation is the main integration path. Proved Lean lowerings complement it.
+- Existing compilers are untrusted producers. Direct binary verification is the
+  main path; source/IR translation validation adds an optional stronger guarantee.
 - Start with x86-64 userspace and a restricted Linux/System V/ELF profile.
 - Begin with a small function before process loading, memory and concurrency.
 - Report physical-platform and OS conformance assumptions explicitly.
 - Use explicit cost models and restricted candidate classes for lower bounds.
 - Apache-2.0 plus NOTICE/citation metadata; DCO 1.1 for contributions.
+- Keep the repository and findings private during development. Validate concrete
+  OS implementation components to discharge contracts incrementally.
 
 ## Dependency graph
 
@@ -29,8 +31,12 @@ flowchart LR
     M2 --> M7[7 LLVM and richer languages]
     M2 --> M9[9 Cost proofs]
     M6 --> M8[8 Wider OS and linking]
-    M7 --> M8
-    M8 --> M10[10 More targets and less trust]
+    M7 -. optional preservation .-> M8
+    M2 --> K[Kernel component and privileged ISA track]
+    M4 --> K
+    M6 -. concurrency support .-> K
+    K --> M10[10 More targets and less trust]
+    M8 --> M10
 ```
 
 ### 0. Foundation — current repository
@@ -59,13 +65,14 @@ exercise the interfaces; no circular correctness-by-checker-definition.
 ### 2. First real artifact: a restricted function
 
 Choose a loop-free unsigned fixed-width function specification with edge cases.
-Implement a small Lean source eDSL and semantics, generate a restricted GNU C23
-and GNU C++26 common subset, and bind the emitted text to that model. Select a
-small x86-64 instruction subset, prove exact-byte decoding and instruction
-semantics, and state entry/return/register/stack assumptions.
+Select a small x86-64 instruction subset, prove exact-byte decoding and
+instruction semantics, and state entry/return/register/stack assumptions.
+Compile ordinary source in any available language or supply assembly. A formal
+frontend is not needed to prove the resulting binary meets the independent
+function specification. Use source/IR annotations as untrusted proof hints.
 
 Invoke a pinned compiler/configuration, ingest its exact function bytes, and
-produce a checked proof/certificate relating those bytes to the source.
+produce a checked proof/certificate relating those bytes to the specification.
 Handle all admitted inputs, including wraparound. Initially reject memory,
 foreign calls, exceptions, unsupported instructions and unknown control flow.
 
@@ -92,8 +99,9 @@ provenance relations, allocation/mapping failures and cleanup. Prove supported
 calls/returns and loop invariants/variants. Introduce reusable ownership rules
 only with their soundness connection to the operational semantics.
 
-Exit: a buffer/loop program has source definedness, target memory safety,
-functional correctness and explicit termination/resource bounds. Native fault
+Exit: a buffer/loop binary has target memory safety, functional correctness and
+explicit termination/resource bounds. Add source definedness/preservation only
+when claiming a source-level result. Native fault
 injection and differential runs supplement these proofs.
 
 ### 5. First concurrency slice
@@ -122,12 +130,13 @@ Exit: independently specified publication and blocking protocols have appropriat
 all-execution proofs/model correspondence, with rejected invalid memory orders
 and unsupported guarantees. Safety and liveness claims remain distinct.
 
-### 7. LLVM and broader language coverage
+### 7. Optional LLVM/source guarantees and richer proof hints
 
 Pin LLVM semantics and implement supported SSA, memory, UB/poison and atomic
 constructs. Prove/check source→LLVM, LLVM→LLVM and LLVM→machine relations
-separately. Add loops, calls, optimization invariants and vectorization only with
-corresponding certificates and semantics.
+separately when those preservation claims are requested. Direct machine-code
+proofs remain usable without these layers. Add corresponding machine semantics
+and certificates for loops, calls, transformed control flow and vectorization.
 
 Grow GNU C23 and GNU C++26 feature ledgers incrementally. C++ elaboration,
 classes, exceptions, templates, standard libraries, modules and coroutines are
@@ -165,6 +174,11 @@ an attaining witness. See [cost model](cost-model.md).
 Add architectures/OS adapters only with explicit models and capability tables.
 Verify concrete runtime/library implementations, improve proof certificates and
 checkers, and investigate a verified-kernel platform as a separate route.
+In parallel, [ingest concrete OS builds](os-implementation.md) and prove selected
+kernel/runtime/driver components implement their contracts at machine level.
+Compose those proofs to remove specific OS assumptions. Record checked failures
+in the [private findings workflow](findings.md), with no promotion of timeout or
+unsupported analysis into a vulnerability claim.
 Do not transplant a seL4 theorem onto Linux. Address JIT/self-modifying code,
 security/noninterference and detailed time only as separately scoped projects.
 

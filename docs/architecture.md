@@ -10,6 +10,11 @@ checking, and composition. The host is Lean; GNU C23, GNU C++26, LLVM IR,
 assembly, and OS operations are represented domains. Constructing a Lean term
 for thread creation does not create a host thread.
 
+The primary route is [direct binary verification](binary-first.md). Compiler
+outputs from C, C++, Rust, or other languages share the selected machine-code
+semantics. Full frontend semantics are optional for that route and are required
+only for claims that also establish source-language preservation.
+
 Keep independently defined specifications and semantics separate from the
 program generator and the certificate format. A checker soundness theorem must
 connect acceptance to those semantics; defining correctness as acceptance
@@ -17,12 +22,12 @@ would leave the central obligation unproved.
 
 ```mermaid
 flowchart TD
-    Q[Specification and assumptions in Lean] --> S[Typed language eDSL and source proof]
-    S --> E[Emitted source / IR]
-    E --> C[Untrusted compiler, assembler, linker]
+    E[Source / IR / assembly in supported build] --> C[Untrusted compiler, assembler, linker]
     C --> B[Exact final executable bytes]
-    B --> V[Lean proof / sound certificate checker]
-    S --> V
+    B --> D[Checked decoding and machine semantics]
+    D --> V[Lean proof / sound certificate checker]
+    Q[Independent specification and assumptions in Lean] --> V
+    S[Optional source / IR semantics] -. refinement proof .-> V
     P[ISA, ABI, loader, runtime, OS contracts] --> V
     V --> T[Artifact-specific theorem and assumption report]
     U[Untrusted search, SMT, synthesis, disassembly hints] --> V
@@ -93,6 +98,13 @@ actual relevant implementation is verified against them.
 A proof under a Linux contract is not a proof of Linux. A hardware model is not
 a physical CPU validation. The [platform plan](platform-model.md) and
 [trust ledger](trust.md) keep these boundaries explicit.
+
+The [OS implementation track](os-implementation.md) targets concrete kernel,
+runtime, and driver components as machine code. Each checked implementation
+theorem can discharge a matching OS contract after a composition proof. Kernel
+execution needs a separate privileged-mode profile with interrupts, page tables,
+and relevant device behavior. Source or LLVM IR can help construct the proof;
+the final implementation claim remains bound to the deployed bytes.
 
 ## Interface policy
 

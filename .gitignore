@@ -1,5 +1,7 @@
 /build/
 /.lake/
+/artifacts/
+/findings/private/
 /build-*/
 /out/
 /CMakeUserPresets.json
