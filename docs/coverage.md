@@ -668,7 +668,7 @@ paths and raw errors. See [the complete contract](process-write.md).
 ## Reproduce
 
 ```sh
-lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker
+lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
@@ -697,6 +697,11 @@ lake env lean -DwarningAsError=true tests/StoreBuffer.lean
 lake env lean -DwarningAsError=true tests/TSO.lean
 lake env lean -DwarningAsError=true tests/MutexTSO.lean
 lake env lean -DwarningAsError=true tests/Suspend.lean
+lake env lean -DwarningAsError=true tests/FutexResources.lean
+lake env lean -DwarningAsError=true tests/FutexStubs.lean
+lake env lean -DwarningAsError=true tests/FutexService.lean
+lake env lean -DwarningAsError=true tests/FutexPhysical.lean
+lake env lean -DwarningAsError=true tests/FutexAdmission.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
@@ -706,6 +711,7 @@ bash scripts/verify-fetch-add.sh
 bash scripts/verify-counter-workers.sh
 bash scripts/verify-mutex.sh
 bash scripts/verify-mutex-workers.sh
+bash scripts/verify-futex.sh
 ```
 
 Integration needs Linux/x86-64, Clang accepting the named modes, GCC, binutils
@@ -724,9 +730,33 @@ lake exe edsl-certify-counter WORKER.bin artifacts/CounterRaw.lean
 lake exe edsl-certify-counter --elf WORKER.elf artifacts/CounterELF.lean
 lake exe edsl-certify-mutex-worker WORKER.bin artifacts/MutexRaw.lean
 lake exe edsl-certify-mutex-worker --elf WORKER.elf artifacts/MutexELF.lean
+lake exe edsl-certify-futex wait WAIT.bin artifacts/FutexWait.lean
+lake exe edsl-certify-futex --elf wake-one WAKE.elf artifacts/FutexWakeELF.lean
 ```
 
 The two-argument form retains the default `increment` profile. Exit 0 means the
 emitted certificate checked; exit 3 means unsupported, not a defect verdict;
 other nonzero results are failures to certify. Use the successful check result
 and exact bytes, not the existence/name of an older certificate file.
+
+## Private futex adapter
+
+`OS.Futex` binds actual suspended requests to fresh mutable-word pins and a
+one-word WAIT_PRIVATE/null-timeout/WAKE_PRIVATE/1 service. Current-word comparison
+and enqueue are atomic service actions; every eligible wake choice, internal
+retry, spurious readiness and typed resumption have checked contracts. Capture
+checks the configured complete lower-userspace interval and non-executable W.
+Accepted mixed physical/service prefixes preserve actual call/queue/pin
+invariants, full physical/resource RAM equality, managed histories and existing
+code/stack loan bytes. Cleanup waits for actual RETs and empty FIFOs and preserves
+unlisted records and all identity frontiers.
+
+Exact raw/full-ELF stub certificates separately prove the userspace ABI and
+conditional current-RAM RET. Native-linked bytes are compared with the certified
+stubs; raw EINVAL/EFAULT observations have no implemented bad-input service
+counterpart. The model's tests use actual captured calls and peer machine effects.
+Physical replay can explicitly reject executable effects without sufficient
+managed authority. General preserved client admission deriving replay enabledness
+for every physical prefix, FIFO authority at enqueue, protected completion and a
+trace-wide no-lost-wake theorem remain further work. No kernel refinement,
+payload acquisition or universal progress is claimed. See [precise scope](futex.md).

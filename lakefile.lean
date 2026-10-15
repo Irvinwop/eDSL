@@ -18,3 +18,6 @@ lean_exe «edsl-certify-counter» where
 
 lean_exe «edsl-certify-mutex-worker» where
   root := `MutexWorkerMain
+
+lean_exe «edsl-certify-futex» where
+  root := `FutexMain

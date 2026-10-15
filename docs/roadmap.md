@@ -353,12 +353,16 @@ traces remain admitted. The first profile requires an empty caller FIFO and
 does not infer a physical SYSCALL flush. Existing synchronous return contracts
 retain their meaning. See [syscall scope](concurrent-syscalls.md).
 
-Next, bind a service relation to suspended invocations and explicit live
-resources. A restricted private futex wait/wake profile must specify atomic
-compare/enqueue, mutable-word lifetime, nondeterministic wake selection,
-spurious completion and actual request/return values. Native kernel/runtime
-correspondence remains external until separately proved; generic resumption
-alone does not establish any futex result or blocking mutex.
+The first private futex service now binds actual suspended invocations to live
+mutable-word pins, atomic compare/enqueue, arbitrary eligible wake selection,
+retry/spurious readiness and typed current-RAM resumption. Accepted mixed traces
+retain full resource/physical RAM equality, call/queue invariants and existing
+loans. Exact WAIT/WAKE1 stub certificates, actual finite cohort witnesses and
+quiescent cleanup are implemented. Next derive effect authority and protected
+completion for every physical interleaving of admitted concrete clients, then
+prove a trace-wide no-lost-wake contract excluding buffered resets. Native
+kernel/runtime correspondence and a blocking-mutex acquisition contract remain
+separate work. See [the exact current scope](futex.md).
 
 Add multiple-lock registration
 and resource composition explicitly before claiming interoperability with the

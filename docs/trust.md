@@ -386,3 +386,18 @@ can discharge particular kernel/runtime contracts, including the required
 caller/interference and hardware assumptions. A failed proof is not evidence
 of unsafe code: use the [findings workflow](findings.md) to distinguish missing
 analysis support from a checked violation of a justified property.
+
+The [private futex adapter](futex.md) adds actual-call pins and an explicit
+abstract compare/enqueue/wake/retry/spurious service over current RAM. Accepted
+adapter traces retain full managed/physical memory equality and initial loans;
+these are Lean model safety proofs, not native enforcement of allocation lifetime.
+Capture checks the configured complete lower-userspace interval and excludes
+executable W. The interval's correspondence to deployed Linux access checks,
+private-key resolution and kernel linearization remain target obligations.
+
+The standalone exact-byte certificate proves request invocation and conditional
+current-RAM RET; it does not certify service completion or protected arbitrary
+clients. General coverage of every physical interleaving, a preserved FIFO
+resource-authorization admission predicate, and a broad no-lost-wake theorem are
+not implemented. Native fault cases and separately recorded positive/inconclusive
+wake observations remain empirical evidence, not kernel proofs or progress claims.

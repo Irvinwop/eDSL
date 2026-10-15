@@ -116,6 +116,8 @@ The generic wrapper does not carry an ownership or borrowing world and does
 not authenticate arbitrary peer stores against one. Existing mutex/resource
 proofs retain their own contracts. Composing a service with live resource pins,
 mutable wait words, code/stack loans and authorized peer effects requires an
-explicit service/resource relation. Private futex wait/wake, queue admission,
-spurious completion, signals/restart, timeouts, cancellation and kernel
+explicit service/resource relation. The separate [private futex adapter](futex.md)
+now supplies actual-call pins, compare/enqueue, eligible wake, spurious readiness,
+typed resumption and full-RAM coupling for accepted adapter traces. General
+physical-client coverage, signals/restart, timeouts, cancellation and kernel
 linearization remain further work.

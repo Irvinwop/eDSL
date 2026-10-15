@@ -74,6 +74,10 @@ Implemented and checked:
 - Concurrent syscall suspension with fresh invocation IDs, current-memory
   return contracts, peer-state preservation and proved rejection of reused IDs.
   See [concurrent syscall boundaries](docs/concurrent-syscalls.md).
+- A one-word private futex service with actual syscall capture, mutable-word
+  pins, current-RAM comparison, eligible wake selection, typed resumption and
+  checked quiescent cleanup. Exact WAIT/WAKE1 stub certificates and owned native
+  observations have separate contracts. See [scope and remaining proofs](docs/futex.md).
 - A counted assembly loop with a proved invariant and termination for every
   64-bit count, modular arithmetic result and exact `2*count+3` user-instruction cost.
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
@@ -128,6 +132,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Complete mutex worker execution](docs/mutex-workers.md) | How do arbitrary admitted architectural interleavings preserve OS contracts and admit completion? |
 | [Buffered x86 execution](docs/store-buffers.md) | How do delayed stores, forwarding and locked operations differ from immediate visibility? |
 | [Concurrent syscall boundaries](docs/concurrent-syscalls.md) | How do pending calls retain peer memory changes and consume invocation IDs once? |
+| [Private futex service](docs/futex.md) | How do actual requests, mutable-word lifetime, queue eligibility and current RAM compose? |
 | [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
 | [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
 | [Stream output and exit](docs/process-write.md) | How do short writes and errors compose with the next userspace instructions? |
@@ -171,7 +176,7 @@ separate research work.
 Install [elan](https://github.com/leanprover/elan), then run:
 
 ```sh
-lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker
+lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
@@ -200,6 +205,11 @@ lake env lean -DwarningAsError=true tests/StoreBuffer.lean
 lake env lean -DwarningAsError=true tests/TSO.lean
 lake env lean -DwarningAsError=true tests/MutexTSO.lean
 lake env lean -DwarningAsError=true tests/Suspend.lean
+lake env lean -DwarningAsError=true tests/FutexResources.lean
+lake env lean -DwarningAsError=true tests/FutexStubs.lean
+lake env lean -DwarningAsError=true tests/FutexService.lean
+lake env lean -DwarningAsError=true tests/FutexPhysical.lean
+lake env lean -DwarningAsError=true tests/FutexAdmission.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
@@ -209,6 +219,7 @@ bash scripts/verify-fetch-add.sh
 bash scripts/verify-counter-workers.sh
 bash scripts/verify-mutex.sh
 bash scripts/verify-mutex-workers.sh
+bash scripts/verify-futex.sh
 ```
 
 `lean-toolchain` pins Lean 4.35.0. The library currently needs no third-party
