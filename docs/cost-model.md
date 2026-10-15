@@ -1,8 +1,9 @@
 # Costs, minimum operations, and optimality
 
 Status: checked instruction counts and restricted lower bounds, plus a plan for
-richer costs. The x86-64 profile proves two-instruction function results and a
-three-instruction first-syscall result. Matching lower bounds apply to specified
+richer costs. The x86-64 profile proves two-instruction function results, a
+three-instruction first-syscall result and a counted loop's `2*count+3` cost.
+Matching lower bounds apply to specified
 initial-register cases within the supported ISA; see [coverage](coverage.md) and
 the [process exit contract](process-exit.md). The original
 [abstract example](../EDSL/Examples/Increment.lean) is retained. No complete-ISA
@@ -86,6 +87,7 @@ execution, kernel cleanup and waiting are outside these counts.
 | `Exit42.reaches_request`: exactly three instructions | Its twelve checked entry bytes, every modeled initial register/flags state and admitted code mapping |
 | `Exit42.zero_register_lower_bound`: at least three instructions | Every supported first-syscall execution from initial RAX = RDI = 0 requesting raw exit60 with status42 |
 | `Process.viaWrite_results`: exactly eight user instructions | Every completed bounded stream-write/exit execution for its checked bytes, including partial/error returns; excludes kernel and waiting steps |
+| `IncrementLoop.actual_bytes_correct`: exactly `2*count+3` | Every 64-bit initial RCX count and modular input value, admitted executable bytes and return stack; induction proves termination, including zero count |
 
 The process lower bound is an independent argument about the candidate class:
 each supported ordinary step preserves at least one of RAX and RDI, and the
@@ -115,8 +117,8 @@ illustrates the quantifiers independently of the x86 results.
 1. Extend the existing instruction counts with execution events carrying
    nonnegative costs, path composition, finite and infinite-run accounting,
    and lemmas for sequential composition and loops.
-2. Extend exact function/first-syscall bounds to calls, branches and loops,
-   keeping the counting boundary and admitted environment explicit.
+2. Extend the checked counted-loop proof to calls, more branch conditions and
+   memory loops, keeping the counting boundary and admitted environment explicit.
 3. Implement a restricted straight-line candidate grammar and prove search
    coverage for a finite size bound. An untrusted synthesizer can suggest a
    candidate; Lean checks semantics and the absence of cheaper candidates.

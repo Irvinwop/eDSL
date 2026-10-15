@@ -1,7 +1,8 @@
 # Implemented coverage and remaining trust
 
 Three exact compiler-output profiles verify unsigned 32-bit increment, load and
-store functions; standalone ELF profiles reach exit42 directly or across a bounded
+store functions. A counted assembly-loop profile adds modular increment by every
+64-bit count and proved termination. Standalone ELF profiles reach exit42 directly or across a bounded
 stream write and compose with explicit OS contracts. These are narrow slices,
 not a general binary verifier, complete ISA, source frontend, Linux implementation
 or verified OS.
@@ -23,6 +24,10 @@ or verified OS.
   canonical return address, advancing RSP by eight and preserving other state.
 - `B8/BA/BE/BF id`: MOV EAX/EDX/ESI/EDI immediate32, zero-extended into the full
   register with flags/memory preserved. Other immediate-register forms reject.
+- `89 f8`: MOV EAX, EDI; `8d 40 ib`: LEA EAX, [RAX + signed disp8].
+- `e3 cb` / `e2 cb`: JRCXZ / LOOP rel8, signed offsets from the next instruction,
+  full RCX and no flag changes. Taken noncanonical branch targets reject. Prefixes
+  and other loop/condition forms remain unsupported.
 - `0F 05`: a pre-privileged userspace syscall request boundary. ABI projections
   expose low32 RAX and RDI/RSI/RDX/R10/R8/R9 arguments; no privileged entry,
   RCX/R11 effects, SYSRET or kernel instructions are modeled.
@@ -62,8 +67,8 @@ terminating execution. The supported machine is deterministic and sequential.
 | `load32` | `8b 07 c3` | Four-byte little-endian value at RDI, zero-extended into RAX |
 | `store32` | `89 37 c3` | Low 32 RSI bits stored little-endian at RDI |
 
-Every profile returns in exactly two modeled instructions, has no infinite
-next-step execution, and has a unique completed result/count. RSP advances by
+These three profiles return in exactly two modeled instructions, have no infinite
+next-step execution, and have a unique completed result/count. RSP advances by
 eight and RIP becomes the stack return address. Modeled flags and unrelated
 registers are preserved. Increment/load preserve all memory; store preserves
 permissions and bytes outside its four-byte footprint, with a readback theorem.
@@ -89,6 +94,27 @@ Named proof entry points:
 supported instruction subset that changes RAX needs at least two instructions.
 The increment fixture attains the bound for zero input/initial RAX. This is an
 instruction-subset bound, not an all-x86 or CPU-time optimum.
+
+## Counted loop
+
+`increment-loop` checks `89 f8 e3 05 8d 40 01 e2 fb c3`. It returns the low32
+RDI value plus the initial full RCX count modulo 2³². RCX becomes zero, RAX is
+zero-extended, RSP advances by eight and RIP becomes the stack return address;
+other registers, flags and memory are preserved. Its user-instruction count is
+exactly `2*initial_RCX.toNat+3`, including RET and the zero guard.
+
+`IncrementLoop.loop_executes` proves the invariant and decreasing natural
+remaining-count variant by induction for every 64-bit count, without unrolling.
+`actual_bytes_correct` and `terminates_and_all_results_match` compose the entry
+instructions, prove finite execution, unique result/count and no ordinary-step
+divergence. As for the other functions, code binding, readable return stack and
+canonical return target remain explicit. Satisfiable states cover every value/count.
+
+Both raw and complete ELF certificates are supported. The fixture is owned
+assembly assembled by Clang/GCC; no C/C++ source-preservation claim is made.
+Native observations cover bounded counts; the theorem covers all counts. No
+timing/optimality, general loop inference, memory-lifetime or concurrency theorem
+is implied. See [control flow and exact scope](control-flow.md).
 
 ## Abstract OS address-space contracts
 
@@ -229,10 +255,12 @@ lake env lean -DwarningAsError=true tests/WordStore.lean
 lake env lean -DwarningAsError=true tests/ELF.lean
 lake env lean -DwarningAsError=true tests/Process.lean
 lake env lean -DwarningAsError=true tests/Write.lean
+lake env lean -DwarningAsError=true tests/ControlFlow.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
 bash scripts/verify-process.sh
+bash scripts/verify-loops.sh
 ```
 
 Integration needs Linux/x86-64, Clang accepting the named modes, GCC, binutils
@@ -243,6 +271,7 @@ lake exe edsl-certify increment FUNCTION.bin artifacts/Increment.lean
 lake exe edsl-certify load32 FUNCTION.bin artifacts/Load.lean
 lake exe edsl-certify store32 FUNCTION.bin artifacts/Store.lean
 lake exe edsl-certify --elf increment FUNCTION.elf artifacts/ELF.lean
+lake exe edsl-certify --elf increment-loop FUNCTION.elf artifacts/ELFLoop.lean
 lake exe edsl-certify-process PROCESS.elf artifacts/Process.lean
 lake exe edsl-certify-process write-exit42 PROCESS.elf artifacts/WriteProcess.lean
 ```

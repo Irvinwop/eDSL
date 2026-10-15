@@ -103,6 +103,12 @@ theorem syscall_uses_user_state {initial : State} {request : SyscallRequest}
   | ok instruction =>
     cases instruction with
     | leaEaxRdiDisp8 displacement => simp [step, decoded] at transition
+    | leaEaxRaxDisp8 displacement => simp [step, decoded] at transition
+    | movEaxEdi => simp [step, decoded] at transition
+    | jrcxz displacement =>
+      cases jumped : executeJrcxz initial displacement <;> simp [step, decoded, jumped] at transition
+    | loopRcx displacement =>
+      cases jumped : executeLoop initial displacement <;> simp [step, decoded, jumped] at transition
     | mov32 destination value => simp [step, decoded] at transition
     | loadEaxRdi => cases loaded : executeLoad initial <;> simp [step, decoded, loaded] at transition
     | storeEsiRdi => cases stored : executeStore initial <;> simp [step, decoded, stored] at transition
@@ -126,6 +132,29 @@ theorem next_preserves_rax_or_rdi {initial middle : State}
       simp [step, decoded] at transition
       cases transition
       exact Or.inr (by simp [executeLea, State.writeRegister])
+    | leaEaxRaxDisp8 displacement =>
+      simp [step, decoded] at transition
+      cases transition
+      exact Or.inr (by simp [executeLeaRax, State.writeRegister])
+    | movEaxEdi =>
+      simp [step, decoded] at transition
+      cases transition
+      exact Or.inr (by simp [executeMovEaxEdi, State.writeRegister])
+    | jrcxz displacement =>
+      cases jumped : executeJrcxz initial displacement with
+      | error error => simp [step, decoded, jumped] at transition
+      | ok result =>
+        simp [step, decoded, jumped] at transition
+        cases transition
+        exact Or.inl (congrFun (executeShortBranch_registers jumped) .rax)
+    | loopRcx displacement =>
+      cases jumped : executeLoop initial displacement with
+      | error error => simp [step, decoded, jumped] at transition
+      | ok result =>
+        simp [step, decoded, jumped] at transition
+        cases transition
+        have registers := congrFun (executeShortBranch_registers jumped) .rax
+        exact Or.inl (by simpa [State.writeRegister] using registers)
     | mov32 destination value =>
       simp [step, decoded] at transition
       cases transition

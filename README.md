@@ -46,6 +46,8 @@ Implemented and checked:
   unbounded execution relation with evaluator soundness and completeness.
 - All-input theorems for actual Clang/GCC increment, 32-bit load and 32-bit store
   bytes, including register/memory framing, return behavior and termination.
+- A counted assembly loop with a proved invariant and termination for every
+  64-bit count, modular arithmetic result and exact `2*count+3` user-instruction cost.
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
   read-after-write and disjoint code/stack preservation proofs.
 - A sequential OS address-space model with checked mapping, protection and
@@ -65,11 +67,11 @@ Implemented and checked:
 - Transitive axiom auditing, including generated certificates.
 - Optional native GNU23/GNU++26 compiler probes retained from the bootstrap.
 
-The function certifier accepts three exact profiles, each returning in two modeled
-instructions. The process certifier accepts exit42 (three user instructions) and
-write-exit42 (eight across a completed write). Other correct encodings remain
-unsupported. Linux loader/kernel refinement, broader syscalls, concurrency and general source
-eDSLs/validators remain planned. See the precise
+The function certifier accepts three two-instruction profiles and the counted
+`increment-loop` profile. The process certifier accepts exit42 (three user
+instructions) and write-exit42 (eight across a completed write). Other correct
+encodings remain unsupported. Linux loader/kernel refinement, broader syscalls,
+concurrency and general source eDSLs/validators remain planned. See the precise
 [implemented coverage and trust boundary](docs/coverage.md).
 
 ## Read the plan
@@ -81,6 +83,7 @@ eDSLs/validators remain planned. See the precise
 | [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
 | [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
 | [Stream output and exit](docs/process-write.md) | How do short writes and errors compose with the next userspace instructions? |
+| [Counted control flow](docs/control-flow.md) | How are a backward branch, loop invariant, termination and input-dependent cost proved? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |
@@ -95,9 +98,10 @@ eDSLs/validators remain planned. See the precise
 | [Reuse assessment](docs/research-map.md) | Which existing projects should be evaluated before building new machinery? |
 
 Start with the roadmap, then the OS and platform documents. Restricted x86-64
-functions and bounded stream-write/exit entries are checked; next come richer
-owned memory, control flow and a thread/atomic workload. General GNU C++26
-ingestion and a fully verified Linux kernel are substantial separate research work.
+functions, a counted loop and bounded stream-write/exit entries are checked;
+next come memory ownership/lifetimes, richer control flow and a thread/atomic
+workload. General GNU C++26 ingestion and a fully verified Linux kernel are
+substantial separate research work.
 
 ## Build
 
@@ -113,10 +117,12 @@ lake env lean -DwarningAsError=true tests/WordStore.lean
 lake env lean -DwarningAsError=true tests/ELF.lean
 lake env lean -DwarningAsError=true tests/Process.lean
 lake env lean -DwarningAsError=true tests/Write.lean
+lake env lean -DwarningAsError=true tests/ControlFlow.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
 bash scripts/verify-process.sh
+bash scripts/verify-loops.sh
 ```
 
 `lean-toolchain` pins Lean 4.35.0. The library currently needs no third-party

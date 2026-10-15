@@ -24,6 +24,27 @@ static int check_increment(void *mapping)
     return 0;
 }
 
+static int check_increment_loop(void *mapping)
+{
+    uint64_t (*function)(uint64_t, uint64_t, uint64_t, uint64_t) =
+        (uint64_t (*)(uint64_t, uint64_t, uint64_t, uint64_t))mapping;
+    static const struct { uint64_t input, count, output; } cases[] = {
+        {0xdeadbeefffffffffull, 0, 0xffffffffull},
+        {0x12345678ffffffffull, 1, 0},
+        {0xfffffffeull, 2, 0},
+        {0xffffff00ull, 257, 1},
+        {0x7fffffffull, 1, 0x80000000ull},
+        {0xffffffffull, 65537, 65536},
+    };
+    for (size_t i = 0; i < sizeof cases / sizeof cases[0]; ++i) {
+        if (function(cases[i].input, 0xbad, 0xfaded, cases[i].count) != cases[i].output) {
+            fprintf(stderr, "native counted increment mismatch at case %zu\n", i);
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static int check_memory(void *mapping, int store, size_t page_size)
 {
     unsigned char *data = mmap(NULL, page_size, PROT_READ | PROT_WRITE,
@@ -82,11 +103,12 @@ int main(int argc, char **argv)
 {
     const char *profile = argc == 3 ? argv[1] : "increment";
     if ((argc != 2 && argc != 3) ||
-        (strcmp(profile, "increment") != 0 && strcmp(profile, "load32") != 0 &&
+        (strcmp(profile, "increment") != 0 && strcmp(profile, "increment-loop") != 0 && strcmp(profile, "load32") != 0 &&
          strcmp(profile, "store32") != 0))
         return 2;
-    int memory_profile = strcmp(profile, "increment") != 0;
-    size_t expected_size = memory_profile ? 3 : 4;
+    int memory_profile = strcmp(profile, "load32") == 0 || strcmp(profile, "store32") == 0;
+    int loop_profile = strcmp(profile, "increment-loop") == 0;
+    size_t expected_size = memory_profile ? 3 : loop_profile ? 10 : 4;
     FILE *file = fopen(argv[argc - 1], "rb");
     if (!file)
         return 2;
@@ -111,7 +133,7 @@ int main(int argc, char **argv)
     }
     int result = memory_profile
         ? check_memory(mapping, strcmp(profile, "store32") == 0, (size_t)page_size)
-        : check_increment(mapping);
+        : loop_profile ? check_increment_loop(mapping) : check_increment(mapping);
     if (munmap(mapping, (size_t)page_size) != 0)
         return 2;
     return result;

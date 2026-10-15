@@ -13,6 +13,16 @@ and the original toy example. See [coverage](coverage.md) for assumptions and
 supported encodings. These results do not prove the model's conformance to
 physical hardware, source-language preservation or a complete OS implementation.
 
+The counted assembly-loop profile additionally proves a loop invariant,
+termination and exact `2*initial_RCX+3` instruction cost for every 64-bit count.
+It preserves memory/flags and retains executable-code/return-stack hypotheses.
+Its LOOP/JRCXZ semantics uses full RCX, signed relative offsets and taken-target
+canonicality checks; prefixes and other loop forms reject. This remains a
+sequential userspace result, without environmental scheduling or timing claims.
+Native bounded-count observations supplement the all-count theorem. The owned
+assembly artifact is not evidence of C/C++ loop-lowering preservation. See
+[control-flow scope](control-flow.md).
+
 The abstract sequential address-space contract is projected into machine memory,
 with checked protection/binary-load composition. It does not verify Linux syscall
 bytes, page-table updates, resource exhaustion or concurrent permission changes.

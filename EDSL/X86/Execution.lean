@@ -98,6 +98,12 @@ theorem returned_preserves_rax {initial final : State}
   | ok instruction =>
     cases instruction with
     | leaEaxRdiDisp8 displacement => simp [step, decoded] at transition
+    | leaEaxRaxDisp8 displacement => simp [step, decoded] at transition
+    | movEaxEdi => simp [step, decoded] at transition
+    | jrcxz displacement =>
+      cases jumped : executeJrcxz initial displacement <;> simp [step, decoded, jumped] at transition
+    | loopRcx displacement =>
+      cases jumped : executeLoop initial displacement <;> simp [step, decoded, jumped] at transition
     | loadEaxRdi =>
       cases loaded : executeLoad initial <;> simp [step, decoded, loaded] at transition
     | storeEsiRdi =>

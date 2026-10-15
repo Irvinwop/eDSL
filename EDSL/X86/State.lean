@@ -44,6 +44,7 @@ inductive Error where
   | inaccessibleData (address : Word)
   | writeDenied (address : Word)
   | noncanonicalReturn (address : Word)
+  | noncanonicalBranch (address : Word)
   | syscallBoundary
   | unexpectedReturn
   | exhaustedFuel

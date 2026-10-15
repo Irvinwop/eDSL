@@ -78,7 +78,8 @@ remaining artifact/physical-conformance assumptions are in [coverage](coverage.m
 The memory extension also checks `8b 07 c3` (32-bit load) and `89 37 c3`
 (32-bit store), each from Clang C/C++ and GCC C. Permission, little-endian value,
 outside-footprint framing, preserved code/return stack and two-step termination
-are proved. General instruction sequences and control flow remain next extensions.
+are proved. The counted assembly increment loop now has all-count correctness,
+termination and exact cost through a backward branch; wider control flow remains ahead.
 
 Choose a loop-free unsigned fixed-width function specification with edge cases.
 Select a small x86-64 instruction subset, prove exact-byte decoding and
@@ -147,7 +148,11 @@ all reachable code/runtime and external contracts accounted for.
 Implemented foundation: sequential four-byte ordinary-RAM reads/writes, explicit
 per-byte mappedness/write permissions, read-after-write, disjoint framing and
 nonvacuous compiler-profile witnesses. This is not yet object ownership, an
-allocator, concurrent atomicity, calls beyond the modeled return, or loop support.
+allocator, concurrent atomicity or calls beyond the modeled return.
+The counted-loop extension now proves modular increment for every 64-bit count
+with a decreasing natural variant and exact `2*count+3` cost, preserving flags
+and memory. Raw/full-ELF certificates cover the owned assembly from Clang/GCC;
+this is not a compiler source-loop preservation theorem. See [control flow](control-flow.md).
 
 The OS/machine memory bridge now proves that checked word stores update natural-
 address OS cells exactly as the machine store updates projected memory. Actual
@@ -155,9 +160,20 @@ compiler store bytes implement that OS update for all admitted values, retaining
 permissions and outside-footprint cells. Physical backing, aliasing and resource
 identity remain future obligations.
 
-Add object lifetimes, permissions, stack/heap regions, layout/alignment,
+The next ownership implementation will retain `AddressSpace.Space` as its byte
+projection and add a separate live-allocation registry. Never-reused allocation
+IDs distinguish remapped addresses; transfer epochs invalidate earlier authority
+even across A→B→A transfer. First support whole-allocation transfer/release and
+owned word stores, lifting the existing checked OS/machine store theorem.
+Required evidence includes stale-ticket rejection after same-address reuse,
+denied cross-allocation stores and preservation of disjoint code/stack state.
+These are proof-level authorities: raw machine pointers contain no epoch, and
+copyable Lean values alone do not form a linear-token logic. Concurrent safety
+will still require an interference model that enforces the resource rules.
+
+Next add object lifetimes, permissions, stack/heap regions, layout/alignment,
 provenance relations, allocation/mapping failures and cleanup. Prove supported
-calls/returns and loop invariants/variants. Introduce reusable ownership rules
+calls/returns and invariants/variants for richer memory loops. Introduce reusable ownership rules
 only with their soundness connection to the operational semantics.
 
 Exit: a buffer/loop binary has target memory safety, functional correctness and
@@ -228,8 +244,9 @@ search or hardware timing from an ISA step count.
 
 Implemented: exact two-instruction increment/load/store counts, the increment
 lower bound for zero input/RAX, and an exact three-instruction first-syscall
-count for exit42. Any supported first-syscall candidate requesting exit60/status42
-from initial RAX = RDI = 0 needs at least three user instructions; the checked
+count for exit42, plus `2*count+3` for the all-count assembly loop. Any supported
+first-syscall candidate requesting exit60/status42 from initial RAX = RDI = 0
+needs at least three user instructions; the checked
 entry attains that bound. These bounds cover the supported ISA and count no
 loading or kernel work. All-x86 optimality and elapsed-time bounds remain out
 of scope.

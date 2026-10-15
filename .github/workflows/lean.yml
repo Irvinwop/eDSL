@@ -41,6 +41,7 @@ jobs:
           lake env lean -DwarningAsError=true tests/ELF.lean
           lake env lean -DwarningAsError=true tests/Process.lean
           lake env lean -DwarningAsError=true tests/Write.lean
+          lake env lean -DwarningAsError=true tests/ControlFlow.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment
@@ -58,11 +59,21 @@ jobs:
         env:
           EDSL_CLANG: clang-18
         run: bash scripts/verify-process.sh
+      - name: Certify counted loops and observe bounded native inputs
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-loops.sh
       - name: Preserve owned fixture certificates and build provenance
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: compiler-fixture-certificates
           path: artifacts/compiler-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned loop certificates and build provenance
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: loop-fixture-certificates
+          path: artifacts/loop-fixtures/
           if-no-files-found: error
       - name: Preserve owned process certificates and build provenance
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

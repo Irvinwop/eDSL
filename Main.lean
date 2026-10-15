@@ -14,7 +14,7 @@ private def parameters (profile : Profile) : String :=
   let stack := "    (stack : readWord initial.memory (initial.registers .rsp) = .ok returnAddress)\n" ++
     "    (returnValid : canonical returnAddress = true) :\n"
   match profile with
-  | .increment => "(initial : State) (returnAddress : Word)\n" ++ code ++ stack
+  | .increment | .incrementLoop => "(initial : State) (returnAddress : Word)\n" ++ code ++ stack
   | .load32 =>
     "(initial : State) (value : BitVec 32) (returnAddress : Word)\n" ++ code ++
     "    (data : loadDWord initial.memory (initial.registers .rdi) = .ok value)\n" ++ stack
@@ -27,6 +27,7 @@ private def parameters (profile : Profile) : String :=
 private def finalExpression (profile : Profile) (state : String := "initial") : String :=
   match profile with
   | .increment => s!"Examples.Compiler.Increment.finalState {state} returnAddress"
+  | .incrementLoop => s!"Examples.Compiler.IncrementLoop.finalState {state} returnAddress"
   | .load32 => s!"Examples.Compiler.MemoryOps.loadFinal {state} value returnAddress"
   | .store32 => s!"Examples.Compiler.MemoryOps.storeFinal {state} returnAddress"
 
@@ -35,6 +36,8 @@ private def proofExpression (profile : Profile) (state : String := "initial")
   match profile with
   | .increment =>
     s!"Certificate.increment_sound observedBytes (by decide) {state} returnAddress {code} stack returnValid"
+  | .incrementLoop =>
+    s!"Certificate.incrementLoop_sound observedBytes (by decide) {state} returnAddress {code} stack returnValid"
   | .load32 =>
     s!"Certificate.load32_sound observedBytes (by decide) {state} value returnAddress {code} data stack returnValid"
   | .store32 =>
@@ -43,18 +46,23 @@ private def proofExpression (profile : Profile) (state : String := "initial")
 private def byteLiterals (bytes : List EDSL.X86.Byte) : String :=
   String.intercalate ", " (bytes.map (fun byte => toString byte.toNat))
 
-private def conclusion (state final : String) : String :=
-  s!"    Executes {state} ({final}) 2 ∧\n" ++
+private def instructionCount (profile : Profile) (state : String) : String :=
+  if profile = .incrementLoop then s!"(Examples.Compiler.IncrementLoop.cost ({state}.registers .rcx).toNat)"
+  else "2"
+
+private def conclusion (profile : Profile) (state final : String) : String :=
+  let count := instructionCount profile state
+  s!"    Executes {state} ({final}) {count} ∧\n" ++
   s!"    ¬ Diverges {state} ∧\n" ++
   s!"    ∀ final count, Executes {state} final count →\n" ++
-  s!"      final = {final} ∧ count = 2"
+  s!"      final = {final} ∧ count = {count}"
 
 private def certificateSource (profile : Profile) (bytes : List EDSL.X86.Byte) : String :=
   "import EDSL.Certificate\nimport EDSL.Audit\n\n" ++
   "namespace EDSL.Generated\nopen X86\n" ++
   s!"def observedBytes : List Byte := [{byteLiterals bytes}]\n\n" ++
   "theorem certified " ++ parameters profile ++
-  conclusion "initial" (finalExpression profile) ++ " :=\n  " ++ proofExpression profile ++ "\n" ++
+  conclusion profile "initial" (finalExpression profile) ++ " :=\n  " ++ proofExpression profile ++ "\n" ++
   "end EDSL.Generated\n\n#audit_edsl\n"
 
 private def elfParameters (profile : Profile) : String :=
@@ -62,7 +70,7 @@ private def elfParameters (profile : Profile) : String :=
     (if profile = .load32 then "(value : BitVec 32) " else "") ++ "(returnAddress : Word)\n" ++
     "    (free : ELF.fresh observedImage prior = true)\n"
   let data := match profile with
-    | .increment => ""
+    | .increment | .incrementLoop => ""
     | .load32 =>
       "    (data : loadDWord (toMemory (loadedSpace prior)) (initial.registers .rdi) = .ok value)\n"
     | .store32 =>
@@ -95,7 +103,7 @@ private def elfCertificateSource (profile : Profile) (file : List EDSL.X86.Byte)
   "  ELF.checked_entry_code observedELF observedImage observedBytes prior checkedEntry\n\n" ++
   "theorem certified " ++ elfParameters profile ++
   "    ELF.load observedELF prior = .ok ⟨observedImage, loadedSpace prior⟩ ∧\n" ++
-  conclusion state (finalExpression profile state) ++ " := by\n" ++
+  conclusion profile state (finalExpression profile state) ++ " := by\n" ++
   "  exact ⟨ELF.load_success observedELF prior observedImage parsedImage free,\n    " ++
   proofExpression profile state "(loadedCode prior)" ++ "⟩\n" ++
   "end EDSL.Generated\n\n#audit_edsl\n"
@@ -134,7 +142,7 @@ private def createSource (request : Request) (bytes : List EDSL.X86.Byte) : IO (
 def main (arguments : List String) : IO UInt32 := do
   let stderr ← IO.getStderr
   let some request := parseArguments arguments | do
-    stderr.putStrLn "usage: edsl-certify [--elf] [increment|load32|store32] FUNCTION CERTIFICATE.lean"
+    stderr.putStrLn "usage: edsl-certify [--elf] [increment|increment-loop|load32|store32] FUNCTION CERTIFICATE.lean"
     return 2
   let raw ← IO.FS.readBinFile request.input
   let bytes := raw.data.toList.map (fun byte => BitVec.ofNat 8 byte.toNat)
@@ -153,5 +161,7 @@ def main (arguments : List String) : IO UInt32 := do
   let stdout ← IO.getStdout
   stdout.putStr checked.stdout
   let artifact := if request.elf then "ELF container" else "raw function"
-  stdout.putStrLn s!"CERTIFIED {request.profile.name}: {raw.size} exact {artifact} bytes; all admitted entries; two modeled instructions; certificate {absolute}"
+  let cost := if request.profile = .incrementLoop then "2*initial_RCX+3 modeled instructions; proved termination for every 64-bit count"
+    else "two modeled instructions"
+  stdout.putStrLn s!"CERTIFIED {request.profile.name}: {raw.size} exact {artifact} bytes; all admitted entries; {cost}; certificate {absolute}"
   return 0

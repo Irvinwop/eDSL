@@ -3,28 +3,32 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.Examples.Compiler.Increment
+import EDSL.Examples.Compiler.IncrementLoop
 import EDSL.Examples.Compiler.MemoryOps
 
 namespace EDSL.Certificate
 open X86 Examples.Compiler
 
 inductive Profile where
-  | increment | load32 | store32
+  | increment | incrementLoop | load32 | store32
   deriving DecidableEq, Repr
 
 def Profile.name : Profile → String
   | .increment => "increment"
+  | .incrementLoop => "increment-loop"
   | .load32 => "load32"
   | .store32 => "store32"
 
 def Profile.parse : String → Option Profile
   | "increment" => some .increment
+  | "increment-loop" => some .incrementLoop
   | "load32" => some .load32
   | "store32" => some .store32
   | _ => none
 
 def Profile.bytes : Profile → List Byte
   | .increment => Increment.bytes
+  | .incrementLoop => IncrementLoop.bytes
   | .load32 => MemoryOps.loadBytes
   | .store32 => MemoryOps.storeBytes
 
@@ -63,6 +67,20 @@ theorem load32_sound (candidate : List Byte) (accepted : accepts .load32 candida
   have equal : candidate = MemoryOps.loadBytes := of_decide_eq_true accepted
   subst candidate
   exact MemoryOps.load_correct initial value returnAddress code data stack returnValid
+
+theorem incrementLoop_sound (candidate : List Byte) (accepted : accepts .incrementLoop candidate = true)
+    (initial : State) (returnAddress : Word)
+    (code : CodeAt initial.memory initial.rip candidate)
+    (stack : readWord initial.memory (initial.registers .rsp) = .ok returnAddress)
+    (returnValid : canonical returnAddress = true) :
+    Executes initial (IncrementLoop.finalState initial returnAddress)
+      (IncrementLoop.cost (initial.registers .rcx).toNat) ∧
+    ¬ Diverges initial ∧ ∀ final count, Executes initial final count →
+      final = IncrementLoop.finalState initial returnAddress ∧
+      count = IncrementLoop.cost (initial.registers .rcx).toNat := by
+  have equal : candidate = IncrementLoop.bytes := of_decide_eq_true accepted
+  subst candidate
+  exact IncrementLoop.terminates_and_all_results_match initial returnAddress code stack returnValid
 
 theorem store32_sound (candidate : List Byte) (accepted : accepts .store32 candidate = true)
     (initial : State) (returnAddress : Word)
