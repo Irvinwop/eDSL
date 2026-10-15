@@ -300,9 +300,15 @@ dispatch refines one full machine step and a protocol history. Supplied finite
 schedules can certify independent final totals, returns and unlocked state.
 Actual byte-bound two-worker regressions exercise an odd intermediate payload,
 one busy retry, wraparound and checked resource collection. See
-[mutex worker replay](mutex-workers.md). This milestone checks its endpoint;
-the generic independent result for every completing schedule, worker-private
-invariant preservation, symbolic completion and enabledness remain next.
+[mutex worker replay](mutex-workers.md). Generic private-control and payload
+preservation now establish the independent +2 result for every successful
+completing supplied schedule, without the endpoint checker. The closed payload
+predicate must be preserved by addition of two; release admission follows from
+the program invariant. Checked cohort creation preserves the invariant and live
+code/stack loan provenance. Replay preserves those records, and completed ready
+cohorts admit collection that revokes exactly their original loan IDs. Exact
+costs are `13*n + 4*busy` user instructions. Symbolic completion, dispatch
+enabledness and coverage of arbitrary machine executions remain next.
 
 Add multiple-lock registration
 and resource composition explicitly before claiming interoperability with the

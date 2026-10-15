@@ -14,6 +14,7 @@ import EDSL.OS.CounterThreads
 import EDSL.OS.Mutex
 import EDSL.OS.MutexReplay
 import EDSL.MutexWorkerCertificate
+import EDSL.Examples.MutexLoans
 import EDSL.CounterCertificate
 import EDSL.ELF.Loader
 import EDSL.Certificate

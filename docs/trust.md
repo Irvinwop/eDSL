@@ -172,9 +172,9 @@ full projected states and explicit code/return-stack contracts. Guards and
 invariant checking are logical admission, not instructions implemented by those
 routines or authenticated runtime identities. No arbitrary client compliance,
 linear-token ownership or injective native worker/principal mapping is inferred.
-Generic correctness and completion for instruction-interleaved mutex workers,
-general weak-memory publication, native C observer, pthread/kernel implementation,
-blocking/wakeup and progress remain unproved. Atomic-handle and mutex histories are separate wrappers,
+Dispatch enabledness, constructive completion, general weak-memory publication,
+native C observer and pthread/kernel refinement, blocking/wakeup and progress
+remain unproved. Atomic-handle and mutex histories are separate wrappers,
 with no implicit cross-model composition. Native contended payload observations
 and an independently failing no-store mutant supplement the proofs; they do
 not discharge these contracts. See [mutex scope](mutex.md).
@@ -254,11 +254,19 @@ parameters in theorem statements and reports, never hidden global axioms.
 
 The complete [mutex worker replay](mutex-workers.md) adds actual CMP/JNE and
 RSI-addressed MOV semantics. Every admitted dispatch is proved equal to a full
-machine instruction over current shared cells. Its finite schedule checker
-also checks the endpoint, so acceptance proves that particular trace's result;
-it does not supply the generic independent result for every completing schedule
-or scheduler progress. Native pthread observations remain separate evidence.
-Initial resource well-formedness is an explicit premise for preservation,
+machine instruction over current shared cells. Generic control/guard/payload
+preservation now proves the independent modular total and zero returns for every
+successful completing supplied schedule, without its endpoint checker. The
+initial invariant includes tracked guard ownership and phase-specific saved EAX
+relations; `ClosedUnderTwo` is an explicit local predicate-preservation contract.
+The first store may open that predicate, and the second restores it before
+`release_admitted`. A separate potential proves actual instruction costs.
+Loan readiness comes from checked spawn records and survives replay. Completed
+ready cohorts admit checked collection, which revokes exactly their loan IDs
+and retains unrelated records. Public constructors alone supply neither program
+validity nor loan provenance. Replay success remains a premise; dispatch enabledness, constructive completion
+and arbitrary architectural-execution coverage remain unproved. Native pthread
+observations remain separate evidence. Initial resource well-formedness is an explicit premise for preservation,
 and runtime identity/authentication, memory-order adequacy and kernel behavior
 remain environmental obligations.
 

@@ -116,10 +116,13 @@ separate work. This wrapper does not silently merge with the atomic-worker model
 The [complete mutex worker replay](mutex-workers.md) now admits a fixed cohort
 with checked code/stack loans. Each supplied dispatch proves one actual decoded
 instruction against current shared cells and unchanged peer contexts, including
-busy flag-dependent retries and temporary invariant opening. An explicit final
-check certifies modular +2 per worker, zero machine returns and unlocked state;
-this finite execution result does not yet prove generic worker preservation,
-schedule-independent results or enabledness. Checked cohort collection closes
+busy flag-dependent retries and temporary invariant opening. Generic worker
+preservation and credit accounting prove modular +2 per worker, zero machine
+returns and unlocked state for all successful completing supplied schedules.
+No final-value check is a premise. The predicate must be closed under +2, and
+the program invariant proves release admission. Exact own-step costs account
+for real busy retries. Enabledness, constructive completion and arbitrary
+machine-execution coverage remain next. Checked cohort collection closes
 the retained loans without changing cells. Native identity and scheduling,
 weak-memory adequacy, pthread/runtime and kernel remain outside the proof.
 

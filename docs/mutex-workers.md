@@ -36,20 +36,36 @@ result premise. `dispatch_refines` also retains executable-byte binding and
 unchanged peer contexts. `schedule_trace` composes those steps in the supplied
 order; every dispatch projects current shared memory afresh.
 
-`verify` requires a cohort at entry and an unlocked mutex, runs a supplied
-finite schedule, and checks an independent endpoint:
+`completed_post` proves an independent endpoint for every successful supplied
+schedule that completes all workers from an admitted entry cohort:
 
 - Every original worker has completed its actual RET with RAX zero and no guard.
 - The original lock address contains zero and the registration is unheld.
 - The original payload address contains `initial + 2 * workers` modulo 2^32.
 - The original payload invariant holds on that final value.
 
-`verify_sound` proves that successful validation establishes that endpoint and
-the complete instruction trace. It is a checked finite execution certificate.
-**It does not prove the endpoint for every completing schedule without running
-the endpoint check.** Generic preservation of worker-private invariants,
-symbolic completion, schedule-independent totals and enabledness are further
-work. A rejected schedule or failing invariant is not a security finding.
+The theorem uses an initial `Invariant` and `ClosedUnderTwo`: the chosen payload
+predicate must be preserved by modular addition of two. Even values form one
+nontrivial example; the fixture also admits every initial 32-bit word with the
+unrestricted predicate. The worker invariant records private control, guard
+authority, the saved payload in EAX, and whether the first or second protected
+store has run. It does not encode the final result.
+
+`dispatch_invariant` and `schedule_invariant` prove preservation. Peer stores
+and releases are excluded by guard exclusivity and distinct immutable principals.
+Busy exchanges preserve the holder's observed payload. A credit of 0, 1 or 2
+counts each worker's actual protected stores; `schedule_accounted` relates their
+sum to current payload cells. Every completed worker contributes two, yielding
+`completed_total`. `release_admitted` discharges the closing-payload condition
+before release from the program invariant and actual guarded store results.
+There is no final-value checker premise in these results.
+
+The executable `verify`/`checkPost` route remains available for individual
+finite executions. `verify_sound` still proves its trace and endpoint. The
+generic theorems independently establish the endpoint from program invariants.
+Success of the supplied replay remains a premise: dispatch enabledness,
+constructive completion and coverage of arbitrary architectural executions
+are further work. A rejected schedule or failing invariant is not a security finding.
 
 Every accepted trace also projects to `Mutex.History`. From an initially
 well-formed mutex/resource state, its final mutex/resource state is well formed.
@@ -66,12 +82,30 @@ mutex protocol. Workers can share read-only code and return-stack storage.
 Creation is restricted to the pre-execution phase; nested spawn, detach and
 individual join are unsupported.
 
-`collect` requires the complete cohort, returns retained machine RAX values,
-and closes its internal code/stack loans. Collection preserves all resource
-cells and the mutex registration. Generic successful collection theorems prove
-zero returns and well-formedness from the replayed resource contract. The
-concrete handoff test also observes that code mutation is denied before
-collection and enabled afterward.
+`empty_invariant` and `spawn_invariant` establish the invariant from actual
+successful setup operations. They preserve existing workers and payload cells,
+and each new worker starts with zero credit and no guard.
+
+`LoanReady` records actual stored code/stack loans under each worker's principal,
+with distinct identifiers for its two loans. `empty_loanReady` and
+`spawn_loanReady` establish it through checked creation; `schedule_loanReady`
+preserves it. One stored loan cannot have two different borrowers, so loans of
+different worker indices cannot alias. No separate assumed global disjointness
+oracle is used.
+
+`collect_enabled` constructs checked collection for every completed ready
+cohort. `completed_collection_exists` combines that existence result with the
+program invariant and total theorem. It proves zero retained machine returns,
+unchanged resource cells, final payload/lock contracts, revocation of exactly
+the original code/stack loan identifiers, and preservation of every unrelated
+loan record. The concrete handoff also observes that code mutation is denied
+before collection and enabled afterward.
+
+The symbolic fixture proves actual checked adoption, registration and both
+spawns for every initial 32-bit word under the unrestricted predicate.
+`admitted_valid` establishes the program invariant, `admitted_loanReady` derives
+loan provenance through those actual operations, and `admitted_total` applies
+the generic total theorem. Concrete schedules separately demonstrate completion.
 
 The logical actor mapping is not authenticated pthread/kernel identity.
 External users must supply initial ownership/registration and cannot interpret
@@ -81,17 +115,22 @@ actual checked adoption, registration and spawn operations.
 ## Artifacts and validation
 
 `edsl-certify-mutex-worker [--elf] INPUT CERTIFICATE.lean` admits exactly this
-worker. Generated certificates embed observed bytes, apply the validator's
-soundness theorem, and run the axiom audit. ELF certificates additionally embed
+worker. Generated certificates embed observed bytes, apply `universal_sound`
+to all successful completing supplied schedules under the initial invariant,
+loan-readiness and predicate-closure contracts, and run the axiom audit. The
+result includes exact instruction cost and existence of checked collection.
+They retain the individual checked-replay
+theorem too. ELF certificates additionally embed
 the full file, prove parsing, check the executable entry window, and expose
 fresh-loading/code-binding theorems. The CLI certifies the artifact profile;
-a specific execution additionally needs a checked schedule. It does not claim
+a specific execution additionally needs a successful schedule. It does not claim
 that the linked ELF is a standalone process or verify its start/runtime code.
 
 ```sh
 lake build edsl-certify-mutex-worker
 lake env lean -DwarningAsError=true tests/MutexISA.lean
 lake env lean -DwarningAsError=true tests/MutexReplay.lean
+lake env lean -DwarningAsError=true tests/MutexInvariant.lean
 bash scripts/verify-mutex-workers.sh
 ```
 
@@ -108,10 +147,17 @@ busy retry and five RMW events. It observes the intermediate odd protected word,
 the busy peer's retry, wraparound from `0xfffffffe` to 2, real stack returns,
 loan pinning and reclamation. Partial schedules remain unverified.
 
-The listing has 13 uncontended instructions, with four per failed attempt.
-This count is descriptive here: there is no new generic cost or minimum-ops
-theorem. Cycles, micro-ops, fairness, blocking/futex behavior and bounded waiting
-are outside this model.
+The generic-invariant suite also forces two busy retries, including one after
+the payload load and another between stores. It covers odd inputs under the
+unrestricted predicate, the even invariant's open/restored phases, different
+cohort sizes, actual RET completion, and costs derived from real busy events.
+
+`completed_cost` proves exactly `13 * workers + 4 * busy exchanges` user
+instructions for every successful completing supplied schedule. A potential
+decreases at ordinary steps and accounts for four additional instructions at
+each actual busy exchange. This is a cost theorem for the fixed byte profile;
+there is no minimum-operations claim over alternative implementations. Cycles,
+micro-ops, fairness, blocking/futex behavior and bounded waiting are outside this model.
 
 ## Physical boundary
 

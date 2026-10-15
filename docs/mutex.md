@@ -85,8 +85,9 @@ canonical return target; modifying operations also require code/stack separation
 The physical aligned coherent-WB-RAM and architectural restrictions from
 [atomic exchange](atomic-exchange.md) still apply. There is no new memory-order
 mapping. A separate [complete-worker replay layer](mutex-workers.md) now checks
-finite instruction interleavings and their independent endpoints; generic
-worker correctness and completion remain further work.
+finite instruction interleavings and proves preservation, completed modular
+totals and retry costs from independent worker invariants. Dispatch enabledness,
+constructive completion and native runtime correspondence remain further work.
 
 `tryAcquire_enabled`, `guardLoad_enabled`, `guardStore_enabled` and
 `release_enabled` provide positive behavior under their stated contracts.

@@ -16,7 +16,13 @@ private def header : String :=
   "set_option maxRecDepth 100000\nset_option maxHeartbeats 0\n\n"
 
 private def theoremSource : String :=
-  "theorem certified (state : OS.MutexReplay.State) (selections : List Nat)\n" ++
+  "theorem certified (state : OS.MutexReplay.State) (config : OS.Mutex.Config) (initial : BitVec 32)\n" ++
+  "    (valid : Invariant config state) (ready : LoanReady state) (closed : ClosedUnderTwo config)\n" ++
+  "    (entry : ∀ worker ∈ state.workers, worker.phase = .entry)\n" ++
+  "    (observed : loadDWord (toMemory state.shared.shared.resources.space) config.dataAddress = .ok initial) :\n" ++
+  "    observedBytes = bytes ∧ MutexWorkerCertificate.CompletedSpecification state config initial :=\n" ++
+  "  MutexWorkerCertificate.universal_sound observedBytes accepted state config initial valid ready closed entry observed\n\n" ++
+  "theorem checkedReplay (state : OS.MutexReplay.State) (selections : List Nat)\n" ++
   "    (result : OS.MutexReplay.State × List (Nat × AtomicEvent))\n" ++
   "    (verified : verify state selections = .ok result) :\n" ++
   "    observedBytes = bytes ∧ ∃ record initial, state.shared.mutex = some record ∧\n" ++
@@ -87,5 +93,5 @@ def main (arguments : List String) : IO UInt32 := do
     return 1
   let stdout ← IO.getStdout
   stdout.putStr checked.stdout
-  stdout.putStrLn s!"CERTIFIED {raw.size} exact mutex-worker artifact bytes: finite schedule replay with complete machine/OS projection and checked endpoints; no universal progress claim; {absolute}"
+  stdout.putStrLn s!"CERTIFIED {raw.size} exact mutex-worker artifact bytes: every successful completing modeled schedule has the proved payload/return/resource result; complete machine/OS projection; progress separate; {absolute}"
   return 0

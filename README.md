@@ -58,9 +58,11 @@ Implemented and checked:
   `3*count+3` cost, modular sums for every completing schedule and constructive full collection.
 - A checked mutex protocol with exclusive fresh guards, protected payload
   invariants, permanent revocation and exact exchange/load/store binary bridges.
-- Complete mutex-worker finite schedule replay, including busy CMP/JNE retries,
-  temporary invariant opening, complete machine/OS step refinement and checked
-  final totals/returns. See [scope and remaining proofs](docs/mutex-workers.md).
+- Complete mutex-worker instruction replay with generic control/payload
+  preservation, modular totals and exact retry costs for every successful
+  completing supplied schedule. See [contracts and remaining proofs](docs/mutex-workers.md).
+- Checked mutex-worker loan provenance, positive cohort collection and exact
+  code/stack loan revocation, with unrelated loan records preserved.
 - A counted assembly loop with a proved invariant and termination for every
   64-bit count, modular arithmetic result and exact `2*count+3` user-instruction cost.
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
@@ -140,10 +142,10 @@ cells and retain exchanged values privately through join. Counted locked-add
 workers now establish the modular shared-counter workload and checked collection
 across every successful completing supplied schedule. A separate mutex protocol
 now protects payload invariants through exclusive guards and exact machine
-operations. Complete critical-section workers now have checked finite replay
-and endpoint certificates. Next come generic preservation/completion proofs for
-those workers, publication/weak-memory correspondence and concrete thread/runtime
-refinement.
+operations. Complete critical-section workers now have generic preservation,
+schedule-independent completed totals and exact retry-cost proofs. Next come
+dispatch enabledness, constructive worker completion, publication/weak-memory
+correspondence and concrete thread/runtime refinement.
 General GNU C++26 ingestion and a fully verified Linux kernel are substantial
 separate research work.
 
@@ -175,6 +177,7 @@ lake env lean -DwarningAsError=true tests/CounterThreadsWitness.lean
 lake env lean -DwarningAsError=true tests/Mutex.lean
 lake env lean -DwarningAsError=true tests/MutexISA.lean
 lake env lean -DwarningAsError=true tests/MutexReplay.lean
+lake env lean -DwarningAsError=true tests/MutexInvariant.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

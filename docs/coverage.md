@@ -412,7 +412,7 @@ memory remain external. See [counter-worker contracts](counter-workers.md).
 The integration total is 46 raw/full-ELF artifact certificates, including four
 counter-worker and four mutex-worker certificates. The counter observer checks 42 sequential requests
 and four eight-thread workloads per compiler; it independently rejects four
-terminating semantic mutants. Twenty-two Lean suites include symbolic admission
+terminating semantic mutants. Twenty-three Lean suites include symbolic admission
 and completion witnesses for every initial word and pair of 64-bit counts.
 
 ## Protected payloads and mutex guards
@@ -456,11 +456,19 @@ against an independent total. Those reused artifacts add no new certificates. Se
 of a 37-byte worker, with full projected machine-step refinement, protocol
 history composition, exact executable bytes and unchanged peer contexts.
 The supplied schedule runs actual busy CMP/JNE retries, two guarded payload
-stores and RET. A separate endpoint check establishes modular +2 per original
-worker, zero machine returns and final unlocked invariant. This is a checked
-execution result; generic schedule-independent correctness and progress remain
-unproved. Successful collection closes cohort code/stack loans and preserves
-resources. Four Clang/GCC raw/full-ELF artifacts bring the distinct total to 46.
+stores and RET. Generic control/guard/payload invariants now prove modular +2
+per original worker, zero machine returns and final unlocked invariant for every
+successful completing supplied schedule, without the endpoint checker. A credit
+sum tracks actual stores, and a separate potential proves `13*n + 4*busy`
+instructions. Checked spawn preserves the initial cohort invariant. Dispatch
+enabledness, constructive completion, arbitrary machine-execution coverage and
+weak-memory/runtime correspondence remain further work. Actual checked spawn
+establishes code/stack loan readiness; replay preserves it, and every completed
+ready cohort admits collection. That collection revokes precisely the original
+cohort loans, retains unrelated records and preserves resource cells. Symbolic
+adoption/registration/spawn witnesses admit every initial 32-bit word under the
+unrestricted predicate. Four Clang/GCC raw/full-ELF
+artifacts keep the distinct total at 46 while acquiring stronger certificates.
 See [finite replay contracts and limitations](mutex-workers.md).
 
 ## Restricted ELF loading
@@ -593,6 +601,7 @@ lake env lean -DwarningAsError=true tests/CounterThreadsWitness.lean
 lake env lean -DwarningAsError=true tests/Mutex.lean
 lake env lean -DwarningAsError=true tests/MutexISA.lean
 lake env lean -DwarningAsError=true tests/MutexReplay.lean
+lake env lean -DwarningAsError=true tests/MutexInvariant.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

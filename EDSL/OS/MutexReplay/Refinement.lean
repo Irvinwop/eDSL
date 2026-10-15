@@ -133,42 +133,42 @@ theorem return_memory (initial output : X86.State)
     · simp [X86.step, decoded, executeRet, read, valid] at success
 
 /-- Exact successful branches of the protocol/machine runner. -/
-inductive PerformEffect (shared : Mutex.State) (identifier : Nat) (worker : Worker) : Result → Prop where
+inductive PerformEffect (shared : Mutex.State) (identifier : Nat) (worker : Worker) : Action → Result → Prop where
   | plain (instruction : Plain) (context : Context)
       (ran : runNext shared worker.context instruction.instruction = .ok context) :
-      PerformEffect shared identifier worker ⟨shared, context, worker.guard, none, false⟩
+      PerformEffect shared identifier worker (.plain instruction) ⟨shared, context, worker.guard, none, false⟩
   | acquire (record : Mutex.Registered) (attempt : Mutex.Attempt) (context : Context)
       (found : Mutex.registered shared = .ok record)
       (operand : worker.context.registers .rdi = record.config.lockAddress)
       (replacement : (worker.context.registers .rax).setWidth 32 = 1)
       (acquired : Mutex.tryAcquire shared (principal identifier) = .ok attempt)
       (ran : runAtomic shared worker.context attempt.event = .ok context) :
-      PerformEffect shared identifier worker ⟨attempt.state, context, attempt.acquired, some attempt.event, false⟩
+      PerformEffect shared identifier worker .acquire ⟨attempt.state, context, attempt.acquired, some attempt.event, false⟩
   | load (guard : Mutex.Lease) (record : Mutex.Registered) (value : BitVec 32) (context : Context)
       (authorized : Mutex.authorize shared (principal identifier) guard = .ok record)
       (operand : worker.context.registers .rsi = record.config.dataAddress)
       (loaded : Mutex.guardLoad shared (principal identifier) guard = .ok value)
       (ran : runNext shared worker.context .loadEaxRsi = .ok context) :
-      PerformEffect shared identifier worker ⟨shared, context, worker.guard, none, false⟩
+      PerformEffect shared identifier worker (.load guard) ⟨shared, context, worker.guard, none, false⟩
   | store (guard : Mutex.Lease) (record : Mutex.Registered) (after : Mutex.State) (context : Context)
       (authorized : Mutex.authorize shared (principal identifier) guard = .ok record)
       (operand : worker.context.registers .rsi = record.config.dataAddress)
       (stored : Mutex.guardStore shared (principal identifier) guard ((worker.context.registers .rax).setWidth 32) = .ok after)
       (ran : runNext shared worker.context .storeEaxRsi = .ok context) :
-      PerformEffect shared identifier worker ⟨after, context, worker.guard, none, false⟩
+      PerformEffect shared identifier worker (.store guard) ⟨after, context, worker.guard, none, false⟩
   | release (guard : Mutex.Lease) (record : Mutex.Registered) (released : Mutex.State × AtomicEvent) (context : Context)
       (authorized : Mutex.authorize shared (principal identifier) guard = .ok record)
       (operand : worker.context.registers .rdi = record.config.lockAddress)
       (replacement : (worker.context.registers .rax).setWidth 32 = 0)
       (finished : Mutex.release shared (principal identifier) guard = .ok released)
       (ran : runAtomic shared worker.context released.2 = .ok context) :
-      PerformEffect shared identifier worker ⟨released.1, context, none, some released.2, false⟩
+      PerformEffect shared identifier worker (.release guard) ⟨released.1, context, none, some released.2, false⟩
   | ret (context : Context) (ran : runReturn shared worker.context = .ok context) :
-      PerformEffect shared identifier worker ⟨shared, context, worker.guard, none, true⟩
+      PerformEffect shared identifier worker .ret ⟨shared, context, worker.guard, none, true⟩
 
 theorem perform_effect (shared : Mutex.State) (identifier : Nat) (worker : Worker) (operation : Action)
     (result : Result) (success : perform shared identifier worker operation = .ok result) :
-    PerformEffect shared identifier worker result := by
+    PerformEffect shared identifier worker operation result := by
   cases operation with
   | plain instruction =>
     cases ran : runNext shared worker.context instruction.instruction with
