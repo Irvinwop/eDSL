@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use eDSL in research, please cite this repository."
+type: software
+title: "eDSL: Lean 4 models for systems languages, architectures, and operating systems"
+abstract: >-
+  A Lean 4 formal-verification project planning embedded domain-specific
+  languages for GNU C23, GNU C++26, LLVM IR, assembly, and operating-system
+  semantics, with compiler-output validation and explicit cost models.
+authors:
+  - family-names: "Irvinwop"
+repository-code: "https://github.com/Irvinwop/eDSL"
+url: "https://github.com/Irvinwop/eDSL"
+license: Apache-2.0
+keywords:
+  - Lean 4
+  - formal verification
+  - translation validation
+  - operating systems
+  - embedded domain-specific languages

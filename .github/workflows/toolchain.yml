@@ -1,4 +1,4 @@
-name: Toolchain checks
+name: Native dialect probes
 
 on:
   push:

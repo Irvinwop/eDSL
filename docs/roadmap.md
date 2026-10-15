@@ -1,75 +1,208 @@
-# Roadmap
+# Roadmap and acceptance gates
 
-Only the repository bootstrap is complete. Milestones below describe planned
-work and completion criteria, without dates or API stability promises.
+This is a research and engineering plan, not a claim that complete GNU C23,
+GNU C++26, LLVM, x86-64, or Linux semantics already exist in Lean. Work is
+ordered by proof dependencies. There are no completion-date promises.
 
-## 0. Repository foundation
+## Decisions for the initial direction
 
-- [x] Public project scope covering all four language domains and the OS domain.
-- [x] Architecture proposal and OS semantics map.
-- [x] Build checks for exact GNU C23 and GNU C++26 modes.
-- [x] CI configuration for those build checks.
+- Lean 4 is the implementation/proof/embedding language.
+- OS behavior is a first-class semantic domain across every language layer.
+- Existing compilers are untrusted producers; artifact-specific translation
+  validation is the main integration path. Proved Lean lowerings complement it.
+- Start with x86-64 userspace and a restricted Linux/System V/ELF profile.
+- Begin with a small function before process loading, memory and concurrency.
+- Report physical-platform and OS conformance assumptions explicitly.
+- Use explicit cost models and restricted candidate classes for lower bounds.
+- Apache-2.0 plus NOTICE/citation metadata; DCO 1.1 for contributions.
 
-## 1. Contracts, embedding, and the first OS slice
+## Dependency graph
 
-- [ ] Decide the C/C++ embedding boundary and document host vs generated execution.
-- [ ] Define the smallest typed program representation with source diagnostics,
-      values, functions, resources, and effects.
-- [ ] Specify allocation/lifetime, thread start/join, and atomic increment/load.
-- [ ] Implement GNU C23 generation and a native Linux adapter in C/assembly.
-- [ ] Compile and run the shared-counter workload, including cleanup after
-      partial failure.
+```mermaid
+flowchart LR
+    M0[0 Foundation] --> M1[1 Semantic contracts]
+    M1 --> M2[2 Exact function bytes]
+    M2 --> M3[3 Static Linux process]
+    M3 --> M4[4 Owned memory and loops]
+    M4 --> M5[5 Threads and SC atomics]
+    M5 --> M6[6 Weak memory and waits]
+    M2 --> M7[7 LLVM and richer languages]
+    M2 --> M9[9 Cost proofs]
+    M6 --> M8[8 Wider OS and linking]
+    M7 --> M8
+    M8 --> M10[10 More targets and less trust]
+```
 
-Exit criterion: a builder-generated program uses real OS threads and shared
-memory with independently specified results and lifecycle checks.
+### 0. Foundation — current repository
 
-## 2. GNU C++26 and cross-language composition
+Present: pinned Lean/Lake project; generic refinement composition and safety
+transfer; a tiny abstract-machine correctness/lower-bound example; transitive
+axiom audit; optional native dialect checks; design documents; licensing and
+contribution policy. CI must build/audit Lean and retain native probes as a
+separate check. None of this certifies a compiler-produced executable yet.
 
-- [ ] Add the C++ language domain and GNU C++26 generation.
-- [ ] Define C/C++ linkage, layout, ownership, and error propagation boundaries.
-- [ ] Implement the chosen C-hosted construction interface.
-- [ ] Run the same OS workload through both language paths.
+### 1. Semantic contracts and reuse decisions
 
-Exit criterion: both generated language paths satisfy the same OS contract,
-with feature checks for the constructs actually used.
+Define trace/outcome types, admitted initial states, divergence/fault/deadlock
+policy, environment coupling, memory/resource identities, observations and
+refinement. Prove composition, nonvacuity obligations and suitable safety/
+termination transfer lemmas. Decide operational versus event-graph concurrency
+representations and their correspondence.
 
-## 3. LLVM IR
+Evaluate reusable Lean bitvector, SSA, temporal and resource-logic libraries;
+record revisions, licenses, supported Lean versions, axiom dependencies,
+performance and gaps. Establish a per-feature support/proof ledger.
 
-- [ ] Pin a supported LLVM version and target data layout.
-- [ ] Lower the shared core and OS ABI calls to verified LLVM IR.
-- [ ] Define atomic ordering and synchronization-scope mappings.
-- [ ] Add LLVM verifier checks and executable comparisons with the source paths.
+Exit: reviewed theorem templates and an executable toy semantics whose proofs
+exercise the interfaces; no circular correctness-by-checker-definition.
 
-Exit criterion: verified IR executes the OS slice without weakening its contract.
+### 2. First real artifact: a restricted function
 
-## 4. Assembly
+Choose a loop-free unsigned fixed-width function specification with edge cases.
+Implement a small Lean source eDSL and semantics, generate a restricted GNU C23
+and GNU C++26 common subset, and bind the emitted text to that model. Select a
+small x86-64 instruction subset, prove exact-byte decoding and instruction
+semantics, and state entry/return/register/stack assumptions.
 
-- [ ] Define a typed x86-64 instruction/operand model and ABI boundaries.
-- [ ] Represent registers, constraints, clobbers, memory effects, and fences.
-- [ ] Support assembly composition and object generation using a native assembler.
-- [ ] Validate calling conventions and atomic mappings independently.
+Invoke a pinned compiler/configuration, ingest its exact function bytes, and
+produce a checked proof/certificate relating those bytes to the source.
+Handle all admitted inputs, including wraparound. Initially reject memory,
+foreign calls, exceptions, unsupported instructions and unknown control flow.
 
-Exit criterion: the assembly path preserves the same workload contract and
-interoperates with the native runtime.
+Exit: a named Lean theorem for actual compiler output, with recorded build and
+caller/platform assumptions; changed immediate values, wrong widths, unsupported
+bytes, and mismatched manifests fail validation. Prefer a second compiler or
+optimization configuration to expose compiler-specific assumptions.
 
-## 5. Synchronization and memory depth
+### 3. Static process and minimal Linux contract
 
-- [ ] Mutexes, condition variables, semaphores, barriers, and explicit wait/wake.
-- [ ] Publication, compare/exchange, ordering, and lock-free capability checks.
-- [ ] Arenas, mapped/shared memory, page permissions, and resource diagnostics.
-- [ ] Scheduling, affinity, topology, deadlines, interruption, and cancellation.
+Model a restricted static ELF, segment/entry validation, startup stack/auxiliary
+state, final-byte identity, minimal syscall ABI and termination. Add a tiny
+process with bounded computation and explicit `write`/exit outcomes. Specify
+short writes, interruption, faults and denied resources rather than assuming
+all external effects succeed. Keep loader/kernel behavior conditional.
 
-Exit criterion: each operation has a documented native mapping and meaningful
-integration coverage; concurrency claims also have appropriate model evidence.
+Exit: a process-level trace/result theorem linked to the final artifact, with
+all reachable code/runtime and external contracts accounted for.
 
-## 6. Program-wide OS coverage and more targets
+### 4. Owned memory, calls and loops
 
-- [ ] Processes, signals, IPC, filesystem, networking, and async I/O.
-- [ ] Environment, permissions, resource limits, dynamic libraries, and devices
-      as required by concrete programs.
-- [ ] Additional CPU and OS adapters with explicit capability matrices.
-- [ ] Compare generated performance and code size against equivalent native
-      C/C++/assembly workloads before making performance claims.
+Add object lifetimes, permissions, stack/heap regions, layout/alignment,
+provenance relations, allocation/mapping failures and cleanup. Prove supported
+calls/returns and loop invariants/variants. Introduce reusable ownership rules
+only with their soundness connection to the operational semantics.
 
-Every milestone includes error reporting, target capability checks, and
-documentation. Broad coverage must not replace precise per-operation semantics.
+Exit: a buffer/loop program has source definedness, target memory safety,
+functional correctness and explicit termination/resource bounds. Native fault
+injection and differential runs supplement these proofs.
+
+### 5. First concurrency slice
+
+Specify real thread start/join, argument publication, ownership transfer,
+creation failure and partial cleanup. Use sequentially consistent atomics first,
+with a proved mapping to the chosen machine model. If libc/pthreads is used,
+validate its relevant bytes or expose its contract as a remaining assumption.
+
+Workload: shared state, workers performing independently counted increments,
+joins, final count and safe reclamation, with failure paths. Prove safety across
+all admitted schedules and state additional progress assumptions separately.
+
+Exit: named counter/lifecycle theorems through the full modeled chain; no claim
+that testing or SC-only interleavings establishes weak-memory correctness.
+
+### 6. Weak memory, locks, blocking and interference
+
+Add acquire/release and relaxed atomics, compare/exchange, fences, target memory
+ordering, publication, mutexes, condition variables and wait/wake. Specify
+spurious wakeups, lost-wakeup prevention, interruption, timeouts, cancellation,
+process sharing and fairness requirements. Extend signal and scheduling models
+where these primitives require them.
+
+Exit: independently specified publication and blocking protocols have appropriate
+all-execution proofs/model correspondence, with rejected invalid memory orders
+and unsupported guarantees. Safety and liveness claims remain distinct.
+
+### 7. LLVM and broader language coverage
+
+Pin LLVM semantics and implement supported SSA, memory, UB/poison and atomic
+constructs. Prove/check source→LLVM, LLVM→LLVM and LLVM→machine relations
+separately. Add loops, calls, optimization invariants and vectorization only with
+corresponding certificates and semantics.
+
+Grow GNU C23 and GNU C++26 feature ledgers incrementally. C++ elaboration,
+classes, exceptions, templates, standard libraries, modules and coroutines are
+separate obligations. General source import needs parsing/elaboration evidence;
+a Clang AST dump alone cannot establish source correspondence.
+
+Exit per feature: represented, modeled, executable, proven and artifact-validated
+statuses are recorded independently, including exact unsupported cases.
+
+### 8. Program-wide OS behavior and composition
+
+Add processes/signals/IPC, filesystem/durability, networking, async I/O,
+time/deadlines, environment/permissions and devices as demanded by workloads.
+Extend mapping, TLS, dynamic linking, shared libraries, relocation and loading
+only with explicit dependency closure. Model external peers and failures.
+
+Exit per facility: operation contract, native mapping, resource/progress rules,
+ABI/link/load obligations, proof evidence and runtime conformance evidence.
+No automatic claim of complete POSIX or Linux verification.
+
+### 9. Cost, complexity and restricted optimality
+
+This can proceed from milestone 2 without waiting for all OS coverage. Define
+instrumented semantics and counts, prove target bounds, then restricted lower
+bounds and certified synthesis/search coverage. Separate work, span, memory,
+instructions and elapsed time. Do not claim global optimality from a bounded
+search or hardware timing from an ISA step count.
+
+Exit: at least one useful validated function has a target cost theorem; an
+optimality claim also quantifies over a specified candidate class and includes
+an attaining witness. See [cost model](cost-model.md).
+
+### 10. More targets, automation and trust reduction
+
+Add architectures/OS adapters only with explicit models and capability tables.
+Verify concrete runtime/library implementations, improve proof certificates and
+checkers, and investigate a verified-kernel platform as a separate route.
+Do not transplant a seL4 theorem onto Linux. Address JIT/self-modifying code,
+security/noninterference and detailed time only as separately scoped projects.
+
+Exit per extension: proof composition and trust ledger identify exactly which
+assumptions were discharged and which new ones were introduced.
+
+## Workstreams and parallelism
+
+Independent specialists can work on semantic foundations, source languages,
+LLVM, ISA/decoding, ELF/ABI/loading, OS/resources, concurrency, validators,
+costs, and proof/build tooling. Each owns bounded modules and proof obligations;
+interface reviews precede integration. More workers do not remove dependencies
+or establish the adequacy of a model by consensus.
+
+Run parallel research and prototype spikes before library choices; pair each
+implementation with an independent semantics/proof review. Scale later workers
+across feature/target matrices only after the core interfaces are stable. Keep
+one integrator responsible for cross-layer observations, assumptions and proof
+composition, so individually proved components describe the same execution.
+
+## Risks and decision gates
+
+| Risk | Required response |
+| --- | --- |
+| Incomplete/changing C++/GNU/LLVM semantics | Versioned restricted subsets; feature-level scope and rejection |
+| Pointer/memory mismatch across layers | Explicit object/address/provenance relations before optimization proofs |
+| Weak-memory or scheduler assumptions hidden | Cross-layer event model; separate safety/progress and declared fairness |
+| Final binary differs from modeled assembly | Exact-byte decoding and link/load validation |
+| OS/kernel/library contract is mistaken | Contract review, primary specifications, conformance evidence and visible assumptions |
+| Proof search does not scale | Small slices, compositional invariants, checked certificates and profiling |
+| Vacuous theorem or unsupported input accepted | Nonemptiness witnesses, independent specifications, adversarial certificates |
+| Reuse project incompatible or outside scope | Bounded evaluation with a written adopt/port/rebuild decision |
+| Lower-bound claim changes with instruction set | Fix the candidate/cost model and reprove after capability changes |
+
+## Completion reports
+
+Each milestone report must list named theorems and their hypotheses, exact
+supported constructs and platform profile, artifact bindings, remaining trusted
+components, reproducible commands and meaningful negative checks. Tests check
+independent behavior and plausible regressions; they do not substitute for
+proofs or repeat the implementation as expected results.

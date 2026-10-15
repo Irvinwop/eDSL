@@ -1,104 +1,109 @@
-# Architecture proposal
+# Lean 4 architecture
 
-Status: design requirements and proposed direction. No API or IR described
-here is implemented or stable.
+Status: architectural plan. Only the generic refinement interfaces and tiny
+abstract-machine example described in the README are implemented.
 
-## Embedding and language domains
+## The proof boundary
 
-The project needs composable embedded representations of GNU C23, GNU C++26,
-LLVM IR, target assembly, and OS operations. C and C++ are the implementation
-languages. A typed C++ builder is a candidate for the first embedding API; a
-C-hosted construction API and its relationship to that builder need an explicit
-design decision in the first implementation milestone.
+Use Lean for typed embedded syntax, semantics, program proofs, certificate
+checking, and composition. The host is Lean; GNU C23, GNU C++26, LLVM IR,
+assembly, and OS operations are represented domains. Constructing a Lean term
+for thread creation does not create a host thread.
 
-Keep host execution separate from the program being described: creating a
-thread node in a builder must not accidentally create a native thread in the
-builder process. Generation, validation, compilation, and execution need clear
-boundaries.
-
-The language domains are not interchangeable syntax printers. They need
-language-specific constructs, source locations, and a common core for values,
-types, control flow, resources, and effects. Cross-language boundaries need
-declared linkage, calling conventions, data layout, and ownership contracts.
-
-## Proposed composition
+Keep independently defined specifications and semantics separate from the
+program generator and the certificate format. A checker soundness theorem must
+connect acceptance to those semantics; defining correctness as acceptance
+would leave the central obligation unproved.
 
 ```mermaid
 flowchart TD
-    H[C / C++ embedded builders] --> P[Program model and validation]
-    O[OS resources, operations, and effects] <--> P
-    P --> C[GNU C23]
-    P --> CPP[GNU C++26]
-    P --> L[LLVM IR]
-    P --> A[Target assembly]
-    O --> R[Native OS adapters and runtime]
-    C --> R
-    CPP --> R
-    L --> R
-    A --> R
+    Q[Specification and assumptions in Lean] --> S[Typed language eDSL and source proof]
+    S --> E[Emitted source / IR]
+    E --> C[Untrusted compiler, assembler, linker]
+    C --> B[Exact final executable bytes]
+    B --> V[Lean proof / sound certificate checker]
+    S --> V
+    P[ISA, ABI, loader, runtime, OS contracts] --> V
+    V --> T[Artifact-specific theorem and assumption report]
+    U[Untrusted search, SMT, synthesis, disassembly hints] --> V
 ```
 
-This is a proposed set of lowering routes. A backend may invoke an existing
-compiler or assembler; the project need not implement every compiler pass.
-Assembly can also appear as an explicit target-specific region in a larger
-program. OS requirements remain attached to operations until the chosen target
-has a defined implementation for them.
+For small subsets, proved Lean lowering passes can replace individual
+validation steps. All paths must reach the final executable bytes; proving
+assembly text alone leaves assembling, relocation, and loading obligations.
+See [verification](verification.md) for the theorem and artifact manifest.
 
-## Shared model requirements
+## Planned components and dependencies
 
-- Values and types: width, signedness, alignment, layout, address space, object
-  lifetime, pointer provenance assumptions, and target-dependent properties.
-- Control flow: functions, blocks, branches, loops, calls, returns, and explicit
-  exceptional or error exits where relevant.
-- Resources: identity, ownership, borrowing, sharing, creation, transfer,
-  destruction, and cleanup after partial failure.
-- Effects: memory reads and writes, atomic operations, synchronization,
-  blocking, thread/process lifecycle, I/O, allocation, and external calls.
-- Target contract: CPU architecture and features, OS, ABI, object format,
-  compiler/tool versions, and required runtime/kernel capabilities.
-- Diagnostics: identify the originating builder operation and the unsupported
-  or invalid contract before producing an executable.
+| Component | Responsibility | Depends on |
+| --- | --- | --- |
+| Semantic foundations | Traces, outcomes, transitions, infinite executions, refinement, resource identities, observation maps | Lean logic; selected reusable libraries |
+| Source domains | Distinct typed GNU C23/C++26 syntax, definedness, evaluation and concurrency semantics | Foundations, language revisions, layout profile |
+| LLVM domain | Versioned SSA/IR semantics, poison/UB, calls and atomics | Foundations, LLVM revision, memory model |
+| Machine domain | Exact-byte decoding, register/flag/memory transitions and ISA weak memory | ISA specification, bitvectors, decoder soundness |
+| OS domain | Resource ownership, syscalls, failures, threads, scheduling, synchronization, I/O | Foundations and explicit native contracts |
+| Program logic | Preconditions, invariants, ownership, rely/guarantee and temporal rules | Corresponding operational semantics and soundness proofs |
+| Emit/import boundaries | Correspondence for source, IR, object and executable formats | Syntax/decoding semantics, bounded parsing and artifact equality |
+| Validation | Certificate syntax, executable checker and soundness, proof reconstruction | Both sides' semantics and well-formedness |
+| Composition | Linking, ABI calls, loading, environment and observation correspondence | Component refinements and compatibility proofs |
+| Cost reasoning | Work/step/space metrics and restricted optimality theorems | Instrumented semantics; separate cost-preservation proofs |
+| Artifact tooling | Reproducible manifests, diagnostics, cache invalidation, proof/assumption reports | Checked definitions and exact dependency identities |
 
-The model must distinguish ordinary shared memory from atomic objects and
-device memory. It must also distinguish atomic operations from compound
-critical sections, transactions, and process-shared synchronization. These
-require different guarantees.
+These are logical module boundaries, not a requirement to build a monolithic
+universal IR. Share bit widths, layouts, events, ownership vocabulary, and
+contracts without conflating C pointers, LLVM pointers, and machine addresses.
+Memory and concurrency models need explicit relations between levels.
 
-## Semantics across layers
+## Lean engineering decisions
 
-C/C++ language rules, LLVM IR rules, CPU ordering, and OS synchronization each
-constrain a lowering. An instruction that is atomic on one CPU is not by itself
-a complete C or C++ synchronization contract. Compiler barriers, CPU fences,
-and kernel waits need separate representations and documented mappings.
+1. Pin the Lean toolchain and every future dependency revision; keep proofs
+   reproducible without undocumented local libraries.
+2. Start with Lean/Std. Evaluate mathlib for mathematics and Iris-Lean for
+   resource reasoning before developing equivalent infrastructure. Pin and
+   audit any adopted dependency; no library supplies the whole pipeline.
+3. Use inductive syntax with explicit typing/well-formedness evidence. Separate
+   proof-relevant models from parsers, printers, external tool runners, and UI.
+4. Define partial/unsupported cases explicitly. A total implementation function
+   may return an error; absence of a proof is never an implicit success.
+5. Treat executable evaluators and checkers as implementations of a separate
+   specification. Prove soundness before using acceptance to certify artifacts.
+6. Keep proof search and solver integration outside the trust boundary wherever
+   results can be reconstructed or checked in Lean. A solver's `unsat` string
+   alone is insufficient.
+7. Audit theorem dependencies and review hypotheses. The axiom audit cannot
+   detect a misleading theorem whose assumptions already contain the desired
+   conclusion or whose admitted input domain is empty.
+8. Measure elaboration, checker time, proof size, and memory on representative
+   examples. Optimize with sound reflection/proof reconstruction rather than
+   silently moving execution into an unchecked native trust path.
 
-Do not infer synchronization from `volatile`, a syscall, or a generic foreign
-call. Calls must carry their known effects or conservatively preserve unknown
-effects. Do not strengthen promises about lock freedom, fairness, cancellation,
-or progress merely because a backend happens to use a particular instruction.
+## OS and platform composition
 
-Raw LLVM IR, inline assembly, and raw syscalls are useful escape hatches. Each
-must expose its target restrictions, inputs, outputs, memory effects, clobbers,
-and any unchecked assumptions. Unknown effects must prevent invalid reordering.
+An OS contract describes the environment transitions visible to a program.
+It includes permissions, failure outcomes, partial I/O, resource identity,
+thread lifecycle, interference, blocking, and the effects of interruption.
+Resource lifetimes connect these operations to source and machine memory.
 
-## OS adapters
+The first platform is Linux userspace / x86-64 / System V ABI / a restricted
+ELF profile. Implement function-byte reasoning first, then static loading and
+minimal syscalls. Add stack/heap resources and concurrency only with the
+necessary semantics. Contracts for libc/pthreads are assumptions until the
+actual relevant implementation is verified against them.
 
-Start with Linux/x86-64 and prefer existing native interfaces for the first
-correct implementation. Direct syscalls, futex-based primitives, and specialized
-assembly should be introduced for a defined semantic or measured performance
-need. The runtime can use C and assembly behind a narrow ABI.
+A proof under a Linux contract is not a proof of Linux. A hardware model is not
+a physical CPU validation. The [platform plan](platform-model.md) and
+[trust ledger](trust.md) keep these boundaries explicit.
 
-A shared vocabulary may cover several operating systems, but platform-specific
-features need explicit capability discovery and diagnostics. Missing facilities
-must not be emulated with weaker semantics without an explicit caller choice.
-Kernel version, libc behavior, permissions, and dynamically unavailable
-capabilities may require runtime checks as well as compilation checks.
+## Interface policy
 
-## References
+Each supported operation needs syntax, semantics, ownership/effects, progress
+and error behavior, capability requirements, native mappings, and named proof
+obligations. Each lowering needs an observation relation, initial-state
+relation, environment relation, and termination/divergence policy. Each
+certificate checker needs a soundness theorem, rejection behavior, and binding
+to the bytes and profile being certified.
 
-- [GCC language dialect options](https://gcc.gnu.org/onlinedocs/gcc/C-Dialect-Options.html)
-- [LLVM language reference](https://llvm.org/docs/LangRef.html)
-- [LLVM atomics guide](https://llvm.org/docs/Atomics.html)
-- [Linux userspace API documentation](https://docs.kernel.org/userspace-api/index.html)
-
-The implementation must record the toolchain and platform versions against
-which its individual mappings are verified.
+Inline assembly, raw IR, foreign calls, and syscalls require explicit effects
+and contracts. Unsupported behavior is rejected or reported as an assumption
+in a separately labeled conditional theorem; it cannot be hidden by erasing
+its observations.

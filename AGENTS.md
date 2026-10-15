@@ -1,6 +1,11 @@
 # Repository guidance
 
-- Implement in C, C++, and assembly. Use GNU C23 and GNU C++26 modes explicitly.
+- Implement the eDSLs, semantics, proof infrastructure, and validators in Lean 4.
+  C (GNU23), C++ (GNU++26), LLVM IR, and assembly are modeled/generated domains.
+  Native fixtures and necessary runtime shims may use C/C++/assembly.
+- Keep Lean pinned, build with warnings as errors, and audit theorem dependencies.
+  Do not introduce proof holes, project axioms, or unchecked solver results into
+  claims advertised as proved. List environmental assumptions in theorem contracts.
 - Treat OS resources, effects, ownership, and synchronization as first-class
   parts of the program model across every language/backend.
 - Keep implementation status accurate. Design documents do not establish an

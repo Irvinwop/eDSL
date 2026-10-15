@@ -1,0 +1,37 @@
+name: Lean proofs
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned elan
+        shell: bash
+        run: |
+          curl --fail --location --silent --show-error \
+            https://github.com/leanprover/elan/releases/download/v4.2.4/elan-x86_64-unknown-linux-gnu.tar.gz \
+            --output "$RUNNER_TEMP/elan.tar.gz"
+          printf '%s  %s\n' \
+            42b94d4244e8353142c456ec0e4ca6528fd898a6c604d4059f494e706e431f63 \
+            "$RUNNER_TEMP/elan.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/elan-installer"
+          tar -xzf "$RUNNER_TEMP/elan.tar.gz" -C "$RUNNER_TEMP/elan-installer"
+          "$RUNNER_TEMP/elan-installer/elan-init" -y --no-modify-path --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Build pinned Lean project
+        run: lake build
+      - name: Audit transitive axiom dependencies
+        run: bash scripts/check-audit.sh
+      - name: Replay stored proofs through a fresh kernel environment
+        run: lake env leanchecker --fresh EDSL

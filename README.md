@@ -1,54 +1,85 @@
 # eDSL
 
-Embedded domain-specific languages for **GNU C23 (`gnu23`), GNU C++26
-(`gnu++26`), LLVM IR, assembly, and the operating-system behavior of a program**.
+**Lean 4 eDSLs and proofs for GNU C23, GNU C++26, LLVM IR, assembly, and the
+operating-system behavior of programs.**
 
-The OS domain is the project's highest priority. Threads, locks, atomicity,
-memory ordering, allocation, virtual memory, and resource lifetimes belong in
-the program model, with explicit semantics that survive compilation. Processes,
-I/O, networking, scheduling, signals, timers, and other program-visible OS
-facilities are also in scope.
+The goal is to prove that a particular compiler-produced executable satisfies
+an independently stated specification on a particular architecture and OS
+profile. Threads, locks, atomicity, memory ordering, allocation, mappings,
+resource lifetimes, and failures are central parts of that statement.
 
-## Project status
+The implementation and proof language is **Lean 4**. C/C++, LLVM IR, and
+assembly are the languages being modeled and generated. Native fixtures and
+necessary runtime shims can use C/C++/assembly.
 
-This is the initial repository foundation: project scope, a proposed
-architecture, an OS requirements map, a roadmap, and GNU language-mode build
-checks. The eDSL APIs, shared representation, OS runtime, and code generators
-are **planned; they are not implemented yet**.
+## What the eventual guarantee means
 
-Implementation will use C, C++, and assembly. The initial implementation target
-is Linux on x86-64; additional OS and CPU targets are planned. Embedding API
-details remain open, including the boundary between C-hosted and C++-hosted
-builders.
+Given a source program, specification, compiler configuration, final executable
+bytes, and platform profile, produce a Lean-checked proof that every admitted
+execution satisfies the specification, under its explicit input and environment
+assumptions. Termination and progress require their own proofs and scheduler
+assumptions. Unsupported code, invalid certificates, and timeouts are reported;
+they do not count as proofs.
 
-## Domains
+The main strategy is **translation validation**: the compiler produces candidate
+code, and we check a proof about that output. We can also prove small lowering
+passes correct in Lean. Neither strategy makes an arbitrary Linux kernel,
+physical CPU, library, or dynamic loader verified by assumption. Their contracts
+and remaining trust must appear in the result.
 
-| Domain | Intended coverage |
+## Current status
+
+Implemented and checked:
+
+- A pinned Lean 4 / Lake project, with warnings treated as errors.
+- A generic behavior-refinement interface, composition, and safety transfer.
+- A tiny abstract-machine example proving increment behavior and that every
+  implementation in that instruction language requires at least one operation.
+- A transitive axiom audit for project declarations.
+- Optional native GNU23/GNU++26 compiler probes retained from the bootstrap.
+
+The current example uses natural numbers and a one-instruction abstract
+language. It is not an ISA, C integer, compiler, ELF, OS, or CPU-time proof.
+The actual language eDSLs, validators, and OS/architecture models are planned.
+
+## Read the plan
+
+| Document | Question it answers |
 | --- | --- |
-| GNU C23 | Types, expressions, control flow, functions, object layout, GNU extensions, and C interoperability |
-| GNU C++26 | Typed composition, C++ declarations and expressions, templates where needed, lifetimes, and C++ interoperability |
-| LLVM IR | Explicit types, control flow, memory operations, atomics, target layout, calling conventions, and verification |
-| Assembly | Target-specific instructions, registers, constraints, clobbers, ABI rules, fences, and object emission |
-| **OS / runtime** | **Threads, synchronization, atomicity, memory, processes, I/O, scheduling, time, and resource ownership across every language/backend** |
+| [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
+| [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
+| [Verification](docs/verification.md) | What exact theorem connects the source to final executable bytes? |
+| [Language domains](docs/languages.md) | What semantics do GNU C23, GNU C++26, LLVM IR, and assembly each need? |
+| [OS semantics](docs/os-semantics.md) | Which OS facilities matter, and what must be proved or assumed about them? |
+| [Platform model](docs/platform-model.md) | How do ISA, ABI, memory, loader, libraries, and kernel compose? |
+| [Costs and lower bounds](docs/cost-model.md) | When can we prove operation counts or optimality? |
+| [Trust and evidence](docs/trust.md) | What is currently trusted, checked, assumed, or outside the claim? |
+| [Reuse assessment](docs/research-map.md) | Which existing projects should be evaluated before building new machinery? |
 
-The language domains need their own precise constructs, with a shared core for
-composition. Target-specific behavior must remain expressible. Unsupported
-semantics must produce a diagnostic instead of silently changing the program's
-contract.
+Start with the roadmap, then the OS and platform documents. The proposed first
+real target is a restricted x86-64 function, followed by a static Linux process,
+owned memory, and a thread/atomic workload. General GNU C++26 ingestion and a
+fully verified Linux kernel are substantial separate research work.
 
-## Start here
+## Build
 
-- [Architecture and embedding proposal](docs/architecture.md)
-- [OS semantics and coverage map](docs/os-semantics.md)
-- [Implementation roadmap](docs/roadmap.md)
-- [Contributing and verification](CONTRIBUTING.md)
+Install [elan](https://github.com/leanprover/elan), then run:
 
-## Build the initial toolchain checks
+```sh
+lake build
+bash scripts/check-audit.sh
+lake env leanchecker --fresh EDSL
+```
 
-Use CMake 3.25 or newer and compilers accepting the exact `-std=gnu23` and
-`-std=gnu++26` switches. Clang 18.1.3 has been checked locally for this bootstrap;
-accepting these modes does not establish complete language or library support.
-Future implementation features will need their own capability checks.
+`lean-toolchain` pins Lean 4.35.0. The library currently needs no third-party
+Lean packages. The audit rejects transitive axiom dependencies outside Lean's
+standard `propext`, `Quot.sound`, and `Classical.choice`; it also rejects proof
+holes. Its negative check injects an untrusted transitive dependency and
+requires rejection. The bundled `leanchecker` replays the stored proofs in a
+fresh kernel environment. These check the current declarations, not the adequacy of a future
+language, OS, or hardware model.
+
+The optional native compiler probes are separate from proofs:
 
 ```sh
 cmake -S . -B build -G Ninja \
@@ -57,7 +88,12 @@ cmake -S . -B build -G Ninja \
 cmake --build build
 ```
 
-These checks compile C and C++ atomic operations and GNU statement expressions
-in the requested language modes. They establish a compiler baseline; they do
-not test an eDSL implementation or OS backend. LLVM and assembly dependencies
-will be added with their first implementations.
+These require exact `-std=gnu23` and `-std=gnu++26` acceptance, checked with
+Clang 18.1.3 for the bootstrap. They establish language-mode/syntax availability,
+not complete language support or semantic preservation.
+
+## License and contributions
+
+[Apache-2.0](LICENSE), with attribution in [NOTICE](NOTICE) and research citation
+metadata in [CITATION.cff](CITATION.cff). Contributions require a
+[DCO 1.1 sign-off](CONTRIBUTING.md); contributors retain their copyrights.

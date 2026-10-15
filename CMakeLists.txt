@@ -12,7 +12,7 @@ if(NOT EDSL_HAS_GNU23 OR NOT EDSL_HAS_GNUCXX26)
         "Select supporting C/C++ compilers (the bootstrap is checked with Clang 18).")
 endif()
 
-# These targets carry language modes, not an implemented eDSL library.
+# Optional native-domain probes. The implementation/proofs build through Lake.
 add_library(edsl_gnu23 INTERFACE)
 add_library(edsl::gnu23 ALIAS edsl_gnu23)
 target_compile_options(edsl_gnu23 INTERFACE "$<$<COMPILE_LANGUAGE:C>:-std=gnu23>")

@@ -1,0 +1,45 @@
+name: DCO sign-offs
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  sign-offs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check each new commit's author sign-off
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          mapfile -t commits < <(git rev-list "$BASE_SHA..$HEAD_SHA")
+          if [ "${#commits[@]}" -eq 0 ]; then
+            echo 'No contribution commits found'
+            exit 1
+          fi
+          failed=0
+          for commit in "${commits[@]}"; do
+            author=$(git show -s --format='%an <%ae>' "$commit")
+            signoffs=$(git show -s --format='%(trailers:key=Signed-off-by,valueonly)' "$commit")
+            found=false
+            while IFS= read -r signoff; do
+              if [ "$signoff" = "$author" ]; then
+                found=true
+              fi
+            done <<< "$signoffs"
+            if [ "$found" = false ]; then
+              printf 'Missing author DCO sign-off: %s (%s)\n' "$commit" "$author"
+              failed=1
+            fi
+          done
+          exit "$failed"

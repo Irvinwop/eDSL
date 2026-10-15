@@ -1,26 +1,72 @@
 # Contributing
 
-Read the [architecture proposal](docs/architecture.md),
-[OS contracts](docs/os-semantics.md), and [roadmap](docs/roadmap.md) before
-introducing an API. APIs are exploratory at this stage.
+The implementation, semantic models and proofs are in **Lean 4**. GNU C23,
+GNU C++26, LLVM IR and assembly are the represented/generated domains. Native
+fixtures or justified runtime shims may use C/C++/assembly. Read the
+[roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
+[verification contract](docs/verification.md) and [OS plan](docs/os-semantics.md)
+before introducing an API.
 
-Use C, C++, and assembly for implementation. Keep OS effects explicit across
-the language domains. A new operation needs a semantic contract, a target
-mapping, and a clear account of unsupported capabilities and failure paths.
+## License and DCO
 
-Build the initial compiler checks using the commands in [README.md](README.md).
-CI uses Clang 18 on Linux. These checks establish GNU language-mode acceptance
-and atomic/GNU syntax availability; they are not runtime or eDSL tests. The
-`edsl::gnu23` and `edsl::gnucxx26` CMake interface targets carry the exact flags
-for future implementation targets. Do not silently fall back to older modes.
+Contributions are submitted under Apache-2.0, with attribution maintained in
+NOTICE where appropriate. Every new contribution commit must include the
+commit author's DCO 1.1 sign-off:
 
-Add tests when they establish independently defined behavior and can detect a
-plausible defect. Choose unit, integration, or end-to-end coverage according to
-the behavior being checked. Do not mock away native synchronization, memory,
-or I/O behavior when that behavior is the subject of the test.
+```text
+Signed-off-by: Your Name <your-email@example.com>
+```
 
-Do not add tests that only repeat implementation logic, assert an assigned
-fixture value, or compare generated text with a copy of the generator's own
-rules. Prefer executable behavior, invalid-input diagnostics, ABI checks,
-compiler/IR verification, and independently defined concurrency outcomes.
-Skip new tests when they add no meaningful evidence.
+Use `git commit -s` after reading the
+[Developer Certificate of Origin 1.1](https://developercertificate.org/).
+The sign-off certifies that you have the right to submit the contribution under
+the stated license. Do not sign for another contributor. The PR DCO check
+requires a matching author sign-off on each new commit; the existing bootstrap
+commit predates this policy.
+
+Contributors retain copyright. A DCO does not transfer ownership or grant a
+separate right to relicense others' contributions. A future license change or
+additional commercial licensing arrangement must respect existing licenses and
+the permissions of the relevant copyright holders. No CLA is currently used.
+
+NOTICE carries attribution; it does not add restrictions to Apache-2.0.
+CITATION.cff requests research citation, which is separate from the license's
+redistribution requirements. The canonical terms are in [LICENSE](LICENSE).
+
+## Proof and validation requirements
+
+Run:
+
+```sh
+lake build
+bash scripts/check-audit.sh
+lake env leanchecker --fresh EDSL
+```
+
+Keep the toolchain/dependencies pinned. Do not use proof holes, added axioms, or
+unchecked solver/native execution to advertise a result as proved. Record all
+environmental hypotheses and support limitations. Independently define behavior
+before implementing a checker and prove the checker's soundness against it.
+Review theorem assumptions for nonvacuity and hidden copies of the conclusion.
+
+Each operation needs semantics, ownership/effects, failure and progress rules,
+target requirements, native mappings and named proof obligations. Separate
+representation, execution, proof and artifact-validation status. Update the
+trust report when an implementation crosses a new external boundary.
+
+Optional native probes use the CMake commands in README. They check GNU dialect
+acceptance and atomic/GNU syntax availability, not compiler correctness.
+
+## Meaningful tests and evidence
+
+Tests must check independently defined behavior and catch plausible defects.
+Choose unit, integration or end-to-end coverage according to the failure. Do
+not mock away the OS or memory behavior that the test claims to check. Avoid
+expected results that repeat implementation logic or assert assigned fixtures.
+Skip tests without meaningful evidence.
+
+For validators, prioritize malformed/wrong-byte certificates, invalid widths,
+unsupported features and artifact mismatches. For OS implementations, use real
+threads, waits and mappings plus controlled failure/interruption. Tests and
+stress runs complement formal arguments; they do not prove all schedules or a
+weak-memory mapping.
