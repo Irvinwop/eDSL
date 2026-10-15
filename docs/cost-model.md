@@ -148,6 +148,12 @@ an available completion path, not completion for all schedulers. Runtime/kernel
 work, cycles, elapsed time and minimum operations over other implementations
 remain outside these results.
 
+The separate buffered scheduler records retired user instructions, blocked
+locked issues and FIFO drains as different observations. `retiredCount` counts
+only the first category. The mutex cost theorem has not yet been transferred to
+all buffered traces; drains and stalls must not be counted as extra machine
+instructions or silently discarded when making timing claims.
+
 The original tiny abstract machine has only `add amount`, natural-number inputs
 and unit instruction cost. Its checked increment implementation has length one,
 and every candidate meeting that contract has length at least one. This example

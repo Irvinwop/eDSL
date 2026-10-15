@@ -412,7 +412,7 @@ memory remain external. See [counter-worker contracts](counter-workers.md).
 The integration total is 46 raw/full-ELF artifact certificates, including four
 counter-worker and four mutex-worker certificates. The counter observer checks 42 sequential requests
 and four eight-thread workloads per compiler; it independently rejects four
-terminating semantic mutants. Twenty-four Lean suites include symbolic admission
+terminating semantic mutants. Twenty-six Lean suites include symbolic admission
 and completion witnesses for every initial word and pair of 64-bit counts.
 
 ## Protected payloads and mutex guards
@@ -491,6 +491,30 @@ enabledness, completed observations/collection and entry completion; the older
 checked-replay contracts remain. Four Clang/GCC raw/full-ELF
 artifacts keep the distinct total at 46 while acquiring stronger certificates.
 See [worker execution contracts and limitations](mutex-workers.md).
+
+## Buffered machine execution
+
+`OS.TSO` separately executes decoded supported bytes against FIFO store buffers.
+Ordinary stores enqueue; ordinary loads forward from the issuing worker's queue.
+Independent drains publish oldest writes. Locked XCHG/XADD block until their
+own buffer is empty, then perform the existing exact indivisible operation.
+RET retains pending stores, and draining returned workers remains possible.
+Trace observations distinguish retired instructions, blocked issues and drains.
+
+The buffer algebra proves latest-write forwarding, drain-view invariance,
+permission/accessibility preservation, code/stack frames and disjoint-write
+commutation. Ownership-derived mutex footprint lemmas establish separation of
+payload, lock, executable code and saved return stack. The buffered profile adds
+explicit payload alignment and non-executable lock/payload destinations beyond
+the prior mutex admission.
+Owned regressions exercise the both-zero store-buffer outcome, same-address
+forwarding, RET before publication, and FIFO payload publication before a
+blocked mutex release.
+
+The existing universal mutex certificates still use immediate visibility.
+Transfer to every buffered mutex execution requires a pending-write/guard/OS
+simulation. Physical hardware conformance, native identities and runtime
+refinement also remain open. See [buffered execution](store-buffers.md).
 
 ## Restricted ELF loading
 
@@ -624,6 +648,8 @@ lake env lean -DwarningAsError=true tests/MutexISA.lean
 lake env lean -DwarningAsError=true tests/MutexReplay.lean
 lake env lean -DwarningAsError=true tests/MutexInvariant.lean
 lake env lean -DwarningAsError=true tests/MutexExecution.lean
+lake env lean -DwarningAsError=true tests/StoreBuffer.lean
+lake env lean -DwarningAsError=true tests/TSO.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

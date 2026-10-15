@@ -57,6 +57,8 @@ jobs:
           lake env lean -DwarningAsError=true tests/MutexReplay.lean
           lake env lean -DwarningAsError=true tests/MutexInvariant.lean
           lake env lean -DwarningAsError=true tests/MutexExecution.lean
+          lake env lean -DwarningAsError=true tests/StoreBuffer.lean
+          lake env lean -DwarningAsError=true tests/TSO.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment

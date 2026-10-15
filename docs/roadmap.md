@@ -328,6 +328,15 @@ matching lower bound for this fixed routine across schedules. General
 weak-memory publication and native runtime/kernel correspondence remain open;
 completion for all schedulers is not claimed.
 
+The next memory-order layer now has an executable FIFO store-buffer scheduler
+for supported decoded instructions, newest-own-store forwarding, explicit
+drains and locked-operation stalls. Bytewise buffer algebra and ownership-derived
+code/stack/lock footprints are checked prerequisites. The remaining transfer
+proof must relate the mutex holder's pending payload stores to the logical OS
+state and cover arbitrary buffered issues/drains. Existing universal certificates
+retain their immediate-visibility interpretation until that simulation is proved.
+See [buffered execution](store-buffers.md).
+
 Add multiple-lock registration
 and resource composition explicitly before claiming interoperability with the
 existing atomic-worker wrapper. Establish the target memory-order mapping and

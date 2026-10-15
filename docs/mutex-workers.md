@@ -220,6 +220,10 @@ cycles, micro-ops, blocking/futex behavior or waiting.
 
 ## Physical boundary
 
+The separate [buffered scheduler](store-buffers.md) now models FIFO stores,
+forwarding and locked-operation stalls. Transfer of this document's universal
+mutex certificate to arbitrary buffered executions remains a separate proof.
+
 This remains the existing sequentially interleaved coherent-RAM profile. It
 does not implement a store-buffer/weak-memory model, arbitrary native client
 compliance, pthread start/join, the Linux kernel, interrupts or exceptions. XCHG's physical

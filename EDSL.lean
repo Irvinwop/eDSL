@@ -16,6 +16,9 @@ import EDSL.OS.MutexReplay
 import EDSL.MutexWorkerCertificate
 import EDSL.Examples.MutexLoans
 import EDSL.Examples.MutexExecution
+import EDSL.OS.TSO
+import EDSL.OS.MutexReplay.Footprints
+import EDSL.Examples.StoreBuffer
 import EDSL.CounterCertificate
 import EDSL.ELF.Loader
 import EDSL.Certificate

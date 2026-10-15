@@ -248,7 +248,7 @@ theorem branch_step (shared : Mutex.State) (worker : Worker)
   have canonicalEntry := X86.fetch_canonical entryByte
   have pc := (of_decide_eq_true context).2.2.2
   simp only [phase, Phase.offset, reduceCtorEq, ite_false] at pc
-  simp only [X86.step, decoded, ok_bind]
+  simp only [X86.step, decoded, ok_bind, executeInstruction]
   cases zero : worker.context.flags.getLsbD 6
   all_goals
     simp only [executeJnz, executeShortBranch, Threads.Context.snapshot, branchContext]

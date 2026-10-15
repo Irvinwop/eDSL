@@ -45,6 +45,45 @@ inductive Instruction where
   | ret
   deriving DecidableEq, Repr
 
+/-- The address and low 32-bit value of an ordinary store. This is an intent,
+not permission to write: execution still validates all four destination bytes.
+Locked RMWs have no ordinary store intent. -/
+def Instruction.storeIntent (instruction : Instruction) (state : State) :
+    Option (Word × BitVec 32) :=
+  match instruction with
+  | .storeEsiRdi => some (state.registers .rdi, (state.registers .rsi).setWidth 32)
+  | .storeEaxRsi => some (state.registers .rsi, (state.registers .rax).setWidth 32)
+  | _ => none
+
+/-- These decoded operations require an indivisible locked RMW transition. -/
+def Instruction.isLocked (instruction : Instruction) : Bool :=
+  match instruction with
+  | .exchangeEaxRdi | .fetchAddEaxRdi => true
+  | _ => false
+
+theorem Instruction.storeIntent_eq_some_iff (instruction : Instruction) (state : State)
+    (address : Word) (value : BitVec 32) :
+    instruction.storeIntent state = some (address, value) ↔
+      (instruction = .storeEsiRdi ∧ address = state.registers .rdi ∧
+        value = (state.registers .rsi).setWidth 32) ∨
+      (instruction = .storeEaxRsi ∧ address = state.registers .rsi ∧
+        value = (state.registers .rax).setWidth 32) := by
+  cases instruction <;> simp [Instruction.storeIntent, eq_comm]
+
+theorem Instruction.storeIntent_eq_none_iff (instruction : Instruction) (state : State) :
+    instruction.storeIntent state = none ↔
+      instruction ≠ .storeEsiRdi ∧ instruction ≠ .storeEaxRsi := by
+  cases instruction <;> simp [Instruction.storeIntent]
+
+theorem Instruction.isLocked_eq_true_iff (instruction : Instruction) :
+    instruction.isLocked = true ↔
+      instruction = .exchangeEaxRdi ∨ instruction = .fetchAddEaxRdi := by
+  cases instruction <;> simp [Instruction.isLocked]
+
+theorem Instruction.storeIntent_none_of_isLocked (instruction : Instruction) (state : State)
+    (locked : instruction.isLocked = true) : instruction.storeIntent state = none := by
+  rcases (instruction.isLocked_eq_true_iff).mp locked with rfl | rfl <;> rfl
+
 def decodeAt (state : State) : Except Error Instruction := do
   let opcode ← fetchByte state.memory state.rip
   if opcode = 0xc3 then
@@ -248,6 +287,17 @@ theorem executeShortBranch_registers {initial final : State} {taken : Bool} {dis
     · cases success
   · cases success; rfl
 
+theorem executeShortBranch_memory {initial final : State} {taken : Bool} {displacement : Byte}
+    (success : executeShortBranch initial taken displacement = .ok final) :
+    final.memory = initial.memory := by
+  unfold executeShortBranch at success
+  split at success
+  · dsimp only at success
+    split at success
+    · cases success; rfl
+    · cases success
+  · cases success; rfl
+
 def executeRet (state : State) : Except Error State := do
   let target ← readWord state.memory (state.registers .rsp)
   if canonical target then
@@ -261,8 +311,21 @@ inductive StepResult where
   | returned (state : State)
   | syscall (request : SyscallRequest)
 
-def step (state : State) : Except Error StepResult := do
-  match ← decodeAt state with
+/- Simplification can turn a reducible execution branch's bind/pure into a map.
+Keep constructor outcomes reducible without eagerly unfolding unknown decoded
+instructions in callers' execution-inversion proofs. -/
+@[simp] theorem except_map_ok (function : α → β) (value : α) :
+    function <$> (Except.ok value : Except ε α) = .ok (function value) := rfl
+
+@[simp] theorem except_map_error (function : α → β) (fault : ε) :
+    function <$> (Except.error fault : Except ε α) = .error fault := rfl
+
+/-- Execute a supplied decoded instruction. Instruction fetch is deliberately
+separate from this state's data memory, so a caller can decode shared code and
+execute using a store-buffer-forwarded data view. Reducibility preserves the
+existing definitional execution interface of `step`. -/
+abbrev executeInstruction (state : State) (instruction : Instruction) : Except Error StepResult := do
+  match instruction with
   | .leaEaxRdiDisp8 displacement => return .next (executeLea state displacement)
   | .leaEaxRaxDisp8 displacement => return .next (executeLeaRax state displacement)
   | .movEaxEdi => return .next (executeMovEaxEdi state)
@@ -285,6 +348,156 @@ def step (state : State) : Except Error StepResult := do
   | .syscall => return .syscall ⟨state, state.rip + 2⟩
   | .ret => return .returned (← executeRet state)
 
+def step (state : State) : Except Error StepResult := do
+  let instruction ← decodeAt state
+  executeInstruction state instruction
+
+theorem step_eq_executeInstruction (state : State) (instruction : Instruction)
+    (decoded : decodeAt state = .ok instruction) :
+    step state = executeInstruction state instruction := by
+  simp only [step, decoded, ok_bind]
+
+/-- Complete ordinary-store outcome, including the existing permission failure,
+unchanged registers/flags, two-byte PC advance and exact four-byte update. -/
+theorem executeInstruction_storeEsiRdi (state : State) :
+    executeInstruction state .storeEsiRdi =
+      if canStoreDWord state.memory (state.registers .rdi) then
+        .ok (.next { state with
+          memory := writeDWordUnchecked state.memory (state.registers .rdi)
+            ((state.registers .rsi).setWidth 32)
+          rip := state.rip + 2 })
+      else .error (.writeDenied (state.registers .rdi)) := by
+  cases allowed : canStoreDWord state.memory (state.registers .rdi) <;>
+    simp [executeInstruction, executeStore, storeDWord, allowed]
+
+theorem executeInstruction_storeEaxRsi (state : State) :
+    executeInstruction state .storeEaxRsi =
+      if canStoreDWord state.memory (state.registers .rsi) then
+        .ok (.next { state with
+          memory := writeDWordUnchecked state.memory (state.registers .rsi)
+            ((state.registers .rax).setWidth 32)
+          rip := state.rip + 2 })
+      else .error (.writeDenied (state.registers .rsi)) := by
+  cases allowed : canStoreDWord state.memory (state.registers .rsi) <;>
+    simp [executeInstruction, executeStoreRsi, storeDWord, allowed]
+
+/-- A scheduler can use the classified intent without reimplementing either
+ordinary store's execution or validation. -/
+theorem executeInstruction_storeIntent {state : State} {instruction : Instruction}
+    {address : Word} {value : BitVec 32}
+    (intent : instruction.storeIntent state = some (address, value)) :
+    executeInstruction state instruction =
+      if canStoreDWord state.memory address then
+        .ok (.next { state with
+          memory := writeDWordUnchecked state.memory address value
+          rip := state.rip + 2 })
+      else .error (.writeDenied address) := by
+  rcases (instruction.storeIntent_eq_some_iff state address value).mp intent with
+    ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩
+  · exact executeInstruction_storeEsiRdi state
+  · exact executeInstruction_storeEaxRsi state
+
+theorem executeInstruction_storeIntent_next_iff {initial final : State} {instruction : Instruction}
+    {address : Word} {value : BitVec 32}
+    (intent : instruction.storeIntent initial = some (address, value)) :
+    executeInstruction initial instruction = .ok (.next final) ↔
+      canStoreDWord initial.memory address = true ∧
+      final = { initial with
+        memory := writeDWordUnchecked initial.memory address value
+        rip := initial.rip + 2 } := by
+  rw [executeInstruction_storeIntent intent]
+  cases canStoreDWord initial.memory address <;> simp [eq_comm]
+
+/-- Successful ordinary non-writing execution preserves the entire data memory,
+including permissions. Loads and RET still read this state's data view; locked
+RMW outcomes are deliberately excluded by the result constructors. -/
+theorem executeInstruction_ordinary_memory {initial final : State} {instruction : Instruction}
+    (noStore : instruction.storeIntent initial = none)
+    (transition : executeInstruction initial instruction = .ok (.next final) ∨
+      executeInstruction initial instruction = .ok (.returned final)) :
+    final.memory = initial.memory := by
+  cases instruction with
+  | leaEaxRdiDisp8 displacement | leaEaxRaxDisp8 displacement
+  | movEaxEdi | movEaxEsi | cmpEaxZero | mov32 destination value =>
+    simp [executeInstruction] at transition
+    subst final
+    rfl
+  | exchangeEaxRdi =>
+    cases result : executeExchange initial <;> simp [executeInstruction, result] at transition
+  | fetchAddEaxRdi =>
+    cases result : executeFetchAdd initial <;> simp [executeInstruction, result] at transition
+  | jrcxz displacement =>
+    cases result : executeJrcxz initial displacement with
+    | error fault => simp [executeInstruction, result] at transition
+    | ok next =>
+      simp [executeInstruction, result] at transition
+      subst final
+      exact executeShortBranch_memory result
+  | loopRcx displacement =>
+    cases result : executeLoop initial displacement with
+    | error fault => simp [executeInstruction, result] at transition
+    | ok next =>
+      simp [executeInstruction, result] at transition
+      subst final
+      exact executeShortBranch_memory
+        (initial := initial.writeRegister .rcx (initial.registers .rcx - 1)) result
+  | jnz displacement =>
+    cases result : executeJnz initial displacement with
+    | error fault => simp [executeInstruction, result] at transition
+    | ok next =>
+      simp [executeInstruction, result] at transition
+      subst final
+      exact executeShortBranch_memory result
+  | loadEaxRdi =>
+    cases loaded : loadDWord initial.memory (initial.registers .rdi) with
+    | error fault => simp [executeInstruction, executeLoad, loaded] at transition
+    | ok value =>
+      simp [executeInstruction, executeLoad, loaded] at transition
+      subst final
+      rfl
+  | loadEaxRsi =>
+    cases loaded : loadDWord initial.memory (initial.registers .rsi) with
+    | error fault => simp [executeInstruction, executeLoadRsi, loaded] at transition
+    | ok value =>
+      simp [executeInstruction, executeLoadRsi, loaded] at transition
+      subst final
+      rfl
+  | storeEsiRdi | storeEaxRsi => simp [Instruction.storeIntent] at noStore
+  | syscall => simp [executeInstruction] at transition
+  | ret =>
+    cases stack : readWord initial.memory (initial.registers .rsp) with
+    | error fault => simp [executeInstruction, executeRet, stack] at transition
+    | ok target =>
+      cases valid : canonical target <;>
+        simp [executeInstruction, executeRet, stack, valid] at transition
+      subst final
+      rfl
+
+theorem executeInstruction_next_memory {initial final : State} {instruction : Instruction}
+    (noStore : instruction.storeIntent initial = none)
+    (transition : executeInstruction initial instruction = .ok (.next final)) :
+    final.memory = initial.memory :=
+  executeInstruction_ordinary_memory noStore (.inl transition)
+
+theorem executeInstruction_returned_memory {initial final : State} {instruction : Instruction}
+    (noStore : instruction.storeIntent initial = none)
+    (transition : executeInstruction initial instruction = .ok (.returned final)) :
+    final.memory = initial.memory :=
+  executeInstruction_ordinary_memory noStore (.inr transition)
+
+theorem executeInstruction_atomic_sound {initial final : State} {event : AtomicEvent}
+    (transition : executeInstruction initial .exchangeEaxRdi = .ok (.atomic event final)) :
+    ExchangeTransition initial.memory event final.memory ∧
+    event.address = initial.registers .rdi ∧ event.after = (initial.registers .rax).setWidth 32 ∧
+    final.registers .rax = event.before.setWidth 64 ∧
+    final.flags = initial.flags ∧ final.rip = initial.rip + 2 := by
+  cases result : executeExchange initial with
+  | error fault => simp [executeInstruction, result] at transition
+  | ok exchanged =>
+    simp [executeInstruction, result] at transition
+    rcases transition with ⟨rfl, rfl⟩
+    exact executeExchange_sound result
+
 theorem step_atomic_sound {initial final : State} {event : AtomicEvent}
     (decoded : decodeAt initial = .ok .exchangeEaxRdi)
     (transition : step initial = .ok (.atomic event final)) :
@@ -292,12 +505,22 @@ theorem step_atomic_sound {initial final : State} {event : AtomicEvent}
     event.address = initial.registers .rdi ∧ event.after = (initial.registers .rax).setWidth 32 ∧
     final.registers .rax = event.before.setWidth 64 ∧
     final.flags = initial.flags ∧ final.rip = initial.rip + 2 := by
-  cases result : executeExchange initial with
-  | error fault => simp [step, decoded, result] at transition
-  | ok exchanged =>
-    simp [step, decoded, result] at transition
+  rw [step_eq_executeInstruction initial .exchangeEaxRdi decoded] at transition
+  exact executeInstruction_atomic_sound transition
+
+theorem executeInstruction_fetchAdd_sound {initial final : State} {event : AtomicEvent}
+    (transition : executeInstruction initial .fetchAddEaxRdi = .ok (.atomic event final)) :
+    ExchangeTransition initial.memory event final.memory ∧
+    event.address = initial.registers .rdi ∧ event.after = event.before + (initial.registers .rax).setWidth 32 ∧
+    final.registers .rax = event.before.setWidth 64 ∧
+    final.flags = addFlags32 initial.flags event.before ((initial.registers .rax).setWidth 32) ∧
+    final.rip = initial.rip + 4 := by
+  cases result : executeFetchAdd initial with
+  | error fault => simp [executeInstruction, result] at transition
+  | ok added =>
+    simp [executeInstruction, result] at transition
     rcases transition with ⟨rfl, rfl⟩
-    exact executeExchange_sound result
+    exact executeFetchAdd_sound result
 
 theorem step_fetchAdd_sound {initial final : State} {event : AtomicEvent}
     (decoded : decodeAt initial = .ok .fetchAddEaxRdi)
@@ -307,15 +530,35 @@ theorem step_fetchAdd_sound {initial final : State} {event : AtomicEvent}
     final.registers .rax = event.before.setWidth 64 ∧
     final.flags = addFlags32 initial.flags event.before ((initial.registers .rax).setWidth 32) ∧
     final.rip = initial.rip + 4 := by
-  cases result : executeFetchAdd initial with
-  | error fault => simp [step, decoded, result] at transition
-  | ok added =>
-    simp [step, decoded, result] at transition
-    rcases transition with ⟨rfl, rfl⟩
-    exact executeFetchAdd_sound result
+  rw [step_eq_executeInstruction initial .fetchAddEaxRdi decoded] at transition
+  exact executeInstruction_fetchAdd_sound transition
 
-/-- Common guarantees of every supported labeled RMW step. Instruction-specific
+/-- Common guarantees of every supported labeled RMW execution. Instruction-specific
 replacement arithmetic, flags and length remain in the corresponding theorem. -/
+theorem executeInstruction_atomic_transition {initial final : State} {event : AtomicEvent}
+    {instruction : Instruction}
+    (transition : executeInstruction initial instruction = .ok (.atomic event final)) :
+    ExchangeTransition initial.memory event final.memory ∧ event.address = initial.registers .rdi ∧
+      final.registers .rax = event.before.setWidth 64 := by
+  cases instruction with
+  | leaEaxRdiDisp8 displacement | leaEaxRaxDisp8 displacement
+  | movEaxEdi | movEaxEsi | cmpEaxZero | mov32 destination value | syscall =>
+    simp [executeInstruction] at transition
+  | jrcxz displacement => cases result : executeJrcxz initial displacement <;> simp [executeInstruction, result] at transition
+  | loopRcx displacement => cases result : executeLoop initial displacement <;> simp [executeInstruction, result] at transition
+  | jnz displacement => cases result : executeJnz initial displacement <;> simp [executeInstruction, result] at transition
+  | loadEaxRdi => cases result : executeLoad initial <;> simp [executeInstruction, result] at transition
+  | loadEaxRsi => cases result : executeLoadRsi initial <;> simp [executeInstruction, result] at transition
+  | storeEsiRdi => cases result : executeStore initial <;> simp [executeInstruction, result] at transition
+  | storeEaxRsi => cases result : executeStoreRsi initial <;> simp [executeInstruction, result] at transition
+  | ret => cases result : executeRet initial <;> simp [executeInstruction, result] at transition
+  | exchangeEaxRdi =>
+    have proof := executeInstruction_atomic_sound transition
+    exact ⟨proof.1, proof.2.1, proof.2.2.2.1⟩
+  | fetchAddEaxRdi =>
+    have proof := executeInstruction_fetchAdd_sound transition
+    exact ⟨proof.1, proof.2.1, proof.2.2.2.1⟩
+
 theorem step_atomic_transition {initial final : State} {event : AtomicEvent}
     (transition : step initial = .ok (.atomic event final)) :
     ExchangeTransition initial.memory event final.memory ∧ event.address = initial.registers .rdi ∧
@@ -323,23 +566,8 @@ theorem step_atomic_transition {initial final : State} {event : AtomicEvent}
   cases decoded : decodeAt initial with
   | error fault => simp [step, decoded] at transition
   | ok instruction =>
-    cases instruction with
-    | leaEaxRdiDisp8 displacement | leaEaxRaxDisp8 displacement
-    | movEaxEdi | movEaxEsi | cmpEaxZero | mov32 destination value | syscall => simp [step, decoded] at transition
-    | jrcxz displacement => cases result : executeJrcxz initial displacement <;> simp [step, decoded, result] at transition
-    | loopRcx displacement => cases result : executeLoop initial displacement <;> simp [step, decoded, result] at transition
-    | jnz displacement => cases result : executeJnz initial displacement <;> simp [step, decoded, result] at transition
-    | loadEaxRdi => cases result : executeLoad initial <;> simp [step, decoded, result] at transition
-    | loadEaxRsi => cases result : executeLoadRsi initial <;> simp [step, decoded, result] at transition
-    | storeEsiRdi => cases result : executeStore initial <;> simp [step, decoded, result] at transition
-    | storeEaxRsi => cases result : executeStoreRsi initial <;> simp [step, decoded, result] at transition
-    | ret => cases result : executeRet initial <;> simp [step, decoded, result] at transition
-    | exchangeEaxRdi =>
-      have proof := step_atomic_sound decoded transition
-      exact ⟨proof.1, proof.2.1, proof.2.2.2.1⟩
-    | fetchAddEaxRdi =>
-      have proof := step_fetchAdd_sound decoded transition
-      exact ⟨proof.1, proof.2.1, proof.2.2.2.1⟩
+    rw [step_eq_executeInstruction initial instruction decoded] at transition
+    exact executeInstruction_atomic_transition transition
 
 structure Execution where
   state : State
@@ -356,6 +584,5 @@ def run : Nat → State → Except Error Execution
     | .next next | .atomic _ next =>
       let result ← run fuel next
       return { result with instructions := result.instructions + 1 }
-
 
 end EDSL.X86

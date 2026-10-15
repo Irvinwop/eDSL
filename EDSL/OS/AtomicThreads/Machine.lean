@@ -86,7 +86,7 @@ theorem returning_step (entry : Context) (space : Space) (old : BitVec 32) (targ
     (canonical : X86.canonical target = true) :
     X86.step ((exchanged entry old).snapshot space) =
       .ok (.returned ((entry.returned old target).snapshot space)) := by
-  simp only [X86.step, returning_decode entry space old code, ok_bind, pure_ok]
+  simp only [X86.step, returning_decode entry space old code, ok_bind]
   simp [executeRet, stack, canonical,
     Threads.Context.snapshot, Threads.Context.returned, exchanged, X86.State.writeRegister]
 

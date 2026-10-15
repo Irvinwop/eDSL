@@ -65,6 +65,9 @@ Implemented and checked:
   See [contracts and remaining proofs](docs/mutex-workers.md).
 - Checked mutex-worker code/return-stack readiness, positive cohort collection
   and exact code/stack loan revocation, with unrelated loan records preserved.
+- A separate buffered x86 scheduler with FIFO publication, own-store
+  forwarding, locked-operation stalls, and explicit drain/retirement events.
+  See [buffered execution and its current limits](docs/store-buffers.md).
 - A counted assembly loop with a proved invariant and termination for every
   64-bit count, modular arithmetic result and exact `2*count+3` user-instruction cost.
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
@@ -117,6 +120,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Counted counter workers](docs/counter-workers.md) | How do independently counted locked-add workers establish the modular total, exact own-step costs and complete collection? |
 | [Protected payloads and mutexes](docs/mutex.md) | How do exclusive guards, closed invariants and exact machine operations compose? |
 | [Complete mutex worker execution](docs/mutex-workers.md) | How do arbitrary admitted architectural interleavings preserve OS contracts and admit completion? |
+| [Buffered x86 execution](docs/store-buffers.md) | How do delayed stores, forwarding and locked operations differ from immediate visibility? |
 | [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
 | [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
 | [Stream output and exit](docs/process-write.md) | How do short writes and errors compose with the next userspace instructions? |
@@ -183,6 +187,8 @@ lake env lean -DwarningAsError=true tests/MutexISA.lean
 lake env lean -DwarningAsError=true tests/MutexReplay.lean
 lake env lean -DwarningAsError=true tests/MutexInvariant.lean
 lake env lean -DwarningAsError=true tests/MutexExecution.lean
+lake env lean -DwarningAsError=true tests/StoreBuffer.lean
+lake env lean -DwarningAsError=true tests/TSO.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

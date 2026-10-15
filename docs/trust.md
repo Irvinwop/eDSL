@@ -288,6 +288,16 @@ observations remain separate evidence; runtime identity/authentication,
 physical memory-order adequacy and kernel behavior remain environmental
 obligations.
 
+The separate `OS.TSO` scheduler models delayed aligned ordinary stores, FIFO
+drains, local forwarding and locked operations after an empty local buffer.
+It decodes shared code and uses the same decoded execution definition as
+`X86.step`; non-writing memory effects and complete atomic/store outcomes are
+proved explicitly. Buffer/footprint proofs support a future simulation with
+the mutex OS witness. They do not transfer the existing universal certificate
+to buffered traces by assumption. The physical interpretation excludes aliases,
+mixed-size overlapping accesses, mutable code, devices and translation changes;
+it is not a hardware refinement theorem. See [the buffered profile](store-buffers.md).
+
 Every artifact report must distinguish:
 
 | Item | Planned treatment |
