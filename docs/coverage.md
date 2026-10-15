@@ -137,8 +137,39 @@ See [address-space contracts](address-space.md) for the exact API and boundary.
 machine store's projected bytes and permissions. `store32_updates_space` composes
 that update with actual compiler bytes, preserving registers, return behavior,
 termination and count. All old data and 64-bit store arguments have admitted
-witnesses. These are still sequential byte-cell updates, not physical page,
-aliasing, resource-identity or concurrent-atomicity proofs.
+witnesses. This byte-cell bridge alone does not prove physical page, aliasing,
+resource identity or concurrent atomicity properties.
+
+## Sequential ownership and allocation lifetimes
+
+`EDSL.OS.Ownership` retains the same byte-space projection and adds live region
+records with owner, never-reused allocation ID and transfer epoch. Checked
+allocate/adopt/transfer/release/protect/store operations have `WellFormed`
+preservation proofs: live IDs are below a monotone frontier, valid regions are
+fully mapped (including hidden cells), and distinct allocations are disjoint.
+Fresh mappings are zero-filled; adoption preserves exact existing cells.
+
+Transfers advance the epoch even for the same owner. `release_invalidates` and
+`transfer_invalidates`, combined with `Invalidated.persists` and
+`revoked_for_history`, exclude current authority after any later finite managed
+history. This covers same-address reallocation and A→B→A transfer. Stores check
+all four bytes within one allocation before the machine permission preflight.
+
+`owned_store32_correct` connects a successful authorized operation to the exact
+store/RET bytes and OS-cell update, retaining code/stack framing, unique result,
+two-step termination and divergence exclusion. A symbolic adopted-entry witness
+covers all old words and 64-bit source arguments, with final well-formedness.
+Tests also exercise stale/owner rejection, writable boundary crossing, final-byte
+overlap, inaccessible adoption and permission restoration. See [ownership scope](ownership.md).
+
+These are sequential proof-level authorities. Tickets/principals are constructible
+data, raw instructions do not inspect them, and unmanaged mapping changes are
+excluded from the managed history. No hardware stale-pointer prevention, linear
+token discipline, C/C++ object provenance, runtime allocator, borrowing or
+concurrency theorem is claimed. Adoption's finite scan relies on the explicit
+well-formedness premise; malformed user-constructed worlds are not validated by
+a global runtime checker. The existing certificate CLI does not synthesize
+ownership registries automatically.
 
 ## Restricted ELF loading
 
@@ -256,6 +287,7 @@ lake env lean -DwarningAsError=true tests/ELF.lean
 lake env lean -DwarningAsError=true tests/Process.lean
 lake env lean -DwarningAsError=true tests/Write.lean
 lake env lean -DwarningAsError=true tests/ControlFlow.lean
+lake env lean -DwarningAsError=true tests/Ownership.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

@@ -30,6 +30,22 @@ Native VM probes are independent conformance observations for selected successfu
 operations and denied accesses. Their exact boundary is in the
 [address-space report](address-space.md).
 
+The sequential ownership layer adds a live allocation registry with natural
+IDs/epochs, well-formedness preservation and permanent ticket revocation through
+managed histories. Owned stores project to the existing machine bytes and OS
+cell update under explicit authority, range, permission and code/stack premises;
+all old/source values have admitted symbolic witnesses. No extra axioms or
+hardware checks establish these contracts.
+
+The registry is a logical resource discipline. Its principal/ticket fields do
+not authenticate callers or prevent unchecked machine accesses. The histories
+exclude unmanaged changes and arbitrary interference. The finite adoption scan
+is complete under `WellFormed`; manually constructed malformed worlds are not
+globally validated. Borrowing, linear permissions, language provenance, concurrent
+adequacy and real allocation/kernel refinement remain unproved. The certificate
+generator retains its existing machine contracts and does not automatically
+infer resource ownership. See [ownership boundary](ownership.md).
+
 The restricted ELF path checks complete observed bytes, parser/validation results
 and entry-code binding through a modeled loader. It removes the raw path's
 unverified extraction dependency for those artifacts, while retaining explicit

@@ -5,6 +5,11 @@ abstract address-space contract in Lean 4. It supplies the mapping/permission
 vocabulary used by the machine model. It does not establish correctness of a
 Linux kernel or syscall implementation.
 
+The separate [ownership registry](ownership.md) layers allocation identities,
+principal/epoch authority and revocation over this same space, with a checked
+owned-store/binary bridge. Those logical resources are not encoded in `Cell`
+permissions or raw hardware addresses.
+
 ## State and checked operations
 
 A `Space` maps 64-bit addresses to optional `Cell` values. A cell has a stored

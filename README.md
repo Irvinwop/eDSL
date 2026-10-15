@@ -54,6 +54,8 @@ Implemented and checked:
   unmapping, permission-revocation proofs and composition with a binary contract.
 - A checked OS word store whose cell update projects exactly to the machine
   store, with all-input compiler-binary composition and retained permissions.
+- A sequential allocation registry with fresh lifetime IDs, revoking transfer
+  epochs, managed-history invariants and owned-store composition with exact bytes.
 - A restricted ELF64 loader with bounds, permissions, BSS and page-collision
   checks; full-file certificates derive executable entry-code binding.
 - A standalone exit42 ELF certificate, first-syscall execution proofs and an
@@ -80,6 +82,7 @@ concurrency and general source eDSLs/validators remain planned. See the precise
 | --- | --- |
 | [Implemented coverage](docs/coverage.md) | What can run and what has actually been proved? |
 | [Address-space contracts](docs/address-space.md) | How do mapping and permission changes connect to binary proofs? |
+| [Ownership and lifetimes](docs/ownership.md) | What prevents stale authority after release, address reuse or transfer? |
 | [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
 | [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
 | [Stream output and exit](docs/process-write.md) | How do short writes and errors compose with the next userspace instructions? |
@@ -99,9 +102,9 @@ concurrency and general source eDSLs/validators remain planned. See the precise
 
 Start with the roadmap, then the OS and platform documents. Restricted x86-64
 functions, a counted loop and bounded stream-write/exit entries are checked;
-next come memory ownership/lifetimes, richer control flow and a thread/atomic
-workload. General GNU C++26 ingestion and a fully verified Linux kernel are
-substantial separate research work.
+sequential ownership/lifetime contracts are checked too. Next come borrowing,
+richer control flow and a thread/atomic workload. General GNU C++26 ingestion
+and a fully verified Linux kernel are substantial separate research work.
 
 ## Build
 
@@ -118,6 +121,7 @@ lake env lean -DwarningAsError=true tests/ELF.lean
 lake env lean -DwarningAsError=true tests/Process.lean
 lake env lean -DwarningAsError=true tests/Write.lean
 lake env lean -DwarningAsError=true tests/ControlFlow.lean
+lake env lean -DwarningAsError=true tests/Ownership.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

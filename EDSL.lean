@@ -4,6 +4,7 @@ import EDSL.Examples.Compiler.Increment
 import EDSL.Examples.Compiler.MemoryWitness
 import EDSL.OS.Composition
 import EDSL.OS.WordStore
+import EDSL.OS.Ownership
 import EDSL.ELF.Loader
 import EDSL.Certificate
 import EDSL.Process.Certificate

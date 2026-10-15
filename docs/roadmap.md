@@ -147,8 +147,8 @@ all reachable code/runtime and external contracts accounted for.
 
 Implemented foundation: sequential four-byte ordinary-RAM reads/writes, explicit
 per-byte mappedness/write permissions, read-after-write, disjoint framing and
-nonvacuous compiler-profile witnesses. This is not yet object ownership, an
-allocator, concurrent atomicity or calls beyond the modeled return.
+nonvacuous compiler-profile witnesses. Language-object provenance, a runtime
+allocator, concurrent atomicity and calls beyond the modeled return remain ahead.
 The counted-loop extension now proves modular increment for every 64-bit count
 with a decreasing natural variant and exact `2*count+3` cost, preserving flags
 and memory. Raw/full-ELF certificates cover the owned assembly from Clang/GCC;
@@ -157,24 +157,26 @@ this is not a compiler source-loop preservation theorem. See [control flow](cont
 The OS/machine memory bridge now proves that checked word stores update natural-
 address OS cells exactly as the machine store updates projected memory. Actual
 compiler store bytes implement that OS update for all admitted values, retaining
-permissions and outside-footprint cells. Physical backing, aliasing and resource
-identity remain future obligations.
+permissions and outside-footprint cells. Physical backing and aliases remain
+future obligations.
 
-The next ownership implementation will retain `AddressSpace.Space` as its byte
-projection and add a separate live-allocation registry. Never-reused allocation
-IDs distinguish remapped addresses; transfer epochs invalidate earlier authority
-even across A→B→A transfer. First support whole-allocation transfer/release and
-owned word stores, lifting the existing checked OS/machine store theorem.
-Required evidence includes stale-ticket rejection after same-address reuse,
-denied cross-allocation stores and preservation of disjoint code/stack state.
-These are proof-level authorities: raw machine pointers contain no epoch, and
-copyable Lean values alone do not form a linear-token logic. Concurrent safety
-will still require an interference model that enforces the resource rules.
+The sequential ownership registry is now implemented over `AddressSpace.Space`.
+Fresh IDs distinguish lifetimes at remapped addresses; transfer epochs revoke
+previous authority even across A→B→A or self-transfer. Checked whole-allocation
+allocate/adopt/transfer/release/protect and owned word stores preserve the live
+registry invariant. Revocation persists through every later managed history.
+The owned-store theorem composes with exact machine bytes and has admitted
+states for every old word/source argument. Regressions cover reuse, transfer,
+cross-allocation stores, hidden cells, final-byte overlap and exact readback.
+See [ownership contracts and limits](ownership.md).
 
-Next add object lifetimes, permissions, stack/heap regions, layout/alignment,
-provenance relations, allocation/mapping failures and cleanup. Prove supported
-calls/returns and invariants/variants for richer memory loops. Introduce reusable ownership rules
-only with their soundness connection to the operational semantics.
+These remain proof-level authorities: raw pointers contain no epoch, principal
+IDs are proof data and copyable tickets do not form a linear-token logic. Next
+add region splitting, read borrowing and protected invariants with an adequacy
+connection to operational semantics, then thread ownership/start/join. Broader
+stack/heap object lifetimes, language provenance, allocator search/failure/cleanup,
+calls and richer memory-loop invariants remain required. Concurrent safety needs
+an interference model that enforces or accounts for resource transitions.
 
 Exit: a buffer/loop binary has target memory safety, functional correctness and
 explicit termination/resource bounds. Add source definedness/preservation only

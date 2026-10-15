@@ -2,7 +2,8 @@
 
 Status: narrow implemented contracts plus requirements for the broader OS
 domain. **Lean 4** contains a sequential address-space model, its machine-memory
-bridge, a restricted ELF loader, a raw Linux exit60 contract and a bounded
+bridge, an allocation-identity/ownership registry, a restricted ELF loader,
+a raw Linux exit60 contract and a bounded
 stream-write/return contract. The general OS eDSL, runtime, concurrency and kernel
 implementation proofs remain planned.
 GNU C23, GNU C++26, LLVM IR and assembly are modeled domains rather than the
@@ -24,6 +25,15 @@ does not yet model page-granular Linux syscalls, allocation failure or concurren
 mapping changes. The [ELF loader](elf.md) validates a restricted complete static
 container and derives executable entry-byte binding from modeled installation;
 Linux loader conformance remains external.
+
+The [ownership layer](ownership.md) tracks principal authority, never-reused
+allocation IDs and revoking transfer epochs over that same byte space. Checked
+whole-allocation operations preserve valid disjoint live regions and full
+mappedness; revocation persists through arbitrary finite managed histories,
+including same-address reuse. Owned stores compose with actual store/RET bytes.
+This is a sequential proof discipline, not raw-pointer generation checking,
+authenticated identity, linear permissions or concurrent enforcement. Borrowing,
+thread/scheduler identity, language provenance and allocator refinement remain ahead.
 
 The [process slice](process-exit.md) checks a standalone twelve-byte entry that
 sets exit status42 and requests raw Linux exit60. Its ABI request records the
