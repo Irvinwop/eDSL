@@ -8,6 +8,7 @@ import EDSL.OS.Ownership
 import EDSL.OS.Borrowing
 import EDSL.OS.Threads
 import EDSL.OS.AtomicExchange
+import EDSL.OS.Atomics
 import EDSL.ELF.Loader
 import EDSL.Certificate
 import EDSL.Process.Certificate

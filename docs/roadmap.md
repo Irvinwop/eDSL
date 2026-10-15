@@ -210,9 +210,19 @@ Implemented atomic prerequisite: the `exchange32` profile certifies exact
 instructions with a singleton indivisible RMW-event trace. Guarded OS exchanges
 project the same current-cell update while excluding live read loans, and
 arbitrary finite same-cell exchange histories prove old/new value chaining.
-Native eight-thread token conservation supplements those model proofs. Shared
-atomic authority, protected invariants, mutable worker dispatch and concrete
-ordering/runtime refinement remain ahead; see [atomic-exchange scope](atomic-exchange.md).
+Native eight-thread token conservation supplements those model proofs;
+see [atomic-exchange scope](atomic-exchange.md).
+
+Shared atomic authority is now implemented with distinct actor handles,
+whole-allocation reservations, read-loan exclusion, guarded mutation,
+well-formedness, permanent handle revocation and surviving read-loan stability.
+Checked exchanges use current shared cells and have exact XCHG/compiler-byte
+bridges. Arbitrary finite exchange-only schedules prove value chaining and
+multiset conservation; symbolic witnesses cover every old/new pair. This
+prerequisite still lacks mutable worker contexts and lifecycle scheduling,
+protected invariants, counter algorithms and concrete ordering/runtime
+refinement. Next connect handle ownership and private old results to actual
+per-instruction worker dispatch and join. See [shared-handle scope](atomic-handles.md).
 
 Specify real thread start/join, argument publication, ownership transfer,
 creation failure and partial cleanup. Use sequentially consistent atomics first,

@@ -48,6 +48,8 @@ Implemented and checked:
   bytes, including register/memory framing, return behavior and termination.
 - An exact atomic-exchange byte profile with a labeled indivisible RMW event,
   OS-cell projection, guarded resource authority and same-cell value-flow histories.
+- Shared atomic handles with per-actor authorization, allocation reservations,
+  permanent revocation, read-loan stability and exchange-trace value conservation.
 - A counted assembly loop with a proved invariant and termination for every
   64-bit count, modular arithmetic result and exact `2*count+3` user-instruction cost.
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
@@ -92,6 +94,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Shared read borrowing](docs/borrowing.md) | What keeps borrowed bytes and permissions stable across managed operations? |
 | [Read-worker scheduling](docs/threads.md) | How do actual machine instructions compose with spawn, shared resources and join? |
 | [Atomic exchange](docs/atomic-exchange.md) | How does an exact XCHG event update OS cells and respect existing read authority? |
+| [Shared atomic handles](docs/atomic-handles.md) | How can actors share an atomic word while blocking conflicting resource changes? |
 | [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
 | [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
 | [Stream output and exit](docs/process-write.md) | How do short writes and errors compose with the next userspace instructions? |
@@ -113,8 +116,9 @@ Start with the roadmap, then the OS and platform documents. Restricted x86-64
 functions, a counted loop and bounded stream-write/exit entries are checked;
 ownership, lifetimes, shared read borrowing and managed read-worker scheduling
 are checked too. An atomic-exchange foundation now connects XCHG events and
-guarded OS cells. Next come shared atomic authority, protected invariants, mutable
-workers and the thread/atomic counter workload, with concrete runtime refinement.
+guarded OS cells. Shared atomic handles now preserve reservations and resource
+lifetimes. Next come protected invariants, mutable workers and the thread/atomic
+counter workload, with concrete runtime refinement.
 General GNU C++26 ingestion and a fully verified Linux kernel are substantial
 separate research work.
 
@@ -138,6 +142,7 @@ lake env lean -DwarningAsError=true tests/Borrowing.lean
 lake env lean -DwarningAsError=true tests/Threads.lean
 lake env lean -DwarningAsError=true tests/AtomicExchange.lean
 lake env lean -DwarningAsError=true tests/OSAtomicExchange.lean
+lake env lean -DwarningAsError=true tests/Atomics.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

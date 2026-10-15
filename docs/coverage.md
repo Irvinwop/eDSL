@@ -258,6 +258,33 @@ interference are excluded. Worker stacks do not support push/call here; TLS,
 detach, cancellation, nested spawn, mutable workers, locks/atomics and native
 publication barriers remain unimplemented. See [the full thread profile](threads.md).
 
+## Shared atomic handles and reservations
+
+`EDSL.OS.Atomics` wraps the borrowing world with distinct stored actor handles
+for one supported atomic word per allocation. Issuance checks current owner/
+epoch, containment, accessibility/write permissions, compatible existing handles
+and absence of ordinary read loans. Each exchange checks the stored actor and
+reads current cells using stored authority/address. While any handle remains,
+the entire allocation is pinned against ordinary stores, protection, transfer,
+release and new read loans; unrelated resources remain available.
+
+Every admitted operation preserves `WellFormed`. Mixed histories retain
+surviving handle records, permanently revoke closed IDs and preserve surviving
+ordinary-loan cells/permissions. `exchange_enabled` supplies positive behavior
+for every replacement. `exchange_step` and `exchange32_updates_space` bind the
+resource operation to the actual XCHG step and exact compiler routine.
+Arbitrary finite exchange-only schedules have actual old/new chaining and
+an independent multiset-conservation theorem. Symbolic witnesses cover every
+old/new 32-bit pair; regressions exercise distinct actors, last-handle closure,
+loan conflicts, stale authority and actual compiler-byte composition after a
+peer update. See [the handle contract](atomic-handles.md).
+
+This is a logical shared authority layer. Raw accesses bypass it, finite scans
+rely on the explicit invariant and actor labels do not authenticate threads.
+Mutable worker scheduling/start/join and concrete OS/runtime refinement remain
+unimplemented. Value chaining does not extend across arbitrary mixed histories
+with zero-handle gaps; operation enabledness supplies no scheduling progress.
+
 ## Restricted ELF loading
 
 The optional `--elf` path checks complete ELF64 little-endian x86-64 `ET_EXEC`
@@ -380,6 +407,7 @@ lake env lean -DwarningAsError=true tests/Borrowing.lean
 lake env lean -DwarningAsError=true tests/Threads.lean
 lake env lean -DwarningAsError=true tests/AtomicExchange.lean
 lake env lean -DwarningAsError=true tests/OSAtomicExchange.lean
+lake env lean -DwarningAsError=true tests/Atomics.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

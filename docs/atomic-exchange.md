@@ -58,27 +58,21 @@ the final projected memory contains the last new value. This covers arbitrary
 finite admitted exchange histories. `History.loan_stable` preserves surviving
 read-loan cells by composition with the guarded borrowing history.
 
-Principals/tickets remain logical labels. This API has exclusive current-owner
-authority; it does not supply a shared atomic handle or let multiple native
-threads impersonate an owner. Same-cell histories contain exchange operations,
+Principals/tickets remain logical labels. This API takes current-owner/ticket
+authority directly; separate stored actor authorization is supplied by the
+shared-handle layer. Same-cell histories contain exchange operations,
 without thread start/join, ordinary intervening writes, resource transfers or
 general machine-instruction schedules. The existing managed worker dispatcher
-continues to support read workers. Shared mutable authority, protected
-invariants, lock protocols, atomic workers and their lifecycle refinement are
-the next layer.
+continues to support read workers.
 
-The next implementation should give shared atomic access its own stored
-reservation and handle IDs. Creating one must check current allocation/epoch,
-operand containment and the absence of ordinary read loans. While handles live,
-managed ordinary stores, permission changes, transfer and release must remain
-blocked for the reserved allocation; atomic exchanges alone may update the
-reserved word. Code and return-stack read loans can retain their existing
-meaning. Mutable-worker dispatch must read the current shared cells, execute
-the actual instruction, record its event and install the checked OS-cell update.
-Join must revoke its handles and release only its own code/stack loans.
-Acceptance requires an invariant for arbitrary instruction interleavings and
-an independent token-multiset result across joined workers, plus lifecycle and
-failure regressions. These interfaces and proofs are planned, not present APIs.
+The [shared atomic-handle layer](atomic-handles.md) is now implemented over this
+exclusive-owner primitive. It stores distinct actor handles, reserves their
+allocation against ordinary changes, preserves surviving read loans elsewhere,
+and permanently revokes closed IDs. Exchange-only schedules have value-chain
+and multiset-conservation proofs. Mutable worker contexts, protected invariants,
+lock protocols and lifecycle/runtime refinement remain next. Worker dispatch
+must read current cells and retain the observed old word privately; join must
+revoke its handles and release only its own code/stack loans.
 
 ## Supported physical profile and remaining obligations
 

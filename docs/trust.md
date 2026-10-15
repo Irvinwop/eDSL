@@ -77,8 +77,24 @@ bytes, an indivisible abstract RMW event, three-instruction execution and an
 exact singleton event trace. Every labeled machine atomic step projects to
 `ExchangeTransition`. The guarded OS-cell exchange checks current exclusive
 owner/ticket authority and rejects live read-loan conflicts. Same-cell exchange
-histories prove actual old/new chaining and surviving loan stability; they do
-not implement shared atomic handles or mutable managed workers.
+histories prove actual old/new chaining and surviving loan stability.
+
+`OS.Atomics` adds stored actor handles and whole-allocation reservations over
+that primitive. Its guarded histories preserve current authority, supported
+operands, read-loan exclusion and exact surviving handle records; closed IDs
+stay revoked permanently. Other allocations and ordinary loans retain their
+existing contracts. Checked exchanges admit every replacement, project to the
+actual XCHG step and compose with the three-instruction compiler routine.
+Exchange-only schedules prove value chaining and multiset conservation;
+symbolic witnesses cover every old/new 32-bit pair.
+
+These are logical authority labels and guarded histories, without runtime
+authentication/enforcement, native handle management or mutable worker
+start/scheduling/join refinement. Raw updates bypass the wrapper; finite scans
+assume `WellFormed`. A mixed history may contain an ordinary store after all
+handles close, so its value-flow theorem needs a continuously surviving
+reservation or explicit framing. No unconditional progress or reclamation
+follows from operation enabledness. See [shared-handle scope](atomic-handles.md).
 
 Physical interpretation requires the explicit aligned coherent-WB-RAM profile,
 stable translation/permissions, excluded aliases/mixed-size overlaps and stable
