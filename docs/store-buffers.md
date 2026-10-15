@@ -2,10 +2,10 @@
 
 `EDSL.OS.TSO` adds explicit FIFO store buffers to the supported x86 instruction
 slice. It is a separate scheduler from the immediate-visibility
-`OS.MachineThreads` model used by the current universal mutex certificates.
-The buffer semantics are prerequisites for extending those certificates to
-weak-memory executions; the existing certificates do not acquire that claim
-merely by importing this module.
+`OS.MachineThreads` model. `OS.MutexTSO` proves a separate universal mutex
+contract over this buffered scheduler. The certifier retains the original
+immediate-visibility contract and adds an explicit `TSOSpecification` under
+the buffered profile's admission conditions.
 
 ## Execution boundary
 
@@ -97,13 +97,65 @@ regressions exercise same-address forwarding, RET before publication, drains
 after return, and the existing mutex routine stalling at release until its two
 payload stores publish in FIFO order.
 
-These are model proofs and owned regression executions. Universal transfer of
-the mutex's total/resource/cost theorem to arbitrary buffered interleavings
-still requires the simulation that relates pending writes, exclusive guards
-and the OS resource state. Hardware conformance, native thread identity,
-fairness, elapsed time, store-buffer capacity and Linux runtime refinement also
-remain separate obligations. Native tests of the immediate-visibility certified
-profiles do not discharge them.
+## Universal buffered mutex proof
+
+`MutexTSO.Rel` relates the physical state to a current checked OS replay state.
+It retains every worker's complete context and actual return marker, checked
+queues, resource authority, code/stack loans and execution readiness. Logical
+memory is exactly shared physical memory overlaid by the actual pending writes.
+The relation contains no future successful execution, collection result or
+desired endpoint. Guard exclusivity proves that only the holder can have a
+nonempty queue; this restriction is derived from checked authority.
+
+Each retired instruction performs one checked logical dispatch. Busy `1→1`
+exchanges remain real instructions and events, including when a peer holds two
+pending payload writes. A drain or blocked release leaves the entire logical
+state unchanged. Release can retire only after its own FIFO empties. Unguarded
+workers have empty queues; a returning worker can still execute its exact RET
+while a different holder buffers writes. For this fixed routine, all actual
+returns imply quiescence. Generic RET still performs no flushing.
+
+`schedule_lifts` projects every successful physical trace to the uniquely
+determined retired selections and actual atomic events. It preserves complete
+memory/context equality and the OS witness at every prefix. Current admission
+constructs physical issue success for every live unreturned worker, including
+actual stalls, and successful drains for every nonempty queue. There is no
+additional protocol gate in the physical scheduler.
+
+`completed_observations` assumes initial admission, an actual successful
+physical schedule and actual return flags. It concludes empty queues, the
+original cohort size, zero full return registers, an unlocked mutex, the modular
+`initial + 2*n` payload and exactly `13*n + 4*busy` retired user instructions.
+`completed_collection_exists` constructs successful checked collection. Its
+entire memory projection equals final physical RAM, exactly the original
+cohort's code/stack loans are revoked, and unrelated loan records are retained.
+
+Queue/credit conservation partitions retired stores into actual pending writes
+and completed drains, without adding credit on drain. Every completing entry
+trace has exactly `2*n` drains. Its action list therefore has length
+`15*n + 4*busy + blockedCount`, whereas its retired-instruction count is
+`13*n + 4*busy`. `entry_action_completion` attains `15*n` model actions with no
+busy exchange or blocked issue. The bounds compare schedules of this fixed
+routine; they do not compare alternative programs or hardware costs.
+
+`publish_selected` constructs publication from the current FIFO. `completion`
+constructs a physical completing suffix from any related paused state by
+internally constructing and realizing logical completion. The suffix introduces
+no new busy exchange or stall, and retires exactly the logical remaining
+potential, at most `15*n` instructions. `entry_completion` attains `13*n` retired
+instructions; `completed_minimum` establishes the matching bound for schedules
+of these same bytes. `prefix_completion` carries the original cohort's contract
+through an arbitrary actual prefix and the constructed suffix. None of these
+existence results implies fairness or eventual completion under every scheduler.
+
+The symbolic example admits every 32-bit starting word through the existing
+checked adoption, registration and spawn operations, plus explicit aligned
+payload and non-executable lock/payload facts. Regressions exercise buffered
+handoff and theorem transfer, including paused failed retry work and RET while
+a peer buffers payload. These are model proofs and owned regression executions.
+Hardware conformance, native thread identity, fairness, elapsed time, store-buffer
+capacity and Linux runtime refinement remain separate obligations. Native tests
+do not discharge them.
 
 ## References
 

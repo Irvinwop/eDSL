@@ -150,9 +150,15 @@ remain outside these results.
 
 The separate buffered scheduler records retired user instructions, blocked
 locked issues and FIFO drains as different observations. `retiredCount` counts
-only the first category. The mutex cost theorem has not yet been transferred to
-all buffered traces; drains and stalls must not be counted as extra machine
-instructions or silently discarded when making timing claims.
+only the first category. `MutexTSO.completed_observations` now transfers the
+`13*n + 4*busy` retired-instruction result to every completing admitted buffered
+trace. Queue/credit conservation proves exactly `2*n` actual drains: each issued
+store is either still pending or has drained once, and actual completion
+implies empty queues for this routine. Therefore the exact number of abstract
+actions is `15*n + 4*busy + blockedCount`. A constructed no-busy, no-stall entry
+execution attains `15*n` actions and `13*n` retired instructions, with matching
+lower bounds for completing schedules of these same bytes. These action counts
+do not measure hardware cycles, micro-operations, runtime or kernel work.
 
 The original tiny abstract machine has only `add amount`, natural-number inputs
 and unit instruction cost. Its checked increment implementation has length one,

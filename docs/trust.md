@@ -292,9 +292,21 @@ The separate `OS.TSO` scheduler models delayed aligned ordinary stores, FIFO
 drains, local forwarding and locked operations after an empty local buffer.
 It decodes shared code and uses the same decoded execution definition as
 `X86.step`; non-writing memory effects and complete atomic/store outcomes are
-proved explicitly. Buffer/footprint proofs support a future simulation with
-the mutex OS witness. They do not transfer the existing universal certificate
-to buffered traces by assumption. The physical interpretation excludes aliases,
+proved explicitly. `OS.MutexTSO` proves the separate fixed-worker simulation:
+the logical memory equals physical RAM overlaid by actual pending payload
+writes, with exclusive guards deriving queue authority. Every physical prefix
+lifts to canonical checked replay; drains and stalls retain the whole logical
+state, while busy exchanges remain real retired events. Admission additionally
+requires aligned payload and non-executable lock/payload destinations.
+
+Actual returns imply publication for this routine and establish total, full
+return-register, lock and retired-cost contracts. Positive collection retains
+the entire physical memory and revokes exactly the original cohort's loans.
+Publication and completion suffixes are constructed from current invariants,
+without assuming future replay or collection success. A paused prefix has a
+continuation with no new busy exchanges or stalls; this asserts an available
+path, not inevitable completion or fairness. Generated `TSOSpecification` is
+distinct from the immediate-visibility specification. The physical interpretation excludes aliases,
 mixed-size overlapping accesses, mutable code, devices and translation changes;
 it is not a hardware refinement theorem. See [the buffered profile](store-buffers.md).
 

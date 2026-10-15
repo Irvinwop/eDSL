@@ -331,10 +331,16 @@ completion for all schedulers is not claimed.
 The next memory-order layer now has an executable FIFO store-buffer scheduler
 for supported decoded instructions, newest-own-store forwarding, explicit
 drains and locked-operation stalls. Bytewise buffer algebra and ownership-derived
-code/stack/lock footprints are checked prerequisites. The remaining transfer
-proof must relate the mutex holder's pending payload stores to the logical OS
-state and cover arbitrary buffered issues/drains. Existing universal certificates
-retain their immediate-visibility interpretation until that simulation is proved.
+code/stack/lock footprints support the implemented `OS.MutexTSO` simulation.
+Actual pending payload stores overlay physical RAM to produce the full logical
+OS memory; guard exclusivity derives that only the holder may buffer. Every
+physical issue/drain prefix lifts to canonical checked replay. Completed actual
+returns establish publication, the total/return/cost contract and positive
+collection with full physical-memory equality and precise original-loan
+revocation. Every admitted paused prefix has a constructive completing physical
+suffix, with no new busy exchanges or stalls and at most `15*n` future retired
+instructions. A separate generated `TSOSpecification` adds these guarantees
+while retaining the prior immediate-visibility specification.
 See [buffered execution](store-buffers.md).
 
 Add multiple-lock registration
@@ -401,6 +407,10 @@ costs and a constructive zero-busy entry schedule attaining `13*n`. Arbitrary
 admitted intermediate states admit completion in their remaining potential,
 at most `15*n` instructions. This compares schedules of the same routine;
 minimum operations among alternative programs remains separate work.
+Buffered executions retain the same retired-instruction count. Queue/credit
+conservation proves exactly `2*n` drains and an abstract-action total of
+`15*n + 4*busy + blockedCount`. Constructive entry completion attains `15*n`
+actions with no busy exchange or stall, matching the fixed-routine lower bound.
 All-x86 optimality and elapsed-time bounds remain out
 of scope.
 

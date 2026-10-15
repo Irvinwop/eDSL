@@ -511,10 +511,28 @@ Owned regressions exercise the both-zero store-buffer outcome, same-address
 forwarding, RET before publication, and FIFO payload publication before a
 blocked mutex release.
 
-The existing universal mutex certificates still use immediate visibility.
-Transfer to every buffered mutex execution requires a pending-write/guard/OS
-simulation. Physical hardware conformance, native identities and runtime
-refinement also remain open. See [buffered execution](store-buffers.md).
+`OS.MutexTSO` now relates actual pending writes and exclusive guards to the
+complete OS replay state. Every successful physical trace lifts to its canonical
+retired selections and actual atomic events. Drains and stalls leave the entire
+logical state unchanged; busy peer exchanges retire even while the holder
+buffers payload. Every actual returning worker has an empty own queue, so all
+returns imply quiescence for this routine.
+
+Completed runs establish the modular total, full zero return registers,
+unlocked state and `13*n + 4*busy` retired instructions. Checked collection is
+constructed, preserves the entire physical memory projection, revokes exactly
+the original cohort's loans and retains unrelated records. Current admission
+also constructs publication and a completing physical continuation from any
+paused prefix, with no new busy exchange or stall and at most `15*n` future
+instructions. Entry completion attains `13*n`. Symbolic fixtures admit every
+initial word. The generated separate `TSOSpecification` preserves the original
+immediate-visibility and checked-replay contracts; the artifact total stays 46.
+Queue/credit conservation also proves exactly `2*n` physical drains and
+`15*n + 4*busy + blockedCount` model actions for every completing entry trace.
+A constructed no-busy/no-stall path attains `15*n` actions. These are abstract
+scheduler actions, not hardware micro-operations or timing.
+Physical hardware conformance, native identities and runtime refinement remain
+open. See [buffered execution](store-buffers.md).
 
 ## Restricted ELF loading
 
@@ -650,6 +668,7 @@ lake env lean -DwarningAsError=true tests/MutexInvariant.lean
 lake env lean -DwarningAsError=true tests/MutexExecution.lean
 lake env lean -DwarningAsError=true tests/StoreBuffer.lean
 lake env lean -DwarningAsError=true tests/TSO.lean
+lake env lean -DwarningAsError=true tests/MutexTSO.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

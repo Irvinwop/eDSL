@@ -220,12 +220,17 @@ cycles, micro-ops, blocking/futex behavior or waiting.
 
 ## Physical boundary
 
-The separate [buffered scheduler](store-buffers.md) now models FIFO stores,
-forwarding and locked-operation stalls. Transfer of this document's universal
-mutex certificate to arbitrary buffered executions remains a separate proof.
+The separate [buffered proof](store-buffers.md) now covers every successful
+`OS.TSO` issue/drain trace through `OS.MutexTSO`. Its additional admission
+requires aligned payload and non-executable lock/payload destinations. A separate
+generated `TSOSpecification` provides prefix lifting, direct completed physical
+observations, positive resource collection, publication and constructive
+continuation. The immediate-visibility `MachineSpecification` above retains its
+original meaning. Busy exchanges are real retired instructions; blocked release
+and drains stutter on the entire logical state. Completion observes actual
+return markers and derives empty queues for this byte profile.
 
-This remains the existing sequentially interleaved coherent-RAM profile. It
-does not implement a store-buffer/weak-memory model, arbitrary native client
+Both are coherent-RAM model contracts. They do not establish arbitrary native client
 compliance, pthread start/join, the Linux kernel, interrupts or exceptions. XCHG's physical
 interpretation requires the [atomic profile](atomic-exchange.md). The guarded
 invariant and ownership checks are admission conditions; these bytes do not

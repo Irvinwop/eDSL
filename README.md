@@ -67,6 +67,9 @@ Implemented and checked:
   and exact code/stack loan revocation, with unrelated loan records preserved.
 - A separate buffered x86 scheduler with FIFO publication, own-store
   forwarding, locked-operation stalls, and explicit drain/retirement events.
+- Universal mutex execution over those buffers: arbitrary finite traces lift
+  to checked OS replay, completed runs meet total/return/resource contracts,
+  and every admitted paused prefix has a constructive completing continuation.
   See [buffered execution and its current limits](docs/store-buffers.md).
 - A counted assembly loop with a proved invariant and termination for every
   64-bit count, modular arithmetic result and exact `2*count+3` user-instruction cost.
@@ -152,8 +155,10 @@ operations. Complete critical-section workers now cover every admitted
 instruction-only architectural interleaving, retain execution readiness, and
 have schedule-independent completed totals, constructive completion and exact
 retry costs. A zero-busy schedule attains the fixed routine's `13*n`
-instruction lower bound. Publication/weak-memory correspondence and concrete
-thread/runtime refinement remain open.
+instruction lower bound. The separate buffered mutex proof also covers delayed
+stores, independent drains and stalled release, with constructive continuation
+from every admitted prefix. Hardware and concrete thread/runtime refinement
+remain open.
 General GNU C++26 ingestion and a fully verified Linux kernel are substantial
 separate research work.
 
@@ -189,6 +194,7 @@ lake env lean -DwarningAsError=true tests/MutexInvariant.lean
 lake env lean -DwarningAsError=true tests/MutexExecution.lean
 lake env lean -DwarningAsError=true tests/StoreBuffer.lean
 lake env lean -DwarningAsError=true tests/TSO.lean
+lake env lean -DwarningAsError=true tests/MutexTSO.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

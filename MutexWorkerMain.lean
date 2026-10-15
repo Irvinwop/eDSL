@@ -22,6 +22,10 @@ private def theoremSource : String :=
   "    (observed : loadDWord (toMemory state.shared.shared.resources.space) config.dataAddress = .ok initial) :\n" ++
   "    observedBytes = bytes ∧ MutexWorkerCertificate.MachineSpecification state config initial :=\n" ++
   "  MutexWorkerCertificate.machine_sound observedBytes accepted state config initial valid ready closed entry observed\n\n" ++
+  "theorem certifiedTSO (state : OS.MutexReplay.State) (config : OS.Mutex.Config) (initial : BitVec 32)\n" ++
+  "    (admitted : OS.MutexTSO.Admission config state initial) :\n" ++
+  "    observedBytes = bytes ∧ MutexWorkerCertificate.TSOSpecification state config initial :=\n" ++
+  "  MutexWorkerCertificate.tso_sound observedBytes accepted state config initial admitted\n\n" ++
   "theorem checkedSchedules (state : OS.MutexReplay.State) (config : OS.Mutex.Config) (initial : BitVec 32)\n" ++
   "    (valid : Invariant config state) (ready : LoanReady state) (closed : ClosedUnderTwo config)\n" ++
   "    (entry : ∀ worker ∈ state.workers, worker.phase = .entry)\n" ++
@@ -99,5 +103,5 @@ def main (arguments : List String) : IO UInt32 := do
     return 1
   let stdout ← IO.getStdout
   stdout.putStr checked.stdout
-  stdout.putStrLn s!"CERTIFIED {raw.size} exact mutex-worker artifact bytes: every admitted instruction-only prefix retains OS invariants and enables live selections; completed calls satisfy payload/return/cost/resource contracts; a completing schedule exists; {absolute}"
+  stdout.putStrLn s!"CERTIFIED {raw.size} exact mutex-worker artifact bytes: separate immediate-visibility and FIFO-buffered contracts; admitted prefixes retain checked OS witnesses and enabled selections; buffered prefixes admit publication and finite completion; actual returns establish payload/return/cost/resource results; {absolute}"
   return 0
