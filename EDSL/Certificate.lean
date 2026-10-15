@@ -5,12 +5,13 @@ SPDX-License-Identifier: Apache-2.0
 import EDSL.Examples.Compiler.Increment
 import EDSL.Examples.Compiler.IncrementLoop
 import EDSL.Examples.Compiler.MemoryOps
+import EDSL.Examples.Compiler.Exchange
 
 namespace EDSL.Certificate
 open X86 Examples.Compiler
 
 inductive Profile where
-  | increment | incrementLoop | load32 | store32
+  | increment | incrementLoop | load32 | store32 | exchange32
   deriving DecidableEq, Repr
 
 def Profile.name : Profile → String
@@ -18,12 +19,14 @@ def Profile.name : Profile → String
   | .incrementLoop => "increment-loop"
   | .load32 => "load32"
   | .store32 => "store32"
+  | .exchange32 => "exchange32"
 
 def Profile.parse : String → Option Profile
   | "increment" => some .increment
   | "increment-loop" => some .incrementLoop
   | "load32" => some .load32
   | "store32" => some .store32
+  | "exchange32" => some .exchange32
   | _ => none
 
 def Profile.bytes : Profile → List Byte
@@ -31,6 +34,7 @@ def Profile.bytes : Profile → List Byte
   | .incrementLoop => IncrementLoop.bytes
   | .load32 => MemoryOps.loadBytes
   | .store32 => MemoryOps.storeBytes
+  | .exchange32 => Exchange.bytes
 
 def accepts (profile : Profile) (candidate : List Byte) : Bool :=
   decide (candidate = profile.bytes)
@@ -97,5 +101,23 @@ theorem store32_sound (candidate : List Byte) (accepted : accepts .store32 candi
   have equal : candidate = MemoryOps.storeBytes := of_decide_eq_true accepted
   subst candidate
   exact MemoryOps.store_correct initial returnAddress code allowed codeDisjoint stackDisjoint stack returnValid
+
+theorem exchange32_sound (candidate : List Byte) (accepted : accepts .exchange32 candidate = true)
+    (initial : State) (old : BitVec 32) (returnAddress : Word)
+    (code : CodeAt initial.memory initial.rip candidate)
+    (supported : atomicAddressable (initial.registers .rdi) = true)
+    (allowed : canStoreDWord initial.memory (initial.registers .rdi) = true)
+    (data : loadDWord initial.memory (initial.registers .rdi) = .ok old)
+    (codeDisjoint : DWordDisjoint (initial.registers .rdi) initial.rip candidate.length)
+    (stackDisjoint : DWordDisjoint (initial.registers .rdi) (initial.registers .rsp) 8)
+    (stack : readWord initial.memory (initial.registers .rsp) = .ok returnAddress)
+    (returnValid : canonical returnAddress = true) :
+    AtomicExecutes initial (Exchange.finalState initial old returnAddress) 3 [Exchange.event initial old] ∧
+    Executes initial (Exchange.finalState initial old returnAddress) 3 ∧ ¬ Diverges initial ∧
+    ∀ final count, Executes initial final count →
+      final = Exchange.finalState initial old returnAddress ∧ count = 3 := by
+  have equal : candidate = Exchange.bytes := of_decide_eq_true accepted
+  subst candidate
+  exact Exchange.correct initial old returnAddress code supported allowed data codeDisjoint stackDisjoint stack returnValid
 
 end EDSL.Certificate

@@ -43,6 +43,7 @@ inductive Error where
   | inaccessibleStack (address : Word)
   | inaccessibleData (address : Word)
   | writeDenied (address : Word)
+  | unsupportedAtomicAddress (address : Word)
   | noncanonicalReturn (address : Word)
   | noncanonicalBranch (address : Word)
   | syscallBoundary

@@ -13,7 +13,7 @@ certifier=.lake/build/bin/edsl-certify
 ld --version > "$output/linker.txt"
 lake env lean --version > "$output/lean.txt"
 driver_args=(-std=gnu23 -O2 -Wall -Wextra -Werror -fcf-protection=none
-             fixtures/native-check.c -o "$output/native-check")
+             -pthread fixtures/native-check.c -o "$output/native-check")
 printf '%q ' "${EDSL_CLANG:-clang}" "${driver_args[@]}" > "$output/driver-arguments.txt"
 printf '\n' >> "$output/driver-arguments.txt"
 "${EDSL_CLANG:-clang}" "${driver_args[@]}"

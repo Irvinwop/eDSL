@@ -2,7 +2,7 @@
 Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
-import EDSL.X86.Memory
+import EDSL.X86.AtomicMemory
 import EDSL.X86.Syscall
 
 namespace EDSL.X86
@@ -14,6 +14,10 @@ inductive Instruction where
   | leaEaxRaxDisp8 (displacement : Byte)
   /-- `89 F8`: MOV EAX, EDI. -/
   | movEaxEdi
+  /-- `89 F0`: MOV EAX, ESI. -/
+  | movEaxEsi
+  /-- `87 07`: XCHG DWORD PTR [RDI], EAX; memory form is implicitly locked. -/
+  | exchangeEaxRdi
   /-- `E3 cb`: JRCXZ rel8 with default 64-bit address size. -/
   | jrcxz (displacement : Byte)
   /-- `E2 cb`: LOOP rel8 using full RCX, with no flags dependence. -/
@@ -48,7 +52,12 @@ def decodeAt (state : State) : Except Error Instruction := do
     let modrm ← fetchByte state.memory (state.rip + 1)
     if modrm = 0x37 then return .storeEsiRdi
     else if modrm = 0xf8 then return .movEaxEdi
+    else if modrm = 0xf0 then return .movEaxEsi
     else throw .unsupportedEncoding
+  else if opcode = 0x87 then
+    let modrm ← fetchByte state.memory (state.rip + 1)
+    if modrm ≠ 0x07 then throw .unsupportedEncoding
+    return .exchangeEaxRdi
   else if opcode = 0xe3 ∨ opcode = 0xe2 then
     let displacement ← fetchByte state.memory (state.rip + 1)
     return if opcode = 0xe3 then .jrcxz displacement else .loopRcx displacement
@@ -92,6 +101,38 @@ def executeMovEaxEdi (state : State) : State :=
   { state.writeRegister .rax (((state.registers .rdi).setWidth 32).setWidth 64)
     with rip := state.rip + 2 }
 
+def executeMovEaxEsi (state : State) : State :=
+  { state.writeRegister .rax (((state.registers .rsi).setWidth 32).setWidth 64)
+    with rip := state.rip + 2 }
+
+def executeExchange (state : State) : Except Error (AtomicEvent × State) := do
+  let result ← exchangeDWord state.memory (state.registers .rdi) ((state.registers .rax).setWidth 32)
+  return (⟨state.registers .rdi, result.2, (state.registers .rax).setWidth 32⟩,
+    { state.writeRegister .rax (result.2.setWidth 64) with memory := result.1, rip := state.rip + 2 })
+
+theorem executeExchange_sound {initial : State} {result : AtomicEvent × State}
+    (success : executeExchange initial = .ok result) :
+    ExchangeTransition initial.memory result.1 result.2.memory ∧
+    result.1.address = initial.registers .rdi ∧
+    result.1.after = (initial.registers .rax).setWidth 32 ∧
+    result.2.registers .rax = result.1.before.setWidth 64 ∧
+    result.2.flags = initial.flags ∧ result.2.rip = initial.rip + 2 := by
+  cases exchanged : exchangeDWord initial.memory (initial.registers .rdi) ((initial.registers .rax).setWidth 32) with
+  | error fault => simp [executeExchange, exchanged] at success
+  | ok output =>
+    simp [executeExchange, exchanged] at success
+    subst result
+    exact ⟨exchangeDWord_ok _ _ _ _ exchanged, rfl, rfl, by simp [State.writeRegister], rfl, rfl⟩
+
+theorem executeExchange_preserves_rdi {initial : State} {result : AtomicEvent × State}
+    (success : executeExchange initial = .ok result) : result.2.registers .rdi = initial.registers .rdi := by
+  cases exchanged : exchangeDWord initial.memory (initial.registers .rdi) ((initial.registers .rax).setWidth 32) with
+  | error fault => simp [executeExchange, exchanged] at success
+  | ok output =>
+    simp [executeExchange, exchanged] at success
+    subst result
+    simp [State.writeRegister]
+
 /-- Relative displacements are signed and measured from the next instruction.
 Only taken targets need this canonicality check. Prefixes are unsupported. -/
 def executeShortBranch (state : State) (taken : Bool) (displacement : Byte) : Except Error State :=
@@ -130,6 +171,7 @@ def executeRet (state : State) : Except Error State := do
 
 inductive StepResult where
   | next (state : State)
+  | atomic (event : AtomicEvent) (state : State)
   | returned (state : State)
   | syscall (request : SyscallRequest)
 
@@ -138,6 +180,10 @@ def step (state : State) : Except Error StepResult := do
   | .leaEaxRdiDisp8 displacement => return .next (executeLea state displacement)
   | .leaEaxRaxDisp8 displacement => return .next (executeLeaRax state displacement)
   | .movEaxEdi => return .next (executeMovEaxEdi state)
+  | .movEaxEsi => return .next (executeMovEaxEsi state)
+  | .exchangeEaxRdi =>
+    let result ← executeExchange state
+    return .atomic result.1 result.2
   | .jrcxz displacement => return .next (← executeJrcxz state displacement)
   | .loopRcx displacement => return .next (← executeLoop state displacement)
   | .loadEaxRdi => return .next (← executeLoad state)
@@ -145,6 +191,31 @@ def step (state : State) : Except Error StepResult := do
   | .mov32 destination value => return .next (executeMov32 state destination value)
   | .syscall => return .syscall ⟨state, state.rip + 2⟩
   | .ret => return .returned (← executeRet state)
+
+theorem step_atomic_sound {initial final : State} {event : AtomicEvent}
+    (transition : step initial = .ok (.atomic event final)) :
+    ExchangeTransition initial.memory event final.memory ∧
+    event.address = initial.registers .rdi ∧ event.after = (initial.registers .rax).setWidth 32 ∧
+    final.registers .rax = event.before.setWidth 64 ∧
+    final.flags = initial.flags ∧ final.rip = initial.rip + 2 := by
+  cases decoded : decodeAt initial with
+  | error fault => simp [step, decoded] at transition
+  | ok instruction =>
+    cases instruction with
+    | leaEaxRdiDisp8 displacement | leaEaxRaxDisp8 displacement
+    | movEaxEdi | movEaxEsi | mov32 destination value | syscall => simp [step, decoded] at transition
+    | jrcxz displacement => cases result : executeJrcxz initial displacement <;> simp [step, decoded, result] at transition
+    | loopRcx displacement => cases result : executeLoop initial displacement <;> simp [step, decoded, result] at transition
+    | loadEaxRdi => cases result : executeLoad initial <;> simp [step, decoded, result] at transition
+    | storeEsiRdi => cases result : executeStore initial <;> simp [step, decoded, result] at transition
+    | ret => cases result : executeRet initial <;> simp [step, decoded, result] at transition
+    | exchangeEaxRdi =>
+      cases result : executeExchange initial with
+      | error fault => simp [step, decoded, result] at transition
+      | ok exchanged =>
+        simp [step, decoded, result] at transition
+        rcases transition with ⟨rfl, rfl⟩
+        exact executeExchange_sound result
 
 structure Execution where
   state : State
@@ -158,7 +229,7 @@ def run : Nat → State → Except Error Execution
     match ← step state with
     | .returned final => return ⟨final, 1⟩
     | .syscall _ => throw .syscallBoundary
-    | .next next =>
+    | .next next | .atomic _ next =>
       let result ← run fuel next
       return { result with instructions := result.instructions + 1 }
 

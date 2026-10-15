@@ -72,6 +72,21 @@ relative to external principal registries. Raw accesses and unmanaged internal
 loan release bypass the protocol. This read-only profile does not complete the
 roadmap's mutable shared-counter/atomic workload. See [thread scope](threads.md).
 
+The atomic-exchange foundation adds exact `MOV EAX,ESI; XCHG [RDI],EAX; RET`
+bytes, an indivisible abstract RMW event, three-instruction execution and an
+exact singleton event trace. Every labeled machine atomic step projects to
+`ExchangeTransition`. The guarded OS-cell exchange checks current exclusive
+owner/ticket authority and rejects live read-loan conflicts. Same-cell exchange
+histories prove actual old/new chaining and surviving loan stability; they do
+not implement shared atomic handles or mutable managed workers.
+
+Physical interpretation requires the explicit aligned coherent-WB-RAM profile,
+stable translation/permissions, excluded aliases/mixed-size overlaps and stable
+code/stack. Locked-instruction ordering, general x86-TSO, C/C++ memory-model
+preservation and concrete thread/runtime/kernel refinement remain unproved.
+Native old/new/guard and eight-thread token-conservation observations supplement
+the model proofs. See [the exact atomic-exchange boundary](atomic-exchange.md).
+
 The restricted ELF path checks complete observed bytes, parser/validation results
 and entry-code binding through a modeled loader. It removes the raw path's
 unverified extraction dependency for those artifacts, while retaining explicit

@@ -205,6 +205,15 @@ load-pending worker complete it. Idle scheduling need not make progress. This
 abstract read-only profile does **not** satisfy the counter workload or concrete
 OS/runtime refinement exit below. See [thread contracts](threads.md).
 
+Implemented atomic prerequisite: the `exchange32` profile certifies exact
+`MOV EAX,ESI; XCHG DWORD PTR [RDI],EAX; RET` bytes from Clang/GCC in three
+instructions with a singleton indivisible RMW-event trace. Guarded OS exchanges
+project the same current-cell update while excluding live read loans, and
+arbitrary finite same-cell exchange histories prove old/new value chaining.
+Native eight-thread token conservation supplements those model proofs. Shared
+atomic authority, protected invariants, mutable worker dispatch and concrete
+ordering/runtime refinement remain ahead; see [atomic-exchange scope](atomic-exchange.md).
+
 Specify real thread start/join, argument publication, ownership transfer,
 creation failure and partial cleanup. Use sequentially consistent atomics first,
 with a proved mapping to the chosen machine model. If libc/pthreads is used,
@@ -264,8 +273,8 @@ bounds and certified synthesis/search coverage. Separate work, span, memory,
 instructions and elapsed time. Do not claim global optimality from a bounded
 search or hardware timing from an ISA step count.
 
-Implemented: exact two-instruction increment/load/store counts, the increment
-lower bound for zero input/RAX, and an exact three-instruction first-syscall
+Implemented: exact two-instruction increment/load/store and three-instruction
+exchange counts, the increment lower bound for zero input/RAX, and an exact three-instruction first-syscall
 count for exit42, plus `2*count+3` for the all-count assembly loop. Any supported
 first-syscall candidate requesting exit60/status42 from initial RAX = RDI = 0
 needs at least three user instructions; the checked

@@ -1,9 +1,10 @@
 # Implemented coverage and remaining trust
 
-Three exact compiler-output profiles verify unsigned 32-bit increment, load and
-store functions. A counted assembly-loop profile adds modular increment by every
-64-bit count and proved termination. Standalone ELF profiles reach exit42 directly or across a bounded
-stream write and compose with explicit OS contracts. These are narrow slices,
+Four exact compiler-output profiles verify unsigned 32-bit increment, load,
+store and atomic exchange functions. A counted assembly-loop profile adds modular
+increment by every 64-bit count and proved termination. Standalone ELF profiles
+reach exit42 directly or across a bounded stream write and compose with explicit
+OS contracts. These are narrow slices,
 not a general binary verifier, complete ISA, source frontend, Linux implementation
 or verified OS.
 
@@ -25,6 +26,9 @@ or verified OS.
 - `B8/BA/BE/BF id`: MOV EAX/EDX/ESI/EDI immediate32, zero-extended into the full
   register with flags/memory preserved. Other immediate-register forms reject.
 - `89 f8`: MOV EAX, EDI; `8d 40 ib`: LEA EAX, [RAX + signed disp8].
+- `89 f0`: MOV EAX, ESI; `87 07`: implicitly locked XCHG DWORD PTR [RDI], EAX.
+  XCHG emits one indivisible RMW event with actual old/new words, updates the
+  four-byte operand and zero-extends the old value into RAX, preserving flags.
 - `e3 cb` / `e2 cb`: JRCXZ / LOOP rel8, signed offsets from the next instruction,
   full RCX and no flag changes. Taken noncanonical branch targets reject. Prefixes
   and other loop/condition forms remain unsupported.
@@ -42,8 +46,11 @@ or verified OS.
   General decoder fetching uses modular addresses; published profile certificates
   exclude wrapping instruction ranges through `CodeAt`.
 
-Only sequential ordinary RAM is modeled. A functional four-byte write is **not
-an atomicity or concurrent-visibility theorem**. Concurrent code/data changes,
+Ordinary loads/stores model sequential RAM. A functional four-byte write alone
+is **not an atomicity or concurrent-visibility theorem**. The separate XCHG
+profile has an indivisible abstract event; physical interpretation requires aligned
+coherent WB RAM, stable translation and the restrictions in [atomic exchange](atomic-exchange.md).
+Concurrent code/data changes outside admitted exchange histories,
 MMIO, page faults outside this interface and real exception delivery are out of
 scope. Misaligned ordinary accesses are admitted under the disabled-alignment-
 checking assumption; device-specific constraints are outside this profile.
@@ -58,8 +65,9 @@ physical execution remains a model/physical-conformance boundary.
 
 `EDSL.X86.Executes` is an unbounded finite transition closure. Theorems prove
 soundness/completeness of the fuelled evaluator against it, deterministic
-results/costs, and exclusion of an infinite next-step trace after a proved
-terminating execution. The supported machine is deterministic and sequential.
+results/costs, and exclusion of an infinite continuing trace (ordinary or atomic)
+after a proved terminating execution. Individual machine execution is deterministic.
+`AtomicExecutes` additionally retains the exact ordered RMW-event trace.
 
 | Profile | Exact bytes | Result for every admitted entry |
 | --- | --- | --- |
@@ -79,6 +87,13 @@ Store requires mapped/writable data and disjointness from code and the return
 stack, so the write cannot invalidate the next instruction or return address.
 Nonempty entry witnesses cover every 32-bit load value and every old word/64-bit
 store argument, as well as every increment input.
+
+The `exchange32` profile checks `89 f0 87 07 c3` in exactly three instructions,
+with one event that returns the old32 word and installs low32 RSI. Raw/full-ELF
+certificates retain this event trace. Its exact binary theorem, guarded OS-cell
+bridge, same-cell history theorem, nonvacuity evidence and physical boundaries
+are detailed in [atomic exchange](atomic-exchange.md). Existing read-only workers
+are not thereby extended to mutable workers.
 
 Named proof entry points:
 
@@ -270,12 +285,13 @@ Other correct encodings remain unsupported. It is not yet a general symbolic
 executor, invariant generator or arbitrary-contract validator.
 
 `scripts/verify-compilers.sh` builds each owned fixture with Clang C/C++ and GCC
-C (nine combinations), links static function containers, extracts `.text`,
+C (twelve combinations), links static function containers, extracts `.text`,
 checks certificates and executes certified bytes natively. Independent outcomes
-cover arithmetic boundaries, known byte layouts, read-only loads and store guard
-bytes. Negative checks cover changed immediates, truncation, trailing/unsupported
-bytes, empty files and load/store contract mismatches. Lean regressions also
-cover unmapped/denied store bytes and wrapping/noncanonical operands.
+cover arithmetic boundaries, known byte layouts, read-only loads, store/exchange
+guard bytes and eight-thread exchange token conservation. Negative checks cover
+changed immediates, truncation, trailing/unsupported bytes, empty files and
+load/store/exchange contract mismatches. Lean regressions also cover unmapped/denied
+operand bytes, atomic alignment restrictions and wrapping/noncanonical operands.
 
 Provenance records compiler versions/arguments, linked ELF metadata/disassembly
 and source/artifact hashes. GCC 13 uses `gnu2x`; Clang uses `gnu23`/`gnu++26`.
@@ -362,6 +378,8 @@ lake env lean -DwarningAsError=true tests/ControlFlow.lean
 lake env lean -DwarningAsError=true tests/Ownership.lean
 lake env lean -DwarningAsError=true tests/Borrowing.lean
 lake env lean -DwarningAsError=true tests/Threads.lean
+lake env lean -DwarningAsError=true tests/AtomicExchange.lean
+lake env lean -DwarningAsError=true tests/OSAtomicExchange.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
@@ -376,6 +394,7 @@ and ordinary mmap/mprotect support. To certify raw function files:
 lake exe edsl-certify increment FUNCTION.bin artifacts/Increment.lean
 lake exe edsl-certify load32 FUNCTION.bin artifacts/Load.lean
 lake exe edsl-certify store32 FUNCTION.bin artifacts/Store.lean
+lake exe edsl-certify exchange32 FUNCTION.bin artifacts/Exchange.lean
 lake exe edsl-certify --elf increment FUNCTION.elf artifacts/ELF.lean
 lake exe edsl-certify --elf increment-loop FUNCTION.elf artifacts/ELFLoop.lean
 lake exe edsl-certify-process PROCESS.elf artifacts/Process.lean

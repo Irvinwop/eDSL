@@ -93,10 +93,11 @@ bash scripts/verify-compilers.sh
 ```
 
 The integration script checks raw and full-ELF certificates for Clang C/C++ and
-GCC C across all three profiles: eighteen certificates for nine compiler/profile
-combinations. It executes the certified function bytes natively and records both
-certificate hashes alongside the linked ELF. Mutated ELF code and ELF load/store
-contract mismatches must reject. These are owned synthetic fixtures only.
+GCC C across all four compiler profiles: twenty-four certificates for twelve
+compiler/profile combinations. It executes the certified function bytes natively
+and records both certificate hashes alongside the linked ELF. Mutated ELF code
+and ELF load/store/exchange contract mismatches must reject. These are owned
+synthetic fixtures only.
 
 `tests/ELF.lean` independently exercises an ELF with a nonzero segment file/page
 offset and BSS. Its loaded function must give modular wraparound, perform RET and

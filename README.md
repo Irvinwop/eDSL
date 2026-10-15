@@ -46,6 +46,8 @@ Implemented and checked:
   unbounded execution relation with evaluator soundness and completeness.
 - All-input theorems for actual Clang/GCC increment, 32-bit load and 32-bit store
   bytes, including register/memory framing, return behavior and termination.
+- An exact atomic-exchange byte profile with a labeled indivisible RMW event,
+  OS-cell projection, guarded resource authority and same-cell value-flow histories.
 - A counted assembly loop with a proved invariant and termination for every
   64-bit count, modular arithmetic result and exact `2*count+3` user-instruction cost.
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
@@ -73,9 +75,9 @@ Implemented and checked:
 - Transitive axiom auditing, including generated certificates.
 - Optional native GNU23/GNU++26 compiler probes retained from the bootstrap.
 
-The function certifier accepts three two-instruction profiles and the counted
-`increment-loop` profile. The process certifier accepts exit42 (three user
-instructions) and write-exit42 (eight across a completed write). Other correct
+The function certifier accepts three two-instruction profiles, the three-instruction
+`exchange32` profile and the counted `increment-loop` profile. The process certifier
+accepts exit42 (three user instructions) and write-exit42 (eight across a completed write). Other correct
 encodings remain unsupported. Linux loader/kernel refinement, broader syscalls,
 mutable concurrency and general source eDSLs/validators remain planned. See
 the precise [implemented coverage and trust boundary](docs/coverage.md).
@@ -89,6 +91,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Ownership and lifetimes](docs/ownership.md) | What prevents stale authority after release, address reuse or transfer? |
 | [Shared read borrowing](docs/borrowing.md) | What keeps borrowed bytes and permissions stable across managed operations? |
 | [Read-worker scheduling](docs/threads.md) | How do actual machine instructions compose with spawn, shared resources and join? |
+| [Atomic exchange](docs/atomic-exchange.md) | How does an exact XCHG event update OS cells and respect existing read authority? |
 | [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
 | [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
 | [Stream output and exit](docs/process-write.md) | How do short writes and errors compose with the next userspace instructions? |
@@ -109,8 +112,9 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 Start with the roadmap, then the OS and platform documents. Restricted x86-64
 functions, a counted loop and bounded stream-write/exit entries are checked;
 ownership, lifetimes, shared read borrowing and managed read-worker scheduling
-are checked too. Next come protected invariants, mutable workers and the
-thread/atomic counter workload, with concrete runtime refinement.
+are checked too. An atomic-exchange foundation now connects XCHG events and
+guarded OS cells. Next come shared atomic authority, protected invariants, mutable
+workers and the thread/atomic counter workload, with concrete runtime refinement.
 General GNU C++26 ingestion and a fully verified Linux kernel are substantial
 separate research work.
 
@@ -132,6 +136,8 @@ lake env lean -DwarningAsError=true tests/ControlFlow.lean
 lake env lean -DwarningAsError=true tests/Ownership.lean
 lake env lean -DwarningAsError=true tests/Borrowing.lean
 lake env lean -DwarningAsError=true tests/Threads.lean
+lake env lean -DwarningAsError=true tests/AtomicExchange.lean
+lake env lean -DwarningAsError=true tests/OSAtomicExchange.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
