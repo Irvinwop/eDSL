@@ -1,7 +1,8 @@
 # Binary-first verification
 
-Status: primary planned route. The current Lean scaffold does not yet decode
-or certify real machine code.
+Status: the first restricted x86-64 increment profile is implemented, with
+live compiler-output certificates. See [coverage](coverage.md) for its exact
+scope. The broader pipeline below remains planned.
 
 ## One machine-code target for many implementation languages
 

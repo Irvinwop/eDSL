@@ -13,8 +13,10 @@
 - Prioritize direct verification of exact final machine code against independent
   contracts. Source/IR semantics provide optional preservation guarantees and
   proof hints, not mandatory frontends for every binary-verification input.
-- Keep security findings private. Proof failure, timeout, and unsupported code
-  do not establish a defect; record evidence and triage before reporting.
+- The repository is public. Never commit real security findings, their metadata,
+  traces, or reproducers, and do not put them in CI logs/artifacts. Use ignored
+  local storage. Synthetic negative fixtures owned by this project are allowed.
+  Proof failure, timeout, and unsupported code do not establish a defect.
 - Document target limitations and failure behavior; never silently lower an
   operation to a weaker semantic contract.
 - Tests must check independently defined behavior and catch plausible defects.

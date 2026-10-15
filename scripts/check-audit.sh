@@ -8,7 +8,7 @@ lake env lean -DwarningAsError=true scripts/Audit.lean
 negative_source=$(mktemp /tmp/edsl-audit-negative.XXXXXX.lean)
 negative_log=$(mktemp /tmp/edsl-audit-negative.XXXXXX.log)
 trap 'unlink "$negative_source"; unlink "$negative_log"' EXIT
-awk '/^run_cmd do/ {
+awk '/^#audit_edsl/ {
   print "axiom AuditUntrusted : False"
   print "theorem EDSL.auditRejectionProbe : False := AuditUntrusted"
 } { print }' scripts/Audit.lean > "$negative_source"

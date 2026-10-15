@@ -1,7 +1,8 @@
 # Private findings and reporting
 
-Status: record format and planned workflow. The initial
-[findings ledger](../findings/index.json) is empty. No analysis or external
+Status: record format and planned workflow. The tracked
+[example format](../findings/index.example.json) is empty. Live records are
+ignored local files; never commit real findings or their metadata. No external
 reporting service is implemented, and no real defects are claimed.
 
 ## Evidence before a verdict
@@ -37,8 +38,9 @@ security vulnerability in a deployed kernel.
 Each future ledger entry needs an ID, state, target/build identity, property,
 evidence kind and scope, reproduction status, classification, review record,
 private artifact references and disclosure state. Keep raw artifacts under
-access control; `findings/private/` and `artifacts/` are excluded from Git by
-default. Do not paste confidential findings into public issues or build logs.
+access control; `findings/index.json`, `findings/records/`, `findings/private/`
+and `artifacts/` are excluded from Git. Real findings must also be excluded
+from CI artifacts and logs. CI uses only owned synthetic fixtures.
 
 ## Reporting boundary
 
@@ -57,6 +59,5 @@ handling the reproducer and proposed fixes. A model-only counterexample stays
 labeled as such until the required real-world evidence exists.
 
 Normal correctness defects and security vulnerabilities may use different
-routes. Public release of a finding is an explicit disclosure decision. A later
-public visibility change would expose tracked queue entries and their history;
-review and migrate confidential records before any such change.
+routes. Public release of a finding is an explicit disclosure decision, separate
+from this public code repository. Do not move local records into tracked paths.

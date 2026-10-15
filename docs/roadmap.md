@@ -15,8 +15,8 @@ ordered by proof dependencies. There are no completion-date promises.
 - Report physical-platform and OS conformance assumptions explicitly.
 - Use explicit cost models and restricted candidate classes for lower bounds.
 - Apache-2.0 plus NOTICE/citation metadata; DCO 1.1 for contributions.
-- Keep the repository and findings private during development. Validate concrete
-  OS implementation components to discharge contracts incrementally.
+- Publish code and owned fixtures, with real findings/evidence kept out of Git
+  and CI artifacts. Validate concrete OS components to discharge contracts.
 
 ## Dependency graph
 
@@ -45,7 +45,8 @@ Present: pinned Lean/Lake project; generic refinement composition and safety
 transfer; a tiny abstract-machine correctness/lower-bound example; transitive
 axiom audit; optional native dialect checks; design documents; licensing and
 contribution policy. CI must build/audit Lean and retain native probes as a
-separate check. None of this certifies a compiler-produced executable yet.
+separate check. The first concrete function-byte profile is now implemented;
+see [coverage](coverage.md) for exact theorems, supported instructions and trust.
 
 ### 1. Semantic contracts and reuse decisions
 
@@ -62,7 +63,16 @@ performance and gaps. Establish a per-feature support/proof ledger.
 Exit: reviewed theorem templates and an executable toy semantics whose proofs
 exercise the interfaces; no circular correctness-by-checker-definition.
 
+Implemented so far: deterministic x86 execution closure, evaluator soundness/
+completeness, result determinism and divergence exclusion. Shared-memory
+nondeterminism, OS traces and temporal composition remain future work.
+
 ### 2. First real artifact: a restricted function
+
+The first increment contract is implemented for `8d 47 01 c3`, with live
+Clang C/C++ and GCC C certificates and native boundary checks. Full scope and
+remaining artifact/physical-conformance assumptions are in [coverage](coverage.md).
+Additional instruction encodings and contract classes are the next extensions.
 
 Choose a loop-free unsigned fixed-width function specification with edge cases.
 Select a small x86-64 instruction subset, prove exact-byte decoding and

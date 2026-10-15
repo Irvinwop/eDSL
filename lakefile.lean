@@ -6,3 +6,6 @@ package edsl where
 
 @[default_target]
 lean_lib EDSL
+
+lean_exe «edsl-certify» where
+  root := `Main

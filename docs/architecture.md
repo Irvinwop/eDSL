@@ -1,7 +1,8 @@
 # Lean 4 architecture
 
-Status: architectural plan. Only the generic refinement interfaces and tiny
-abstract-machine example described in the README are implemented.
+Status: architectural plan with an implemented restricted x86-64 function-byte
+profile, execution proofs and live compiler certificate path. See
+[coverage](coverage.md); the wider OS/source/loader architecture remains planned.
 
 ## The proof boundary
 

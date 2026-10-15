@@ -12,8 +12,10 @@ The implementation and proof language is **Lean 4**. C/C++, LLVM IR, and
 assembly are the languages being modeled and generated. Native fixtures and
 necessary runtime shims can use C/C++/assembly.
 
-Repository visibility is **private** during development. Security findings stay
-in the private [findings queue](findings/README.md) until a reporting decision.
+The repository is **public**. Any actual security findings, metadata and
+reproducers stay in ignored local storage and are never committed or uploaded
+to CI. The [findings policy](findings/README.md) keeps them separate from the
+owned synthetic fixtures used to test the verifier.
 
 ## What the eventual guarantee means
 
@@ -40,19 +42,26 @@ Implemented and checked:
 
 - A pinned Lean 4 / Lake project, with warnings treated as errors.
 - A generic behavior-refinement interface, composition, and safety transfer.
-- A tiny abstract-machine example proving increment behavior and that every
-  implementation in that instruction language requires at least one operation.
-- A transitive axiom audit for project declarations.
+- A restricted x86-64 byte decoder, instruction/stack/memory semantics, and an
+  unbounded execution relation with evaluator soundness and completeness.
+- An all-input theorem for actual Clang/GCC increment bytes, including wraparound,
+  register/memory framing, return behavior, termination and exact instruction cost.
+- A Lean certificate CLI and live C/C++ compile→link→byte extraction→proof→native
+  integration checks, with fail-closed rejection cases.
+- A two-instruction lower bound within the supported ISA subset.
+- Transitive axiom auditing, including generated certificates.
 - Optional native GNU23/GNU++26 compiler probes retained from the bootstrap.
 
-The current example uses natural numbers and a one-instruction abstract
-language. It is not an ISA, C integer, compiler, ELF, OS, or CPU-time proof.
-The actual language eDSLs, validators, and OS/architecture models are planned.
+The first certifier accepts one four-byte function profile. Other correct
+encodings remain unsupported. ELF loading, Linux/kernel/concurrency models and
+general source eDSLs/validators remain planned. See the precise
+[implemented coverage and trust boundary](docs/coverage.md).
 
 ## Read the plan
 
 | Document | Question it answers |
 | --- | --- |
+| [Implemented coverage](docs/coverage.md) | What can run and what has actually been proved? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |
@@ -76,9 +85,11 @@ fully verified Linux kernel are substantial separate research work.
 Install [elan](https://github.com/leanprover/elan), then run:
 
 ```sh
-lake build
+lake build EDSL edsl-certify
+lake env lean -DwarningAsError=true tests/X86.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
+bash scripts/verify-compilers.sh
 ```
 
 `lean-toolchain` pins Lean 4.35.0. The library currently needs no third-party
@@ -87,7 +98,8 @@ standard `propext`, `Quot.sound`, and `Classical.choice`; it also rejects proof
 holes. Its negative check injects an untrusted transitive dependency and
 requires rejection. The bundled `leanchecker` replays the stored proofs in a
 fresh kernel environment. These check the current declarations, not the adequacy of a future
-language, OS, or hardware model.
+language, OS, or hardware model. The compiler integration command also needs
+Linux/x86-64, Clang, GCC and binutils; it uses only owned synthetic fixtures.
 
 The optional native compiler probes are separate from proofs:
 

@@ -1,8 +1,10 @@
 # Costs, minimum operations, and optimality
 
-Status: plan, plus a deliberately small checked example in
-[Increment.lean](../EDSL/Examples/Increment.lean). No real ISA or timing bound is
-currently proved.
+Status: plan plus checked examples. The restricted x86-64 profile has an exact
+two-instruction increment result and a matching lower bound for its zero-input,
+zero-RAX case; see [coverage](coverage.md). The original
+[abstract example](../EDSL/Examples/Increment.lean) is retained. No complete-ISA
+optimum or timing bound is proved.
 
 ## What can be proved
 

@@ -30,8 +30,25 @@ jobs:
           "$RUNNER_TEMP/elan-installer/elan-init" -y --no-modify-path --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Build pinned Lean project
-        run: lake build
+        run: lake build EDSL edsl-certify
+      - name: ISA regression and rejection properties
+        run: lake env lean -DwarningAsError=true tests/X86.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment
         run: lake env leanchecker --fresh EDSL
+      - name: Install native integration tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 gcc binutils
+      - name: Certify fresh C and C++ compiler outputs and execute owned fixtures
+        env:
+          EDSL_CLANG: clang-18
+          EDSL_CLANGXX: clang++-18
+        run: bash scripts/verify-compilers.sh
+      - name: Preserve owned fixture certificates and build provenance
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: compiler-fixture-certificates
+          path: artifacts/compiler-fixtures/
+          if-no-files-found: error

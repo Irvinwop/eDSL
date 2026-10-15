@@ -1,9 +1,9 @@
 # Verification plan: source, compiler output, architecture, and OS
 
-Status: proposed design and acceptance criteria. The pipeline described here is
-not implemented. Small Lean theorems in the repository establish only their
-stated mathematical models; they do not certify a production compiler, binary,
-CPU, or operating system.
+Status: the first narrow compiler-output function profile is implemented; see
+[coverage](coverage.md). Most of the wider pipeline below remains proposed.
+Checked theorems establish their stated machine model and exact byte profile;
+they do not verify a complete compiler, CPU or operating system.
 
 The intended result is a Lean 4 proof about a **particular executable artifact**
 running with a **particular architecture, ABI, and OS contract**. It must explain

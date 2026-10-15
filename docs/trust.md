@@ -5,10 +5,12 @@ The end-to-end compiler/OS pipeline is not implemented.
 
 ## Current boundary
 
-The Lean library defines abstract behavior inclusion and safety transfer, then
-proves a small natural-number instruction-language example and operation lower
-bound. These are mathematical results about those definitions. They establish
-no conformance of C, LLVM, an ISA, an OS, or physical hardware.
+The Lean library includes a restricted x86-64 decoder/machine model, unbounded
+execution proofs, an all-input increment theorem for actual compiler-output
+bytes and a narrow certificate CLI. It also retains generic refinement lemmas
+and the original toy example. See [coverage](coverage.md) for assumptions and
+supported encodings. These results do not prove the model's conformance to
+physical hardware, source-language preservation or a complete OS implementation.
 
 `lake build` checks the declarations with Lean 4.35.0. The audit traverses
 transitive axiom dependencies of declarations under `EDSL` and permits only
