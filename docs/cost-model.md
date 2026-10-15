@@ -1,8 +1,10 @@
 # Costs, minimum operations, and optimality
 
-Status: plan plus checked examples. The restricted x86-64 profile has an exact
-two-instruction increment result and a matching lower bound for its zero-input,
-zero-RAX case; see [coverage](coverage.md). The original
+Status: checked instruction counts and restricted lower bounds, plus a plan for
+richer costs. The x86-64 profile proves two-instruction function results and a
+three-instruction first-syscall result. Matching lower bounds apply to specified
+initial-register cases within the supported ISA; see [coverage](coverage.md) and
+the [process exit contract](process-exit.md). The original
 [abstract example](../EDSL/Examples/Increment.lean) is retained. No complete-ISA
 optimum or timing bound is proved.
 
@@ -72,29 +74,48 @@ must not be reported as executable instruction counts without this connection.
 
 ## What the repository currently proves
 
-The tiny machine has a single instruction family, `add amount`, natural-number
-inputs, sequential execution, and unit cost per instruction. Its specification
-requires the output to be input plus one for every input.
+The machine execution relations count supported user instructions. Function
+execution includes the terminal `RET`; first-syscall execution includes
+`SYSCALL` and stops at the userspace request boundary. Loading, privileged
+execution, kernel cleanup and waiting are outside these counts.
 
-The checked theorems establish that:
+| Checked result | Candidate and initial-state scope |
+| --- | --- |
+| Increment, load32 and store32 exact cost: two instructions | Their checked byte profiles, for every admitted function entry; includes return-stack and memory preconditions |
+| `Increment.zero_input_lower_bound`: at least two instructions | Every supported terminating function execution producing the increment result from zero input and zero initial RAX |
+| `Exit42.reaches_request`: exactly three instructions | Its twelve checked entry bytes, every modeled initial register/flags state and admitted code mapping |
+| `Exit42.zero_register_lower_bound`: at least three instructions | Every supported first-syscall execution from initial RAX = RDI = 0 requesting raw exit60 with status42 |
 
-- A one-instruction implementation meets that independent functional contract.
-- Every program in that language meeting the contract has length at least one:
-  an empty program leaves input zero unchanged and therefore fails.
-- The one-instruction implementation attains the bound and is optimal within
-  this candidate language.
+The process lower bound is an independent argument about the candidate class:
+each supported ordinary step preserves at least one of RAX and RDI, and the
+terminal syscall snapshot preserves both. A request for exit60/status42 changes
+both zero registers, so two ordinary steps and the syscall are necessary.
+`Invokes.changing_two_registers_costs_three` proves this generic bound; the
+specific exit theorem derives the register changes from the syscall contract.
+The owned entry `mov edi,42; mov eax,60; syscall` attains three. This is an
+optimum for that initial-state case within the current supported ISA, not a
+claim about all x86 encodings or every initial state. The standalone certificate
+admits arbitrary initial registers, but its lower-bound theorem requires the
+two zero-register hypotheses.
 
-This is intentionally a small example of the quantifiers. It says nothing
-about C overflow, x86 instruction encodings, CPU cycles, Linux, or a compiler's
-output. It also does not claim a useful general lower-bound technique has
-already been implemented.
+The process proof also separates three user instructions from OS progress.
+Every completed trace of the modeled exit contract reports status42; eventual
+completion requires the explicit `LinuxExit.Fair` assumption. An admitted
+infinite waiting trace shows why the instruction bound does not imply kernel
+termination. Even fair traces have no numerical delay bound.
+
+The original tiny abstract machine has only `add amount`, natural-number inputs
+and unit instruction cost. Its checked increment implementation has length one,
+and every candidate meeting that contract has length at least one. This example
+illustrates the quantifiers independently of the x86 results.
 
 ## Planned proof and tooling work
 
-1. Add execution events with nonnegative costs, path composition, finite and
-   infinite-run accounting, and lemmas for sequential composition and loops.
-2. Prove exact/upper bounds for the first validated bitvector function, including
-   return and calling-convention overhead under a stated counting boundary.
+1. Extend the existing instruction counts with execution events carrying
+   nonnegative costs, path composition, finite and infinite-run accounting,
+   and lemmas for sequential composition and loops.
+2. Extend exact function/first-syscall bounds to calls, branches and loops,
+   keeping the counting boundary and admitted environment explicit.
 3. Implement a restricted straight-line candidate grammar and prove search
    coverage for a finite size bound. An untrusted synthesizer can suggest a
    candidate; Lean checks semantics and the absence of cheaper candidates.
@@ -105,9 +126,10 @@ already been implemented.
    comparison decision trees, adversaries, or information flow, matched to the
    exact candidate model. Some global optimization questions are undecidable;
    support restricted claims rather than promising a universal minimizer.
-6. Add shared-memory event costs, retries, contention, allocation and syscalls
-   only after their semantics exist. Fairness can imply eventual scheduling
-   without any finite bound on when scheduling occurs.
+6. Add shared-memory event costs, retries, contention, allocation and kernel
+   work after their semantics exist. The present syscall instruction count
+   includes none of that work. Fairness can imply eventual scheduling without
+   any finite bound on when scheduling occurs.
 7. Evaluate microarchitecture-aware analysis separately. Pin CPU model, cache
    and predictor assumptions, frequency and interference bounds, interrupt and
    page-fault behavior, device delays and scheduler policy before claiming time.

@@ -27,6 +27,32 @@ caller mappings/stack/data conditions. This does not prove Linux page-padding,
 relocation, startup, dynamic linking or loader implementation behavior; see the
 [ELF boundary](elf.md).
 
+The standalone process path checks the complete observed static ELF and derives
+its entry code through the same modeled loader. It proves that every modeled
+initial register/flags state reaches the raw exit60/status42 request in exactly
+three user instructions, without a caller stack, startup data or runtime. The
+request is a userspace ABI snapshot before privileged execution, not a model of
+kernel entry, RCX/R11 clobbering or return to userspace.
+
+Its explicit OS contract admits a single-thread, unintercepted raw exit request,
+waiting and a status-completion transition. Every completed trace has
+status42; eventual completion requires the separate `LinuxExit.Fair` assumption
+of abstract completion progress. This is not a theorem that scheduler fairness
+completes Linux cleanup. An admitted infinite wait demonstrates the need for
+progress, and a terminating fair trace makes the conditional guarantee
+nonvacuous. Linux loader behavior, privileged instruction execution, the kernel
+implementation and resource cleanup remain unproved. Signals, interception,
+multithreaded exit, libc wrappers and `exit_group` are outside this profile.
+See the [process contract and reproduction commands](process-exit.md).
+
+`scripts/verify-process.sh` checks owned Clang/GCC assembly ELFs through
+`edsl-certify-process`, then observes native status42 and rejects wrong-status
+and wrong-syscall mutations. This independently checks selected native behavior;
+it does not establish universal conformance of Linux or hardware to the model.
+The exact three-user-instruction count excludes loading and kernel work. Its
+matching lower bound requires zero initial RAX/RDI and quantifies only over
+supported first-syscall candidates, as stated in [the cost model](cost-model.md).
+
 `lake build` checks the declarations with Lean 4.35.0. The audit traverses
 transitive axiom dependencies of declarations under `EDSL` and permits only
 Lean's standard `propext`, `Quot.sound`, and `Classical.choice`. It rejects

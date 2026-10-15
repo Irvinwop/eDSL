@@ -6,4 +6,5 @@ import EDSL.OS.Composition
 import EDSL.OS.WordStore
 import EDSL.ELF.Loader
 import EDSL.Certificate
+import EDSL.Process.Certificate
 import EDSL.Audit

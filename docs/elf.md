@@ -9,7 +9,8 @@ executable entry window. It does not depend on section names, symbols or
 This is function verification after modeled loading, with a caller-provided
 return stack and data. It is not a theorem that Linux `execve` can start the
 container as a complete process. The owned fixture ELFs use function entries
-without a CRT; a Linux process startup contract is separate work.
+without a CRT. The separate [exit42 process profile](process-exit.md) needs no
+caller stack or runtime; a general Linux startup contract is still separate work.
 
 ## Supported profile
 
@@ -114,7 +115,9 @@ there is no Linux-loader refinement theorem yet. The profile rejects page sharin
 rather than modeling Linux's permission-merging or overlap behavior.
 
 Relocations, PIE, dynamic linking, runtime/CRT dependency closure, startup
-stack/auxv/TLS, syscalls, threads and asynchronous interference remain ahead.
+stack/auxv/TLS, broader syscalls, threads and asynchronous interference remain ahead.
+The separate exit42 profile composes a userspace request with a narrow abstract
+exit contract; it does not prove privileged entry or Linux kernel execution.
 Physical page backing, aliases, protection keys and concurrent revocation are
 also outside the current OS cell model. The ISA/control-state and physical
 conformance assumptions in [coverage](coverage.md) continue to apply.

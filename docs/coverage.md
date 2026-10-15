@@ -1,8 +1,9 @@
 # Implemented coverage and remaining trust
 
 Three exact compiler-output profiles verify unsigned 32-bit increment, load and
-store functions. These are usable narrow slices, not a general binary verifier,
-complete ISA, source-language frontend, Linux syscall implementation or verified OS.
+store functions; one standalone ELF profile reaches an exit42 request and composes
+with an explicit OS exit contract. These are narrow slices, not a general binary
+verifier, complete ISA, source frontend, Linux implementation or verified OS.
 
 ## Supported machine profile
 
@@ -19,6 +20,11 @@ complete ISA, source-language frontend, Linux syscall implementation or verified
   little-endian store of the low 32 RSI bits. Flags are preserved.
 - `C3`: near `ret`, reading an accessible little-endian stack word, checking
   canonical return address, advancing RSP by eight and preserving other state.
+- `B8 id` and `BF id`: MOV EAX/EDI immediate32, zero-extended into the full
+  register with flags/memory preserved. Other immediate-register forms reject.
+- `0F 05`: a pre-privileged userspace syscall request boundary. ABI projections
+  expose low32 RAX and RDI/RSI/RDX/R10/R8/R9 arguments; no privileged entry,
+  RCX/R11 effects, SYSRET or kernel instructions are modeled.
 - A memory interface with explicit accessible bytes, execute permission and
   per-byte write permission. Four-byte stores require every byte to be mapped
   and writable; checks complete before producing an updated memory. Mapping this
@@ -38,7 +44,7 @@ checking assumption; device-specific constraints are outside this profile.
 
 The ISA definitions are a reviewed subset interpretation of the
 [Intel manuals](https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html):
-LEA, MOV and near RET in the instruction reference, 32-bit GPR writes/addressing
+LEA, MOV, SYSCALL and near RET in the instruction reference, 32-bit GPR writes/addressing
 and alignment checking in the architecture/system reference. Their adequacy to
 physical execution remains a model/physical-conformance boundary.
 
@@ -151,19 +157,51 @@ OS/hardware remain outside the proof. Hashes aid reproduction; the theorem names
 exact bytes. CI preserves only owned fixture artifacts; never put real findings
 or confidential material in the upload path.
 
+## Standalone exit process
+
+`edsl-certify-process` accepts a full restricted ELF with the twelve-byte entry
+`bf 2a 00 00 00 b8 3c 00 00 00 0f 05`. The certificate derives executable-byte
+binding from modeled loading and reaches raw exit60/status42 in exactly three
+user instructions, independent of modeled initial registers/flags and without
+caller stack/data/runtime requirements. `X86.Invokes` has evaluator soundness,
+completeness, request/count determinism and user-divergence exclusion proofs.
+The ordinary function evaluator reports `.syscallBoundary`; first-syscall
+evaluation reports `.unexpectedReturn` for RET.
+
+`OS.LinuxExit` permits unbounded waiting before completion. All completed admitted
+traces have status 42. Eventual completion additionally requires abstract cleanup
+progress (`Fair`), which is not inferred from scheduler fairness. Both an admitted
+unfair infinite wait and an admitted fair completing trace are proved. The process
+interpretation assumes one thread, no interception and no asynchronous interference.
+
+`Exit42.zero_register_lower_bound` proves at least three instructions for any
+supported first-syscall candidate requesting exit60/status42 from RAX=RDI=0; the
+fixture attains it. It excludes loader/kernel work and says nothing about all-x86
+optimality or timing. Full details and remaining kernel/loader/startup boundaries
+are in [the process report](process-exit.md).
+
+`scripts/verify-process.sh` certifies Clang/GCC assembly ELFs, then executes the
+owned fixtures expecting status42. It rejects wrong-status and wrong-syscall
+variants without executing them. Lean regressions independently check immediate
+zero-extension, ABI R10 selection, low-bit number/status behavior, instruction
+count/fuel and observation boundaries. No concrete Linux exit implementation or
+resource cleanup is proved.
+
 ## Reproduce
 
 ```sh
-lake build EDSL edsl-certify
+lake build EDSL edsl-certify edsl-certify-process
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
 lake env lean -DwarningAsError=true tests/OSComposition.lean
 lake env lean -DwarningAsError=true tests/WordStore.lean
 lake env lean -DwarningAsError=true tests/ELF.lean
+lake env lean -DwarningAsError=true tests/Process.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
+bash scripts/verify-process.sh
 ```
 
 Integration needs Linux/x86-64, Clang accepting the named modes, GCC, binutils
@@ -174,6 +212,7 @@ lake exe edsl-certify increment FUNCTION.bin artifacts/Increment.lean
 lake exe edsl-certify load32 FUNCTION.bin artifacts/Load.lean
 lake exe edsl-certify store32 FUNCTION.bin artifacts/Store.lean
 lake exe edsl-certify --elf increment FUNCTION.elf artifacts/ELF.lean
+lake exe edsl-certify-process PROCESS.elf artifacts/Process.lean
 ```
 
 The two-argument form retains the default `increment` profile. Exit 0 means the

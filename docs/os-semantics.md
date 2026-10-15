@@ -1,17 +1,52 @@
 # OS semantics: the environment is part of the theorem
 
-Status: requirements and proposed proof obligations. This document does not
-claim an implemented OS eDSL, Linux model, verified runtime, or supported
-syscall. The embedding, definitions, and proofs will live in **Lean 4**. GNU
-C23, GNU C++26, LLVM IR, and assembly are languages described by the embedding.
-The initial platform is Linux/x86-64; its assumptions are specified in
-[the platform model](platform-model.md).
+Status: narrow implemented contracts plus requirements for the broader OS
+domain. **Lean 4** contains a sequential address-space model, its machine-memory
+bridge, a restricted ELF loader and a raw Linux exit60 contract. The general
+OS eDSL, runtime, concurrency and kernel implementation proofs remain planned.
+GNU C23, GNU C++26, LLVM IR and assembly are modeled domains rather than the
+implementation language. The initial platform is Linux/x86-64; its assumptions
+are specified in [the platform model](platform-model.md).
 
 The [OS implementation track](os-implementation.md) extends this plan from
 contracts to concrete kernel/runtime/driver machine code. C, Rust, assembly and
 other implementation languages feed the same binary verifier. This can
 incrementally replace contract assumptions with checked implementation results;
 kernel execution additionally requires the privileged architecture profile.
+
+## Current implemented slice
+
+The [address-space contract](address-space.md) models byte-granular map, protect
+and unmap operations with permission revocation and disjoint framing. Checked
+ordinary machine stores project to the corresponding OS cell updates. This
+does not yet model page-granular Linux syscalls, allocation failure or concurrent
+mapping changes. The [ELF loader](elf.md) validates a restricted complete static
+container and derives executable entry-byte binding from modeled installation;
+Linux loader conformance remains external.
+
+The [process slice](process-exit.md) checks a standalone twelve-byte entry that
+sets exit status42 and requests raw Linux exit60. Its ABI request records the
+userspace state before privileged execution: low 32 RAX bits select the syscall,
+and arguments use RDI, RSI, RDX, R10, R8 and R9. The model does not execute
+privileged syscall entry, model kernel registers or prove Linux implementation
+behavior. The entry needs no caller return address, stack contents, startup
+data or runtime, and its certificate admits every modeled initial register and
+flags state.
+
+The exit contract permits arbitrary waiting and a status-completion transition.
+All completed traces agree on status42. Eventual completion separately requires
+`LinuxExit.Fair`, an abstract progress assumption for completion; ordinary
+scheduler fairness alone does not discharge it. Both an admitted infinite wait
+and a terminating fair trace are proved. Resource closure and other kernel
+cleanup remain outside the model. The process interpretation assumes one
+thread and an unintercepted raw exit; multithreaded exit, `exit_group`, libc
+wrappers, signals and competing termination events are not covered.
+
+`edsl-certify-process` checks full observed ELF bytes through the modeled loader
+and composes user execution with this explicit exit contract. The owned Clang
+and GCC assembly fixtures are also executed natively to observe status42;
+wrong-status and wrong-syscall mutations must be rejected. These runs provide
+interface evidence, not a proof that Linux implements the abstract contract.
 
 ## What the OS contributes
 
@@ -37,9 +72,9 @@ Some distinctions useful for reading the plan:
   eventually occurs. Returning the right count after join is different from
   proving join will eventually return.
 
-The first goal is correctness relative to an explicit OS contract, rather than
-a proof of the Linux implementation. Linux's userspace interface is documented
-by the [kernel uAPI guide](https://docs.kernel.org/userspace-api/index.html) and
+The current proofs establish correctness relative to explicit OS contracts.
+A proof of the Linux implementation is a further track. Linux's userspace
+interface is documented by the [kernel uAPI guide](https://docs.kernel.org/userspace-api/index.html) and
 the [Linux man-pages project](https://www.kernel.org/doc/man-pages/). Turning
 that documentation into Lean definitions and validating those definitions is
 project work; documentation alone is not a checked refinement proof.
@@ -213,10 +248,12 @@ must identify interruption points and which resources remain owned.
 
 ## Coverage and priority matrix
 
-All entries are planned. P0 establishes a small sequential platform proof; P1
-adds resource lifetime and basic concurrency; P2 builds production interaction
-semantics; P3 is driven by concrete programs. An unused P3 capability need not
-block a theorem that explicitly excludes it.
+The table lists requirements for the broader domain. The implemented
+address-space, ELF and single-thread exit slices above cover parts of P0/P1;
+the remaining breadth is planned. P0 establishes a small sequential platform
+proof; P1 adds resource lifetime and basic concurrency; P2 builds production
+interaction semantics; P3 is driven by concrete programs. An unused P3
+capability need not block a theorem that explicitly excludes it.
 
 | Priority | Domain | Requirements and representative proof obligations |
 | --- | --- | --- |
@@ -254,9 +291,10 @@ still hold an in-flight operation on its open file description; see
    Lean. Prove the basic proof rules sound against transitions. Check examples
    with genuine alternative outcomes so the model cannot exclude bad behavior
    by construction.
-2. **First platform slice.** After a pure computational proof, verify a bounded
-   single-thread computation in a static Linux/x86-64 executable, with a tiny
-   startup path and write/exit boundary. Prove an output-prefix/error contract
+2. **First platform slice.** The standalone static exit42 entry is implemented
+   with exact ELF binding and a conditional OS progress theorem. Extend it to
+   a bounded single-thread computation with startup data and a write/exit
+   boundary. Prove an output-prefix/error contract
    for arbitrary allowed write outcomes. Prove exact output on the separately
    stated successful-completion path. `write` may be partial or fail; its return
    value is not delivery to a human or persistent storage

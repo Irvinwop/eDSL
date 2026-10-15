@@ -29,6 +29,7 @@ theorem run_sound {fuel : Nat} {initial : State} {result : Execution}
     | error error => simp [run, transition] at success
     | ok outcome =>
       cases outcome with
+      | syscall request => simp [run, transition] at success
       | returned final =>
         simp [run, transition] at success
         cases success
@@ -101,6 +102,8 @@ theorem returned_preserves_rax {initial final : State}
       cases loaded : executeLoad initial <;> simp [step, decoded, loaded] at transition
     | storeEsiRdi =>
       cases stored : executeStore initial <;> simp [step, decoded, stored] at transition
+    | mov32 destination value => simp [step, decoded] at transition
+    | syscall => simp [step, decoded] at transition
     | ret =>
       cases returned : executeRet initial with
       | error error => simp [step, decoded, returned] at transition

@@ -3,6 +3,7 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.X86.Memory
+import EDSL.X86.Syscall
 
 namespace EDSL.X86
 
@@ -13,6 +14,10 @@ inductive Instruction where
   | loadEaxRdi
   /-- `89 37`: MOV DWORD PTR [RDI], ESI. -/
   | storeEsiRdi
+  /-- `B8 id` and `BF id`: supported 32-bit immediate register writes. -/
+  | mov32 (destination : Register) (value : BitVec 32)
+  /-- `0F 05`: userspace syscall request; privileged execution is external. -/
+  | syscall
   /-- `C3`: near return, with an accessible stack word and canonical target. -/
   | ret
   deriving DecidableEq, Repr
@@ -35,6 +40,16 @@ def decodeAt (state : State) : Except Error Instruction := do
     let modrm ← fetchByte state.memory (state.rip + 1)
     if modrm ≠ 0x37 then throw .unsupportedEncoding
     return .storeEsiRdi
+  else if opcode = 0xb8 ∨ opcode = 0xbf then
+    let b0 ← fetchByte state.memory (state.rip + 1)
+    let b1 ← fetchByte state.memory (state.rip + 2)
+    let b2 ← fetchByte state.memory (state.rip + 3)
+    let b3 ← fetchByte state.memory (state.rip + 4)
+    return .mov32 (if opcode = 0xb8 then .rax else .rdi) (joinDWord b0 b1 b2 b3)
+  else if opcode = 0x0f then
+    let second ← fetchByte state.memory (state.rip + 1)
+    if second ≠ 0x05 then throw .unsupportedEncoding
+    return .syscall
   else
     throw (.unsupportedOpcode opcode)
 
@@ -51,6 +66,9 @@ def executeStore (state : State) : Except Error State := do
   let memory ← storeDWord state.memory (state.registers .rdi) ((state.registers .rsi).setWidth 32)
   return { state with memory := memory, rip := state.rip + 2 }
 
+def executeMov32 (state : State) (destination : Register) (value : BitVec 32) : State :=
+  { state.writeRegister destination (value.setWidth 64) with rip := state.rip + 5 }
+
 def executeRet (state : State) : Except Error State := do
   let target ← readWord state.memory (state.registers .rsp)
   if canonical target then
@@ -61,12 +79,15 @@ def executeRet (state : State) : Except Error State := do
 inductive StepResult where
   | next (state : State)
   | returned (state : State)
+  | syscall (request : SyscallRequest)
 
 def step (state : State) : Except Error StepResult := do
   match ← decodeAt state with
   | .leaEaxRdiDisp8 displacement => return .next (executeLea state displacement)
   | .loadEaxRdi => return .next (← executeLoad state)
   | .storeEsiRdi => return .next (← executeStore state)
+  | .mov32 destination value => return .next (executeMov32 state destination value)
+  | .syscall => return .syscall ⟨state, state.rip + 2⟩
   | .ret => return .returned (← executeRet state)
 
 structure Execution where
@@ -80,6 +101,7 @@ def run : Nat → State → Except Error Execution
   | fuel + 1, state => do
     match ← step state with
     | .returned final => return ⟨final, 1⟩
+    | .syscall _ => throw .syscallBoundary
     | .next next =>
       let result ← run fuel next
       return { result with instructions := result.instructions + 1 }

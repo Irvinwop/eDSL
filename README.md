@@ -54,16 +54,20 @@ Implemented and checked:
   store, with all-input compiler-binary composition and retained permissions.
 - A restricted ELF64 loader with bounds, permissions, BSS and page-collision
   checks; full-file certificates derive executable entry-code binding.
+- A standalone exit42 ELF certificate, first-syscall execution proofs and an
+  explicit single-thread Linux exit contract separating status from progress.
 - A Lean certificate CLI and live C/C++ compile→link→byte extraction→proof→native
   integration checks, with fail-closed rejection cases.
-- A two-instruction lower bound within the supported ISA subset.
+- Matching two-instruction function and three-instruction syscall lower bounds
+  within the supported ISA subset, under stated initial-register conditions.
 - Transitive axiom auditing, including generated certificates.
 - Optional native GNU23/GNU++26 compiler probes retained from the bootstrap.
 
-The certifier accepts three exact function profiles, each returning in two modeled
-instructions. Other correct encodings remain unsupported. Linux loader/syscall/
-kernel refinement, concurrency and general source eDSLs/validators remain
-planned. See the precise
+The function certifier accepts three exact profiles, each returning in two modeled
+instructions. The process certifier accepts a twelve-byte exit42 entry executing
+three user instructions. Other correct encodings remain unsupported. Linux
+loader/kernel refinement, broader syscalls, concurrency and general source
+eDSLs/validators remain planned. See the precise
 [implemented coverage and trust boundary](docs/coverage.md).
 
 ## Read the plan
@@ -73,6 +77,7 @@ planned. See the precise
 | [Implemented coverage](docs/coverage.md) | What can run and what has actually been proved? |
 | [Address-space contracts](docs/address-space.md) | How do mapping and permission changes connect to binary proofs? |
 | [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
+| [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |
@@ -86,8 +91,8 @@ planned. See the precise
 | [Trust and evidence](docs/trust.md) | What is currently trusted, checked, assumed, or outside the claim? |
 | [Reuse assessment](docs/research-map.md) | Which existing projects should be evaluated before building new machinery? |
 
-Start with the roadmap, then the OS and platform documents. The first real
-targets are restricted x86-64 functions; next come a static Linux process,
+Start with the roadmap, then the OS and platform documents. Restricted x86-64
+functions and a standalone exit entry are checked; next come syscall output,
 owned memory, and a thread/atomic workload. General GNU C++26 ingestion and a
 fully verified Linux kernel are substantial separate research work.
 
@@ -96,16 +101,18 @@ fully verified Linux kernel are substantial separate research work.
 Install [elan](https://github.com/leanprover/elan), then run:
 
 ```sh
-lake build EDSL edsl-certify
+lake build EDSL edsl-certify edsl-certify-process
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
 lake env lean -DwarningAsError=true tests/OSComposition.lean
 lake env lean -DwarningAsError=true tests/WordStore.lean
 lake env lean -DwarningAsError=true tests/ELF.lean
+lake env lean -DwarningAsError=true tests/Process.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
+bash scripts/verify-process.sh
 ```
 
 `lean-toolchain` pins Lean 4.35.0. The library currently needs no third-party

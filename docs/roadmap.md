@@ -63,9 +63,12 @@ performance and gaps. Establish a per-feature support/proof ledger.
 Exit: reviewed theorem templates and an executable toy semantics whose proofs
 exercise the interfaces; no circular correctness-by-checker-definition.
 
-Implemented so far: deterministic x86 execution closure, evaluator soundness/
-completeness, result determinism and divergence exclusion. Shared-memory
-nondeterminism, OS traces and temporal composition remain future work.
+Implemented so far: deterministic x86 function and first-syscall execution
+closures, evaluator soundness/completeness, result determinism and user-divergence
+exclusion. The raw exit contract adds infinite OS observation traces, an
+all-completed-results theorem, explicit conditional progress, an indefinite-wait
+counterexample and a nonempty fair trace. General temporal composition and
+shared-memory nondeterminism remain future work.
 
 ### 2. First real artifact: a restricted function
 
@@ -100,22 +103,33 @@ Implemented supporting OS contract: byte-granular mapping/protection/unmapping
 with permission-revocation and disjoint-framing proofs. A protection change
 outside a binary load's footprint preserves its contract, with a concrete
 admitted-entry witness. Independent Linux VM probes cover zero filling, denied
-access and adjacent-page preservation. Page-granular syscall refinement and the
-process-startup obligations below remain unimplemented; see [scope](address-space.md).
+access and adjacent-page preservation. Page-granular VM syscall refinement and
+general startup-data obligations remain unimplemented; see [scope](address-space.md).
 
 The restricted ELF container step is now implemented: bounded ELF64LE parsing,
 validated load segments and page freshness, exact file-byte/BSS installation,
 preservation of existing cells and entry `CodeAt` derivation. Full observed files
 are embedded in generated Lean certificates, with compiler profiles checked
-through the modeled loader. This is a function-container guarantee, with explicit
-caller stack/data conditions; Linux loader conformance and process startup remain
-next obligations. See [ELF scope](elf.md).
+through the modeled loader. The function profiles retain explicit caller
+stack/data conditions. See [ELF scope](elf.md).
 
-Model a restricted static ELF, segment/entry validation, startup stack/auxiliary
-state, final-byte identity, minimal syscall ABI and termination. Add a tiny
-process with bounded computation and explicit `write`/exit outcomes. Specify
-short writes, interruption, faults and denied resources rather than assuming
-all external effects succeed. Keep loader/kernel behavior conditional.
+The first standalone process result is implemented: a checked static ELF entry
+executes `mov edi,42; mov eax,60; syscall` in exactly three user instructions,
+for every modeled initial register/flags state, without caller stack contents,
+startup data or runtime. `edsl-certify-process` generates the full-file Lean
+certificate. The modeled single-thread, unintercepted raw exit60 contract gives
+status42 on every completed trace and eventual completion under explicit
+abstract completion progress. Indefinite waiting is admitted without that
+assumption, and a terminating fair trace witnesses nonvacuity. Owned Clang/GCC
+assembly ELFs receive certificates and native status checks; wrong status and
+syscall mutations are rejected. See [process scope](process-exit.md).
+
+Remaining work: Linux loader conformance, startup stack/auxiliary state when
+used, privileged syscall entry and concrete kernel execution/cleanup. Extend
+the process profile to bounded computation and explicit `write`/exit outcomes.
+Specify short writes, interruption, faults and denied resources rather than
+assuming all external effects succeed. Preserve explicit loader/kernel
+contracts until implementation proofs discharge them.
 
 Exit: a process-level trace/result theorem linked to the final artifact, with
 all reachable code/runtime and external contracts accounted for.
@@ -203,6 +217,14 @@ instrumented semantics and counts, prove target bounds, then restricted lower
 bounds and certified synthesis/search coverage. Separate work, span, memory,
 instructions and elapsed time. Do not claim global optimality from a bounded
 search or hardware timing from an ISA step count.
+
+Implemented: exact two-instruction increment/load/store counts, the increment
+lower bound for zero input/RAX, and an exact three-instruction first-syscall
+count for exit42. Any supported first-syscall candidate requesting exit60/status42
+from initial RAX = RDI = 0 needs at least three user instructions; the checked
+entry attains that bound. These bounds cover the supported ISA and count no
+loading or kernel work. All-x86 optimality and elapsed-time bounds remain out
+of scope.
 
 Exit: at least one useful validated function has a target cost theorem; an
 optimality claim also quantifies over a specified candidate class and includes

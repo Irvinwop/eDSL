@@ -30,7 +30,7 @@ jobs:
           "$RUNNER_TEMP/elan-installer/elan-init" -y --no-modify-path --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Build pinned Lean project
-        run: lake build EDSL edsl-certify
+        run: lake build EDSL edsl-certify edsl-certify-process
       - name: ISA, ELF, OS contracts and rejection properties
         run: |
           lake env lean -DwarningAsError=true tests/X86.lean
@@ -39,6 +39,7 @@ jobs:
           lake env lean -DwarningAsError=true tests/OSComposition.lean
           lake env lean -DwarningAsError=true tests/WordStore.lean
           lake env lean -DwarningAsError=true tests/ELF.lean
+          lake env lean -DwarningAsError=true tests/Process.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment
@@ -52,9 +53,19 @@ jobs:
           EDSL_CLANG: clang-18
           EDSL_CLANGXX: clang++-18
         run: bash scripts/verify-compilers.sh
+      - name: Certify standalone process bytes and observe native exit
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-process.sh
       - name: Preserve owned fixture certificates and build provenance
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: compiler-fixture-certificates
           path: artifacts/compiler-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned process certificates and build provenance
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: process-fixture-certificates
+          path: artifacts/process-fixtures/
           if-no-files-found: error
