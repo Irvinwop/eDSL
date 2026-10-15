@@ -130,9 +130,33 @@ handle operation preserves existing resource contracts, has actual-instruction
 and complete-routine bridges, and proves finite same-cell counter traces equal
 the observed initial value plus all deltas modulo 2^32. Symbolic witnesses cover
 every initial word/delta. Native flag observations and unique-old counter stress
-checks supplement these proofs. No fetch-add worker-loop/lifecycle, unrestricted
-interference, natural-number no-overflow, general memory-ordering or physical
+checks supplement these proofs. No unrestricted interference, natural-number
+no-overflow, general memory-ordering or physical
 conformance claim follows. See [the fetch-add boundary](fetch-add.md).
+
+`OS.CounterThreads` separately schedules the exact nineteen-byte locked-add
+loop against current shared cells. Every dispatch refines one actual decoded
+machine step, including flags and projected memory. Its managed mixed histories
+preserve worker/resource invariants and permanent joined-ID revocation.
+For dispatch-only schedules from a prepared finite entry-phase registry, every
+completed worker emits its independently published full-RCX increment count;
+all completed workers establish the initial-plus-requested modular counter sum.
+Checked full collection returns zeros, removes all worker records and preserves
+the counter cells. A constructive finite completion/collection exists for every
+admitted registry, but infinite idling remains possible.
+
+`CounterCertificate.sound` binds those independent workload contracts to exact
+raw bytes or a complete checked ELF. Prepared resources, initial observation,
+one shared address and entry-phase workers remain explicit premises. Raw mode
+also requires executable-code binding; ELF mode derives it from modeled loading
+with shared-space/entry-address equalities. The CLI does not infer a registry
+or establish native publication. The counter theorem excludes mixed-history
+ordinary writes across zero-handle gaps and arbitrary unmanaged interference.
+Its `3*count+3` per-worker instruction cost excludes lifecycle and kernel work.
+Batch collection is a pure functional construction, without a native atomic
+batch-cleanup claim. Native pthread/clone, context switching, runtime cleanup,
+protected invariants, locks and general weak-memory refinement remain external.
+See [counter-worker scope](counter-workers.md).
 
 Physical interpretation requires the explicit aligned coherent-WB-RAM profile,
 stable translation/permissions, excluded aliases/mixed-size overlaps and stable

@@ -222,8 +222,9 @@ Checked exchanges use current shared cells and have exact XCHG/compiler-byte
 bridges. Arbitrary finite exchange-only schedules prove value chaining and
 multiset conservation; symbolic witnesses cover every old/new pair. This
 resource layer is now used by mutable worker contexts and lifecycle scheduling.
-Protected invariants, counter algorithms and concrete ordering/runtime
-refinement remain ahead. See [shared-handle scope](atomic-handles.md).
+The counted counter-worker profile below adds an algorithm over this authority.
+Protected invariants and concrete ordering/runtime refinement remain ahead.
+See [shared-handle scope](atomic-handles.md).
 
 Mutable atomic workers now connect root-managed spawn and join to actual
 MOV/XCHG/RET instruction dispatch against current shared cells. Each worker's
@@ -237,8 +238,8 @@ successful dispatch-only schedules at one address prove actual event chaining
 and multiset conservation. All twenty two-worker instruction interleavings have independent
 result/event/guard/return-state regressions; checked adoption/spawn witnesses
 and a successful three-step schedule/join cover every initial/replacement
-32-bit pair. This does not yet implement the
-counter algorithm, general memory ordering or native start/join refinement;
+32-bit pair. This exchange profile does not itself implement the counted
+counter algorithm below, general memory ordering or native start/join refinement;
 see [atomic-worker scope](atomic-workers.md).
 
 The locked fetch-add prerequisite is now implemented: exact compiler bytes,
@@ -246,12 +247,25 @@ all six arithmetic flags, one labeled modular RMW event, checked OS-handle
 composition and arbitrary finite same-cell initial-plus-deltas counter traces.
 Every old/delta pair has an admitted checked-allocation/handle witness. Native
 checks compare flags with Lean and verify 800,000 contended unique old results
-per compiler. The next dependency is a fetch-add worker increment-loop and its
-spawn/join result and safe-reclamation invariants, followed by concrete runtime
-refinement. The existing worker dispatcher still accepts only exchange code;
-see [fetch-add scope](fetch-add.md).
+per compiler. See [fetch-add scope](fetch-add.md).
 
-Specify real thread start/join, argument publication, ownership transfer,
+The counted locked-add worker workload is now implemented separately in
+`OS.CounterThreads`. Its exact nineteen-byte loop executes actual decoded steps
+against current shared cells, retains handle/code/stack authority through join,
+and uses full 64-bit independent iteration requests. Any successful supplied
+dispatch schedule completing the finite entry-phase registry proves the final
+counter equals its independently observed initial word plus all requests modulo
+2^32. Every worker returns zero; checked collection removes the registry and
+revokes its resources while preserving cells. A constructive finite completion
+and collection exists for every admitted workload; infinite idle scheduling
+still excludes unconditional progress. The per-worker cost is exactly
+`3*count.toNat+3` own user instructions. Raw/full-ELF certificates bind this
+workload contract to the exact loop. Independent regressions enumerate all 924
+two-worker one-increment interleavings. This completes the abstract counted
+workload, not concrete pthread/clone/publication/context-switch refinement or
+general weak-memory correspondence. See [counter-worker scope](counter-workers.md).
+
+Next specify real thread start/join, argument publication, ownership transfer,
 creation failure and partial cleanup. Use sequentially consistent atomics first,
 with a proved mapping to the chosen machine model. If libc/pthreads is used,
 validate its relevant bytes or expose its contract as a remaining assumption.
@@ -316,7 +330,10 @@ count for exit42, plus `2*count+3` for the all-count assembly loop. Any supporte
 first-syscall candidate requesting exit60/status42 from initial RAX = RDI = 0
 needs at least three user instructions; the checked
 entry attains that bound. These bounds cover the supported ISA and count no
-loading or kernel work. All-x86 optimality and elapsed-time bounds remain out
+loading or kernel work. Counted locked-add workers additionally have exact
+`3*count+3` own-instruction bounds and published-request event totals across
+successful completing schedules; native lifecycle and waiting costs are excluded.
+All-x86 optimality and elapsed-time bounds remain out
 of scope.
 
 Exit: at least one useful validated function has a target cost theorem; an

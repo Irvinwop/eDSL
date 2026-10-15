@@ -66,10 +66,12 @@ resource histories. This result has no fixed operation-count bound and makes no
 scheduling or native thread-lifecycle assumption.
 
 It does not admit unrecorded external stores or arbitrary administrative actions.
-It does not yet establish a worker increment-loop, natural-number counting
-without overflow, fairness or native pthread/clone refinement. The existing
-`AtomicThreads` dispatcher still accepts only its exchange routine; a fetch-add
-worker protocol must be implemented and proved separately.
+It does not itself establish natural-number counting without overflow,
+fairness or native pthread/clone refinement. The separate
+[`CounterThreads` worker protocol](counter-workers.md) now schedules an exact
+locked-add increment loop, proves published per-worker iteration counts and
+the whole-workload modular total, and provides checked completion/collection.
+`AtomicThreads` retains its distinct exchange routine and old-value results.
 
 ## Evidence
 

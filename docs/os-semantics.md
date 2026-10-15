@@ -4,7 +4,8 @@ Status: narrow implemented contracts plus requirements for the broader OS
 domain. **Lean 4** contains a sequential address-space model, its machine-memory
 bridge, an allocation-identity/ownership registry with shared read loans,
 a managed read-worker instruction scheduler, shared atomic handles and mutable
-MOV/XCHG/RET workers with checked OS-cell/lifecycle composition,
+MOV/XCHG/RET workers and counted locked-add workers with checked
+OS-cell/lifecycle composition,
 a restricted ELF loader,
 a raw Linux exit60 contract and a bounded
 stream-write/return contract. The general OS eDSL, runtime, broader concurrency and kernel
@@ -54,8 +55,8 @@ and permanently revoke joined thread and loan IDs. Two successful selections
 suffice under the supported instruction scheduler; an infinite idle trace
 shows progress is not automatic. This is an abstract read-only lifecycle
 contract. Native pthread/clone refinement, identity authentication, context
-switching, locks, wider atomics and the shared-increment workload remain
-required. A separate mutable exchange-worker profile is described below.
+switching, locks and wider atomics remain required. Separate mutable exchange
+and counted locked-add worker profiles are described below.
 There is no new general SC or weak-memory claim.
 
 The [atomic-exchange foundation](atomic-exchange.md) checks exact MOV/XCHG/RET
@@ -80,8 +81,23 @@ selections suffice in a successful supplied instruction schedule, while idling
 can continue forever. Dispatch-only schedules at one address have actual event
 chaining and multiset conservation. The latter does not establish final-memory
 chaining across mixed-history gaps without reservations. Native creation,
-publication, scheduling and join remain external; counter algorithms, locks and
-general ordering are still required.
+publication, scheduling and join remain external; locks and general ordering
+are still required.
+
+The [counted counter-worker lifecycle](counter-workers.md) now schedules an
+exact JRCXZ/MOV/LOCK-XADD/LOOP/MOV/RET routine against current shared cells.
+Full 64-bit RCX supplies each worker's independent iteration request. Each
+successful selection executes one actual decoded instruction; a worker needs
+exactly `3*count+3` own selections through completion and returns zero.
+For every successful supplied dispatch schedule completing a finite admitted
+entry-phase registry at one address, the final counter is the independently
+observed initial word plus all published requests modulo 2^32. Checked full
+collection returns zeros, removes all workers and revokes their handles/loans,
+preserving counter cells. A constructive finite completion/collection path
+exists for every such registry. Mixed histories retain resource/private-context
+invariants, but this sum does not cover ordinary stores across unreserved gaps.
+Native creation/publication/context switching/join, runtime cleanup and general
+weak-memory refinement remain external; idling can prevent progress forever.
 
 The [process slice](process-exit.md) checks a standalone twelve-byte entry that
 sets exit status42 and requests raw Linux exit60. Its ABI request records the
@@ -372,12 +388,14 @@ still hold an in-flight operation on its open file description; see
    and cleanup for success/failure. Exercise the actual native boundary,
    including fault/protection cases in isolated child processes. OS resource
    failure remains a modeled outcome, not a contradiction.
-4. **Threads plus SC atomics.** Choose a pinned pthread runtime as an explicit
-   external contract initially; verify the project's wrapper and ABI. Prove a
-   finite shared-counter program for every allowed interleaving/memory history,
-   joining every successfully created worker before reclamation. Successful
-   creation of N workers, completion of K increments each, and no wrap imply
-   N*K. Partial creation failure uses its own outcome and cleanup theorem.
+4. **Threads plus SC atomics.** The abstract counted-worker program now proves
+   its modular result and checked collection for every successful completing
+   supplied dispatch schedule, with constructive finite completion separate
+   from arbitrary scheduler progress. Next choose a pinned pthread runtime as
+   an explicit external contract; verify the project's wrapper and ABI,
+   including publication and native failure/cleanup. Add concrete memory-model
+   correspondence and a separate no-overflow theorem for natural-number totals.
+   Partial creation failure needs its own whole-program cleanup theorem.
    Termination additionally requires worker scheduling and runtime progress.
 5. **Publication and waits.** Add acquire/release message passing, then one mutex
    and condition-wait/futex protocol. Require forbidden-outcome proofs, a

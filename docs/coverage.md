@@ -1,12 +1,13 @@
 # Implemented coverage and remaining trust
 
-Four exact compiler-output profiles verify unsigned 32-bit increment, load,
-store and atomic exchange functions. A counted assembly-loop profile adds modular
-increment by every 64-bit count and proved termination. Standalone ELF profiles
+Five exact compiler-output profiles verify unsigned 32-bit increment, load,
+store, atomic exchange and locked fetch-add functions. A counted assembly-loop
+profile adds modular increment by every 64-bit count and proved termination. Standalone ELF profiles
 reach exit42 directly or across a bounded stream write and compose with explicit
-OS contracts. These are narrow slices,
-not a general binary verifier, complete ISA, source frontend, Linux implementation
-or verified OS.
+OS contracts. A separate locked-add-loop certificate connects exact bytes to
+finite OS counter-worker workloads and checked collection. These are narrow slices,
+with no general binary verifier, complete ISA, source frontend, Linux implementation
+or verified OS claim.
 
 ## Supported machine profile
 
@@ -254,7 +255,7 @@ instructions and join, with all-history conditional result preservation.
 
 This is a managed read-worker contract, not native pthread/clone refinement,
 CPU context-switch verification, hardware atomicity/SC/weak-memory semantics or
-the planned shared-increment workload. Root/worker Nat names are proof labels;
+the separate shared-increment workload below. Root/worker Nat names are proof labels;
 freshness concerns the lifecycle registry and does not authenticate native
 identities. Unmanaged loan release, raw writes and arbitrary external
 interference are excluded. Worker stacks do not support push/call here; TLS,
@@ -332,8 +333,9 @@ This is an abstract lifecycle and scheduler contract with logical actor IDs.
 Its histories admit only spawn, dispatch, join, guarded mutation and idle;
 arbitrary raw exchanges and resource operations are outside the contract.
 Native pthread/clone refinement, publication, context switching and general
-x86/C++ memory ordering remain unproved. Protected invariants, counter algorithms,
-locks and wait/wake are still planned. Mixed-history result/resource proofs do
+x86/C++ memory ordering remain unproved. The separate counter-worker profile
+below adds a counted algorithm; protected invariants, locks and wait/wake are
+still planned. Mixed-history result/resource proofs do
 not imply final-memory value chaining across zero-handle gaps. Counts exclude
 runtime/kernel overhead and establish no unconditional progress. See
 [atomic-worker contracts and assumptions](atomic-workers.md).
@@ -352,13 +354,62 @@ projects to existing guarded histories. Its actual instruction and complete
 compiler-routine bridges bind final machine memory to updated OS cells.
 `AddTrace.counter` proves the final initial-plus-deltas modular sum across every
 successful finite same-cell trace. Positive enabledness and symbolic admitted
-states cover every old/delta pair. This does not yet extend worker dispatch to
-fetch-add or prove native thread lifecycles/general memory ordering.
+states cover every old/delta pair. The separate counter-worker profile below
+adds locked-add dispatch and lifecycle proofs; native thread lifecycles and
+general memory ordering remain external.
 
-The integration total is now 38 artifact certificates, including six fetch-add
-certificates. Independent native observations check 144 flag pairs and 800,000
+Six fetch-add artifact certificates retain raw/full-ELF bindings from the three
+compiler modes. Independent native observations check 144 flag pairs and 800,000
 contended increments with unique old results per compiler. See the exact
 [fetch-add contracts, evidence and limits](fetch-add.md).
+
+## Counted atomic workers
+
+`OS.CounterThreads` implements root-managed spawn, per-instruction dispatch and
+join for the exact nineteen-byte JRCXZ/MOV/LOCK-XADD/LOOP/MOV/RET routine. Each
+worker holds an actor-specific atomic handle and protected code/stack loans
+until join. Full 64-bit entry RCX supplies its iteration request, RDI supplies
+the counter address and completed workers return zero. The zero guard avoids
+LOOP underflow. Well-formed managed mixed histories preserve private contexts,
+resource authority and permanent joined thread/handle/loan revocation.
+
+`dispatch_machine` refines the complete current-memory machine step, including
+registers, flags and projected memory. Each recorded event adds one modulo 2^32;
+other instructions leave OS cells unchanged. `schedule_remaining` and
+`completed_selection_count` prove exactly `3*count.toNat+3` successful own selections through
+completion, with arbitrary peer preemption. `completed_event_count` proves
+exactly the published iteration count in actual events per completed worker.
+
+For a finite well-formed entry-phase registry targeting one independently
+observed address, `completed_counter` proves that every successful supplied
+schedule completing all workers leaves initial plus the sum of their published
+requests modulo 2^32. `collect_all` returns zeros and removes every worker while
+preserving OS cells; `collect_revokes` establishes resource revocation.
+`finish_collect_counter` constructs a finite completing schedule and collection
+for every such registry. Infinite idle traces remain possible, so arbitrary
+scheduler progress and numerical latency are not established.
+
+`CounterCertificate.sound` packages constructive execution and the universal
+completed-result contract for exact raw bytes or a complete restricted ELF.
+`edsl-certify-counter` runs Lean checking and axiom auditing. Prepared resource
+and private-context contracts remain explicit; ELF mode derives code through
+modeled loading with freshness and actual shared-space/entry equalities.
+The CLI does not infer a native lifecycle, ownership or publication proof.
+
+Owned Lean regressions check all 924 instruction interleavings of two
+one-increment workers against independent counter/event/flag/return expectations,
+plus zero and unequal iteration workloads. The aggregate sum covers dispatch
+schedules followed by checked collection, not arbitrary mixed histories with
+unreserved ordinary-store gaps. IDs remain logical authority, batch collection
+is a pure operation, and costs exclude runtime/kernel work. Native start/join,
+context switching, publication, locks, protected invariants and general weak
+memory remain external. See [counter-worker contracts](counter-workers.md).
+
+The integration total is 42 raw/full-ELF artifact certificates, including four
+counter-worker certificates. The counter observer checks 42 sequential requests
+and four eight-thread workloads per compiler; it independently rejects four
+terminating semantic mutants. Nineteen Lean suites include symbolic admission
+and completion witnesses for every initial word and pair of 64-bit counts.
 
 ## Restricted ELF loading
 
@@ -467,7 +518,7 @@ paths and raw errors. See [the complete contract](process-write.md).
 ## Reproduce
 
 ```sh
-lake build EDSL edsl-certify edsl-certify-process
+lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
@@ -485,12 +536,15 @@ lake env lean -DwarningAsError=true tests/OSAtomicExchange.lean
 lake env lean -DwarningAsError=true tests/Atomics.lean
 lake env lean -DwarningAsError=true tests/AtomicThreads.lean
 lake env lean -DwarningAsError=true tests/FetchAdd.lean
+lake env lean -DwarningAsError=true tests/CounterThreads.lean
+lake env lean -DwarningAsError=true tests/CounterThreadsWitness.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
 bash scripts/verify-process.sh
 bash scripts/verify-loops.sh
 bash scripts/verify-fetch-add.sh
+bash scripts/verify-counter-workers.sh
 ```
 
 Integration needs Linux/x86-64, Clang accepting the named modes, GCC, binutils
@@ -505,6 +559,8 @@ lake exe edsl-certify --elf increment FUNCTION.elf artifacts/ELF.lean
 lake exe edsl-certify --elf increment-loop FUNCTION.elf artifacts/ELFLoop.lean
 lake exe edsl-certify-process PROCESS.elf artifacts/Process.lean
 lake exe edsl-certify-process write-exit42 PROCESS.elf artifacts/WriteProcess.lean
+lake exe edsl-certify-counter WORKER.bin artifacts/CounterRaw.lean
+lake exe edsl-certify-counter --elf WORKER.elf artifacts/CounterELF.lean
 ```
 
 The two-argument form retains the default `increment` profile. Exit 0 means the

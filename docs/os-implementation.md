@@ -4,6 +4,14 @@ Status: planned extension of the binary-first verifier. No OS source importer,
 kernel model, component proof, vulnerability scanner or reporting service is
 implemented yet.
 
+The existing [counter-worker workload](counter-workers.md) supplies a concrete
+next application for this track: exact userspace locked-add-loop bytes already
+have modular-total, instruction-step and abstract collection proofs. Native
+thread creation, argument publication, context switching and join/cleanup still
+enter through external lifecycle contracts. Proving a selected runtime wrapper
+or OS path should discharge those specific contracts under the same resource
+and machine-memory model; the userspace theorem does not verify them implicitly.
+
 ## Ingest the real build
 
 The input is a pinned OS source tree plus its complete selected build, not an

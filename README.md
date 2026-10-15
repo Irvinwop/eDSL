@@ -54,6 +54,8 @@ Implemented and checked:
   OS-handle composition and all-finite-trace modular counter results.
 - Mutable atomic workers with actual MOV/XCHG/RET instruction scheduling,
   retained old results through join, resource revocation and schedule value-flow proofs.
+- Counted locked-add workers with actual instruction dispatch, per-worker
+  `3*count+3` cost, modular sums for every completing schedule and constructive full collection.
 - A counted assembly loop with a proved invariant and termination for every
   64-bit count, modular arithmetic result and exact `2*count+3` user-instruction cost.
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
@@ -84,7 +86,9 @@ Implemented and checked:
 The function certifier accepts three two-instruction profiles, the three-instruction
 `exchange32` and `fetch-add32` profiles and the counted `increment-loop` profile. The process certifier
 accepts exit42 (three user instructions) and write-exit42 (eight across a completed write). Other correct
-encodings remain unsupported. Linux loader/kernel refinement, broader syscalls,
+encodings remain unsupported. The separate counter certifier binds the exact
+nineteen-byte locked-add loop to prepared OS-worker workload contracts.
+Linux loader/kernel refinement, broader syscalls,
 locks, weak memory and general source eDSLs/validators remain planned. See
 the precise [implemented coverage and trust boundary](docs/coverage.md).
 
@@ -101,6 +105,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Shared atomic handles](docs/atomic-handles.md) | How can actors share an atomic word while blocking conflicting resource changes? |
 | [Fetch-add and counters](docs/fetch-add.md) | How do locked arithmetic, status flags and counter traces connect to compiler bytes and OS resources? |
 | [Mutable atomic workers](docs/atomic-workers.md) | How do interleaved MOV/XCHG/RET instructions retain actual old values through join? |
+| [Counted counter workers](docs/counter-workers.md) | How do independently counted locked-add workers establish the modular total, exact own-step costs and complete collection? |
 | [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
 | [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
 | [Stream output and exit](docs/process-write.md) | How do short writes and errors compose with the next userspace instructions? |
@@ -124,8 +129,10 @@ ownership, lifetimes, shared read borrowing and managed read-worker scheduling
 are checked too. An atomic-exchange foundation now connects XCHG events and
 guarded OS cells. Shared atomic handles now preserve reservations and resource
 lifetimes. Mutable atomic workers execute actual instructions against shared
-cells and retain exchanged values privately through join. Next come protected
-invariants and the thread/atomic counter workload, with concrete runtime refinement.
+cells and retain exchanged values privately through join. Counted locked-add
+workers now establish the modular shared-counter workload and checked collection
+across every successful completing supplied schedule. Next come protected
+invariants and concrete thread/runtime refinement.
 General GNU C++26 ingestion and a fully verified Linux kernel are substantial
 separate research work.
 
@@ -134,7 +141,7 @@ separate research work.
 Install [elan](https://github.com/leanprover/elan), then run:
 
 ```sh
-lake build EDSL edsl-certify edsl-certify-process
+lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
@@ -152,12 +159,15 @@ lake env lean -DwarningAsError=true tests/OSAtomicExchange.lean
 lake env lean -DwarningAsError=true tests/Atomics.lean
 lake env lean -DwarningAsError=true tests/AtomicThreads.lean
 lake env lean -DwarningAsError=true tests/FetchAdd.lean
+lake env lean -DwarningAsError=true tests/CounterThreads.lean
+lake env lean -DwarningAsError=true tests/CounterThreadsWitness.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
 bash scripts/verify-process.sh
 bash scripts/verify-loops.sh
 bash scripts/verify-fetch-add.sh
+bash scripts/verify-counter-workers.sh
 ```
 
 `lean-toolchain` pins Lean 4.35.0. The library currently needs no third-party

@@ -127,7 +127,10 @@ failure, failure after loan acquisition, protected code/stack/data, unrelated
 allocation and store between instructions, changed code and a denied final
 data byte. This lifecycle adds no new native runtime certificate. The separate
 [fetch-add profile](fetch-add.md) adds arithmetic and counter-trace proofs;
-this worker dispatcher still accepts only the exchange routine.
+this worker dispatcher still accepts only the exchange routine. The separate
+[counter-worker profile](counter-workers.md) schedules its own locked-add loop
+and proves independent per-worker counts, the modular workload total and
+checked complete collection.
 
 Symbolic witnesses build a well-formed owned world through checked adoption
 for every initial and replacement 32-bit word, successfully spawn the worker
@@ -148,5 +151,5 @@ TLS, cancellation, nested spawn, authentication and concrete runtime/kernel
 refinement remain obligations. General x86 ordering and C/C++ memory-model
 preservation are not established by these instruction interleavings. Operation
 enabledness and selection counts provide no fairness, elapsed-time, reclamation
-or unconditional completion guarantee. Protected invariants, shared-counter
-algorithms, locks and wait/wake protocols remain later work.
+or unconditional completion guarantee. Protected invariants, locks and wait/wake
+protocols remain later work.

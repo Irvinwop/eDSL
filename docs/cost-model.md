@@ -90,6 +90,7 @@ execution, kernel cleanup and waiting are outside these counts.
 | `Exit42.zero_register_lower_bound`: at least three instructions | Every supported first-syscall execution from initial RAX = RDI = 0 requesting raw exit60 with status42 |
 | `Process.viaWrite_results`: exactly eight user instructions | Every completed bounded stream-write/exit execution for its checked bytes, including partial/error returns; excludes kernel and waiting steps |
 | `IncrementLoop.actual_bytes_correct`: exactly `2*count+3` | Every 64-bit initial RCX count and modular input value, admitted executable bytes and return stack; induction proves termination, including zero count |
+| `CounterThreads.completed_selection_count`: exactly `3*count+3` own selections through completion | Every well-formed entry-phase counter worker with full 64-bit initial RCX, exact locked-add-loop code and retained handle/code/stack resources; successful supplied schedules may interleave peers |
 
 The process lower bound is an independent argument about the candidate class:
 each supported ordinary step preserves at least one of RAX and RDI, and the
@@ -108,6 +109,17 @@ Every completed trace of the modeled exit contract reports status42; eventual
 completion requires the explicit `LinuxExit.Fair` assumption. An admitted
 infinite waiting trace shows why the instruction bound does not imply kernel
 termination. Even fair traces have no numerical delay bound.
+
+The counter-worker count includes the zero guard, each iteration's MOV, locked
+addition and LOOP, then the final MOV and RET. Only selections of that worker
+consume its remaining-instruction variant; peer selections and idle intervals
+do not. `completed_event_count` separately proves one addition per requested
+iteration, and `completed_total_events` sums those actual events over a finite
+completed registry. `finish_collect_counter` constructs a completing schedule
+and checked collection. This establishes neither completion for every scheduler
+nor a finite waiting/latency bound. Creation, dispatch bookkeeping, join,
+contention and kernel work are excluded, and no cheaper-candidate lower bound
+is claimed. See [counter-worker scope](counter-workers.md).
 
 The original tiny abstract machine has only `add amount`, natural-number inputs
 and unit instruction cost. Its checked increment implementation has length one,

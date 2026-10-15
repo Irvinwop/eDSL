@@ -12,3 +12,6 @@ lean_exe «edsl-certify» where
 
 lean_exe «edsl-certify-process» where
   root := `ProcessMain
+
+lean_exe «edsl-certify-counter» where
+  root := `CounterMain

@@ -30,7 +30,7 @@ jobs:
           "$RUNNER_TEMP/elan-installer/elan-init" -y --no-modify-path --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Build pinned Lean project
-        run: lake build EDSL edsl-certify edsl-certify-process
+        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter
       - name: ISA, ELF, OS contracts and rejection properties
         run: |
           lake env lean -DwarningAsError=true tests/X86.lean
@@ -50,6 +50,8 @@ jobs:
           lake env lean -DwarningAsError=true tests/Atomics.lean
           lake env lean -DwarningAsError=true tests/AtomicThreads.lean
           lake env lean -DwarningAsError=true tests/FetchAdd.lean
+          lake env lean -DwarningAsError=true tests/CounterThreads.lean
+          lake env lean -DwarningAsError=true tests/CounterThreadsWitness.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment
@@ -76,6 +78,10 @@ jobs:
           EDSL_CLANG: clang-18
           EDSL_CLANGXX: clang++-18
         run: bash scripts/verify-fetch-add.sh
+      - name: Certify counter loops and observe owned threaded workloads
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-counter-workers.sh
       - name: Preserve owned fixture certificates and build provenance
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -99,4 +105,10 @@ jobs:
         with:
           name: fetch-add-fixture-certificates
           path: artifacts/fetch-add-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned counter-worker certificates and native observations
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: counter-worker-fixture-certificates
+          path: artifacts/counter-worker-fixtures/
           if-no-files-found: error
