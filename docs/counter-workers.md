@@ -183,4 +183,6 @@ aligned coherent-WB-RAM and stable-translation profile. Native start/join,
 publication, context switching, runtime cleanup, the Linux implementation and
 general x86/C++ weak-memory refinement remain external contracts. A native
 stress test or successful assembly certificate does not discharge them.
-Protected invariants, locks and wait/wake remain separate implementation work.
+The separate [mutex protocol](mutex.md) adds protected payload invariants and
+exclusive guards. Its native worker/runtime refinement and blocking wait/wake
+remain separate implementation work.

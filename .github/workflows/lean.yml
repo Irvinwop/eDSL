@@ -52,6 +52,7 @@ jobs:
           lake env lean -DwarningAsError=true tests/FetchAdd.lean
           lake env lean -DwarningAsError=true tests/CounterThreads.lean
           lake env lean -DwarningAsError=true tests/CounterThreadsWitness.lean
+          lake env lean -DwarningAsError=true tests/Mutex.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment
@@ -82,6 +83,10 @@ jobs:
         env:
           EDSL_CLANG: clang-18
         run: bash scripts/verify-counter-workers.sh
+      - name: Observe protected payloads using certified exchange/load/store bytes
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-mutex.sh
       - name: Preserve owned fixture certificates and build provenance
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -111,4 +116,10 @@ jobs:
         with:
           name: counter-worker-fixture-certificates
           path: artifacts/counter-worker-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned mutex native observations and provenance
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutex-fixture-observations
+          path: artifacts/mutex-fixtures/
           if-no-files-found: error

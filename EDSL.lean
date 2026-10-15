@@ -11,6 +11,7 @@ import EDSL.OS.AtomicExchange
 import EDSL.OS.Atomics
 import EDSL.OS.AtomicThreads
 import EDSL.OS.CounterThreads
+import EDSL.OS.Mutex
 import EDSL.CounterCertificate
 import EDSL.ELF.Loader
 import EDSL.Certificate

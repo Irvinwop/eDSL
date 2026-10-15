@@ -121,6 +121,13 @@ nor a finite waiting/latency bound. Creation, dispatch bookkeeping, join,
 contention and kernel work are excluded, and no cheaper-candidate lower bound
 is claimed. See [counter-worker scope](counter-workers.md).
 
+The separate [mutex protocol](mutex.md) reuses three-instruction XCHG and
+two-instruction payload load/store routines. Its guard and invariant checks are
+logical admission conditions, with no machine-code cost assigned to them.
+`critical_cycle` constructs a finite protocol execution; it does not establish
+a complete instruction-interleaved worker count, lock latency, waiting bound
+or minimum-cost mutex implementation.
+
 The original tiny abstract machine has only `add amount`, natural-number inputs
 and unit instruction cost. Its checked increment implementation has length one,
 and every candidate meeting that contract has length at least one. This example

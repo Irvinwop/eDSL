@@ -261,7 +261,7 @@ identities. Unmanaged loan release, raw writes and arbitrary external
 interference are excluded. Worker stacks do not support push/call here; TLS,
 detach, cancellation, nested spawn and native publication barriers remain
 unimplemented. A separate atomic-worker profile below adds mutable exchange
-workers; locks and general memory ordering remain unimplemented. See
+workers; a separate checked mutex protocol appears below, while general memory ordering remains unimplemented. See
 [the full read-thread profile](threads.md).
 
 ## Shared atomic handles and reservations
@@ -334,8 +334,8 @@ Its histories admit only spawn, dispatch, join, guarded mutation and idle;
 arbitrary raw exchanges and resource operations are outside the contract.
 Native pthread/clone refinement, publication, context switching and general
 x86/C++ memory ordering remain unproved. The separate counter-worker profile
-below adds a counted algorithm; protected invariants, locks and wait/wake are
-still planned. Mixed-history result/resource proofs do
+below adds a counted algorithm, and the separate mutex profile protects a payload
+invariant. General memory ordering and wait/wake remain planned. Mixed-history result/resource proofs do
 not imply final-memory value chaining across zero-handle gaps. Counts exclude
 runtime/kernel overhead and establish no unconditional progress. See
 [atomic-worker contracts and assumptions](atomic-workers.md).
@@ -402,14 +402,51 @@ plus zero and unequal iteration workloads. The aggregate sum covers dispatch
 schedules followed by checked collection, not arbitrary mixed histories with
 unreserved ordinary-store gaps. IDs remain logical authority, batch collection
 is a pure operation, and costs exclude runtime/kernel work. Native start/join,
-context switching, publication, locks, protected invariants and general weak
+context switching, publication, native locks and general weak
 memory remain external. See [counter-worker contracts](counter-workers.md).
 
 The integration total is 42 raw/full-ELF artifact certificates, including four
 counter-worker certificates. The counter observer checks 42 sequential requests
 and four eight-thread workloads per compiler; it independently rejects four
-terminating semantic mutants. Nineteen Lean suites include symbolic admission
+terminating semantic mutants. Twenty Lean suites include symbolic admission
 and completion witnesses for every initial word and pair of 64-bit counts.
+
+## Protected payloads and mutex guards
+
+`OS.Mutex` implements one registered lock word and a protected payload word in
+different owned allocations. Registration requires writable contained operands,
+an aligned supported lock address, no readers on either allocation, initial
+lock zero and an independently chosen invariant on the actual payload. Both
+entire allocations stay reserved, even while unlocked. Exact current guards
+authorize protected loads/stores; only a successful observed-zero XCHG issues
+a fresh guard. Busy and reentrant attempts retain actual 1→1 RMW events.
+
+All admitted mixed histories preserve the resource/lock/holder invariant. The
+payload invariant can open while held and must close before successful release.
+`exclusive` proves unique authorized identity/actor; `released_for_history`
+proves copied guards remain revoked across same-actor reacquisition and
+unregister/register cycles. Unrelated allocations and surviving read loans are
+framed. `critical_cycle` constructs acquire, arbitrary temporary/restoring
+stores and release for every admitted unlocked state and invariant-satisfying
+final value, with exact payload readback and revoked guard.
+
+`tryAcquire_exchange32`, `release_exchange32`, `guardLoad_load32` and
+`guardStore_store32` connect accepted operations to existing exact XCHG/MOV
+compiler bytes and full projected machine results. Invariant/guard checks are
+logical admission conditions; the bytes do not implement those checks. No
+complete instruction-interleaved native critical-section worker, general
+weak-memory publication, blocking mutex, fairness or native runtime/kernel
+implementation is proved. This wrapper uses `Borrowing.State` directly and is
+not an implicit merger with the distinct atomic-worker/handle histories.
+
+Regressions cover wrong/stale guards, same-actor/re-registration reuse, invalid
+closing values, contention, reader conflicts, reservations, unrelated resource
+changes and denied final operand bytes. Symbolic witnesses cover checked
+adoption/registration and finite cycles for arbitrary invariant-satisfying
+words. Native checks re-certify nine existing raw artifacts, observe four
+eight-thread workloads per compiler mode and reject a safe no-store mutant
+against an independent total. The distinct artifact count remains 42. See
+[the exact mutex scope and theorem contracts](mutex.md).
 
 ## Restricted ELF loading
 
@@ -538,6 +575,7 @@ lake env lean -DwarningAsError=true tests/AtomicThreads.lean
 lake env lean -DwarningAsError=true tests/FetchAdd.lean
 lake env lean -DwarningAsError=true tests/CounterThreads.lean
 lake env lean -DwarningAsError=true tests/CounterThreadsWitness.lean
+lake env lean -DwarningAsError=true tests/Mutex.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
@@ -545,6 +583,7 @@ bash scripts/verify-process.sh
 bash scripts/verify-loops.sh
 bash scripts/verify-fetch-add.sh
 bash scripts/verify-counter-workers.sh
+bash scripts/verify-mutex.sh
 ```
 
 Integration needs Linux/x86-64, Clang accepting the named modes, GCC, binutils

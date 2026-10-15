@@ -119,8 +119,8 @@ authenticate native threads; unmanaged raw accesses/exchanges and raw resource
 operations remain excluded. The admitted steps are spawn, dispatch, join,
 guarded mutation and idle. Creation failure is an explicit pure-operation result,
 not a proved native cleanup routine. Native pthread/clone/publication/join,
-context switching, protected invariants, locks and general memory ordering
-remain unproved. The CLI does not infer worker registries. See
+context switching and general memory ordering remain unproved. The separate
+mutex protocol below adds protected invariants; the CLI does not infer worker registries. See
 [mutable-worker scope](atomic-workers.md).
 
 The `fetch-add32` profile adds exact MOV/LOCK-XADD/RET certificates with one
@@ -155,8 +155,30 @@ ordinary writes across zero-handle gaps and arbitrary unmanaged interference.
 Its `3*count+3` per-worker instruction cost excludes lifecycle and kernel work.
 Batch collection is a pure functional construction, without a native atomic
 batch-cleanup claim. Native pthread/clone, context switching, runtime cleanup,
-protected invariants, locks and general weak-memory refinement remain external.
+native locks and general weak-memory refinement remain external.
 See [counter-worker scope](counter-workers.md).
+
+`OS.Mutex` adds a distinct checked protocol over `Borrowing.State`: one lock
+and one protected payload in separate owned allocations, reserved throughout
+registration. Actual XCHG observations grant exclusive fresh guards or retain
+busy events; guarded stores can open a local independent invariant, and
+successful release closes it on the current payload and revokes the guard.
+Managed mixed histories preserve well-formedness, permanent revocation across
+re-registration and surviving unrelated read loans. Positive admission and
+finite critical-section cycles have symbolic nonempty witnesses.
+
+The acquire/release/load/store bridges use existing exact compiler bytes, with
+full projected states and explicit code/return-stack contracts. Guards and
+invariant checking are logical admission, not instructions implemented by those
+routines or authenticated runtime identities. No arbitrary client compliance,
+linear-token ownership or injective native worker/principal mapping is inferred.
+No
+complete instruction-interleaved mutex worker, general weak-memory publication,
+native C observer, pthread/kernel implementation, blocking/wakeup or progress
+guarantee is proved. Atomic-handle and mutex histories are separate wrappers,
+with no implicit cross-model composition. Native contended payload observations
+and an independently failing no-store mutant supplement the proofs; they do
+not discharge these contracts. See [mutex scope](mutex.md).
 
 Physical interpretation requires the explicit aligned coherent-WB-RAM profile,
 stable translation/permissions, excluded aliases/mixed-size overlaps and stable

@@ -6,6 +6,7 @@ bridge, an allocation-identity/ownership registry with shared read loans,
 a managed read-worker instruction scheduler, shared atomic handles and mutable
 MOV/XCHG/RET workers and counted locked-add workers with checked
 OS-cell/lifecycle composition,
+a separate mutex/protected-payload invariant protocol,
 a restricted ELF loader,
 a raw Linux exit60 contract and a bounded
 stream-write/return contract. The general OS eDSL, runtime, broader concurrency and kernel
@@ -98,6 +99,19 @@ exists for every such registry. Mixed histories retain resource/private-context
 invariants, but this sum does not cover ordinary stores across unreserved gaps.
 Native creation/publication/context switching/join, runtime cleanup and general
 weak-memory refinement remain external; idling can prevent progress forever.
+
+The separate [mutex protocol](mutex.md) now protects one payload word with a
+distinct lock allocation, exclusive fresh guards and a local closed invariant.
+Successful acquire and busy/reentrant attempts retain their actual XCHG events.
+The holder may open the invariant while storing; release requires it to hold on
+the current payload. Both allocations remain reserved while registered,
+including unlocked intervals. Mixed histories preserve authority and permanent
+guard revocation across re-registration, and a finite critical-section cycle
+exists for every admitted unlocked state and invariant-satisfying final value.
+Existing exact exchange/load/store bytes implement accepted operations. Guard
+and invariant checks are logical admission; a complete native client worker,
+publication/memory-order mapping, blocking/wakeup and runtime conformance remain
+separate work. This wrapper does not silently merge with the atomic-worker model.
 
 The [process slice](process-exit.md) checks a standalone twelve-byte entry that
 sets exit status42 and requests raw Linux exit60. Its ABI request records the
@@ -397,8 +411,10 @@ still hold an in-flight operation on its open file description; see
    correspondence and a separate no-overflow theorem for natural-number totals.
    Partial creation failure needs its own whole-program cleanup theorem.
    Termination additionally requires worker scheduling and runtime progress.
-5. **Publication and waits.** Add acquire/release message passing, then one mutex
-   and condition-wait/futex protocol. Require forbidden-outcome proofs, a
+5. **Publication and waits.** A first checked mutex/payload-invariant protocol
+   now exists with exact operation bridges; native client and memory-order
+   correspondence remain unproved. Add acquire/release message passing and a
+   condition-wait/futex protocol. Require forbidden-outcome proofs, a
    memory-model mapping theorem, and real contention/wakeup integration cases.
    Test assertions and model oracles must be stated independently of emitted
    source and lowering code.

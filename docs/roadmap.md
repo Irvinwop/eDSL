@@ -184,7 +184,8 @@ The [managed read-worker slice](threads.md) now connects borrowed code/data/stac
 to actual instruction scheduling and checked start/completion/join contracts.
 The [atomic-worker layer](atomic-workers.md) now adds mutable exchange workers
 with private old results and retained atomic handles/code/stack loans through
-join. Next add protected invariants and concrete thread/runtime refinement.
+join. A separate mutex profile below now adds protected payload invariants;
+concrete thread/runtime refinement remains ahead.
 Region splitting, mutable borrowing, broader
 stack/heap object lifetimes, language provenance, allocator search/failure/cleanup,
 calls and richer memory-loop invariants remain required. Concurrent safety needs
@@ -223,7 +224,8 @@ bridges. Arbitrary finite exchange-only schedules prove value chaining and
 multiset conservation; symbolic witnesses cover every old/new pair. This
 resource layer is now used by mutable worker contexts and lifecycle scheduling.
 The counted counter-worker profile below adds an algorithm over this authority.
-Protected invariants and concrete ordering/runtime refinement remain ahead.
+The separate mutex profile below adds protected payload invariants; concrete
+ordering/runtime refinement remains ahead.
 See [shared-handle scope](atomic-handles.md).
 
 Mutable atomic workers now connect root-managed spawn and join to actual
@@ -278,6 +280,25 @@ Exit: named counter/lifecycle theorems through the full modeled chain; no claim
 that testing or SC-only interleavings establishes weak-memory correctness.
 
 ### 6. Weak memory, locks, blocking and interference
+
+The first checked mutex protocol is now implemented in `OS.Mutex`, separately
+from the atomic-worker dispatcher. It reserves distinct lock/payload allocations,
+uses actual XCHG observations for exclusive fresh guards, retains busy events,
+allows a local payload invariant to open while held and requires it to close at
+release. Admitted mixed histories preserve resources and permanent guard
+revocation, including re-registration. Exact existing XCHG/load/store routines
+implement the accepted memory operations; the protocol's checks remain logical
+admission conditions. Symbolic witnesses and constructive critical-section
+cycles establish positive behavior, and native observations exercise temporary
+invariant opening and independent payload totals. This does not establish a
+complete native worker, weak-memory publication, blocking/wakeup or runtime
+implementation. See [mutex scope](mutex.md).
+
+Next compose an actual instruction-interleaved critical-section worker with
+these guards and prove its independent result. Add multiple-lock registration
+and resource composition explicitly before claiming interoperability with the
+existing atomic-worker wrapper. Establish the target memory-order mapping and
+client invariant-preservation proof before using this model for native locks.
 
 Add acquire/release and relaxed atomics, compare/exchange, fences, target memory
 ordering, publication, mutexes, condition variables and wait/wake. Specify
