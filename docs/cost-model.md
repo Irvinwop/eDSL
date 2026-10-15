@@ -160,6 +160,12 @@ execution attains `15*n` actions and `13*n` retired instructions, with matching
 lower bounds for completing schedules of these same bytes. These action counts
 do not measure hardware cycles, micro-operations, runtime or kernel work.
 
+The concurrent syscall wrapper counts actual SYSCALL entry as one retirement.
+Its resumption, parked selections and idle retire none, alongside the existing
+separate drain/stall observations. Fresh-call frontier growth equals actual
+entry observations. These counts exclude kernel work and do not bound service
+completion or waiting. See [the syscall boundary](concurrent-syscalls.md).
+
 The original tiny abstract machine has only `add amount`, natural-number inputs
 and unit instruction cost. Its checked increment implementation has length one,
 and every candidate meeting that contract has length at least one. This example

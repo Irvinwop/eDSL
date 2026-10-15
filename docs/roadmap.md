@@ -343,6 +343,23 @@ instructions. A separate generated `TSOSpecification` adds these guarantees
 while retaining the prior immediate-visibility specification.
 See [buffered execution](store-buffers.md).
 
+The reusable syscall boundary now has an additive concurrent wrapper:
+`OS.Suspend` captures actual requests, parks callers with fresh invocation IDs,
+allows peer execution and drains, and resumes against current RAM. Full private
+contexts, peer FIFOs, memory frames and one-use identities have checked prefix
+proofs. Actual entry retires SYSCALL once; resumption and parked selections do
+not. Completion is available under current invariants, while infinite parked
+traces remain admitted. The first profile requires an empty caller FIFO and
+does not infer a physical SYSCALL flush. Existing synchronous return contracts
+retain their meaning. See [syscall scope](concurrent-syscalls.md).
+
+Next, bind a service relation to suspended invocations and explicit live
+resources. A restricted private futex wait/wake profile must specify atomic
+compare/enqueue, mutable-word lifetime, nondeterministic wake selection,
+spurious completion and actual request/return values. Native kernel/runtime
+correspondence remains external until separately proved; generic resumption
+alone does not establish any futex result or blocking mutex.
+
 Add multiple-lock registration
 and resource composition explicitly before claiming interoperability with the
 existing atomic-worker wrapper. Establish the target memory-order mapping and

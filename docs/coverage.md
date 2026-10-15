@@ -534,6 +534,33 @@ scheduler actions, not hardware micro-operations or timing.
 Physical hardware conformance, native identities and runtime refinement remain
 open. See [buffered execution](store-buffers.md).
 
+## Concurrent syscall lifecycle
+
+`OS.Suspend` wraps the buffered scheduler with explicit pending invocations.
+Actual decoded SYSCALL execution captures the complete userspace request and
+continuation, allocates a fresh ID and retires once. Pending callers produce
+whole-state parked observations; peers and FIFO drains can continue. Resume
+consumes the exact current ID and installs the saved return fields against
+current shared RAM, preserving every peer context, returned marker and queue.
+The initial syscall profile rejects a nonempty caller FIFO, without flushing it;
+peer FIFOs need not be empty.
+
+`X86.ReturnsAt` is additive: the existing synchronous `Returns`/`resume` contract
+is unchanged and agrees when current memory is entry memory. Prefix proofs
+retain the full memory frame and current pending invariant, including private
+contexts and immutable worker indices. A consumed identity cannot resume again
+after arbitrary actual peer activity. Completion is available for every valid
+pending call and permitted external return choice; infinite parked and idle
+traces are also admitted, with no service-progress or fairness promise.
+
+Owned-byte examples and `tests/Suspend.lean` check peer XCHG updates across
+resumption, full raw results/private clobbers, return-stack behavior, retained
+peer FIFOs and publication, lifecycle failures and real fetch errors. No new
+native artifact certificate is added; the integration total remains 46.
+Linux services, kernel transitions, native identities and composition with an
+ownership/resource world remain separate obligations. See
+[the exact boundary](concurrent-syscalls.md).
+
 ## Restricted ELF loading
 
 The optional `--elf` path checks complete ELF64 little-endian x86-64 `ET_EXEC`
@@ -669,6 +696,7 @@ lake env lean -DwarningAsError=true tests/MutexExecution.lean
 lake env lean -DwarningAsError=true tests/StoreBuffer.lean
 lake env lean -DwarningAsError=true tests/TSO.lean
 lake env lean -DwarningAsError=true tests/MutexTSO.lean
+lake env lean -DwarningAsError=true tests/Suspend.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

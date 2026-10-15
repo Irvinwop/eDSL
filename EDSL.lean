@@ -19,6 +19,8 @@ import EDSL.Examples.MutexExecution
 import EDSL.OS.TSO
 import EDSL.OS.MutexTSO
 import EDSL.Examples.MutexTSO
+import EDSL.OS.Suspend
+import EDSL.Examples.SuspendSafety
 import EDSL.OS.MutexReplay.Footprints
 import EDSL.Examples.StoreBuffer
 import EDSL.CounterCertificate

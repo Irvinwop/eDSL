@@ -310,6 +310,21 @@ distinct from the immediate-visibility specification. The physical interpretatio
 mixed-size overlapping accesses, mutable code, devices and translation changes;
 it is not a hardware refinement theorem. See [the buffered profile](store-buffers.md).
 
+`OS.Suspend` additionally admits an actual syscall request to remain pending
+while peers run. Its additive `ReturnsAt` contract uses current shared memory,
+so returning does not restore an old snapshot. Full pending-context, fresh-ID,
+memory-frame and peer-FIFO properties survive actual traces. A consumed ID
+cannot resume again, even after later invocations. The old synchronous return
+contract is unchanged. A caller's nonempty FIFO is explicitly unsupported at
+entry; no syscall flush effect is assumed, and peer FIFOs may remain nonempty.
+
+Completion choices supply a raw result and private clobbers only; they cannot
+replace shared memory. The mechanism proves no Linux service outcome, kernel
+transition or scheduling progress. It has no automatic ownership authorization
+for peer stores; service/resource composition requires a further relation.
+Infinite parked/idle traces remain possible. See
+[concurrent syscall boundaries](concurrent-syscalls.md).
+
 Every artifact report must distinguish:
 
 | Item | Planned treatment |
