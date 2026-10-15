@@ -172,10 +172,9 @@ full projected states and explicit code/return-stack contracts. Guards and
 invariant checking are logical admission, not instructions implemented by those
 routines or authenticated runtime identities. No arbitrary client compliance,
 linear-token ownership or injective native worker/principal mapping is inferred.
-No
-complete instruction-interleaved mutex worker, general weak-memory publication,
-native C observer, pthread/kernel implementation, blocking/wakeup or progress
-guarantee is proved. Atomic-handle and mutex histories are separate wrappers,
+Generic correctness and completion for instruction-interleaved mutex workers,
+general weak-memory publication, native C observer, pthread/kernel implementation,
+blocking/wakeup and progress remain unproved. Atomic-handle and mutex histories are separate wrappers,
 with no implicit cross-model composition. Native contended payload observations
 and an independently failing no-store mutant supplement the proofs; they do
 not discharge these contracts. See [mutex scope](mutex.md).
@@ -252,6 +251,16 @@ or operating system is correct. Environmental assumptions should be visible
 parameters in theorem statements and reports, never hidden global axioms.
 
 ## Planned trust ledger
+
+The complete [mutex worker replay](mutex-workers.md) adds actual CMP/JNE and
+RSI-addressed MOV semantics. Every admitted dispatch is proved equal to a full
+machine instruction over current shared cells. Its finite schedule checker
+also checks the endpoint, so acceptance proves that particular trace's result;
+it does not supply the generic independent result for every completing schedule
+or scheduler progress. Native pthread observations remain separate evidence.
+Initial resource well-formedness is an explicit premise for preservation,
+and runtime identity/authentication, memory-order adequacy and kernel behavior
+remain environmental obligations.
 
 Every artifact report must distinguish:
 

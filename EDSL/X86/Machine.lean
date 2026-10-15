@@ -25,10 +25,18 @@ inductive Instruction where
   | jrcxz (displacement : Byte)
   /-- `E2 cb`: LOOP rel8 using full RCX, with no flags dependence. -/
   | loopRcx (displacement : Byte)
+  /-- `75 cb`: JNE/JNZ rel8, taken exactly when ZF is clear. -/
+  | jnz (displacement : Byte)
+  /-- `83 F8 00`: CMP EAX, sign_extend(0), default 32-bit operand size. -/
+  | cmpEaxZero
   /-- `8B 07`: MOV EAX, DWORD PTR [RDI]. -/
   | loadEaxRdi
+  /-- `8B 06`: MOV EAX, DWORD PTR [RSI]. -/
+  | loadEaxRsi
   /-- `89 37`: MOV DWORD PTR [RDI], ESI. -/
   | storeEsiRdi
+  /-- `89 06`: MOV DWORD PTR [RSI], EAX. -/
+  | storeEaxRsi
   /-- `B8/BA/BE/BF id`: supported 32-bit immediate register writes. -/
   | mov32 (destination : Register) (value : BitVec 32)
   /-- `0F 05`: userspace syscall request; privileged execution is external. -/
@@ -49,11 +57,13 @@ def decodeAt (state : State) : Except Error Instruction := do
     return if modrm = 0x47 then .leaEaxRdiDisp8 displacement else .leaEaxRaxDisp8 displacement
   else if opcode = 0x8b then
     let modrm ← fetchByte state.memory (state.rip + 1)
-    if modrm ≠ 0x07 then throw .unsupportedEncoding
-    return .loadEaxRdi
+    if modrm = 0x07 then return .loadEaxRdi
+    else if modrm = 0x06 then return .loadEaxRsi
+    else throw .unsupportedEncoding
   else if opcode = 0x89 then
     let modrm ← fetchByte state.memory (state.rip + 1)
     if modrm = 0x37 then return .storeEsiRdi
+    else if modrm = 0x06 then return .storeEaxRsi
     else if modrm = 0xf8 then return .movEaxEdi
     else if modrm = 0xf0 then return .movEaxEsi
     else throw .unsupportedEncoding
@@ -72,6 +82,14 @@ def decodeAt (state : State) : Except Error Instruction := do
   else if opcode = 0xe3 ∨ opcode = 0xe2 then
     let displacement ← fetchByte state.memory (state.rip + 1)
     return if opcode = 0xe3 then .jrcxz displacement else .loopRcx displacement
+  else if opcode = 0x75 then
+    return .jnz (← fetchByte state.memory (state.rip + 1))
+  else if opcode = 0x83 then
+    let modrm ← fetchByte state.memory (state.rip + 1)
+    if modrm ≠ 0xf8 then throw .unsupportedEncoding
+    let immediate ← fetchByte state.memory (state.rip + 2)
+    if immediate ≠ 0 then throw .unsupportedEncoding
+    return .cmpEaxZero
   else if opcode = 0xb8 ∨ opcode = 0xba ∨ opcode = 0xbe ∨ opcode = 0xbf then
     let b0 ← fetchByte state.memory (state.rip + 1)
     let b1 ← fetchByte state.memory (state.rip + 2)
@@ -99,6 +117,19 @@ def executeLoad (state : State) : Except Error State := do
 def executeStore (state : State) : Except Error State := do
   let memory ← storeDWord state.memory (state.registers .rdi) ((state.registers .rsi).setWidth 32)
   return { state with memory := memory, rip := state.rip + 2 }
+
+def executeLoadRsi (state : State) : Except Error State := do
+  let value ← loadDWord state.memory (state.registers .rsi)
+  return { state.writeRegister .rax (value.setWidth 64) with rip := state.rip + 2 }
+
+def executeStoreRsi (state : State) : Except Error State := do
+  let memory ← storeDWord state.memory (state.registers .rsi) ((state.registers .rax).setWidth 32)
+  return { state with memory := memory, rip := state.rip + 2 }
+
+def executeCmpEaxZero (state : State) : State :=
+  { state with
+    rip := state.rip + 3
+    flags := cmpZeroFlags32 state.flags ((state.registers .rax).setWidth 32) }
 
 def executeMov32 (state : State) (destination : Register) (value : BitVec 32) : State :=
   { state.writeRegister destination (value.setWidth 64) with rip := state.rip + 5 }
@@ -187,6 +218,19 @@ def executeShortBranch (state : State) (taken : Bool) (displacement : Byte) : Ex
 def executeJrcxz (state : State) (displacement : Byte) : Except Error State :=
   executeShortBranch state (decide (state.registers .rcx = 0)) displacement
 
+def executeJnz (state : State) (displacement : Byte) : Except Error State :=
+  executeShortBranch state (!state.flags.getLsbD 6) displacement
+
+theorem executeJnz_afterCmp (state : State) (displacement : Byte) :
+    executeJnz (executeCmpEaxZero state) displacement =
+      executeShortBranch (executeCmpEaxZero state)
+        (decide ((state.registers .rax).setWidth 32 ≠ 0)) displacement := by
+  unfold executeJnz
+  have zero := (cmpZeroFlags32_bits state.flags ((state.registers .rax).setWidth 32)).2.2.2.1
+  simp only [executeCmpEaxZero] at zero ⊢
+  rw [zero]
+  simp [Bool.beq_eq_decide_eq]
+
 /-- LOOP decrements modulo 2^64 before testing; a zero entry wraps to all ones.
 It preserves every flag and does not test ZF. -/
 def executeLoop (state : State) (displacement : Byte) : Except Error State :=
@@ -231,8 +275,12 @@ def step (state : State) : Except Error StepResult := do
     return .atomic result.1 result.2
   | .jrcxz displacement => return .next (← executeJrcxz state displacement)
   | .loopRcx displacement => return .next (← executeLoop state displacement)
+  | .jnz displacement => return .next (← executeJnz state displacement)
+  | .cmpEaxZero => return .next (executeCmpEaxZero state)
   | .loadEaxRdi => return .next (← executeLoad state)
+  | .loadEaxRsi => return .next (← executeLoadRsi state)
   | .storeEsiRdi => return .next (← executeStore state)
+  | .storeEaxRsi => return .next (← executeStoreRsi state)
   | .mov32 destination value => return .next (executeMov32 state destination value)
   | .syscall => return .syscall ⟨state, state.rip + 2⟩
   | .ret => return .returned (← executeRet state)
@@ -277,11 +325,14 @@ theorem step_atomic_transition {initial final : State} {event : AtomicEvent}
   | ok instruction =>
     cases instruction with
     | leaEaxRdiDisp8 displacement | leaEaxRaxDisp8 displacement
-    | movEaxEdi | movEaxEsi | mov32 destination value | syscall => simp [step, decoded] at transition
+    | movEaxEdi | movEaxEsi | cmpEaxZero | mov32 destination value | syscall => simp [step, decoded] at transition
     | jrcxz displacement => cases result : executeJrcxz initial displacement <;> simp [step, decoded, result] at transition
     | loopRcx displacement => cases result : executeLoop initial displacement <;> simp [step, decoded, result] at transition
+    | jnz displacement => cases result : executeJnz initial displacement <;> simp [step, decoded, result] at transition
     | loadEaxRdi => cases result : executeLoad initial <;> simp [step, decoded, result] at transition
+    | loadEaxRsi => cases result : executeLoadRsi initial <;> simp [step, decoded, result] at transition
     | storeEsiRdi => cases result : executeStore initial <;> simp [step, decoded, result] at transition
+    | storeEaxRsi => cases result : executeStoreRsi initial <;> simp [step, decoded, result] at transition
     | ret => cases result : executeRet initial <;> simp [step, decoded, result] at transition
     | exchangeEaxRdi =>
       have proof := step_atomic_sound decoded transition

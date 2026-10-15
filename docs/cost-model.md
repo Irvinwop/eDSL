@@ -128,6 +128,13 @@ logical admission conditions, with no machine-code cost assigned to them.
 a complete instruction-interleaved worker count, lock latency, waiting bound
 or minimum-cost mutex implementation.
 
+The subsequent [complete-worker replay](mutex-workers.md) counts actual dispatches
+through a supplied finite instruction schedule. Its owned listing has 13
+instructions plus four per busy retry, but there is no generic worker-cost or
+minimum-operations theorem for that profile yet. Accepted replay proves the
+particular trace and checked endpoint; elapsed time and scheduler progress stay
+outside that result.
+
 The original tiny abstract machine has only `add amount`, natural-number inputs
 and unit instruction cost. Its checked increment implementation has length one,
 and every candidate meeting that contract has length at least one. This example

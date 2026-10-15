@@ -123,12 +123,16 @@ theorem returned_preserves_rax {initial final : State}
     | leaEaxRaxDisp8 displacement => simp [step, decoded] at transition
     | movEaxEdi => simp [step, decoded] at transition
     | movEaxEsi => simp [step, decoded] at transition
+    | cmpEaxZero => simp [step, decoded] at transition
     | exchangeEaxRdi => cases exchanged : executeExchange initial <;> simp [step, decoded, exchanged] at transition
     | fetchAddEaxRdi => cases added : executeFetchAdd initial <;> simp [step, decoded, added] at transition
     | jrcxz displacement => cases jumped : executeJrcxz initial displacement <;> simp [step, decoded, jumped] at transition
     | loopRcx displacement => cases jumped : executeLoop initial displacement <;> simp [step, decoded, jumped] at transition
+    | jnz displacement => cases jumped : executeJnz initial displacement <;> simp [step, decoded, jumped] at transition
     | loadEaxRdi => cases loaded : executeLoad initial <;> simp [step, decoded, loaded] at transition
+    | loadEaxRsi => cases loaded : executeLoadRsi initial <;> simp [step, decoded, loaded] at transition
     | storeEsiRdi => cases stored : executeStore initial <;> simp [step, decoded, stored] at transition
+    | storeEaxRsi => cases stored : executeStoreRsi initial <;> simp [step, decoded, stored] at transition
     | mov32 destination value => simp [step, decoded] at transition
     | syscall => simp [step, decoded] at transition
     | ret =>

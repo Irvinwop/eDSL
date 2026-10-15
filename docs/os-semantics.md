@@ -113,6 +113,16 @@ and invariant checks are logical admission; a complete native client worker,
 publication/memory-order mapping, blocking/wakeup and runtime conformance remain
 separate work. This wrapper does not silently merge with the atomic-worker model.
 
+The [complete mutex worker replay](mutex-workers.md) now admits a fixed cohort
+with checked code/stack loans. Each supplied dispatch proves one actual decoded
+instruction against current shared cells and unchanged peer contexts, including
+busy flag-dependent retries and temporary invariant opening. An explicit final
+check certifies modular +2 per worker, zero machine returns and unlocked state;
+this finite execution result does not yet prove generic worker preservation,
+schedule-independent results or enabledness. Checked cohort collection closes
+the retained loans without changing cells. Native identity and scheduling,
+weak-memory adequacy, pthread/runtime and kernel remain outside the proof.
+
 The [process slice](process-exit.md) checks a standalone twelve-byte entry that
 sets exit status42 and requests raw Linux exit60. Its ABI request records the
 userspace state before privileged execution: low 32 RAX bits select the syscall,

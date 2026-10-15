@@ -22,6 +22,10 @@ or verified OS claim.
 - `8B 07`: `mov eax, DWORD PTR [rdi]`, a little-endian four-byte read and
   zero extension into RAX. `89 37`: `mov DWORD PTR [rdi], esi`, a four-byte
   little-endian store of the low 32 RSI bits. Flags are preserved.
+- `8b 06` / `89 06`: MOV EAX,[RSI] / MOV [RSI],EAX, with the same complete
+  four-byte checks and zero-extension/framing rules.
+- `83 f8 00`: CMP EAX,0 with defined CF/PF/AF/ZF/SF/OF and all other flags
+  preserved; `75 cb`: JNZ rel8 reads ZF and checks taken-target canonicality.
 - `C3`: near `ret`, reading an accessible little-endian stack word, checking
   canonical return address, advancing RSP by eight and preserving other state.
 - `B8/BA/BE/BF id`: MOV EAX/EDX/ESI/EDI immediate32, zero-extended into the full
@@ -405,10 +409,10 @@ is a pure operation, and costs exclude runtime/kernel work. Native start/join,
 context switching, publication, native locks and general weak
 memory remain external. See [counter-worker contracts](counter-workers.md).
 
-The integration total is 42 raw/full-ELF artifact certificates, including four
-counter-worker certificates. The counter observer checks 42 sequential requests
+The integration total is 46 raw/full-ELF artifact certificates, including four
+counter-worker and four mutex-worker certificates. The counter observer checks 42 sequential requests
 and four eight-thread workloads per compiler; it independently rejects four
-terminating semantic mutants. Twenty Lean suites include symbolic admission
+terminating semantic mutants. Twenty-two Lean suites include symbolic admission
 and completion witnesses for every initial word and pair of 64-bit counts.
 
 ## Protected payloads and mutex guards
@@ -434,7 +438,7 @@ final value, with exact payload readback and revoked guard.
 `guardStore_store32` connect accepted operations to existing exact XCHG/MOV
 compiler bytes and full projected machine results. Invariant/guard checks are
 logical admission conditions; the bytes do not implement those checks. No
-complete instruction-interleaved native critical-section worker, general
+general correctness theorem for the complete native critical-section worker, general
 weak-memory publication, blocking mutex, fairness or native runtime/kernel
 implementation is proved. This wrapper uses `Borrowing.State` directly and is
 not an implicit merger with the distinct atomic-worker/handle histories.
@@ -445,8 +449,19 @@ changes and denied final operand bytes. Symbolic witnesses cover checked
 adoption/registration and finite cycles for arbitrary invariant-satisfying
 words. Native checks re-certify nine existing raw artifacts, observe four
 eight-thread workloads per compiler mode and reject a safe no-store mutant
-against an independent total. The distinct artifact count remains 42. See
+against an independent total. Those reused artifacts add no new certificates. See
 [the exact mutex scope and theorem contracts](mutex.md).
+
+`OS.MutexReplay` additionally checks complete finite instruction interleavings
+of a 37-byte worker, with full projected machine-step refinement, protocol
+history composition, exact executable bytes and unchanged peer contexts.
+The supplied schedule runs actual busy CMP/JNE retries, two guarded payload
+stores and RET. A separate endpoint check establishes modular +2 per original
+worker, zero machine returns and final unlocked invariant. This is a checked
+execution result; generic schedule-independent correctness and progress remain
+unproved. Successful collection closes cohort code/stack loans and preserves
+resources. Four Clang/GCC raw/full-ELF artifacts bring the distinct total to 46.
+See [finite replay contracts and limitations](mutex-workers.md).
 
 ## Restricted ELF loading
 
@@ -555,7 +570,7 @@ paths and raw errors. See [the complete contract](process-write.md).
 ## Reproduce
 
 ```sh
-lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter
+lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
@@ -576,6 +591,8 @@ lake env lean -DwarningAsError=true tests/FetchAdd.lean
 lake env lean -DwarningAsError=true tests/CounterThreads.lean
 lake env lean -DwarningAsError=true tests/CounterThreadsWitness.lean
 lake env lean -DwarningAsError=true tests/Mutex.lean
+lake env lean -DwarningAsError=true tests/MutexISA.lean
+lake env lean -DwarningAsError=true tests/MutexReplay.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
@@ -584,6 +601,7 @@ bash scripts/verify-loops.sh
 bash scripts/verify-fetch-add.sh
 bash scripts/verify-counter-workers.sh
 bash scripts/verify-mutex.sh
+bash scripts/verify-mutex-workers.sh
 ```
 
 Integration needs Linux/x86-64, Clang accepting the named modes, GCC, binutils
@@ -600,6 +618,8 @@ lake exe edsl-certify-process PROCESS.elf artifacts/Process.lean
 lake exe edsl-certify-process write-exit42 PROCESS.elf artifacts/WriteProcess.lean
 lake exe edsl-certify-counter WORKER.bin artifacts/CounterRaw.lean
 lake exe edsl-certify-counter --elf WORKER.elf artifacts/CounterELF.lean
+lake exe edsl-certify-mutex-worker WORKER.bin artifacts/MutexRaw.lean
+lake exe edsl-certify-mutex-worker --elf WORKER.elf artifacts/MutexELF.lean
 ```
 
 The two-argument form retains the default `increment` profile. Exit 0 means the

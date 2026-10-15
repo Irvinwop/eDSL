@@ -119,15 +119,20 @@ theorem syscall_uses_user_state {initial : State} {request : SyscallRequest}
     | leaEaxRaxDisp8 displacement => simp [step, decoded] at transition
     | movEaxEdi => simp [step, decoded] at transition
     | movEaxEsi => simp [step, decoded] at transition
+    | cmpEaxZero => simp [step, decoded] at transition
     | exchangeEaxRdi => cases exchanged : executeExchange initial <;> simp [step, decoded, exchanged] at transition
     | fetchAddEaxRdi => cases added : executeFetchAdd initial <;> simp [step, decoded, added] at transition
     | jrcxz displacement =>
       cases jumped : executeJrcxz initial displacement <;> simp [step, decoded, jumped] at transition
     | loopRcx displacement =>
       cases jumped : executeLoop initial displacement <;> simp [step, decoded, jumped] at transition
+    | jnz displacement =>
+      cases jumped : executeJnz initial displacement <;> simp [step, decoded, jumped] at transition
     | mov32 destination value => simp [step, decoded] at transition
     | loadEaxRdi => cases loaded : executeLoad initial <;> simp [step, decoded, loaded] at transition
+    | loadEaxRsi => cases loaded : executeLoadRsi initial <;> simp [step, decoded, loaded] at transition
     | storeEsiRdi => cases stored : executeStore initial <;> simp [step, decoded, stored] at transition
+    | storeEaxRsi => cases stored : executeStoreRsi initial <;> simp [step, decoded, stored] at transition
     | ret => cases returned : executeRet initial <;> simp [step, decoded, returned] at transition
     | syscall =>
       simp [step, decoded] at transition
@@ -160,6 +165,10 @@ theorem next_preserves_rax_or_rdi {initial middle : State}
       simp [step, decoded] at transition
       cases transition
       exact Or.inr (by simp [executeMovEaxEsi, State.writeRegister])
+    | cmpEaxZero =>
+      simp [step, decoded] at transition
+      cases transition
+      exact Or.inl rfl
     | exchangeEaxRdi => cases exchanged : executeExchange initial <;> simp [step, decoded, exchanged] at transition
     | fetchAddEaxRdi => cases added : executeFetchAdd initial <;> simp [step, decoded, added] at transition
     | jrcxz displacement =>
@@ -177,6 +186,13 @@ theorem next_preserves_rax_or_rdi {initial middle : State}
         cases transition
         have registers := congrFun (executeShortBranch_registers jumped) .rax
         exact Or.inl (by simpa [State.writeRegister] using registers)
+    | jnz displacement =>
+      cases jumped : executeJnz initial displacement with
+      | error error => simp [step, decoded, jumped] at transition
+      | ok result =>
+        simp [step, decoded, jumped] at transition
+        cases transition
+        exact Or.inl (congrFun (executeShortBranch_registers jumped) .rax)
     | mov32 destination value =>
       simp [step, decoded] at transition
       cases transition
@@ -199,6 +215,21 @@ theorem next_preserves_rax_or_rdi {initial middle : State}
         simp [step, decoded, executeStore, stored] at transition
         cases transition
         exact Or.inl rfl
+    | loadEaxRsi =>
+      cases loaded : loadDWord initial.memory (initial.registers .rsi) with
+      | error error => simp [step, decoded, executeLoadRsi, loaded] at transition
+      | ok value =>
+        simp [step, decoded, executeLoadRsi, loaded] at transition
+        cases transition
+        exact Or.inr (by simp [State.writeRegister])
+    | storeEaxRsi =>
+      cases stored : storeDWord initial.memory (initial.registers .rsi)
+          ((initial.registers .rax).setWidth 32) with
+      | error error => simp [step, decoded, executeStoreRsi, stored] at transition
+      | ok memory =>
+        simp [step, decoded, executeStoreRsi, stored] at transition
+        cases transition
+        exact Or.inl rfl
     | ret => cases returned : executeRet initial <;> simp [step, decoded, returned] at transition
     | syscall => simp [step, decoded] at transition
 
@@ -212,12 +243,16 @@ theorem atomic_preserves_rdi {initial middle : State} {event : AtomicEvent}
     | leaEaxRaxDisp8 displacement => simp [step, decoded] at transition
     | movEaxEdi => simp [step, decoded] at transition
     | movEaxEsi => simp [step, decoded] at transition
+    | cmpEaxZero => simp [step, decoded] at transition
     | mov32 destination value => simp [step, decoded] at transition
     | syscall => simp [step, decoded] at transition
     | jrcxz displacement => cases jumped : executeJrcxz initial displacement <;> simp [step, decoded, jumped] at transition
     | loopRcx displacement => cases jumped : executeLoop initial displacement <;> simp [step, decoded, jumped] at transition
+    | jnz displacement => cases jumped : executeJnz initial displacement <;> simp [step, decoded, jumped] at transition
     | loadEaxRdi => cases loaded : executeLoad initial <;> simp [step, decoded, loaded] at transition
+    | loadEaxRsi => cases loaded : executeLoadRsi initial <;> simp [step, decoded, loaded] at transition
     | storeEsiRdi => cases stored : executeStore initial <;> simp [step, decoded, stored] at transition
+    | storeEaxRsi => cases stored : executeStoreRsi initial <;> simp [step, decoded, stored] at transition
     | ret => cases returned : executeRet initial <;> simp [step, decoded, returned] at transition
     | exchangeEaxRdi =>
       cases exchanged : executeExchange initial with

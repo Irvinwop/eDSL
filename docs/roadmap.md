@@ -294,8 +294,17 @@ invariant opening and independent payload totals. This does not establish a
 complete native worker, weak-memory publication, blocking/wakeup or runtime
 implementation. See [mutex scope](mutex.md).
 
-Next compose an actual instruction-interleaved critical-section worker with
-these guards and prove its independent result. Add multiple-lock registration
+`OS.MutexReplay` now checks a complete instruction-interleaved critical-section
+worker, including the busy CMP/JNE loop and two protected stores. Each accepted
+dispatch refines one full machine step and a protocol history. Supplied finite
+schedules can certify independent final totals, returns and unlocked state.
+Actual byte-bound two-worker regressions exercise an odd intermediate payload,
+one busy retry, wraparound and checked resource collection. See
+[mutex worker replay](mutex-workers.md). This milestone checks its endpoint;
+the generic independent result for every completing schedule, worker-private
+invariant preservation, symbolic completion and enabledness remain next.
+
+Add multiple-lock registration
 and resource composition explicitly before claiming interoperability with the
 existing atomic-worker wrapper. Establish the target memory-order mapping and
 client invariant-preservation proof before using this model for native locks.

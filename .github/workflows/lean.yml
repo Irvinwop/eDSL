@@ -30,7 +30,7 @@ jobs:
           "$RUNNER_TEMP/elan-installer/elan-init" -y --no-modify-path --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Build pinned Lean project
-        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter
+        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker
       - name: ISA, ELF, OS contracts and rejection properties
         run: |
           lake env lean -DwarningAsError=true tests/X86.lean
@@ -53,6 +53,8 @@ jobs:
           lake env lean -DwarningAsError=true tests/CounterThreads.lean
           lake env lean -DwarningAsError=true tests/CounterThreadsWitness.lean
           lake env lean -DwarningAsError=true tests/Mutex.lean
+          lake env lean -DwarningAsError=true tests/MutexISA.lean
+          lake env lean -DwarningAsError=true tests/MutexReplay.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment
@@ -87,6 +89,10 @@ jobs:
         env:
           EDSL_CLANG: clang-18
         run: bash scripts/verify-mutex.sh
+      - name: Certify complete mutex workers and observe owned workloads
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-mutex-workers.sh
       - name: Preserve owned fixture certificates and build provenance
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -122,4 +128,10 @@ jobs:
         with:
           name: mutex-fixture-observations
           path: artifacts/mutex-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned mutex-worker certificates and observations
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutex-worker-fixture-certificates
+          path: artifacts/mutex-worker-fixtures/
           if-no-files-found: error

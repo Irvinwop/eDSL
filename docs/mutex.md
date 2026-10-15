@@ -84,7 +84,9 @@ Every bridge retains executable-byte binding, an accessible return stack and a
 canonical return target; modifying operations also require code/stack separation.
 The physical aligned coherent-WB-RAM and architectural restrictions from
 [atomic exchange](atomic-exchange.md) still apply. There is no new memory-order
-mapping or complete instruction-interleaved mutex-worker theorem.
+mapping. A separate [complete-worker replay layer](mutex-workers.md) now checks
+finite instruction interleavings and their independent endpoints; generic
+worker correctness and completion remain further work.
 
 `tryAcquire_enabled`, `guardLoad_enabled`, `guardStore_enabled` and
 `release_enabled` provide positive behavior under their stated contracts.
@@ -114,7 +116,8 @@ then applies `critical_cycle` for arbitrary temporary/final values.
 `scripts/verify-mutex.sh` re-certifies the existing Clang C/C++, GCC C exchange,
 load and store artifacts before executing them in a native observer. First run
 `scripts/verify-compilers.sh` to produce those owned artifacts. This reuses nine
-existing certificate paths and leaves the distinct artifact total at 42.
+existing certificate paths and adds no distinct artifacts. The subsequent
+[complete worker replay](mutex-workers.md) adds four raw/full-ELF certificates.
 
 Each compiler mode runs four eight-thread workloads with distinct published
 request counts, adjacent payload guards, modular wraparound, exclusive-occupancy

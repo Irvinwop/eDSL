@@ -58,6 +58,9 @@ Implemented and checked:
   `3*count+3` cost, modular sums for every completing schedule and constructive full collection.
 - A checked mutex protocol with exclusive fresh guards, protected payload
   invariants, permanent revocation and exact exchange/load/store binary bridges.
+- Complete mutex-worker finite schedule replay, including busy CMP/JNE retries,
+  temporary invariant opening, complete machine/OS step refinement and checked
+  final totals/returns. See [scope and remaining proofs](docs/mutex-workers.md).
 - A counted assembly loop with a proved invariant and termination for every
   64-bit count, modular arithmetic result and exact `2*count+3` user-instruction cost.
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
@@ -109,6 +112,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Mutable atomic workers](docs/atomic-workers.md) | How do interleaved MOV/XCHG/RET instructions retain actual old values through join? |
 | [Counted counter workers](docs/counter-workers.md) | How do independently counted locked-add workers establish the modular total, exact own-step costs and complete collection? |
 | [Protected payloads and mutexes](docs/mutex.md) | How do exclusive guards, closed invariants and exact machine operations compose? |
+| [Complete mutex worker replay](docs/mutex-workers.md) | How do checked finite interleavings connect every instruction to current OS cells and an independent endpoint? |
 | [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
 | [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
 | [Stream output and exit](docs/process-write.md) | How do short writes and errors compose with the next userspace instructions? |
@@ -136,8 +140,10 @@ cells and retain exchanged values privately through join. Counted locked-add
 workers now establish the modular shared-counter workload and checked collection
 across every successful completing supplied schedule. A separate mutex protocol
 now protects payload invariants through exclusive guards and exact machine
-operations. Next come a complete instruction-interleaved critical-section worker,
-publication/weak-memory correspondence and concrete thread/runtime refinement.
+operations. Complete critical-section workers now have checked finite replay
+and endpoint certificates. Next come generic preservation/completion proofs for
+those workers, publication/weak-memory correspondence and concrete thread/runtime
+refinement.
 General GNU C++26 ingestion and a fully verified Linux kernel are substantial
 separate research work.
 
@@ -146,7 +152,7 @@ separate research work.
 Install [elan](https://github.com/leanprover/elan), then run:
 
 ```sh
-lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter
+lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
@@ -167,6 +173,8 @@ lake env lean -DwarningAsError=true tests/FetchAdd.lean
 lake env lean -DwarningAsError=true tests/CounterThreads.lean
 lake env lean -DwarningAsError=true tests/CounterThreadsWitness.lean
 lake env lean -DwarningAsError=true tests/Mutex.lean
+lake env lean -DwarningAsError=true tests/MutexISA.lean
+lake env lean -DwarningAsError=true tests/MutexReplay.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
@@ -175,6 +183,7 @@ bash scripts/verify-loops.sh
 bash scripts/verify-fetch-add.sh
 bash scripts/verify-counter-workers.sh
 bash scripts/verify-mutex.sh
+bash scripts/verify-mutex-workers.sh
 ```
 
 `lean-toolchain` pins Lean 4.35.0. The library currently needs no third-party

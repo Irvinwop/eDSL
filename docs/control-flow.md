@@ -50,6 +50,16 @@ same architecture reference. The primary
 links the [revision 093 volume](https://cdrdv2-public.intel.com/929353/253666-093-sdm-vol-2a.pdf).
 Model adequacy and physical execution remain a reviewed conformance boundary.
 
+The mutex worker additionally uses exact `83 f8 00` (CMP EAX,0) and `75 cb`
+(JNE/JNZ rel8). CMP preserves all registers and memory, sets ZF/SF/PF from
+the low32 operand, clears CF/AF/OF and preserves other flags. JNZ reads only ZF,
+preserves flags/registers/memory and uses the same signed branch target checks.
+Only the zero-immediate EAX form is supported; prefixes and other CMP forms
+reject. These rules follow the CMP and Jcc entries in
+[Intel SDM volume 2A, revision 089, pages 3-161–162 and 3-491–495](https://cdrdv2-public.intel.com/868140/253666-089-sdm-vol-2a.pdf).
+`tests/MutexISA.lean` checks independently specified status masks, both branch
+directions, operand widths and boundaries, preserved state and rejected forms.
+
 ## Proof and composition
 
 `X86.Steps` describes any finite sequence of ordinary `.next` transitions,

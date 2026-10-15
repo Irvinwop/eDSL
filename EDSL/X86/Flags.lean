@@ -28,6 +28,33 @@ def addFlags32 (flags : Word) (left right : BitVec 32) : Word :=
     flagBit 7 result.msb |||
     flagBit 11 (left.saddOverflow right)
 
+/-- CMP EAX, 0 computes a 32-bit subtraction for flags, without storing its
+result. Subtracting zero clears CF, AF and OF; all six status flags are defined. -/
+def cmpZeroFlags32 (flags : Word) (value : BitVec 32) : Word :=
+  (flags &&& ~~~arithmeticFlagMask) |||
+    flagBit 2 (evenParity (value.setWidth 8)) |||
+    flagBit 6 (value == 0) |||
+    flagBit 7 value.msb
+
+theorem cmpZeroFlags32_bits (flags : Word) (value : BitVec 32) :
+    (cmpZeroFlags32 flags value).getLsbD 0 = false ∧
+    (cmpZeroFlags32 flags value).getLsbD 2 = evenParity (value.setWidth 8) ∧
+    (cmpZeroFlags32 flags value).getLsbD 4 = false ∧
+    (cmpZeroFlags32 flags value).getLsbD 6 = (value == 0) ∧
+    (cmpZeroFlags32 flags value).getLsbD 7 = value.msb ∧
+    (cmpZeroFlags32 flags value).getLsbD 11 = false := by
+  cases parity : evenParity (value.setWidth 8) <;>
+    (by_cases zero : value = 0) <;>
+    cases sign : value.msb <;>
+    simp_all [cmpZeroFlags32, flagBit, arithmeticFlagMask]
+
+theorem cmpZeroFlags32_preserves (flags : Word) (value : BitVec 32) :
+    cmpZeroFlags32 flags value &&& ~~~arithmeticFlagMask = flags &&& ~~~arithmeticFlagMask := by
+  cases parity : evenParity (value.setWidth 8) <;>
+    (by_cases zero : value = 0) <;>
+    cases sign : value.msb <;>
+    simp_all [cmpZeroFlags32, flagBit, arithmeticFlagMask, BitVec.and_or_distrib_right, BitVec.and_assoc]
+
 theorem addFlags32_bits (flags : Word) (left right : BitVec 32) :
     (addFlags32 flags left right).getLsbD 0 = left.uaddOverflow right ∧
     (addFlags32 flags left right).getLsbD 2 = evenParity ((left + right).setWidth 8) ∧
