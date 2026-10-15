@@ -358,11 +358,28 @@ mutable-word pins, atomic compare/enqueue, arbitrary eligible wake selection,
 retry/spurious readiness and typed current-RAM resumption. Accepted mixed traces
 retain full resource/physical RAM equality, call/queue invariants and existing
 loans. Exact WAIT/WAKE1 stub certificates, actual finite cohort witnesses and
-quiescent cleanup are implemented. Next derive effect authority and protected
-completion for every physical interleaving of admitted concrete clients, then
-prove a trace-wide no-lost-wake contract excluding buffered resets. Native
-kernel/runtime correspondence and a blocking-mutex acquisition contract remain
-separate work. See [the exact current scope](futex.md).
+quiescent cleanup are implemented.
+
+The separate fixed client layer now preserves current admission for WAIT,
+payload STORE/XCHG-one/WAKE1/RET, and an independent buffered payload producer.
+Actual decoding derives STORE enqueue authority; current grants cover every
+FIFO, including returned producers. Protected code and all eight return bytes,
+keeper/producer handles and service invariants remain current across mixed
+prefixes. Every finite physical issue/drain prefix has an exact enabled managed
+lift without a managed-success premise. Current service guards and actual typed
+ready calls positively enable service and protected RET with arbitrary full
+private clobbers and current RAM. Actual XCHG establishes payload publication
+and W=1; resource separation and the supported code preserve W=1 thereafter.
+The new raw/full-ELF publisher certificate retains explicit current
+admission/member/code-binding premises. Owned native observations use the same
+bytes after final linking and do not prove scheduling progress.
+
+Next prove a trace-wide no-lost-wake contract with its exact client predicate
+and service/scheduler assumptions, then a blocking-mutex acquisition contract.
+Expand finite control and resource obligations only with corresponding
+preservation and coverage proofs. Native kernel/runtime correspondence and
+safety of a whole Linux kernel or distribution remain separate work. See
+[the exact current scope](futex.md).
 
 Add multiple-lock registration
 and resource composition explicitly before claiming interoperability with the

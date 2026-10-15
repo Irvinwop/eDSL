@@ -395,9 +395,29 @@ Capture checks the configured complete lower-userspace interval and excludes
 executable W. The interval's correspondence to deployed Linux access checks,
 private-key resolution and kernel linearization remain target obligations.
 
-The standalone exact-byte certificate proves request invocation and conditional
-current-RAM RET; it does not certify service completion or protected arbitrary
-clients. General coverage of every physical interleaving, a preserved FIFO
-resource-authorization admission predicate, and a broad no-lost-wake theorem are
-not implemented. Native fault cases and separately recorded positive/inconclusive
-wake observations remain empirical evidence, not kernel proofs or progress claims.
+The original standalone exact-byte certificate proves request invocation and
+conditional current-RAM RET. The separate publishing-client certificate binds
+an exact 32-byte routine to a selected current admitted member. Admission is a
+present-state contract: exact code/control, current ordinary-write grants and
+all actual FIFO entries, complete eight-byte return-stack loans, live fixed
+handles, and service/resource consistency. It assumes no future replay or
+return success. Actual issue/drain steps positively lift to managed execution,
+preserve admission and extend to every finite physical issue/drain prefix.
+Typed current service guards and ready calls enable actual service and protected
+RET; they do not establish eventual readiness or progress.
+
+The current publisher's actual XCHG establishes prior payload publication and
+W=1. Supported later instructions and authority for all buffered stores exclude
+resets, including stores owned by returned peers; service bookkeeping stutters
+RAM. These proofs concern the declared fixed client profiles and abstract
+service. Their artifact theorem still requires current admission, membership
+and code binding; its specification exposes same-member publication, actual
+physical prefix lifting and W=1 persistence as conditional model guarantees.
+Full-ELF loading additionally requires agreement with the current loaded memory
+and entry. A CLI byte match does not construct that
+runtime admission or verify native mapping/resource enforcement.
+
+A broad no-lost-wake or blocking-acquisition theorem, installed-kernel/runtime
+correspondence and safety of a whole Linux kernel or distribution remain outside
+the claim. Native fault cases and positive/inconclusive wake or publication
+observations remain empirical evidence, not kernel proofs or progress claims.

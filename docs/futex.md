@@ -1,4 +1,4 @@
-# Private futex service and exact request stubs
+# Private futex service and exact clients
 
 `EDSL.OS.Futex` implements one registered four-byte word in one stable address
 space, with WAIT_PRIVATE, expected32, null timeout, and WAKE_PRIVATE with count
@@ -67,20 +67,62 @@ The adapter can reject an otherwise executable physical effect when it lacks
 a matching grant/handle. Its pure error result does not roll native hardware
 back or enforce native mapping lifetime. An ordinary unauthorized store can
 currently enter a physical FIFO and be rejected at replay of its later drain.
-`Runtime.Invariant` does not itself assert payload authority for every queued
+`Runtime.Invariant` alone does not assert payload authority for every queued
 store, a live keeper in a call-free state, or a complete per-worker client
-control/loan contract. Call-free registration enabledness requires the separate
-current keeper fact. Deriving `Physical.Ready`, FIFO authorization and protected
-completion for every physical interleaving of an admitted concrete client is
-further work; successful adapter safety is not that coverage theorem.
+control/loan contract. The separate current client admission below supplies
+those obligations and derives positive coverage for its fixed code profiles.
 
 `Publication` proves current-word mismatch, sole-waiter wake, absence of wake
 credits and spurious-word framing. The owned examples exhibit both comparison
 orders and retry across actual XCHG publication. A generalized no-lost-wakeup
-proof over all physical client schedules remains further work. It must exclude
-later reset writes and preexisting buffered writes to W; a wake alone does not
-establish these conditions. Publication of a separate payload before XCHG and a
-blocking-mutex/acquisition contract are also not claimed here.
+proof over all physical client schedules and a blocking-mutex/acquisition
+contract remain further work. A wake alone establishes neither publication nor
+an acquisition right.
+
+## Preserved client admission and physical coverage
+
+`Clients.Admitted` covers a fixed cohort of exact WAIT clients, publishers and
+separate ordinary payload writers. A publisher executes
+`STORE [P],0x11223344; XCHG [W],1; WAKE_PRIVATE(1); RET`, including its intervening
+MOV instructions. A peer writes `0x55667788` to its own separately granted word
+and may return with that store still buffered. WAIT retains an arbitrary
+zero-extended expected32. The actual decoder chooses instructions throughout.
+
+Admission records current finite control, complete physical/resource RAM
+equality, fixed keeper/producer handles, current ordinary-write grants, exact
+executable code, and read loans for each code window and all eight return-stack
+bytes. Each actual FIFO entry has current authority, including entries owned by
+returned producers. Code and the current private context derive authorization
+at STORE enqueue. The fixed handles precede a resource-handle frontier; fresh
+call pins remain at or above it, independently of the invocation-ID frontier.
+Admission contains no promise of future replay, service completion or return.
+`Examples.FutexClient.initial_admitted` constructs a nonempty four-client witness
+through checked adoption, loans and handle issuance.
+
+`issue_lift` and `drain_lift` prove that every successful actual `Suspend`
+issue/drain has an enabled managed transition with identical suspended output
+and observation, preserving admission. `MachineTrace.lift` extends this to any
+finite actual issue/drain prefix without assuming a successful managed trace.
+`demand_enabled` and `extend_prefix` additionally enable current typed service
+phase/queue choices after an admitted prefix. These theorems derive replay and
+capture success from current resources; they add no expected-opcode execution
+gate and require no empty peer FIFO.
+
+`ready_ret_enabled` starts with an actual typed ready call and derives both
+resumption and the subsequent decoded RET. It retains the full raw RAX result,
+arbitrary full flags/RCX/R11, the client's protected target and RSP+8, present
+RAM, and all peer worker/pending records. A call becoming ready, scheduler
+fairness and eventual return are separate obligations.
+
+`publisher_exchange_publishes_payload` uses actual XCHG retirement, own FIFO
+emptiness and concrete STORE/FIFO control to establish current P=`0x11223344`
+before and after the exchange and W=1 afterward. Peer payload separation follows
+from the explicit static contract, derived from checked distinct allocation
+tickets in the witness. `published_word_trace` retains W=1 across every later
+admitted mixed prefix: actual code writes only one atomically, all FIFO heads
+have grants disjoint from W, and service actions leave RAM unchanged. This
+includes preexisting FIFOs and returned producers. It is a safety and
+publication result, not a complete no-lost-wake or acquisition theorem.
 
 ## Exact artifact and native evidence
 
@@ -94,6 +136,20 @@ readable stack bytes and a canonical return target are explicit return premises.
 It is a caller-supplied-stack function contract, not process startup, a service
 completion certificate or a kernel proof. `Futex.Stubs.exact_stub_request`
 connects its independent request specification to the service classifier.
+
+`edsl-certify-futex-client publish-payload-wake INPUT CERTIFICATE.lean` is a
+separate exact 32-byte profile for the publisher above. Raw and `--elf` outputs
+contain literal artifact bytes checked by the Lean kernel. Its specification
+binds the bytes to the selected publisher's current code and consumes current
+admission, positive issue/drain/service lifts, same-member XCHG publication and
+typed protected RET. `Specification.lift_prefix` retains that artifact binding
+and contract after an actual finite issue/drain prefix; its managed trace is a
+conclusion. `Specification.published_word_trace` exposes the later W=1 safety
+theorem. The generated semantic theorem is conditional on current admission,
+membership and code binding; the CLI does not construct an admitted runtime
+from a file. The ELF form also requires agreement with current RAM and that same
+client's entry.
+The WAIT/WAKE1 invocation certifier retains its original, narrower meaning.
 
 `scripts/verify-futex.sh` certifies raw and full-ELF owned assembly outputs,
 compares the same stubs in final native executables, and checks full raw
@@ -116,14 +172,26 @@ active cleanup rejection, exact resource collection and release/reuse rejection.
 Synthetic admission cases reject upper-canonical addresses, incomplete interval
 containment and executable W storage after actual SYSCALL decoding.
 
+`scripts/verify-futex-clients.sh` assembles the publisher with Clang/GCC, compares
+the same 32 bytes extracted after native linking, and certifies raw bytes and a
+full standalone ELF. An external register trampoline invokes those bytes. The
+observer checks P/W and full raw empty-WAKE results, plus 32 bounded WAIT/WAKE
+races with actual joins. Its attempt handshake does not establish queue
+membership; watchdog or scheduling bounds are inconclusive. Synthetic wrong
+destinations, values, counts, RETs, truncations and invocation-only artifacts are
+rejected without executing them. Certificates, hashes, build commands and
+observations are stored under `artifacts/futex-client-fixtures/`.
+
 ## Target boundary
 
 The selected profile assumes coherent ordinary RAM, stable nonaliasing mappings,
 managed lifetime, a fixed worker cohort and the declared Linux userspace interval.
 Signals/restart, cancellation, timeouts, PI/robust/requeue/bitset/shared futexes,
 dynamic workers, native VM interference and arbitrary kernel faults are outside
-it. No kernel instruction cost, micro-operation minimum or elapsed-time bound
-follows from user instruction accounting.
+it. Neither whole Linux kernel nor distribution safety is proved. Native
+trampoline/pthread/kernel conformance remains external evidence, and no
+scheduling progress, kernel instruction cost, micro-operation minimum or
+elapsed-time bound follows from user instruction accounting.
 
 ABI/specification evidence comes from pinned Linux v6.12 primary sources:
 [syscall table](https://github.com/torvalds/linux/blob/v6.12/arch/x86/entry/syscalls/syscall_64.tbl),

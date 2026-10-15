@@ -24,6 +24,9 @@ import EDSL.Examples.SuspendSafety
 import EDSL.OS.Futex
 import EDSL.Examples.FutexSafety
 import EDSL.FutexCertificate
+import EDSL.OS.Futex.ClientCoverage
+import EDSL.Examples.FutexClient
+import EDSL.FutexClientCertificate
 import EDSL.OS.MutexReplay.Footprints
 import EDSL.Examples.StoreBuffer
 import EDSL.CounterCertificate

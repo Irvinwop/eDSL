@@ -668,7 +668,7 @@ paths and raw errors. See [the complete contract](process-write.md).
 ## Reproduce
 
 ```sh
-lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex
+lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
@@ -702,6 +702,11 @@ lake env lean -DwarningAsError=true tests/FutexStubs.lean
 lake env lean -DwarningAsError=true tests/FutexService.lean
 lake env lean -DwarningAsError=true tests/FutexPhysical.lean
 lake env lean -DwarningAsError=true tests/FutexAdmission.lean
+lake env lean -DwarningAsError=true tests/FutexClientFrames.lean
+lake env lean -DwarningAsError=true tests/FutexClientControl.lean
+lake env lean -DwarningAsError=true tests/FutexClientPhysical.lean
+lake env lean -DwarningAsError=true tests/FutexClientCertificate.lean
+lake env lean -DwarningAsError=true tests/FutexClientCoverage.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
@@ -712,6 +717,7 @@ bash scripts/verify-counter-workers.sh
 bash scripts/verify-mutex.sh
 bash scripts/verify-mutex-workers.sh
 bash scripts/verify-futex.sh
+bash scripts/verify-futex-clients.sh
 ```
 
 Integration needs Linux/x86-64, Clang accepting the named modes, GCC, binutils
@@ -732,6 +738,8 @@ lake exe edsl-certify-mutex-worker WORKER.bin artifacts/MutexRaw.lean
 lake exe edsl-certify-mutex-worker --elf WORKER.elf artifacts/MutexELF.lean
 lake exe edsl-certify-futex wait WAIT.bin artifacts/FutexWait.lean
 lake exe edsl-certify-futex --elf wake-one WAKE.elf artifacts/FutexWakeELF.lean
+lake exe edsl-certify-futex-client publish-payload-wake PUBLISH.bin artifacts/FutexClientRaw.lean
+lake exe edsl-certify-futex-client --elf publish-payload-wake PUBLISH.elf artifacts/FutexClientELF.lean
 ```
 
 The two-argument form retains the default `increment` profile. Exit 0 means the
@@ -756,7 +764,38 @@ conditional current-RAM RET. Native-linked bytes are compared with the certified
 stubs; raw EINVAL/EFAULT observations have no implemented bad-input service
 counterpart. The model's tests use actual captured calls and peer machine effects.
 Physical replay can explicitly reject executable effects without sufficient
-managed authority. General preserved client admission deriving replay enabledness
-for every physical prefix, FIFO authority at enqueue, protected completion and a
-trace-wide no-lost-wake theorem remain further work. No kernel refinement,
-payload acquisition or universal progress is claimed. See [precise scope](futex.md).
+managed authority. The separate `Clients.Admitted` predicate now states current
+finite control, actual code and complete eight-byte return-stack loans, current
+payload grants, authorization for every queued store, and fixed keeper/producer
+handles even when no calls exist. Its preservation is proved from actual
+transitions; no field assumes future replay or return success. Actual STORE
+decoding derives enqueue authority, including the separate producer which may
+return with its FIFO nonempty.
+
+For this fixed WAIT/publisher/peer profile, `issue_lift` and `drain_lift` derive
+enabled exact managed execution for every successful actual physical operation.
+`MachineTrace.lift` constructs the managed lift of a whole finite physical
+issue/drain prefix without a managed-success premise. Current typed service
+guards also enable checked extension. An actual ready call enables resumption
+and protected decoded RET with full raw RAX, arbitrary full flags/RCX/R11,
+current RAM, RSP+8, and exact peer-state preservation. The nonempty checked
+`Examples.FutexClient` witness includes distinct return targets and a returned
+producer with buffered payload writes.
+
+The publisher's actual STORE/XCHG-one/WAKE1/RET code establishes current payload
+publication at XCHG. W=1 persists through later admitted mixed prefixes; current
+FIFO authority and keeper separation exclude buffered reset writes, including
+returned producers. This proves safety without claiming eventual readiness,
+no-lost-wake for all schedules, or payload acquisition.
+
+The new `edsl-certify-futex-client` recognizes exactly this publisher's 32-byte
+profile, separately from the invocation-only WAIT/WAKE1 certificates. Literal
+raw/full-ELF proofs connect its conditional semantic theorem to a selected
+current cohort member's code, same-member XCHG publication and positive return.
+The artifact specification also lifts actual finite issue/drain prefixes and
+exposes later W=1 preservation. Current admission/member/code binding remains a
+premise, not something the CLI constructs from the artifact. The owned native
+integration compares the same bytes after final linking and checks current
+P/W/raw results; its races and watchdogs supply observations, not scheduling
+progress. Safety of a whole Linux kernel or distribution and kernel/runtime
+refinement remain outside the claim. See [precise scope](futex.md).

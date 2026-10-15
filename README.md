@@ -78,6 +78,14 @@ Implemented and checked:
   pins, current-RAM comparison, eligible wake selection, typed resumption and
   checked quiescent cleanup. Exact WAIT/WAKE1 stub certificates and owned native
   observations have separate contracts. See [scope and remaining proofs](docs/futex.md).
+- Preserved current admission for fixed futex clients: WAIT, a payload
+  STORE/XCHG-one/WAKE1/RET publisher, and a separate buffered producer. Every
+  actual physical issue/drain prefix has an exact managed lift; current typed
+  ready calls enable protected RET with full raw results and arbitrary private
+  clobbers. Publication and persistent W=1 follow from actual code and FIFO
+  authority. The new exact client artifact contract remains conditional on
+  current cohort admission and code binding; it proves no scheduling progress
+  or safety of a whole kernel or distribution. See [client coverage](docs/futex.md).
 - A counted assembly loop with a proved invariant and termination for every
   64-bit count, modular arithmetic result and exact `2*count+3` user-instruction cost.
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
@@ -110,7 +118,9 @@ The function certifier accepts three two-instruction profiles, the three-instruc
 accepts exit42 (three user instructions) and write-exit42 (eight across a completed write). Other correct
 encodings remain unsupported. The separate counter certifier binds the exact
 nineteen-byte locked-add loop to prepared OS-worker workload contracts.
-Linux loader/kernel refinement, broader syscalls,
+The separate futex client certifier recognizes the exact 32-byte publishing
+routine, with current admission and member/code binding left as explicit
+semantic premises. Linux loader/kernel refinement, broader syscalls,
 native lock/runtime refinement, weak memory and general source eDSLs/validators remain planned. See
 the precise [implemented coverage and trust boundary](docs/coverage.md).
 
@@ -176,7 +186,7 @@ separate research work.
 Install [elan](https://github.com/leanprover/elan), then run:
 
 ```sh
-lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex
+lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
@@ -210,6 +220,11 @@ lake env lean -DwarningAsError=true tests/FutexStubs.lean
 lake env lean -DwarningAsError=true tests/FutexService.lean
 lake env lean -DwarningAsError=true tests/FutexPhysical.lean
 lake env lean -DwarningAsError=true tests/FutexAdmission.lean
+lake env lean -DwarningAsError=true tests/FutexClientFrames.lean
+lake env lean -DwarningAsError=true tests/FutexClientControl.lean
+lake env lean -DwarningAsError=true tests/FutexClientPhysical.lean
+lake env lean -DwarningAsError=true tests/FutexClientCertificate.lean
+lake env lean -DwarningAsError=true tests/FutexClientCoverage.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
@@ -220,6 +235,7 @@ bash scripts/verify-counter-workers.sh
 bash scripts/verify-mutex.sh
 bash scripts/verify-mutex-workers.sh
 bash scripts/verify-futex.sh
+bash scripts/verify-futex-clients.sh
 ```
 
 `lean-toolchain` pins Lean 4.35.0. The library currently needs no third-party

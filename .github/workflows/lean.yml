@@ -11,7 +11,7 @@ permissions:
 jobs:
   build-and-audit:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -30,7 +30,7 @@ jobs:
           "$RUNNER_TEMP/elan-installer/elan-init" -y --no-modify-path --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Build pinned Lean project
-        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex
+        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client
       - name: ISA, ELF, OS contracts and rejection properties
         run: |
           lake env lean -DwarningAsError=true tests/X86.lean
@@ -66,6 +66,11 @@ jobs:
           lake env lean -DwarningAsError=true tests/FutexService.lean
           lake env lean -DwarningAsError=true tests/FutexPhysical.lean
           lake env lean -DwarningAsError=true tests/FutexAdmission.lean
+          lake env lean -DwarningAsError=true tests/FutexClientFrames.lean
+          lake env lean -DwarningAsError=true tests/FutexClientControl.lean
+          lake env lean -DwarningAsError=true tests/FutexClientPhysical.lean
+          lake env lean -DwarningAsError=true tests/FutexClientCertificate.lean
+          lake env lean -DwarningAsError=true tests/FutexClientCoverage.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment
@@ -108,6 +113,16 @@ jobs:
         env:
           EDSL_CLANG: clang-18
         run: bash scripts/verify-futex.sh
+      - name: Certify publishing futex clients and observe owned native publication
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-futex-clients.sh
+      - name: Preserve owned publishing-client certificates and observations
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: futex-client-fixture-certificates
+          path: artifacts/futex-client-fixtures/
+          if-no-files-found: error
       - name: Preserve owned futex certificates and native observations
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

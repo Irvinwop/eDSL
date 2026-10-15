@@ -21,3 +21,6 @@ lean_exe «edsl-certify-mutex-worker» where
 
 lean_exe «edsl-certify-futex» where
   root := `FutexMain
+
+lean_exe «edsl-certify-futex-client» where
+  root := `FutexClientMain
