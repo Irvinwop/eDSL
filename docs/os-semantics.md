@@ -2,8 +2,9 @@
 
 Status: narrow implemented contracts plus requirements for the broader OS
 domain. **Lean 4** contains a sequential address-space model, its machine-memory
-bridge, a restricted ELF loader and a raw Linux exit60 contract. The general
-OS eDSL, runtime, concurrency and kernel implementation proofs remain planned.
+bridge, a restricted ELF loader, a raw Linux exit60 contract and a bounded
+stream-write/return contract. The general OS eDSL, runtime, concurrency and kernel
+implementation proofs remain planned.
 GNU C23, GNU C++26, LLVM IR and assembly are modeled domains rather than the
 implementation language. The initial platform is Linux/x86-64; its assumptions
 are specified in [the platform model](platform-model.md).
@@ -47,6 +48,15 @@ and composes user execution with this explicit exit contract. The owned Clang
 and GCC assembly fixtures are also executed natively to observe status42;
 wrong-status and wrong-syscall mutations must be rejected. These runs provide
 interface evidence, not a proof that Linux implements the abstract contract.
+
+The [stream-write slice](process-write.md) adds bounded readable-buffer binding,
+raw negative errno encoding, nondeterministic partial/error completion and
+return to userspace with flags/RCX/R11 unconstrained. A full-file certificate
+joins a write request to subsequent exit instructions for every admitted outcome.
+Output is a prefix; complete output requires a full successful transfer, and
+progress is conditional on write completion and the exit contract. The stable
+stream has no concurrent writers or descriptor mutation; regular-file offsets,
+direct I/O, devices, signals and durability remain outside this contract.
 
 ## What the OS contributes
 
@@ -293,10 +303,10 @@ still hold an in-flight operation on its open file description; see
    by construction.
 2. **First platform slice.** The standalone static exit42 entry is implemented
    with exact ELF binding and a conditional OS progress theorem. Extend it to
-   a bounded single-thread computation with startup data and a write/exit
-   boundary. Prove an output-prefix/error contract
-   for arbitrary allowed write outcomes. Prove exact output on the separately
-   stated successful-completion path. `write` may be partial or fail; its return
+   a bounded single-thread computation with startup data and richer control flow.
+   One static stream write now has an output-prefix/error theorem for arbitrary
+   admitted returns and exact output on the separate full-transfer path.
+   `write` may be partial or fail; its return
    value is not delivery to a human or persistent storage
    ([`write(2)`](https://man7.org/linux/man-pages/man2/write.2.html)). No
    unproved source-to-binary edge may be labelled verified.

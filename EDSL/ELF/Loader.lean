@@ -50,7 +50,7 @@ def codeAddress (image : Image) : Word := BitVec.ofNat 64 image.entry
 
 /-- Check the selected complete function window is executable and file-backed. -/
 def fileBackedWindow (image : Image) (length : Nat) : Bool :=
-  decide (0 < length ∧ length ≤ 32 ∧ image.entry + length ≤ 2^47) &&
+  decide (0 < length ∧ length ≤ 64 ∧ image.entry + length ≤ 2^47) &&
   image.segments.any fun segment => segment.executable &&
     decide (segment.virtualAddress ≤ image.entry ∧ image.entry + length ≤
       segment.virtualAddress + segment.fileSize)

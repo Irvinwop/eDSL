@@ -85,6 +85,7 @@ execution, kernel cleanup and waiting are outside these counts.
 | `Increment.zero_input_lower_bound`: at least two instructions | Every supported terminating function execution producing the increment result from zero input and zero initial RAX |
 | `Exit42.reaches_request`: exactly three instructions | Its twelve checked entry bytes, every modeled initial register/flags state and admitted code mapping |
 | `Exit42.zero_register_lower_bound`: at least three instructions | Every supported first-syscall execution from initial RAX = RDI = 0 requesting raw exit60 with status42 |
+| `Process.viaWrite_results`: exactly eight user instructions | Every completed bounded stream-write/exit execution for its checked bytes, including partial/error returns; excludes kernel and waiting steps |
 
 The process lower bound is an independent argument about the candidate class:
 each supported ordinary step preserves at least one of RAX and RDI, and the

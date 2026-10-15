@@ -73,9 +73,11 @@ No concrete kernel instructions, descriptor cleanup, resource revocation,
 signals, seccomp/ptrace policy or Linux loader implementation have been verified.
 The model installs exact segment intervals and BSS while leaving page padding
 unmapped. It does not establish a full Linux startup stack/auxv/TLS contract.
-Broader syscall output, partial I/O, threads, locks and atomics remain required
-future work. This profile demonstrates checked composition across the current
-boundaries rather than discharging those remaining contracts.
+The separate [bounded stream-write profile](process-write.md) handles one
+synchronous output request with partial/error outcomes; broader I/O, threads,
+locks and atomics remain required future work. This profile demonstrates checked
+composition across the current boundaries rather than discharging those remaining
+contracts.
 
 ## Reproduce
 

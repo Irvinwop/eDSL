@@ -53,6 +53,21 @@ The exact three-user-instruction count excludes loading and kernel work. Its
 matching lower bound requires zero initial RAX/RDI and quantifies only over
 supported first-syscall candidates, as stated in [the cost model](cost-model.md).
 
+The write-exit42 path adds five user instructions before a bounded stream write
+and the three-instruction exit suffix after any admitted return. The contract
+allows partial counts, zero and raw errors; only full transfer establishes exact
+`OK\n` output. Its explicit return boundary preserves userspace memory and
+ordinary registers while leaving flags/RCX/R11 unconstrained. Kernel entry,
+return and write implementation remain external. Buffer bytes are derived from
+the loaded ELF rather than assumed from a source fixture.
+
+The eight-user-instruction result requires write completion. Stable stream and
+buffer identity, no concurrent writers or asynchronous interference, and the
+restricted error-with-no-accepted-bytes behavior are assumptions. Regular files,
+direct I/O, devices, durability and descriptor lifecycle are excluded. Native
+fresh/full nonblocking-pipe observations supplement the proof; the three-byte
+fixture does not demonstrate native partial success. See [write scope](process-write.md).
+
 `lake build` checks the declarations with Lean 4.35.0. The audit traverses
 transitive axiom dependencies of declarations under `EDSL` and permits only
 Lean's standard `propext`, `Quot.sound`, and `Classical.choice`. It rejects

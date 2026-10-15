@@ -14,7 +14,7 @@ inductive Instruction where
   | loadEaxRdi
   /-- `89 37`: MOV DWORD PTR [RDI], ESI. -/
   | storeEsiRdi
-  /-- `B8 id` and `BF id`: supported 32-bit immediate register writes. -/
+  /-- `B8/BA/BE/BF id`: supported 32-bit immediate register writes. -/
   | mov32 (destination : Register) (value : BitVec 32)
   /-- `0F 05`: userspace syscall request; privileged execution is external. -/
   | syscall
@@ -40,12 +40,14 @@ def decodeAt (state : State) : Except Error Instruction := do
     let modrm ← fetchByte state.memory (state.rip + 1)
     if modrm ≠ 0x37 then throw .unsupportedEncoding
     return .storeEsiRdi
-  else if opcode = 0xb8 ∨ opcode = 0xbf then
+  else if opcode = 0xb8 ∨ opcode = 0xba ∨ opcode = 0xbe ∨ opcode = 0xbf then
     let b0 ← fetchByte state.memory (state.rip + 1)
     let b1 ← fetchByte state.memory (state.rip + 2)
     let b2 ← fetchByte state.memory (state.rip + 3)
     let b3 ← fetchByte state.memory (state.rip + 4)
-    return .mov32 (if opcode = 0xb8 then .rax else .rdi) (joinDWord b0 b1 b2 b3)
+    let destination := if opcode = 0xb8 then .rax else if opcode = 0xba then .rdx
+      else if opcode = 0xbe then .rsi else .rdi
+    return .mov32 destination (joinDWord b0 b1 b2 b3)
   else if opcode = 0x0f then
     let second ← fetchByte state.memory (state.rip + 1)
     if second ≠ 0x05 then throw .unsupportedEncoding

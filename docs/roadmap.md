@@ -124,11 +124,19 @@ assumption, and a terminating fair trace witnesses nonvacuity. Owned Clang/GCC
 assembly ELFs receive certificates and native status checks; wrong status and
 syscall mutations are rejected. See [process scope](process-exit.md).
 
+The bounded stream-write extension is also implemented: exact message bytes are
+bound through the loaded ELF, raw results include partial counts and negative
+errors, and every admitted return resumes at checked exit instructions. Completed
+user executions cost eight instructions and accept a message prefix; full output
+is conditional on a full transfer. Native owned pipe checks exercise successful
+output and unavailable nonblocking capacity. Stable stream/return contracts remain
+explicit; see [write scope](process-write.md).
+
 Remaining work: Linux loader conformance, startup stack/auxiliary state when
 used, privileged syscall entry and concrete kernel execution/cleanup. Extend
-the process profile to bounded computation and explicit `write`/exit outcomes.
-Specify short writes, interruption, faults and denied resources rather than
-assuming all external effects succeed. Preserve explicit loader/kernel
+the process profile to control flow, retry protocols and resource lifetimes.
+Add descriptor identity, signals/interruption and wider I/O without assuming
+all external effects succeed. Preserve explicit loader/kernel
 contracts until implementation proofs discharge them.
 
 Exit: a process-level trace/result theorem linked to the final artifact, with

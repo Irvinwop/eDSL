@@ -1,9 +1,10 @@
 # Implemented coverage and remaining trust
 
 Three exact compiler-output profiles verify unsigned 32-bit increment, load and
-store functions; one standalone ELF profile reaches an exit42 request and composes
-with an explicit OS exit contract. These are narrow slices, not a general binary
-verifier, complete ISA, source frontend, Linux implementation or verified OS.
+store functions; standalone ELF profiles reach exit42 directly or across a bounded
+stream write and compose with explicit OS contracts. These are narrow slices,
+not a general binary verifier, complete ISA, source frontend, Linux implementation
+or verified OS.
 
 ## Supported machine profile
 
@@ -20,7 +21,7 @@ verifier, complete ISA, source frontend, Linux implementation or verified OS.
   little-endian store of the low 32 RSI bits. Flags are preserved.
 - `C3`: near `ret`, reading an accessible little-endian stack word, checking
   canonical return address, advancing RSP by eight and preserving other state.
-- `B8 id` and `BF id`: MOV EAX/EDI immediate32, zero-extended into the full
+- `B8/BA/BE/BF id`: MOV EAX/EDX/ESI/EDI immediate32, zero-extended into the full
   register with flags/memory preserved. Other immediate-register forms reject.
 - `0F 05`: a pre-privileged userspace syscall request boundary. ABI projections
   expose low32 RAX and RDI/RSI/RDX/R10/R8/R9 arguments; no privileged entry,
@@ -187,6 +188,35 @@ zero-extension, ABI R10 selection, low-bit number/status behavior, instruction
 count/fuel and observation boundaries. No concrete Linux exit implementation or
 resource cleanup is proved.
 
+## Bounded stream write and exit
+
+`edsl-certify-process write-exit42` checks the 37-byte entry/code/data window of
+a complete ELF at entry `0x400000`. Five user instructions request three bytes
+from buffer `0x400022` on descriptor 1; after every admitted write return, three
+more request exit60/status42. Initial modeled registers/flags are unrestricted;
+no caller stack or runtime is required.
+
+`BufferAt` binds the message to readable bytes derived from loaded executable
+data. `LinuxWrite` admits any prefix count including zero or a raw negative
+errno, plus arbitrary waiting. `X86.Returns` retains memory and ordinary registers,
+sets raw RAX and continuation, and leaves flags/RCX/R11 unconstrained. It is an
+external synchronous-write return contract, not privileged instruction semantics.
+
+`Process.ViaWrite` composes both user fragments through a finite write-contract
+execution and that return boundary. `viaWrite_results` proves exact user count8,
+prefix output of at most three bytes, full output only for accepted count3, and
+the exit result/progress conditions. `viaWrite_exists` exhibits an execution for
+every permitted partial/error outcome. No write completion, kernel timing or
+unconditional process termination is inferred. The stream has one stable sink
+with no concurrent writers, descriptor mutation, signal delivery or interference.
+Regular files, direct I/O, devices and durability are excluded.
+
+Owned Clang/GCC ELFs are certified before a native C harness checks both a fresh
+pipe's exact output and the full nonblocking-pipe failure path with existing
+bytes preserved. Changed data/count/descriptor and profile mismatches reject.
+Lean tests cover actual request decoding, buffer access, partial/error resume
+paths and raw errors. See [the complete contract](process-write.md).
+
 ## Reproduce
 
 ```sh
@@ -198,6 +228,7 @@ lake env lean -DwarningAsError=true tests/OSComposition.lean
 lake env lean -DwarningAsError=true tests/WordStore.lean
 lake env lean -DwarningAsError=true tests/ELF.lean
 lake env lean -DwarningAsError=true tests/Process.lean
+lake env lean -DwarningAsError=true tests/Write.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
@@ -213,6 +244,7 @@ lake exe edsl-certify load32 FUNCTION.bin artifacts/Load.lean
 lake exe edsl-certify store32 FUNCTION.bin artifacts/Store.lean
 lake exe edsl-certify --elf increment FUNCTION.elf artifacts/ELF.lean
 lake exe edsl-certify-process PROCESS.elf artifacts/Process.lean
+lake exe edsl-certify-process write-exit42 PROCESS.elf artifacts/WriteProcess.lean
 ```
 
 The two-argument form retains the default `increment` profile. Exit 0 means the

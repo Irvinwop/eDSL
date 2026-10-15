@@ -32,7 +32,7 @@ caller stack or runtime; a general Linux startup contract is still separate work
   zero/one or a power of two with matching offset congruence.
 - Load segments in ascending virtual order with disjoint **page-rounded** ranges.
   Sharing a page is unsupported even when exact byte intervals do not overlap.
-- A nonempty entry window of at most 32 bytes entirely inside one executable,
+- A nonempty entry window of at most 64 bytes entirely inside one executable,
   file-backed segment. Entry in BSS or a hole is rejected.
 
 The field layouts, file-to-memory copy/BSS relation, flags and alignment rules

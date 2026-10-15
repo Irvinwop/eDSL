@@ -7,4 +7,5 @@ import EDSL.OS.WordStore
 import EDSL.ELF.Loader
 import EDSL.Certificate
 import EDSL.Process.Certificate
+import EDSL.Process.WriteExit
 import EDSL.Audit
