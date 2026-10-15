@@ -2,8 +2,9 @@
 
 Status: narrow implemented contracts plus requirements for the broader OS
 domain. **Lean 4** contains a sequential address-space model, its machine-memory
-bridge, an allocation-identity/ownership registry with shared read loans and
-a managed read-worker instruction scheduler,
+bridge, an allocation-identity/ownership registry with shared read loans,
+a managed read-worker instruction scheduler and shared atomic handles with
+checked XCHG/OS-cell composition,
 a restricted ELF loader,
 a raw Linux exit60 contract and a bounded
 stream-write/return contract. The general OS eDSL, runtime, broader concurrency and kernel
@@ -53,8 +54,20 @@ and permanently revoke joined thread and loan IDs. Two successful selections
 suffice under the supported instruction scheduler; an infinite idle trace
 shows progress is not automatic. This is an abstract read-only lifecycle
 contract. Native pthread/clone refinement, identity authentication, context
-switching, mutable workers, locks/atomics and the shared-increment workload
+switching, mutable workers, locks, wider atomics and the shared-increment workload
 remain required. There is no new general SC or weak-memory claim.
+
+The [atomic-exchange foundation](atomic-exchange.md) checks exact MOV/XCHG/RET
+bytes, retains a singleton indivisible RMW event and projects the update to OS
+cells. The [shared-handle wrapper](atomic-handles.md) delegates stored authority
+to distinct actors and reserves their allocation against conflicting ordinary
+operations. Well-formedness, permanent handle revocation and surviving read-loan
+stability hold across admitted mixed histories. Exchange-only schedules prove
+old/new chaining and multiset conservation; checked handles admit every
+replacement word. The same-cell value-flow result excludes administrative gaps
+where all handles close and ordinary writes become possible again. These are
+logical managed contracts, with actor authentication, mutable worker lifecycle,
+general memory ordering and concrete runtime/kernel refinement still external.
 
 
 The [process slice](process-exit.md) checks a standalone twelve-byte entry that
