@@ -37,9 +37,16 @@ def entry (oldValue : BitVec 32) (value : Word) : State :=
 theorem every_store_updates_cells (oldValue : BitVec 32) (value : Word) :
     Executes (entry oldValue value)
       (storeFinalWithSpace (entry oldValue value) (updated oldValue value) 8192) 2 := by
-  exact (store32_updates_space (space oldValue) (updated oldValue value)
-    (storeEntry oldValue value) 8192 (by rfl) (code oldValue)
-    data_code_disjoint data_stack_disjoint (by rfl) (by decide)).1
+  apply (store32_updates_space (space oldValue) (updated oldValue value)
+    (storeEntry oldValue value) 8192 ?_ (code oldValue)
+    data_code_disjoint data_stack_disjoint ?_ (by decide)).1
+  · change storeWord (space oldValue) 65536 (value.setWidth 32) = .ok (updated oldValue value)
+    apply storeWord_success
+    simp [canStoreDWord, dwordAddressable, dwordWritable, toMemory, space,
+      dataMemory, writeDWordUnchecked, storedDWordByte, baseMemory, canonical]
+  · change readWord (toMemory (space oldValue)) 32768 = .ok 8192
+    simp [readWord, readStackByte, toMemory, space, dataMemory,
+      writeDWordUnchecked, storedDWordByte, baseMemory, canonical]
 
 /-- Observe the OS state only after a checked store and permission lifecycle. -/
 def lifecycle : Except Fault (Except X86.Error (BitVec 32) × Option Byte × Option Byte) := do
