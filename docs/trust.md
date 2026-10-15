@@ -57,6 +57,21 @@ arbitrary raw writes, aliases and outside interference are excluded. Copyable
 IDs do not authenticate callers. No runtime enforcement or concurrent adequacy
 is inferred. See [borrowing contracts](borrowing.md).
 
+The managed read-worker layer adds actual per-instruction load/RET scheduling
+against current shared memory, with spawn and join resource contracts. Internal
+data/code/stack loans survive until successful join. Arbitrary finite managed
+histories preserve each completed result against an independent initial word
+specification and permanently revoke joined thread/loan IDs. Positive paths
+cover every 32-bit word; two selections suffice in successful instruction
+schedules, while an admitted infinite idle trace excludes unconditional progress.
+
+The scheduler is an abstract OS contract. Native creation/publication/join,
+context switching, hardware atomicity, weak memory and authenticated thread
+identity remain unproved. Its root/worker Nat labels do not establish freshness
+relative to external principal registries. Raw accesses and unmanaged internal
+loan release bypass the protocol. This read-only profile does not complete the
+roadmap's mutable shared-counter/atomic workload. See [thread scope](threads.md).
+
 The restricted ELF path checks complete observed bytes, parser/validation results
 and entry-code binding through a modeled loader. It removes the raw path's
 unverified extraction dependency for those artifacts, while retaining explicit

@@ -2,10 +2,11 @@
 
 Status: narrow implemented contracts plus requirements for the broader OS
 domain. **Lean 4** contains a sequential address-space model, its machine-memory
-bridge, an allocation-identity/ownership registry with shared read loans,
+bridge, an allocation-identity/ownership registry with shared read loans and
+a managed read-worker instruction scheduler,
 a restricted ELF loader,
 a raw Linux exit60 contract and a bounded
-stream-write/return contract. The general OS eDSL, runtime, concurrency and kernel
+stream-write/return contract. The general OS eDSL, runtime, broader concurrency and kernel
 implementation proofs remain planned.
 GNU C23, GNU C++26, LLVM IR and assembly are modeled domains rather than the
 implementation language. The initial platform is Linux/x86-64; its assumptions
@@ -43,6 +44,18 @@ reads compose with the actual load/RET bytes; independently established buffers
 retain their contents under the same history conditions. These remain logical
 sequential rules. Protected invariants, thread/scheduler identity, concurrent
 adequacy, language provenance and allocator refinement remain ahead.
+
+The [read-worker lifecycle](threads.md) now composes checked root-managed spawn,
+actual per-instruction load/RET dispatch against current shared memory and join.
+Each worker retains internal data/code/stack loans until its completed result
+is collected. Arbitrary managed interleavings preserve the initial word result
+and permanently revoke joined thread and loan IDs. Two successful selections
+suffice under the supported instruction scheduler; an infinite idle trace
+shows progress is not automatic. This is an abstract read-only lifecycle
+contract. Native pthread/clone refinement, identity authentication, context
+switching, mutable workers, locks/atomics and the shared-increment workload
+remain required. There is no new general SC or weak-memory claim.
+
 
 The [process slice](process-exit.md) checks a standalone twelve-byte entry that
 sets exit status42 and requests raw Linux exit60. Its ABI request records the

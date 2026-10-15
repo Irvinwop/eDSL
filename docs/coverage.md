@@ -203,6 +203,46 @@ No concurrent adequacy, runtime authentication/enforcement, mutable/fractional
 borrowing, region splitting or physical-alias handling is established. The CLI
 does not infer loans. See [the exact borrowing contract](borrowing.md).
 
+## Managed read-worker lifecycle
+
+`EDSL.OS.Threads` adds root-managed spawn, per-instruction scheduling, join and
+external guarded mutations over the shared borrowing world. Workers store only
+private registers/RIP/flags. Every dispatch reconstructs memory from current
+shared OS cells and executes actual `X86.step` for the checked `8b 07 c3`
+profile. Spawn protects data, executable code and the return stack with three
+internal read loans; completed workers retain them until join. Join returns
+retained machine RAX and releases only its worker's loans.
+
+All admitted steps/histories preserve the invariant. `spawned_join_value` proves
+every successful join after arbitrary admitted finite interleavings returns an
+independently specified initial word zero-extended into RAX. Peer private
+contexts remain unchanged by another dispatch. Shared allocations remain frozen
+while any peer loan remains. `joined_for_history` and
+`joined_loans_for_history` establish permanent thread/loan-ID revocation.
+
+`dispatch_enabled`, `join_enabled` and `two_dispatches_complete` provide positive
+progress paths. `schedule_remaining` and `schedule_two_completes` count actual
+worker selections and prove two suffice across any successful supplied
+instruction schedule, with arbitrary peer preemption. `idle_trace` witnesses
+that arbitrary scheduling need not complete a worker. Counts exclude runtime
+and kernel overhead; no unconditional progress or timing optimum is inferred.
+
+Owned regressions cover all six interleavings of two actual read workers,
+separate return stacks and shared code/data, premature/wrong/repeated join,
+completed dispatch, stale IDs, partial creation rejection, explicit resource
+failure, protected data/code/stack and unrelated managed changes. Symbolic
+witnesses admit every 32-bit word through checked adoption, spawn, both actual
+instructions and join, with all-history conditional result preservation.
+
+This is a managed read-worker contract, not native pthread/clone refinement,
+CPU context-switch verification, hardware atomicity/SC/weak-memory semantics or
+the planned shared-increment workload. Root/worker Nat names are proof labels;
+freshness concerns the lifecycle registry and does not authenticate native
+identities. Unmanaged loan release, raw writes and arbitrary external
+interference are excluded. Worker stacks do not support push/call here; TLS,
+detach, cancellation, nested spawn, mutable workers, locks/atomics and native
+publication barriers remain unimplemented. See [the full thread profile](threads.md).
+
 ## Restricted ELF loading
 
 The optional `--elf` path checks complete ELF64 little-endian x86-64 `ET_EXEC`
@@ -321,6 +361,7 @@ lake env lean -DwarningAsError=true tests/Write.lean
 lake env lean -DwarningAsError=true tests/ControlFlow.lean
 lake env lean -DwarningAsError=true tests/Ownership.lean
 lake env lean -DwarningAsError=true tests/Borrowing.lean
+lake env lean -DwarningAsError=true tests/Threads.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

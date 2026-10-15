@@ -180,8 +180,10 @@ has an admitted symbolic binary witness. See [borrowing scope](borrowing.md).
 
 These remain proof-level authorities: raw pointers contain no epoch, principal
 IDs are proof data and copyable tickets/loans do not form a linear-token logic.
-Next add protected invariants and thread ownership/start/join with an adequacy
-connection to operational semantics. Region splitting, mutable borrowing, broader
+The [managed read-worker slice](threads.md) now connects borrowed code/data/stack
+to actual instruction scheduling and checked start/completion/join contracts.
+Next add protected invariants, mutable workers and concrete thread/runtime
+refinement. Region splitting, mutable borrowing, broader
 stack/heap object lifetimes, language provenance, allocator search/failure/cleanup,
 calls and richer memory-loop invariants remain required. Concurrent safety needs
 an interference model that enforces or accounts for resource transitions.
@@ -192,6 +194,16 @@ when claiming a source-level result. Native fault
 injection and differential runs supplement these proofs.
 
 ### 5. First concurrency slice
+
+Implemented prerequisite: a root-managed read-worker lifecycle with three
+internal loans, actual load/RET instruction scheduling against current shared
+memory, checked result collection and permanent thread/loan-ID revocation.
+All six two-worker instruction interleavings have independent byte/result
+regressions; symbolic witnesses cover every 32-bit word. Arbitrary admitted
+histories preserve results, and successful schedules with two selections of a
+load-pending worker complete it. Idle scheduling need not make progress. This
+abstract read-only profile does **not** satisfy the counter workload or concrete
+OS/runtime refinement exit below. See [thread contracts](threads.md).
 
 Specify real thread start/join, argument publication, ownership transfer,
 creation failure and partial cleanup. Use sequentially consistent atomics first,

@@ -58,6 +58,8 @@ Implemented and checked:
   epochs, managed-history invariants and owned-store composition with exact bytes.
 - Shared read loans with whole-allocation freezing, permanent loan-ID revocation,
   managed-history byte/permission stability and actual binary-load composition.
+- Managed read workers with checked spawn/join, current-shared-memory instruction
+  scheduling, arbitrary-history result proofs and permanent thread/loan revocation.
 - A restricted ELF64 loader with bounds, permissions, BSS and page-collision
   checks; full-file certificates derive executable entry-code binding.
 - A standalone exit42 ELF certificate, first-syscall execution proofs and an
@@ -75,8 +77,8 @@ The function certifier accepts three two-instruction profiles and the counted
 `increment-loop` profile. The process certifier accepts exit42 (three user
 instructions) and write-exit42 (eight across a completed write). Other correct
 encodings remain unsupported. Linux loader/kernel refinement, broader syscalls,
-concurrency and general source eDSLs/validators remain planned. See the precise
-[implemented coverage and trust boundary](docs/coverage.md).
+mutable concurrency and general source eDSLs/validators remain planned. See
+the precise [implemented coverage and trust boundary](docs/coverage.md).
 
 ## Read the plan
 
@@ -86,6 +88,7 @@ concurrency and general source eDSLs/validators remain planned. See the precise
 | [Address-space contracts](docs/address-space.md) | How do mapping and permission changes connect to binary proofs? |
 | [Ownership and lifetimes](docs/ownership.md) | What prevents stale authority after release, address reuse or transfer? |
 | [Shared read borrowing](docs/borrowing.md) | What keeps borrowed bytes and permissions stable across managed operations? |
+| [Read-worker scheduling](docs/threads.md) | How do actual machine instructions compose with spawn, shared resources and join? |
 | [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
 | [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
 | [Stream output and exit](docs/process-write.md) | How do short writes and errors compose with the next userspace instructions? |
@@ -105,8 +108,9 @@ concurrency and general source eDSLs/validators remain planned. See the precise
 
 Start with the roadmap, then the OS and platform documents. Restricted x86-64
 functions, a counted loop and bounded stream-write/exit entries are checked;
-sequential ownership, lifetimes and shared read borrowing are checked too. Next
-come protected invariants, richer control flow and a thread/atomic workload.
+ownership, lifetimes, shared read borrowing and managed read-worker scheduling
+are checked too. Next come protected invariants, mutable workers and the
+thread/atomic counter workload, with concrete runtime refinement.
 General GNU C++26 ingestion and a fully verified Linux kernel are substantial
 separate research work.
 
@@ -127,6 +131,7 @@ lake env lean -DwarningAsError=true tests/Write.lean
 lake env lean -DwarningAsError=true tests/ControlFlow.lean
 lake env lean -DwarningAsError=true tests/Ownership.lean
 lake env lean -DwarningAsError=true tests/Borrowing.lean
+lake env lean -DwarningAsError=true tests/Threads.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

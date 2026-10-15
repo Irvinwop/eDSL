@@ -86,9 +86,10 @@ it does not implicitly protect unrelated code or the caller's stack.
 
 These results quantify **Borrowing histories**, not arbitrary Ownership histories,
 raw cell replacement or unconstrained external writes. They establish sequential
-composition under this discipline. Concurrent safety still needs a scheduler,
-interference semantics and an adequacy argument connecting each admitted action
-to machine execution. Physical aliases, DMA/MMIO, stale raw pointer enforcement,
+composition under this discipline. The [managed read-worker scheduler](threads.md) now supplies a specific
+load/RET lifecycle composition using three internal loans per worker. Broader
+concurrent safety still needs interference semantics, mutable worker protocols
+and an adequacy argument for concrete thread/runtime execution. Physical aliases, DMA/MMIO, stale raw pointer enforcement,
 linear/fractional permissions and concrete OS implementation refinement remain
 outside this claim. The certificate CLI does not infer loan registries.
 
