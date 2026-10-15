@@ -1,6 +1,6 @@
-# Complete mutex worker replay
+# Complete mutex worker execution
 
-`EDSL.OS.MutexReplay` checks finite instruction interleavings of an owned
+`EDSL.OS.MutexReplay` proves finite instruction interleavings of an owned
 37-byte x86-64 worker. The lock address is in RDI, the protected payload address
 in RSI, and each worker requests a modular 32-bit increase of two:
 
@@ -61,17 +61,51 @@ before release from the program invariant and actual guarded store results.
 There is no final-value checker premise in these results.
 
 The executable `verify`/`checkPost` route remains available for individual
-finite executions. `verify_sound` still proves its trace and endpoint. The
-generic theorems independently establish the endpoint from program invariants.
-Success of the supplied replay remains a premise: dispatch enabledness,
-constructive completion and coverage of arbitrary architectural executions
-are further work. A rejected schedule or failing invariant is not a security finding.
+finite executions. `verify_sound` proves its trace and endpoint. The generic
+theorems independently establish the endpoint from program invariants, and the
+architectural coverage below removes successful checked replay as a premise.
+A rejected schedule or failing invariant is not a security finding.
 
 Every accepted trace also projects to `Mutex.History`. From an initially
 well-formed mutex/resource state, its final mutex/resource state is well formed.
 The existing history theorems preserve live read loans and permanently revoke
 released guards. The replay layer has no transitions for raw stores, external
 guard release, unregister, arbitrary loan completion, or replacement OS state.
+
+## Architectural coverage and completion
+
+`OS.MachineThreads` contains full shared machine memory, each worker's private
+registers/flags/RIP, and an actual-RET marker. Its dispatcher selects an existing
+worker that has not returned, calls only `X86.step` on that context and current
+memory, and installs the entire resulting memory and context. It has no mutex,
+phase, guard, loan, expected-opcode or code-check gates. Missing/already-returned
+selections, architectural faults and syscall boundaries are explicit errors.
+
+`dispatch_enabled` constructs the next checked operation from `Invariant` and
+`ExecutionReady` for every existing unfinished worker. `dispatch_erases` maps
+that operation to exactly the instruction-only dispatcher. Determinism then
+gives `dispatch_lifts` and `schedule_lifts`: every finite architectural execution
+from an admitted state has the same checked replay, contexts, memory and RMW
+events. `machine_prefix` retains the invariant and readiness at every prefix.
+Every subsequent existing unreturned selection is enabled; it cannot fault or
+reach a syscall boundary. The coverage theorem does not filter architectural
+executions through assumed checked-replay success.
+
+`machine_completed_observations` exposes the independent modular total,
+unlocked word, zero returns, cohort size and exact cost directly on the bare
+machine result for an initial entry cohort. Completion observes actual RET
+markers. Admission still requires the initial invariant, execution readiness
+and `ClosedUnderTwo`.
+
+`cohort_completion` constructs a completing schedule from any admitted
+intermediate state: finish the tracked holder first, then the remaining workers.
+It makes no new busy exchanges and takes exactly the current `potentialSum`,
+at most `15 * workers` future instructions. `entry_cohort_completion` constructs
+a zero-busy schedule of exactly `13 * workers` instructions for an entry cohort.
+`machine_completion` and `machine_entry_completion` carry those witnesses to
+the instruction-only scheduler. These are existence proofs; arbitrary schedulers
+can continue choosing a busy peer forever. No fairness or elapsed-time bound
+is inferred.
 
 ## Cohort and resources
 
@@ -93,6 +127,14 @@ preserves it. One stored loan cannot have two different borrowers, so loans of
 different worker indices cannot alias. No separate assumed global disjointness
 oracle is used.
 
+`ExecutionReady` strengthens loan provenance with the actual executable bytes,
+the readable saved return word and its canonical target. Checked spawn establishes
+these facts. `WorkerExecutionReady.frame` uses the retained current loan records
+and actual borrowing history to preserve both bytes and permissions;
+`dispatch_executionReady` and `schedule_executionReady` retain them throughout
+execution. Readiness is an initial/current execution contract, without a premise
+about a future step succeeding.
+
 `collect_enabled` constructs checked collection for every completed ready
 cohort. `completed_collection_exists` combines that existence result with the
 program invariant and total theorem. It proves zero retained machine returns,
@@ -105,7 +147,10 @@ The symbolic fixture proves actual checked adoption, registration and both
 spawns for every initial 32-bit word under the unrestricted predicate.
 `admitted_valid` establishes the program invariant, `admitted_loanReady` derives
 loan provenance through those actual operations, and `admitted_total` applies
-the generic total theorem. Concrete schedules separately demonstrate completion.
+the generic total theorem. `Examples.MutexExecution` derives
+`admitted_executionReady` from checked creation and constructs architectural
+completion for every initial word, including completion after any admitted
+architectural prefix.
 
 The logical actor mapping is not authenticated pthread/kernel identity.
 External users must supply initial ownership/registration and cannot interpret
@@ -115,22 +160,25 @@ actual checked adoption, registration and spawn operations.
 ## Artifacts and validation
 
 `edsl-certify-mutex-worker [--elf] INPUT CERTIFICATE.lean` admits exactly this
-worker. Generated certificates embed observed bytes, apply `universal_sound`
-to all successful completing supplied schedules under the initial invariant,
-loan-readiness and predicate-closure contracts, and run the axiom audit. The
-result includes exact instruction cost and existence of checked collection.
-They retain the individual checked-replay
-theorem too. ELF certificates additionally embed
-the full file, prove parsing, check the executable entry window, and expose
-fresh-loading/code-binding theorems. The CLI certifies the artifact profile;
-a specific execution additionally needs a successful schedule. It does not claim
-that the linked ELF is a standalone process or verify its start/runtime code.
+worker. Generated certificates embed observed bytes and apply `machine_sound`
+to establish `MachineSpecification` under the initial invariant, execution
+readiness, entry-cohort, initial-observation and predicate-closure contracts.
+Every architectural prefix lifts and retains readiness/enabledness. Every
+completed execution has the direct memory/return/cost observations and admits
+checked collection with precise original-loan revocation. A zero-busy entry
+completion schedule exists. Certificates retain `universal_sound` and the
+individual checked-replay theorem, and run the axiom audit. ELF certificates
+additionally embed the full file, prove parsing, check the executable entry
+window, and expose fresh-loading/code-binding theorems. The CLI certifies the artifact profile;
+executions need the stated OS admission contracts. It does not claim that the
+linked ELF is a standalone process or verify its start/runtime code.
 
 ```sh
 lake build edsl-certify-mutex-worker
 lake env lean -DwarningAsError=true tests/MutexISA.lean
 lake env lean -DwarningAsError=true tests/MutexReplay.lean
 lake env lean -DwarningAsError=true tests/MutexInvariant.lean
+lake env lean -DwarningAsError=true tests/MutexExecution.lean
 bash scripts/verify-mutex-workers.sh
 ```
 
@@ -145,25 +193,36 @@ byte-profile checks also reject changed control flow, release and truncation.
 The two-worker Lean regression executes 30 actual instructions, including one
 busy retry and five RMW events. It observes the intermediate odd protected word,
 the busy peer's retry, wraparound from `0xfffffffe` to 2, real stack returns,
-loan pinning and reclamation. Partial schedules remain unverified.
+loan pinning and reclamation. The endpoint checker rejects incomplete schedules;
+architectural prefix coverage still applies to them.
 
 The generic-invariant suite also forces two busy retries, including one after
 the payload load and another between stores. It covers odd inputs under the
 unrestricted predicate, the even invariant's open/restored phases, different
 cohort sizes, actual RET completion, and costs derived from real busy events.
+`tests/MutexExecution.lean` adds symbolic architectural completion, independent
+contended memory/return/event observations, completion from a paused busy CMP,
+and explicit missing/returned-worker errors. Removing execute permission from
+RET or readability from the last return-stack byte produces the precise
+architectural fault, demonstrating that the bare dispatcher performs real
+instruction fetch and stack access.
 
-`completed_cost` proves exactly `13 * workers + 4 * busy exchanges` user
-instructions for every successful completing supplied schedule. A potential
-decreases at ordinary steps and accounts for four additional instructions at
-each actual busy exchange. This is a cost theorem for the fixed byte profile;
-there is no minimum-operations claim over alternative implementations. Cycles,
-micro-ops, fairness, blocking/futex behavior and bounded waiting are outside this model.
+`completed_cost` and architectural lifting prove exactly
+`13 * workers + 4 * busy exchanges` user instructions for every completing
+admitted architectural schedule from an entry cohort. A potential decreases at
+ordinary steps and accounts for four additional instructions at each actual
+busy exchange. `machine_entry_minimum` proves that every completed entry
+execution takes at least `13 * workers` instructions, and the constructed
+zero-busy schedule attains that
+bound. This is a matching instruction-count lower bound for this fixed routine
+across schedules. It does not compare alternative implementations or bound
+cycles, micro-ops, blocking/futex behavior or waiting.
 
 ## Physical boundary
 
 This remains the existing sequentially interleaved coherent-RAM profile. It
-does not implement a store-buffer/weak-memory model, native client compliance,
-pthread start/join, the Linux kernel, interrupts or exceptions. XCHG's physical
+does not implement a store-buffer/weak-memory model, arbitrary native client
+compliance, pthread start/join, the Linux kernel, interrupts or exceptions. XCHG's physical
 interpretation requires the [atomic profile](atomic-exchange.md). The guarded
 invariant and ownership checks are admission conditions; these bytes do not
 execute those checks. CMP/JNZ semantics follow the

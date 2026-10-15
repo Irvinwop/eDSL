@@ -17,6 +17,12 @@ private def header : String :=
 
 private def theoremSource : String :=
   "theorem certified (state : OS.MutexReplay.State) (config : OS.Mutex.Config) (initial : BitVec 32)\n" ++
+  "    (valid : Invariant config state) (ready : ExecutionReady state) (closed : ClosedUnderTwo config)\n" ++
+  "    (entry : ∀ worker ∈ state.workers, worker.phase = .entry)\n" ++
+  "    (observed : loadDWord (toMemory state.shared.shared.resources.space) config.dataAddress = .ok initial) :\n" ++
+  "    observedBytes = bytes ∧ MutexWorkerCertificate.MachineSpecification state config initial :=\n" ++
+  "  MutexWorkerCertificate.machine_sound observedBytes accepted state config initial valid ready closed entry observed\n\n" ++
+  "theorem checkedSchedules (state : OS.MutexReplay.State) (config : OS.Mutex.Config) (initial : BitVec 32)\n" ++
   "    (valid : Invariant config state) (ready : LoanReady state) (closed : ClosedUnderTwo config)\n" ++
   "    (entry : ∀ worker ∈ state.workers, worker.phase = .entry)\n" ++
   "    (observed : loadDWord (toMemory state.shared.shared.resources.space) config.dataAddress = .ok initial) :\n" ++
@@ -93,5 +99,5 @@ def main (arguments : List String) : IO UInt32 := do
     return 1
   let stdout ← IO.getStdout
   stdout.putStr checked.stdout
-  stdout.putStrLn s!"CERTIFIED {raw.size} exact mutex-worker artifact bytes: every successful completing modeled schedule has the proved payload/return/resource result; complete machine/OS projection; progress separate; {absolute}"
+  stdout.putStrLn s!"CERTIFIED {raw.size} exact mutex-worker artifact bytes: every admitted instruction-only prefix retains OS invariants and enables live selections; completed calls satisfy payload/return/cost/resource contracts; a completing schedule exists; {absolute}"
   return 0

@@ -412,7 +412,7 @@ memory remain external. See [counter-worker contracts](counter-workers.md).
 The integration total is 46 raw/full-ELF artifact certificates, including four
 counter-worker and four mutex-worker certificates. The counter observer checks 42 sequential requests
 and four eight-thread workloads per compiler; it independently rejects four
-terminating semantic mutants. Twenty-three Lean suites include symbolic admission
+terminating semantic mutants. Twenty-four Lean suites include symbolic admission
 and completion witnesses for every initial word and pair of 64-bit counts.
 
 ## Protected payloads and mutex guards
@@ -437,11 +437,11 @@ final value, with exact payload readback and revoked guard.
 `tryAcquire_exchange32`, `release_exchange32`, `guardLoad_load32` and
 `guardStore_store32` connect accepted operations to existing exact XCHG/MOV
 compiler bytes and full projected machine results. Invariant/guard checks are
-logical admission conditions; the bytes do not implement those checks. No
-general correctness theorem for the complete native critical-section worker, general
-weak-memory publication, blocking mutex, fairness or native runtime/kernel
-implementation is proved. This wrapper uses `Borrowing.State` directly and is
-not an implicit merger with the distinct atomic-worker/handle histories.
+logical admission conditions; the bytes do not implement those checks. The
+complete-worker architectural proof below adds client compliance for its fixed
+routine. General weak-memory publication, blocking mutexes, fairness and native
+runtime/kernel implementation remain open. This wrapper uses `Borrowing.State`
+directly and is not an implicit merger with the distinct atomic-worker/handle histories.
 
 Regressions cover wrong/stale guards, same-actor/re-registration reuse, invalid
 closing values, contention, reader conflicts, reservations, unrelated resource
@@ -452,24 +452,45 @@ eight-thread workloads per compiler mode and reject a safe no-store mutant
 against an independent total. Those reused artifacts add no new certificates. See
 [the exact mutex scope and theorem contracts](mutex.md).
 
-`OS.MutexReplay` additionally checks complete finite instruction interleavings
+`OS.MutexReplay` additionally proves complete finite instruction interleavings
 of a 37-byte worker, with full projected machine-step refinement, protocol
 history composition, exact executable bytes and unchanged peer contexts.
 The supplied schedule runs actual busy CMP/JNE retries, two guarded payload
 stores and RET. Generic control/guard/payload invariants now prove modular +2
 per original worker, zero machine returns and final unlocked invariant for every
-successful completing supplied schedule, without the endpoint checker. A credit
-sum tracks actual stores, and a separate potential proves `13*n + 4*busy`
-instructions. Checked spawn preserves the initial cohort invariant. Dispatch
-enabledness, constructive completion, arbitrary machine-execution coverage and
-weak-memory/runtime correspondence remain further work. Actual checked spawn
-establishes code/stack loan readiness; replay preserves it, and every completed
-ready cohort admits collection. That collection revokes precisely the original
-cohort loans, retains unrelated records and preserves resource cells. Symbolic
-adoption/registration/spawn witnesses admit every initial 32-bit word under the
-unrestricted predicate. Four Clang/GCC raw/full-ELF
+completed admitted architectural schedule from an entry cohort, without the
+endpoint checker. A credit sum tracks actual stores, and a separate potential proves `13*n + 4*busy`
+instructions. Checked spawn establishes the initial cohort invariant and
+`ExecutionReady`: current stored code/stack loans, actual executable bytes,
+readable return word and canonical return target. Replay preserves their bytes
+and permissions. Every existing unfinished worker has an enabled next step.
+
+The separate `OS.MachineThreads` dispatcher selects an existing unreturned
+worker and calls only `X86.step` on its private context and full current shared
+memory. It has no mutex, phase, guard, loan or expected-code checks. Every
+architectural prefix from an admitted state lifts to replay with the same
+memory, contexts and events, retaining `Invariant` and `ExecutionReady`.
+Completed architectural executions directly expose zero returns, unlocked state,
+the modular total and exact instruction count. They admit collection that
+revokes precisely the original cohort loans, retains unrelated records and
+preserves resource cells.
+
+Completion is constructive from any admitted intermediate state: finishing the
+tracked holder first gives no new busy exchanges, exactly `potentialSum`
+instructions and a bound of `15*n`. An entry cohort has a zero-busy `13*n`
+schedule, attaining the matching lower bound for this fixed routine across
+schedules. This does not establish completion for every scheduler or optimality
+among alternative programs. Weak-memory/runtime correspondence remains open.
+
+Symbolic adoption/registration/spawn witnesses admit every initial 32-bit word
+under the unrestricted predicate. `Examples.MutexExecution` and
+`tests/MutexExecution.lean` cover symbolic and paused-prefix completion, actual
+contended architectural observations and precise fetch/return-stack faults.
+The certifier's `MachineSpecification` includes architectural prefix lifting,
+enabledness, completed observations/collection and entry completion; the older
+checked-replay contracts remain. Four Clang/GCC raw/full-ELF
 artifacts keep the distinct total at 46 while acquiring stronger certificates.
-See [finite replay contracts and limitations](mutex-workers.md).
+See [worker execution contracts and limitations](mutex-workers.md).
 
 ## Restricted ELF loading
 
@@ -602,6 +623,7 @@ lake env lean -DwarningAsError=true tests/Mutex.lean
 lake env lean -DwarningAsError=true tests/MutexISA.lean
 lake env lean -DwarningAsError=true tests/MutexReplay.lean
 lake env lean -DwarningAsError=true tests/MutexInvariant.lean
+lake env lean -DwarningAsError=true tests/MutexExecution.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

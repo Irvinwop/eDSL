@@ -91,6 +91,7 @@ execution, kernel cleanup and waiting are outside these counts.
 | `Process.viaWrite_results`: exactly eight user instructions | Every completed bounded stream-write/exit execution for its checked bytes, including partial/error returns; excludes kernel and waiting steps |
 | `IncrementLoop.actual_bytes_correct`: exactly `2*count+3` | Every 64-bit initial RCX count and modular input value, admitted executable bytes and return stack; induction proves termination, including zero count |
 | `CounterThreads.completed_selection_count`: exactly `3*count+3` own selections through completion | Every well-formed entry-phase counter worker with full 64-bit initial RCX, exact locked-add-loop code and retained handle/code/stack resources; successful supplied schedules may interleave peers |
+| `MutexReplay.machine_completed_observations`: exactly `13*n+4*busy` instructions | Every completed admitted architectural interleaving of the fixed 37-byte mutex worker, starting with `n` entry workers; a zero-busy schedule attains the `13*n` lower bound |
 
 The process lower bound is an independent argument about the candidate class:
 each supported ordinary step preserves at least one of RAX and RDI, and the
@@ -129,12 +130,23 @@ a complete instruction-interleaved worker count, lock latency, waiting bound
 or minimum-cost mutex implementation.
 
 The subsequent [complete-worker proof](mutex-workers.md) establishes
-`13 * workers + 4 * busy exchanges` user instructions for every successful
-completing supplied schedule. `schedule_potential` derives the count from actual
-instruction dispatch and real 1→1 exchanges; `completed_cost` needs no final-value
-checker. The result covers this fixed byte profile and excludes runtime/kernel
-work. Minimum operations over alternative implementations, elapsed time and
-scheduler progress remain separate obligations.
+`13 * workers + 4 * busy exchanges` user instructions for every completed
+admitted architectural interleaving from an entry cohort. `schedule_potential`
+derives the count from actual instruction dispatch and real 1→1 exchanges;
+`completed_cost` needs no final-value checker. Architectural lifting carries the
+result to the instruction-only machine. `machine_entry_minimum` proves that all
+completed entry executions take at least `13 * workers` instructions, and
+`machine_entry_completion` constructs a
+zero-busy schedule attaining that bound. The candidate class here consists of
+schedules for the same fixed routine, not alternative programs.
+
+From any admitted intermediate state, `machine_completion` constructs a
+finishing schedule with no new busy exchanges and exactly the remaining
+`potentialSum`, bounded by `15 * workers` future instructions. Readiness and
+invariant preservation enable every chosen unfinished step. This establishes
+an available completion path, not completion for all schedulers. Runtime/kernel
+work, cycles, elapsed time and minimum operations over other implementations
+remain outside these results.
 
 The original tiny abstract machine has only `add amount`, natural-number inputs
 and unit instruction cost. Its checked increment implementation has length one,

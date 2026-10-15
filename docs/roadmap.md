@@ -305,10 +305,28 @@ preservation now establish the independent +2 result for every successful
 completing supplied schedule, without the endpoint checker. The closed payload
 predicate must be preserved by addition of two; release admission follows from
 the program invariant. Checked cohort creation preserves the invariant and live
-code/stack loan provenance. Replay preserves those records, and completed ready
-cohorts admit collection that revokes exactly their original loan IDs. Exact
-costs are `13*n + 4*busy` user instructions. Symbolic completion, dispatch
-enabledness and coverage of arbitrary machine executions remain next.
+code/stack loan provenance and execution readiness, including actual bytes,
+permissions and return-stack contents. Replay preserves those facts, and
+completed ready cohorts admit collection that revokes exactly their original
+loan IDs while retaining unrelated records.
+
+The separate `OS.MachineThreads` scheduler now selects existing unreturned
+workers and executes only `X86.step` on their private contexts and full shared
+memory, without mutex admission gates. Every architectural prefix of the
+admitted fixed profile lifts to replay and retains `Invariant` and
+`ExecutionReady`; every subsequent existing unfinished selection is enabled.
+Completed architectural executions establish the independent total, zero
+returns, unlocked state, exact cost and positive collection. Generated
+`MachineSpecification` certificates include those guarantees and constructive
+entry completion, alongside the older checked-replay contracts.
+
+Constructive completion from any admitted intermediate state finishes the
+tracked holder first, with no new busy exchanges and exactly `potentialSum`
+instructions, bounded by `15*n`. Entry cohorts have a zero-busy `13*n` schedule.
+Every completed entry schedule costs `13*n + 4*busy`, so the witness attains a
+matching lower bound for this fixed routine across schedules. General
+weak-memory publication and native runtime/kernel correspondence remain open;
+completion for all schedulers is not claimed.
 
 Add multiple-lock registration
 and resource composition explicitly before claiming interoperability with the
@@ -369,6 +387,11 @@ entry attains that bound. These bounds cover the supported ISA and count no
 loading or kernel work. Counted locked-add workers additionally have exact
 `3*count+3` own-instruction bounds and published-request event totals across
 successful completing schedules; native lifecycle and waiting costs are excluded.
+The fixed mutex routine additionally has exact `13*n + 4*busy` architectural
+costs and a constructive zero-busy entry schedule attaining `13*n`. Arbitrary
+admitted intermediate states admit completion in their remaining potential,
+at most `15*n` instructions. This compares schedules of the same routine;
+minimum operations among alternative programs remains separate work.
 All-x86 optimality and elapsed-time bounds remain out
 of scope.
 

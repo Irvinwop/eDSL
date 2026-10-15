@@ -6,3 +6,4 @@ import EDSL.OS.MutexReplay.Lifecycle
 import EDSL.OS.MutexReplay.Outcome
 import EDSL.OS.MutexReplay.Cohort
 import EDSL.OS.MutexReplay.Cost
+import EDSL.OS.MutexReplay.Coverage

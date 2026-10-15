@@ -58,11 +58,13 @@ Implemented and checked:
   `3*count+3` cost, modular sums for every completing schedule and constructive full collection.
 - A checked mutex protocol with exclusive fresh guards, protected payload
   invariants, permanent revocation and exact exchange/load/store binary bridges.
-- Complete mutex-worker instruction replay with generic control/payload
-  preservation, modular totals and exact retry costs for every successful
-  completing supplied schedule. See [contracts and remaining proofs](docs/mutex-workers.md).
-- Checked mutex-worker loan provenance, positive cohort collection and exact
-  code/stack loan revocation, with unrelated loan records preserved.
+- Complete mutex-worker architectural execution with generic control/payload
+  preservation, modular totals, zero returns and exact retry costs for every
+  completed admitted interleaving. Every existing unfinished selection is
+  enabled, and a completing schedule is constructed from any admitted prefix.
+  See [contracts and remaining proofs](docs/mutex-workers.md).
+- Checked mutex-worker code/return-stack readiness, positive cohort collection
+  and exact code/stack loan revocation, with unrelated loan records preserved.
 - A counted assembly loop with a proved invariant and termination for every
   64-bit count, modular arithmetic result and exact `2*count+3` user-instruction cost.
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
@@ -114,7 +116,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Mutable atomic workers](docs/atomic-workers.md) | How do interleaved MOV/XCHG/RET instructions retain actual old values through join? |
 | [Counted counter workers](docs/counter-workers.md) | How do independently counted locked-add workers establish the modular total, exact own-step costs and complete collection? |
 | [Protected payloads and mutexes](docs/mutex.md) | How do exclusive guards, closed invariants and exact machine operations compose? |
-| [Complete mutex worker replay](docs/mutex-workers.md) | How do checked finite interleavings connect every instruction to current OS cells and an independent endpoint? |
+| [Complete mutex worker execution](docs/mutex-workers.md) | How do arbitrary admitted architectural interleavings preserve OS contracts and admit completion? |
 | [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
 | [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
 | [Stream output and exit](docs/process-write.md) | How do short writes and errors compose with the next userspace instructions? |
@@ -142,10 +144,12 @@ cells and retain exchanged values privately through join. Counted locked-add
 workers now establish the modular shared-counter workload and checked collection
 across every successful completing supplied schedule. A separate mutex protocol
 now protects payload invariants through exclusive guards and exact machine
-operations. Complete critical-section workers now have generic preservation,
-schedule-independent completed totals and exact retry-cost proofs. Next come
-dispatch enabledness, constructive worker completion, publication/weak-memory
-correspondence and concrete thread/runtime refinement.
+operations. Complete critical-section workers now cover every admitted
+instruction-only architectural interleaving, retain execution readiness, and
+have schedule-independent completed totals, constructive completion and exact
+retry costs. A zero-busy schedule attains the fixed routine's `13*n`
+instruction lower bound. Publication/weak-memory correspondence and concrete
+thread/runtime refinement remain open.
 General GNU C++26 ingestion and a fully verified Linux kernel are substantial
 separate research work.
 
@@ -178,6 +182,7 @@ lake env lean -DwarningAsError=true tests/Mutex.lean
 lake env lean -DwarningAsError=true tests/MutexISA.lean
 lake env lean -DwarningAsError=true tests/MutexReplay.lean
 lake env lean -DwarningAsError=true tests/MutexInvariant.lean
+lake env lean -DwarningAsError=true tests/MutexExecution.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

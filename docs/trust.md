@@ -172,10 +172,11 @@ full projected states and explicit code/return-stack contracts. Guards and
 invariant checking are logical admission, not instructions implemented by those
 routines or authenticated runtime identities. No arbitrary client compliance,
 linear-token ownership or injective native worker/principal mapping is inferred.
-Dispatch enabledness, constructive completion, general weak-memory publication,
-native C observer and pthread/kernel refinement, blocking/wakeup and progress
-remain unproved. Atomic-handle and mutex histories are separate wrappers,
-with no implicit cross-model composition. Native contended payload observations
+The fixed complete-worker layer below adds dispatch enabledness, architectural
+coverage and constructive completion. General weak-memory publication, native
+C observer and pthread/kernel refinement, blocking/wakeup and universal
+scheduler progress remain unproved. Atomic-handle and mutex histories are
+separate wrappers, with no implicit cross-model composition. Native contended payload observations
 and an independently failing no-store mutant supplement the proofs; they do
 not discharge these contracts. See [mutex scope](mutex.md).
 
@@ -252,23 +253,40 @@ parameters in theorem statements and reports, never hidden global axioms.
 
 ## Planned trust ledger
 
-The complete [mutex worker replay](mutex-workers.md) adds actual CMP/JNE and
+The complete [mutex worker execution](mutex-workers.md) adds actual CMP/JNE and
 RSI-addressed MOV semantics. Every admitted dispatch is proved equal to a full
 machine instruction over current shared cells. Generic control/guard/payload
 preservation now proves the independent modular total and zero returns for every
-successful completing supplied schedule, without its endpoint checker. The
-initial invariant includes tracked guard ownership and phase-specific saved EAX
+completed admitted architectural schedule from an entry cohort, without its
+endpoint checker. The initial invariant includes tracked guard ownership and phase-specific saved EAX
 relations; `ClosedUnderTwo` is an explicit local predicate-preservation contract.
 The first store may open that predicate, and the second restores it before
 `release_admitted`. A separate potential proves actual instruction costs.
-Loan readiness comes from checked spawn records and survives replay. Completed
-ready cohorts admit checked collection, which revokes exactly their loan IDs
-and retains unrelated records. Public constructors alone supply neither program
-validity nor loan provenance. Replay success remains a premise; dispatch enabledness, constructive completion
-and arbitrary architectural-execution coverage remain unproved. Native pthread
-observations remain separate evidence. Initial resource well-formedness is an explicit premise for preservation,
-and runtime identity/authentication, memory-order adequacy and kernel behavior
-remain environmental obligations.
+`ExecutionReady` comes from checked spawn and records actual code/return-stack
+facts and current loans. Preserved borrowing histories retain bytes and
+permissions. Every existing unfinished selection is enabled from the current
+invariant and readiness, without an assumed future replay result.
+
+`OS.MachineThreads` executes only `X86.step` against full current memory and
+private contexts after checking that the selected call exists and has not
+returned. It contains no mutex admission checks. Erasure and lifting cover
+every finite architectural prefix from the admitted fixed profile and retain
+`Invariant` and `ExecutionReady`. Completed executions admit checked collection,
+which revokes exactly their original loan IDs and retains unrelated records.
+Generated `MachineSpecification` certificates include these prefix,
+enabledness, direct result/resource and constructive entry-completion contracts.
+The older checked-replay route remains available.
+
+A completing schedule exists from any admitted intermediate state with no new
+busy exchanges and at most `15*n` future instructions. Entry completion takes
+`13*n`, attaining the fixed routine's instruction-count lower bound across
+schedules. Neither existence proof establishes completion for all schedulers,
+latency or optimality among alternative implementations. Public constructors
+alone supply neither program validity nor execution readiness. Initial resource
+well-formedness and payload closure remain explicit contracts. Native pthread
+observations remain separate evidence; runtime identity/authentication,
+physical memory-order adequacy and kernel behavior remain environmental
+obligations.
 
 Every artifact report must distinguish:
 
