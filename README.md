@@ -50,6 +50,8 @@ Implemented and checked:
   OS-cell projection, guarded resource authority and same-cell value-flow histories.
 - Shared atomic handles with per-actor authorization, allocation reservations,
   permanent revocation, read-loan stability and exchange-trace value conservation.
+- Mutable atomic workers with actual MOV/XCHG/RET instruction scheduling,
+  retained old results through join, resource revocation and schedule value-flow proofs.
 - A counted assembly loop with a proved invariant and termination for every
   64-bit count, modular arithmetic result and exact `2*count+3` user-instruction cost.
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
@@ -81,7 +83,7 @@ The function certifier accepts three two-instruction profiles, the three-instruc
 `exchange32` profile and the counted `increment-loop` profile. The process certifier
 accepts exit42 (three user instructions) and write-exit42 (eight across a completed write). Other correct
 encodings remain unsupported. Linux loader/kernel refinement, broader syscalls,
-mutable concurrency and general source eDSLs/validators remain planned. See
+locks, weak memory and general source eDSLs/validators remain planned. See
 the precise [implemented coverage and trust boundary](docs/coverage.md).
 
 ## Read the plan
@@ -95,6 +97,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Read-worker scheduling](docs/threads.md) | How do actual machine instructions compose with spawn, shared resources and join? |
 | [Atomic exchange](docs/atomic-exchange.md) | How does an exact XCHG event update OS cells and respect existing read authority? |
 | [Shared atomic handles](docs/atomic-handles.md) | How can actors share an atomic word while blocking conflicting resource changes? |
+| [Mutable atomic workers](docs/atomic-workers.md) | How do interleaved MOV/XCHG/RET instructions retain actual old values through join? |
 | [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
 | [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
 | [Stream output and exit](docs/process-write.md) | How do short writes and errors compose with the next userspace instructions? |
@@ -117,8 +120,9 @@ functions, a counted loop and bounded stream-write/exit entries are checked;
 ownership, lifetimes, shared read borrowing and managed read-worker scheduling
 are checked too. An atomic-exchange foundation now connects XCHG events and
 guarded OS cells. Shared atomic handles now preserve reservations and resource
-lifetimes. Next come protected invariants, mutable workers and the thread/atomic
-counter workload, with concrete runtime refinement.
+lifetimes. Mutable atomic workers execute actual instructions against shared
+cells and retain exchanged values privately through join. Next come protected
+invariants and the thread/atomic counter workload, with concrete runtime refinement.
 General GNU C++26 ingestion and a fully verified Linux kernel are substantial
 separate research work.
 
@@ -143,6 +147,7 @@ lake env lean -DwarningAsError=true tests/Threads.lean
 lake env lean -DwarningAsError=true tests/AtomicExchange.lean
 lake env lean -DwarningAsError=true tests/OSAtomicExchange.lean
 lake env lean -DwarningAsError=true tests/Atomics.lean
+lake env lean -DwarningAsError=true tests/AtomicThreads.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

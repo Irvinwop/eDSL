@@ -182,8 +182,10 @@ These remain proof-level authorities: raw pointers contain no epoch, principal
 IDs are proof data and copyable tickets/loans do not form a linear-token logic.
 The [managed read-worker slice](threads.md) now connects borrowed code/data/stack
 to actual instruction scheduling and checked start/completion/join contracts.
-Next add protected invariants, mutable workers and concrete thread/runtime
-refinement. Region splitting, mutable borrowing, broader
+The [atomic-worker layer](atomic-workers.md) now adds mutable exchange workers
+with private old results and retained atomic handles/code/stack loans through
+join. Next add protected invariants and concrete thread/runtime refinement.
+Region splitting, mutable borrowing, broader
 stack/heap object lifetimes, language provenance, allocator search/failure/cleanup,
 calls and richer memory-loop invariants remain required. Concurrent safety needs
 an interference model that enforces or accounts for resource transitions.
@@ -219,10 +221,25 @@ well-formedness, permanent handle revocation and surviving read-loan stability.
 Checked exchanges use current shared cells and have exact XCHG/compiler-byte
 bridges. Arbitrary finite exchange-only schedules prove value chaining and
 multiset conservation; symbolic witnesses cover every old/new pair. This
-prerequisite still lacks mutable worker contexts and lifecycle scheduling,
-protected invariants, counter algorithms and concrete ordering/runtime
-refinement. Next connect handle ownership and private old results to actual
-per-instruction worker dispatch and join. See [shared-handle scope](atomic-handles.md).
+resource layer is now used by mutable worker contexts and lifecycle scheduling.
+Protected invariants, counter algorithms and concrete ordering/runtime
+refinement remain ahead. See [shared-handle scope](atomic-handles.md).
+
+Mutable atomic workers now connect root-managed spawn and join to actual
+MOV/XCHG/RET instruction dispatch against current shared cells. Each worker's
+captured actual old word survives arbitrary admitted mixed histories through
+successful later join. Completed workers retain their handle/code/stack loans
+until collection; joined resource and thread IDs stay revoked. Three own
+selections suffice in a successful supplied instruction schedule, with peer
+preemption; a finite three-dispatch schedule and checked join also exist for
+every well-formed preparing worker. Infinite idling remains possible. Arbitrary
+successful dispatch-only schedules at one address prove actual event chaining
+and multiset conservation. All twenty two-worker instruction interleavings have independent
+result/event/guard/return-state regressions; checked adoption/spawn witnesses
+and a successful three-step schedule/join cover every initial/replacement
+32-bit pair. This does not yet implement the
+counter algorithm, general memory ordering or native start/join refinement;
+see [atomic-worker scope](atomic-workers.md).
 
 Specify real thread start/join, argument publication, ownership transfer,
 creation failure and partial cleanup. Use sequentially consistent atomics first,

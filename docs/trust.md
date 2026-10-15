@@ -89,12 +89,39 @@ Exchange-only schedules prove value chaining and multiset conservation;
 symbolic witnesses cover every old/new 32-bit pair.
 
 These are logical authority labels and guarded histories, without runtime
-authentication/enforcement, native handle management or mutable worker
-start/scheduling/join refinement. Raw updates bypass the wrapper; finite scans
-assume `WellFormed`. A mixed history may contain an ordinary store after all
-handles close, so its value-flow theorem needs a continuously surviving
+authentication/enforcement or native handle management. Raw updates bypass the
+wrapper; finite scans assume `WellFormed`. A mixed history may contain an
+ordinary store after all handles close, so its value-flow theorem needs a continuously surviving
 reservation or explicit framing. No unconditional progress or reclamation
 follows from operation enabledness. See [shared-handle scope](atomic-handles.md).
+
+`OS.AtomicThreads` adds private mutable-worker contexts, checked root spawn and
+join, and actual MOV/XCHG/RET instruction scheduling against current shared
+cells. Each worker holds an atomic handle plus code/stack read loans until
+join. The old word is captured by its actual XCHG instruction, with no cached
+spawn-time value. Every successful later join returns that event's old word
+despite arbitrary admitted mixed histories. Those histories preserve the
+invariant and permanently revoke joined thread, handle and loan IDs.
+
+Arbitrary successful dispatch-only schedules at one shared address prove
+actual event chaining and multiset conservation from an independently observed
+initial cell. This final-memory result does not cover mixed histories with
+zero-handle gaps and permitted intervening stores. Three own selections of a
+preparing worker suffice in a successful supplied instruction schedule;
+unfinished dispatch and completed join are enabled under the invariant.
+Every well-formed preparing worker also has a successful three-dispatch
+schedule and checked join. Symbolic witnesses establish admitted owned worlds,
+spawn and that finite path for every initial/replacement 32-bit pair. Infinite
+idling still excludes unconditional progress.
+
+These are abstract lifecycle and scheduling contracts. Nat actor labels do not
+authenticate native threads; unmanaged raw accesses/exchanges and raw resource
+operations remain excluded. The admitted steps are spawn, dispatch, join,
+guarded mutation and idle. Creation failure is an explicit pure-operation result,
+not a proved native cleanup routine. Native pthread/clone/publication/join,
+context switching, protected invariants, locks and general memory ordering
+remain unproved. The CLI does not infer worker registries. See
+[mutable-worker scope](atomic-workers.md).
 
 Physical interpretation requires the explicit aligned coherent-WB-RAM profile,
 stable translation/permissions, excluded aliases/mixed-size overlaps and stable

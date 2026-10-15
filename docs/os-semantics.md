@@ -3,8 +3,8 @@
 Status: narrow implemented contracts plus requirements for the broader OS
 domain. **Lean 4** contains a sequential address-space model, its machine-memory
 bridge, an allocation-identity/ownership registry with shared read loans,
-a managed read-worker instruction scheduler and shared atomic handles with
-checked XCHG/OS-cell composition,
+a managed read-worker instruction scheduler, shared atomic handles and mutable
+MOV/XCHG/RET workers with checked OS-cell/lifecycle composition,
 a restricted ELF loader,
 a raw Linux exit60 contract and a bounded
 stream-write/return contract. The general OS eDSL, runtime, broader concurrency and kernel
@@ -54,8 +54,9 @@ and permanently revoke joined thread and loan IDs. Two successful selections
 suffice under the supported instruction scheduler; an infinite idle trace
 shows progress is not automatic. This is an abstract read-only lifecycle
 contract. Native pthread/clone refinement, identity authentication, context
-switching, mutable workers, locks, wider atomics and the shared-increment workload
-remain required. There is no new general SC or weak-memory claim.
+switching, locks, wider atomics and the shared-increment workload remain
+required. A separate mutable exchange-worker profile is described below.
+There is no new general SC or weak-memory claim.
 
 The [atomic-exchange foundation](atomic-exchange.md) checks exact MOV/XCHG/RET
 bytes, retains a singleton indivisible RMW event and projects the update to OS
@@ -66,9 +67,21 @@ stability hold across admitted mixed histories. Exchange-only schedules prove
 old/new chaining and multiset conservation; checked handles admit every
 replacement word. The same-cell value-flow result excludes administrative gaps
 where all handles close and ordinary writes become possible again. These are
-logical managed contracts, with actor authentication, mutable worker lifecycle,
-general memory ordering and concrete runtime/kernel refinement still external.
+logical managed contracts, with actor authentication, general memory ordering
+and concrete runtime/kernel refinement still external.
 
+The [mutable atomic-worker lifecycle](atomic-workers.md) now connects those
+handles to checked root spawn, actual per-instruction MOV/XCHG/RET dispatch and
+join. Each worker owns code/stack read loans and an atomic handle until join;
+the old value is captured at its actual exchange and survives peer updates.
+Every successful later join returns that event's old word across arbitrary
+admitted mixed histories. Joined thread/handle/loan IDs stay revoked. Three own
+selections suffice in a successful supplied instruction schedule, while idling
+can continue forever. Dispatch-only schedules at one address have actual event
+chaining and multiset conservation. The latter does not establish final-memory
+chaining across mixed-history gaps without reservations. Native creation,
+publication, scheduling and join remain external; counter algorithms, locks and
+general ordering are still required.
 
 The [process slice](process-exit.md) checks a standalone twelve-byte entry that
 sets exit status42 and requests raw Linux exit60. Its ABI request records the

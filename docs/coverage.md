@@ -92,8 +92,9 @@ The `exchange32` profile checks `89 f0 87 07 c3` in exactly three instructions,
 with one event that returns the old32 word and installs low32 RSI. Raw/full-ELF
 certificates retain this event trace. Its exact binary theorem, guarded OS-cell
 bridge, same-cell history theorem, nonvacuity evidence and physical boundaries
-are detailed in [atomic exchange](atomic-exchange.md). Existing read-only workers
-are not thereby extended to mutable workers.
+are detailed in [atomic exchange](atomic-exchange.md). The separate
+[atomic-worker layer](atomic-workers.md) schedules these instructions over shared
+OS cells with handle-managed lifecycle contracts.
 
 Named proof entry points:
 
@@ -255,8 +256,10 @@ the planned shared-increment workload. Root/worker Nat names are proof labels;
 freshness concerns the lifecycle registry and does not authenticate native
 identities. Unmanaged loan release, raw writes and arbitrary external
 interference are excluded. Worker stacks do not support push/call here; TLS,
-detach, cancellation, nested spawn, mutable workers, locks/atomics and native
-publication barriers remain unimplemented. See [the full thread profile](threads.md).
+detach, cancellation, nested spawn and native publication barriers remain
+unimplemented. A separate atomic-worker profile below adds mutable exchange
+workers; locks and general memory ordering remain unimplemented. See
+[the full read-thread profile](threads.md).
 
 ## Shared atomic handles and reservations
 
@@ -281,9 +284,57 @@ peer update. See [the handle contract](atomic-handles.md).
 
 This is a logical shared authority layer. Raw accesses bypass it, finite scans
 rely on the explicit invariant and actor labels do not authenticate threads.
-Mutable worker scheduling/start/join and concrete OS/runtime refinement remain
-unimplemented. Value chaining does not extend across arbitrary mixed histories
-with zero-handle gaps; operation enabledness supplies no scheduling progress.
+Concrete OS/runtime refinement remains unimplemented. Value chaining does not
+extend across arbitrary mixed histories with zero-handle gaps; operation
+enabledness supplies no scheduling progress.
+
+## Mutable atomic-worker lifecycle
+
+`EDSL.OS.AtomicThreads` adds root-managed spawn, actual MOV/XCHG/RET dispatch,
+join and guarded mutations over the shared atomic world. Workers keep private
+registers/RIP/flags; each instruction sees current shared cells. Spawn acquires
+an actor-specific atomic handle and separate code/stack loans, without reading
+or caching the old data word. XCHG captures that instruction's actual old word
+privately, and completion retains all three resources until join.
+
+All admitted steps and histories preserve `WellFormed`. `dispatch_atomic_spec`
+connects the actual machine event, current-cell update and private result.
+`dispatched_join_value` proves every successful later join returns that event's
+old word, zero-extended, despite arbitrary admitted peer/lifecycle/resource
+actions. Joined thread, handle and loan IDs remain permanently revoked. Peer
+private contexts and surviving code/stack authority remain stable.
+
+`dispatch_enabled` and `join_enabled` establish positive operation paths;
+`schedule_own_enabled` and `three_dispatches_join` supply a finite successful
+own-instruction schedule and checked join from a preparing worker.
+`three_dispatches_spec` proves the singleton event, joined old value and final
+replacement against an independently observed initial word on that path.
+`schedule_remaining` and `schedule_three_completes` prove three selections of a
+preparing worker suffice in any successful supplied instruction schedule, with
+peer preemption. Infinite idling remains admitted. `schedule_chain` and
+`schedule_conservation` prove actual old/new chaining and duplicate-counting
+multiset conservation across arbitrary successful dispatch-only schedules when
+all workers target one address and initial memory is independently observed.
+
+Owned regressions cover all twenty two-worker instruction interleavings,
+independent old returns/final word/events, neighboring guard bytes, separate
+return stacks, RIP and flags; they also cover lifecycle errors, stale IDs,
+creation failure, partial acquisition rejection, conflicting resource changes
+and unrelated allocation/store between instructions. The certificate profiles
+and 32 compiler/process/loop artifact certificates are unchanged. Symbolic
+witnesses use checked adoption and spawn for every initial/replacement 32-bit
+pair, with an independent initial-word observation, exact event, joined old word
+and final replacement across a successful three-step schedule/join.
+
+This is an abstract lifecycle and scheduler contract with logical actor IDs.
+Its histories admit only spawn, dispatch, join, guarded mutation and idle;
+arbitrary raw exchanges and resource operations are outside the contract.
+Native pthread/clone refinement, publication, context switching and general
+x86/C++ memory ordering remain unproved. Protected invariants, counter algorithms,
+locks and wait/wake are still planned. Mixed-history result/resource proofs do
+not imply final-memory value chaining across zero-handle gaps. Counts exclude
+runtime/kernel overhead and establish no unconditional progress. See
+[atomic-worker contracts and assumptions](atomic-workers.md).
 
 ## Restricted ELF loading
 
@@ -408,6 +459,7 @@ lake env lean -DwarningAsError=true tests/Threads.lean
 lake env lean -DwarningAsError=true tests/AtomicExchange.lean
 lake env lean -DwarningAsError=true tests/OSAtomicExchange.lean
 lake env lean -DwarningAsError=true tests/Atomics.lean
+lake env lean -DwarningAsError=true tests/AtomicThreads.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

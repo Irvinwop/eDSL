@@ -116,8 +116,10 @@ new scheduler permits preemption between the load and RET; admitted mutations
 cannot change any protected byte during that interval. This does not prove a
 hardware atomic MOV rule, SC lowering, weak-memory consistency or native
 publication barriers. Concrete thread creation/publication/join and CPU context
-switch conformance remain environmental refinement obligations. General stack
-lifetimes, TLS, reclamation after failures, mutable workers and synchronization
+switch conformance remain environmental refinement obligations. The separate
+[atomic-worker profile](atomic-workers.md) now supplies mutable MOV/XCHG/RET
+workers with retained results and handle-managed lifecycles. General stack
+lifetimes, TLS, reclamation after failures and broader synchronization still
 need their own semantics and proofs.
 
 ## Evidence

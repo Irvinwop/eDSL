@@ -7,9 +7,11 @@ the caller's actor against its handle and uses the handle's stored owner,
 allocation ticket and address. The returned old word comes from current shared
 cells, including replacements made by peers after handle issuance.
 
-This is an implemented Lean resource contract. It does not yet implement
-mutable worker contexts, spawn/join, lock protocols or a concrete OS runtime.
-The existing managed-worker module still dispatches read workers.
+This is an implemented Lean resource contract. The
+[mutable atomic-worker layer](atomic-workers.md) adds private contexts,
+per-instruction dispatch and spawn/join over these handles. Lock protocols and
+a concrete OS runtime remain future work. The separate read-worker module
+retains its load/RET profile.
 
 ## Operations and interference
 
@@ -120,8 +122,9 @@ General x86 ordering, C/C++ memory-model preservation and concrete OS/hardware
 conformance remain separate obligations. A reservation supplies no unconditional
 reclamation or completion guarantee: a handle holder may never close it.
 
-Next are mutable-worker contexts that execute each MOV/XCHG/RET instruction
-against current shared cells. Their exchanged old value must remain private
-after dispatch, while peers can continue changing the shared word. Spawn/join
-must own and revoke handles and code/stack loans through that lifecycle, with
-independent token conservation across arbitrary instruction schedules.
+The mutable-worker layer now executes each MOV/XCHG/RET instruction against
+current shared cells. Its captured old value survives peer exchanges through
+join, and the lifecycle owns and revokes each worker's handle and code/stack
+loans. Arbitrary successful dispatch-only schedules at one address have actual
+event chaining and multiset conservation. See [its exact scope](atomic-workers.md)
+for the distinction between schedule value flow and mixed-history result safety.

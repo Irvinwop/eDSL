@@ -62,17 +62,19 @@ Principals/tickets remain logical labels. This API takes current-owner/ticket
 authority directly; separate stored actor authorization is supplied by the
 shared-handle layer. Same-cell histories contain exchange operations,
 without thread start/join, ordinary intervening writes, resource transfers or
-general machine-instruction schedules. The existing managed worker dispatcher
-continues to support read workers.
+general machine-instruction schedules. The separate mutable-worker layer adds
+that lifecycle over stored handles; the read-worker dispatcher retains its
+original load/RET profile.
 
 The [shared atomic-handle layer](atomic-handles.md) is now implemented over this
 exclusive-owner primitive. It stores distinct actor handles, reserves their
 allocation against ordinary changes, preserves surviving read loans elsewhere,
 and permanently revokes closed IDs. Exchange-only schedules have value-chain
-and multiset-conservation proofs. Mutable worker contexts, protected invariants,
-lock protocols and lifecycle/runtime refinement remain next. Worker dispatch
-must read current cells and retain the observed old word privately; join must
-revoke its handles and release only its own code/stack loans.
+and multiset-conservation proofs. The [mutable-worker layer](atomic-workers.md)
+now executes each actual MOV/XCHG/RET instruction against current shared cells,
+retains observed old words privately through later join, and revokes the
+worker's handle and two loans. Protected invariants, lock protocols and concrete
+runtime refinement remain future obligations.
 
 ## Supported physical profile and remaining obligations
 
