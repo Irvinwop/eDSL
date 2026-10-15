@@ -101,7 +101,15 @@ with permission-revocation and disjoint-framing proofs. A protection change
 outside a binary load's footprint preserves its contract, with a concrete
 admitted-entry witness. Independent Linux VM probes cover zero filling, denied
 access and adjacent-page preservation. Page-granular syscall refinement and the
-process/ELF obligations below remain unimplemented; see [scope](address-space.md).
+process-startup obligations below remain unimplemented; see [scope](address-space.md).
+
+The restricted ELF container step is now implemented: bounded ELF64LE parsing,
+validated load segments and page freshness, exact file-byte/BSS installation,
+preservation of existing cells and entry `CodeAt` derivation. Full observed files
+are embedded in generated Lean certificates, with compiler profiles checked
+through the modeled loader. This is a function-container guarantee, with explicit
+caller stack/data conditions; Linux loader conformance and process startup remain
+next obligations. See [ELF scope](elf.md).
 
 Model a restricted static ELF, segment/entry validation, startup stack/auxiliary
 state, final-byte identity, minimal syscall ABI and termination. Add a tiny

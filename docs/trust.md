@@ -20,6 +20,13 @@ Native VM probes are independent conformance observations for selected successfu
 operations and denied accesses. Their exact boundary is in the
 [address-space report](address-space.md).
 
+The restricted ELF path checks complete observed bytes, parser/validation results
+and entry-code binding through a modeled loader. It removes the raw path's
+unverified extraction dependency for those artifacts, while retaining explicit
+caller mappings/stack/data conditions. This does not prove Linux page-padding,
+relocation, startup, dynamic linking or loader implementation behavior; see the
+[ELF boundary](elf.md).
+
 `lake build` checks the declarations with Lean 4.35.0. The audit traverses
 transitive axiom dependencies of declarations under `EDSL` and permits only
 Lean's standard `propext`, `Quot.sound`, and `Classical.choice`. It rejects

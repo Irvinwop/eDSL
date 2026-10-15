@@ -107,6 +107,21 @@ termination and count. All old data and 64-bit store arguments have admitted
 witnesses. These are still sequential byte-cell updates, not physical page,
 aliasing, resource-identity or concurrent-atomicity proofs.
 
+## Restricted ELF loading
+
+The optional `--elf` path checks complete ELF64 little-endian x86-64 `ET_EXEC`
+containers. It validates program headers, file/address bounds, readable supported
+permissions, alignment congruence, ordered disjoint page ranges and file-backed
+executable entry windows. Exact segment bytes and BSS zeros are installed in the
+OS cell model after checking freshness over rounded pages. Existing cells are
+preserved. Page padding and Linux process startup are not modeled.
+
+`ELF.checked_entry_code` derives `CodeAt` from a checked initialized entry window.
+Generated certificates contain all observed ELF bytes and a checked parser result;
+their function theorem includes successful modeled loading and retains caller
+freshness, stack/data and return-target conditions. It does not require an input
+`CodeAt` premise. See [ELF scope and proofs](elf.md) for caps and unsupported forms.
+
 ## Live compiler-output certificates
 
 `edsl-certify` reads a raw function-byte file, accepts only the selected profile's
@@ -128,9 +143,10 @@ cover unmapped/denied store bytes and wrapping/noncanonical operands.
 
 Provenance records compiler versions/arguments, linked ELF metadata/disassembly
 and source/artifact hashes. GCC 13 uses `gnu2x`; Clang uses `gnu23`/`gnu++26`.
-ELF containers are not standalone process proofs. ELF parsing, relocation/loading
-and Linux startup remain unverified. `CodeAt` explicitly connects certified bytes
-to executed memory. Binutils, transport, the native driver and physical
+ELF containers are not standalone process proofs. Linux loader conformance,
+relocation and startup remain unverified. Raw-mode `CodeAt` explicitly connects
+certified bytes to executed memory; ELF mode derives it for the modeled image.
+Binutils, transport, the native driver and physical
 OS/hardware remain outside the proof. Hashes aid reproduction; the theorem names
 exact bytes. CI preserves only owned fixture artifacts; never put real findings
 or confidential material in the upload path.
@@ -144,6 +160,7 @@ lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
 lake env lean -DwarningAsError=true tests/OSComposition.lean
 lake env lean -DwarningAsError=true tests/WordStore.lean
+lake env lean -DwarningAsError=true tests/ELF.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
@@ -156,6 +173,7 @@ and ordinary mmap/mprotect support. To certify raw function files:
 lake exe edsl-certify increment FUNCTION.bin artifacts/Increment.lean
 lake exe edsl-certify load32 FUNCTION.bin artifacts/Load.lean
 lake exe edsl-certify store32 FUNCTION.bin artifacts/Store.lean
+lake exe edsl-certify --elf increment FUNCTION.elf artifacts/ELF.lean
 ```
 
 The two-argument form retains the default `increment` profile. Exit 0 means the

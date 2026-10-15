@@ -33,9 +33,10 @@ verify_one() {
     readelf -h -l -s "$directory/function.elf" > "$directory/elf.txt"
     objdump -d "$directory/function.elf" > "$directory/disassembly.txt"
     lake env "$certifier" "$profile" "$directory/function.bin" "$directory/Certificate.lean"
+    lake env "$certifier" --elf "$profile" "$directory/function.elf" "$directory/ELFCertificate.lean"
     "$output/native-check" "$profile" "$directory/function.bin"
     sha256sum "$source" "$directory/function.o" "$directory/function.elf" \
-        "$directory/function.bin" "$directory/Certificate.lean" > "$directory/SHA256SUMS"
+        "$directory/function.bin" "$directory/Certificate.lean" "$directory/ELFCertificate.lean" > "$directory/SHA256SUMS"
     echo "Verified and executed $name"
 }
 
@@ -81,6 +82,25 @@ for specification in load32 store32; do
     fi
 done
 echo 'Load/store contract mismatches remain unverified'
+
+# The ELF path must bind the complete file and its selected contract. These are
+# owned mutations of the fixture, never third-party findings or reproducers.
+objcopy --update-section ".text=$output/rejections/wrong-immediate.bin" \
+    "$output/clang-c/function.elf" "$output/rejections/wrong-elf-immediate.elf"
+for specification in increment load32 store32; do
+    candidate="$output/rejections/wrong-elf-immediate.elf"
+    if [[ $specification == load32 ]]; then candidate="$output/clang-c-store32/function.elf"; fi
+    if [[ $specification == store32 ]]; then candidate="$output/clang-c-load32/function.elf"; fi
+    status=0
+    lake env "$certifier" --elf "$specification" "$candidate" \
+        "$output/rejections/wrong-elf-$specification.lean" > "$output/rejections/wrong-elf-$specification.log" 2>&1 || status=$?
+    if [[ $status -ne 3 ]]; then
+        cat "$output/rejections/wrong-elf-$specification.log"
+        echo "Wrong ELF contract was not rejected for $specification" >&2
+        exit 1
+    fi
+done
+echo 'Mutated ELF code and load/store ELF contract mismatches remain unverified'
 
 # Independent Linux observations for the abstract address-space contracts.
 # Faults are deliberate owned fixtures in child processes with core dumps off.

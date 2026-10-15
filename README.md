@@ -52,6 +52,8 @@ Implemented and checked:
   unmapping, permission-revocation proofs and composition with a binary contract.
 - A checked OS word store whose cell update projects exactly to the machine
   store, with all-input compiler-binary composition and retained permissions.
+- A restricted ELF64 loader with bounds, permissions, BSS and page-collision
+  checks; full-file certificates derive executable entry-code binding.
 - A Lean certificate CLI and live C/C++ compile→link→byte extraction→proof→native
   integration checks, with fail-closed rejection cases.
 - A two-instruction lower bound within the supported ISA subset.
@@ -59,8 +61,8 @@ Implemented and checked:
 - Optional native GNU23/GNU++26 compiler probes retained from the bootstrap.
 
 The certifier accepts three exact function profiles, each returning in two modeled
-instructions. Other correct encodings remain unsupported. ELF loading,
-Linux syscall/kernel refinement, concurrency and general source eDSLs/validators remain
+instructions. Other correct encodings remain unsupported. Linux loader/syscall/
+kernel refinement, concurrency and general source eDSLs/validators remain
 planned. See the precise
 [implemented coverage and trust boundary](docs/coverage.md).
 
@@ -70,6 +72,7 @@ planned. See the precise
 | --- | --- |
 | [Implemented coverage](docs/coverage.md) | What can run and what has actually been proved? |
 | [Address-space contracts](docs/address-space.md) | How do mapping and permission changes connect to binary proofs? |
+| [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |
@@ -99,6 +102,7 @@ lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
 lake env lean -DwarningAsError=true tests/OSComposition.lean
 lake env lean -DwarningAsError=true tests/WordStore.lean
+lake env lean -DwarningAsError=true tests/ELF.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
