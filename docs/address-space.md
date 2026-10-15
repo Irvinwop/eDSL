@@ -24,6 +24,7 @@ limits are not imposed here.
 | `protect` | New permissions with identical stored bytes | Invalid range, unsupported permissions, any unmapped-byte hole |
 | `unmap` | Cells removed from the whole region | Invalid range, any unmapped-byte hole |
 | `writeByte` | One writable byte changed with other cells preserved | Noncanonical address, unmapped cell or denied write |
+| `storeWord` | Four-byte store after complete operand preflight, preserving cell permissions | Denied, unmapped, wrapping or noncanonical operand |
 
 The current machine interface needs readable bytes for both instruction fetch
 and stores. Write-only and execute-only permission requests are explicitly
@@ -52,6 +53,13 @@ There is no backing-resource budget or allocation-failure branch yet.
   with the exact-byte load proof. If the changed region avoids the function's
   code, data and return stack, the function retains its result, two-instruction
   termination and unique completed result/count.
+- `writeWord_projects` equates a natural-address OS cell update to the machine's
+  modular-address four-byte store for every admitted state and value.
+- `storeWord_sound` connects checked success, machine store, exact readback,
+  mappedness/permission preservation and outside-footprint framing.
+- `store32_updates_space` proves that actual store/RET bytes return with the OS
+  cell update projected into the final machine state, including termination and
+  unique state/count. The proof retains the code and return-stack premises.
 
 `tests/AddressSpace.lean` exercises a checked map/write/protect/hide/restore/
 unmap/remap lifecycle, checking retained data, zeroing on remap and neighboring
@@ -61,6 +69,15 @@ composition theorem with concrete admitted inputs and exact compiler bytes,
 checks the caller-visible result, and confirms that revoking the actual data
 region makes the modeled load fail. The transitive axiom audit covers both
 modules and their regression declarations.
+
+`tests/WordStore.lean` supplies admitted entries for every old 32-bit value and
+every 64-bit store argument, and exercises store/hide/restore/read behavior with
+neighboring guard cells. It checks fourth-byte permission denial, hidden/unmapped
+cells, wrapped operands and truncation of high source-register bits. `storeWord`
+shares the machine operand preflight; its OS update uses natural addresses and
+byte slices, while the machine uses modular offsets. The projection theorem
+proves these representations agree. Failure returns no updated state; it does
+not model hardware exception delivery or concurrent visibility.
 
 ## Linux conformance observations and remaining work
 
@@ -80,8 +97,7 @@ it must not silently identify the two APIs. See the primary
 and [mprotect documentation](https://man7.org/linux/man-pages/man2/mprotect.2.html).
 
 Next obligations are page-based syscall semantics and errors, resource identity
-and exhaustion, correspondence between binary stores and backing-space updates,
-loading/ABI proofs, and threads/atomics with an explicit memory model. Aliasing,
+and exhaustion, loading/ABI proofs, and threads/atomics with an explicit memory model. Aliasing,
 physical pages, protection keys, TLB revocation, signals and kernel-byte
 refinement remain outside the present contract. All current updates are
 sequential; functional state updates alone make no concurrent atomicity claim.

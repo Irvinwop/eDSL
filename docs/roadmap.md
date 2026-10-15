@@ -119,6 +119,12 @@ per-byte mappedness/write permissions, read-after-write, disjoint framing and
 nonvacuous compiler-profile witnesses. This is not yet object ownership, an
 allocator, concurrent atomicity, calls beyond the modeled return, or loop support.
 
+The OS/machine memory bridge now proves that checked word stores update natural-
+address OS cells exactly as the machine store updates projected memory. Actual
+compiler store bytes implement that OS update for all admitted values, retaining
+permissions and outside-footprint cells. Physical backing, aliasing and resource
+identity remain future obligations.
+
 Add object lifetimes, permissions, stack/heap regions, layout/alignment,
 provenance relations, allocation/mapping failures and cleanup. Prove supported
 calls/returns and loop invariants/variants. Introduce reusable ownership rules

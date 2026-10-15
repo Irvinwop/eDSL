@@ -100,6 +100,13 @@ failure, page tables, aliasing, physical reclamation or concurrent revocation.
 Full mappedness is required even for abstract unmap; Linux allows unmapped holes.
 See [address-space contracts](address-space.md) for the exact API and boundary.
 
+`writeWord_projects` proves that a checked 32-bit OS cell update has exactly the
+machine store's projected bytes and permissions. `store32_updates_space` composes
+that update with actual compiler bytes, preserving registers, return behavior,
+termination and count. All old data and 64-bit store arguments have admitted
+witnesses. These are still sequential byte-cell updates, not physical page,
+aliasing, resource-identity or concurrent-atomicity proofs.
+
 ## Live compiler-output certificates
 
 `edsl-certify` reads a raw function-byte file, accepts only the selected profile's
@@ -136,6 +143,7 @@ lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
 lake env lean -DwarningAsError=true tests/OSComposition.lean
+lake env lean -DwarningAsError=true tests/WordStore.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

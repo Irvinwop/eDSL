@@ -50,6 +50,8 @@ Implemented and checked:
   read-after-write and disjoint code/stack preservation proofs.
 - A sequential OS address-space model with checked mapping, protection and
   unmapping, permission-revocation proofs and composition with a binary contract.
+- A checked OS word store whose cell update projects exactly to the machine
+  store, with all-input compiler-binary composition and retained permissions.
 - A Lean certificate CLI and live C/C++ compile→link→byte extraction→proof→native
   integration checks, with fail-closed rejection cases.
 - A two-instruction lower bound within the supported ISA subset.
@@ -96,6 +98,7 @@ lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
 lake env lean -DwarningAsError=true tests/OSComposition.lean
+lake env lean -DwarningAsError=true tests/WordStore.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
