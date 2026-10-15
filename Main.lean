@@ -23,7 +23,7 @@ private def parameters (profile : Profile) : String :=
     "    (allowed : canStoreDWord initial.memory (initial.registers .rdi) = true)\n" ++
     "    (codeDisjoint : DWordDisjoint (initial.registers .rdi) initial.rip observedBytes.length)\n" ++
     "    (stackDisjoint : DWordDisjoint (initial.registers .rdi) (initial.registers .rsp) 8)\n" ++ stack
-  | .exchange32 =>
+  | .exchange32 | .fetchAdd32 =>
     "(initial : State) (old : BitVec 32) (returnAddress : Word)\n" ++ code ++
     "    (supported : atomicAddressable (initial.registers .rdi) = true)\n" ++
     "    (allowed : canStoreDWord initial.memory (initial.registers .rdi) = true)\n" ++
@@ -38,6 +38,7 @@ private def finalExpression (profile : Profile) (state : String := "initial") : 
   | .load32 => s!"Examples.Compiler.MemoryOps.loadFinal {state} value returnAddress"
   | .store32 => s!"Examples.Compiler.MemoryOps.storeFinal {state} returnAddress"
   | .exchange32 => s!"Examples.Compiler.Exchange.finalState {state} old returnAddress"
+  | .fetchAdd32 => s!"Examples.Compiler.FetchAdd.finalState {state} old returnAddress"
 
 private def proofExpression (profile : Profile) (state : String := "initial")
     (code : String := "code") : String :=
@@ -52,19 +53,23 @@ private def proofExpression (profile : Profile) (state : String := "initial")
     s!"Certificate.store32_sound observedBytes (by decide) {state} returnAddress {code} allowed codeDisjoint stackDisjoint stack returnValid"
   | .exchange32 =>
     s!"Certificate.exchange32_sound observedBytes (by decide) {state} old returnAddress {code} supported allowed data codeDisjoint stackDisjoint stack returnValid"
+  | .fetchAdd32 =>
+    s!"Certificate.fetchAdd32_sound observedBytes (by decide) {state} old returnAddress {code} supported allowed data codeDisjoint stackDisjoint stack returnValid"
 
 private def byteLiterals (bytes : List EDSL.X86.Byte) : String :=
   String.intercalate ", " (bytes.map (fun byte => toString byte.toNat))
 
 private def instructionCount (profile : Profile) (state : String) : String :=
   if profile = .incrementLoop then s!"(Examples.Compiler.IncrementLoop.cost ({state}.registers .rcx).toNat)"
-  else if profile = .exchange32 then "3"
+  else if profile = .exchange32 || profile = .fetchAdd32 then "3"
   else "2"
 
 private def conclusion (profile : Profile) (state final : String) : String :=
   let count := instructionCount profile state
   (if profile = .exchange32 then
     s!"    AtomicExecutes {state} ({final}) 3 [Examples.Compiler.Exchange.event {state} old] ∧\n"
+   else if profile = .fetchAdd32 then
+    s!"    AtomicExecutes {state} ({final}) 3 [Examples.Compiler.FetchAdd.event {state} old] ∧\n"
    else "") ++
   s!"    Executes {state} ({final}) {count} ∧\n" ++
   s!"    ¬ Diverges {state} ∧\n" ++
@@ -82,7 +87,7 @@ private def certificateSource (profile : Profile) (bytes : List EDSL.X86.Byte) :
 private def elfParameters (profile : Profile) : String :=
   let start := "(prior : Space) (initial : State) " ++
     (if profile = .load32 then "(value : BitVec 32) "
-     else if profile = .exchange32 then "(old : BitVec 32) " else "") ++ "(returnAddress : Word)\n" ++
+     else if profile = .exchange32 || profile = .fetchAdd32 then "(old : BitVec 32) " else "") ++ "(returnAddress : Word)\n" ++
     "    (free : ELF.fresh observedImage prior = true)\n"
   let data := match profile with
     | .increment | .incrementLoop => ""
@@ -92,7 +97,7 @@ private def elfParameters (profile : Profile) : String :=
       "    (allowed : canStoreDWord (toMemory (loadedSpace prior)) (initial.registers .rdi) = true)\n" ++
       "    (codeDisjoint : DWordDisjoint (initial.registers .rdi) (ELF.codeAddress observedImage) observedBytes.length)\n" ++
       "    (stackDisjoint : DWordDisjoint (initial.registers .rdi) (initial.registers .rsp) 8)\n"
-    | .exchange32 =>
+    | .exchange32 | .fetchAdd32 =>
       "    (supported : atomicAddressable (initial.registers .rdi) = true)\n" ++
       "    (allowed : canStoreDWord (toMemory (loadedSpace prior)) (initial.registers .rdi) = true)\n" ++
       "    (data : loadDWord (toMemory (loadedSpace prior)) (initial.registers .rdi) = .ok old)\n" ++
@@ -163,7 +168,7 @@ private def createSource (request : Request) (bytes : List EDSL.X86.Byte) : IO (
 def main (arguments : List String) : IO UInt32 := do
   let stderr ← IO.getStderr
   let some request := parseArguments arguments | do
-    stderr.putStrLn "usage: edsl-certify [--elf] [increment|increment-loop|load32|store32|exchange32] FUNCTION CERTIFICATE.lean"
+    stderr.putStrLn "usage: edsl-certify [--elf] [increment|increment-loop|load32|store32|exchange32|fetch-add32] FUNCTION CERTIFICATE.lean"
     return 2
   let raw ← IO.FS.readBinFile request.input
   let bytes := raw.data.toList.map (fun byte => BitVec.ofNat 8 byte.toNat)
@@ -184,6 +189,7 @@ def main (arguments : List String) : IO UInt32 := do
   let artifact := if request.elf then "ELF container" else "raw function"
   let cost := if request.profile = .incrementLoop then "2*initial_RCX+3 modeled instructions; proved termination for every 64-bit count"
     else if request.profile = .exchange32 then "three modeled instructions; one labeled indivisible exchange under the atomic RAM profile"
+    else if request.profile = .fetchAdd32 then "three modeled instructions; one labeled indivisible modular fetch-add with addition status flags under the atomic RAM profile"
     else "two modeled instructions"
   stdout.putStrLn s!"CERTIFIED {request.profile.name}: {raw.size} exact {artifact} bytes; all admitted entries; {cost}; certificate {absolute}"
   return 0

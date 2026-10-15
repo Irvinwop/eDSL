@@ -84,6 +84,7 @@ execution, kernel cleanup and waiting are outside these counts.
 | --- | --- |
 | Increment, load32 and store32 exact cost: two instructions | Their checked byte profiles, for every admitted function entry; includes return-stack and memory preconditions |
 | `Exchange.atomic_execution`: exactly three instructions and one RMW event | Every admitted `exchange32` function entry, including supported atomic operand, disjoint code/stack and readable return; no latency or minimum-cost claim |
+| `FetchAdd.atomic_execution`: exactly three instructions and one modular-add RMW event | Every admitted `fetch-add32` entry with its atomic operand and code/return-stack conditions; includes arithmetic flags, excludes runtime/kernel work and establishes no optimality |
 | `Increment.zero_input_lower_bound`: at least two instructions | Every supported terminating function execution producing the increment result from zero input and zero initial RAX |
 | `Exit42.reaches_request`: exactly three instructions | Its twelve checked entry bytes, every modeled initial register/flags state and admitted code mapping |
 | `Exit42.zero_register_lower_bound`: at least three instructions | Every supported first-syscall execution from initial RAX = RDI = 0 requesting raw exit60 with status42 |

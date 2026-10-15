@@ -207,7 +207,7 @@ def missingModRM : State :=
     read := fun address => if address = 4099 then none else atExchange.memory.read address } }
 
 example : step unsupportedModRM = .error .unsupportedEncoding := by rfl
-example : step lockPrefix = .error (.unsupportedOpcode 0xf0) := by rfl
+example : step lockPrefix = .error .unsupportedEncoding := by rfl
 example : step missingModRM = .error (.inaccessibleInstruction 4099) := by rfl
 
 end EDSL.Tests.AtomicExchange

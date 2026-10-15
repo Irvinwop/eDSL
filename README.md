@@ -50,6 +50,8 @@ Implemented and checked:
   OS-cell projection, guarded resource authority and same-cell value-flow histories.
 - Shared atomic handles with per-actor authorization, allocation reservations,
   permanent revocation, read-loan stability and exchange-trace value conservation.
+- Locked fetch-add with arithmetic flags, exact compiler certificates, guarded
+  OS-handle composition and all-finite-trace modular counter results.
 - Mutable atomic workers with actual MOV/XCHG/RET instruction scheduling,
   retained old results through join, resource revocation and schedule value-flow proofs.
 - A counted assembly loop with a proved invariant and termination for every
@@ -80,7 +82,7 @@ Implemented and checked:
 - Optional native GNU23/GNU++26 compiler probes retained from the bootstrap.
 
 The function certifier accepts three two-instruction profiles, the three-instruction
-`exchange32` profile and the counted `increment-loop` profile. The process certifier
+`exchange32` and `fetch-add32` profiles and the counted `increment-loop` profile. The process certifier
 accepts exit42 (three user instructions) and write-exit42 (eight across a completed write). Other correct
 encodings remain unsupported. Linux loader/kernel refinement, broader syscalls,
 locks, weak memory and general source eDSLs/validators remain planned. See
@@ -97,6 +99,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Read-worker scheduling](docs/threads.md) | How do actual machine instructions compose with spawn, shared resources and join? |
 | [Atomic exchange](docs/atomic-exchange.md) | How does an exact XCHG event update OS cells and respect existing read authority? |
 | [Shared atomic handles](docs/atomic-handles.md) | How can actors share an atomic word while blocking conflicting resource changes? |
+| [Fetch-add and counters](docs/fetch-add.md) | How do locked arithmetic, status flags and counter traces connect to compiler bytes and OS resources? |
 | [Mutable atomic workers](docs/atomic-workers.md) | How do interleaved MOV/XCHG/RET instructions retain actual old values through join? |
 | [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
 | [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
@@ -148,11 +151,13 @@ lake env lean -DwarningAsError=true tests/AtomicExchange.lean
 lake env lean -DwarningAsError=true tests/OSAtomicExchange.lean
 lake env lean -DwarningAsError=true tests/Atomics.lean
 lake env lean -DwarningAsError=true tests/AtomicThreads.lean
+lake env lean -DwarningAsError=true tests/FetchAdd.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
 bash scripts/verify-process.sh
 bash scripts/verify-loops.sh
+bash scripts/verify-fetch-add.sh
 ```
 
 `lean-toolchain` pins Lean 4.35.0. The library currently needs no third-party

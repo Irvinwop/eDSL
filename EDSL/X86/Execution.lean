@@ -124,6 +124,7 @@ theorem returned_preserves_rax {initial final : State}
     | movEaxEdi => simp [step, decoded] at transition
     | movEaxEsi => simp [step, decoded] at transition
     | exchangeEaxRdi => cases exchanged : executeExchange initial <;> simp [step, decoded, exchanged] at transition
+    | fetchAddEaxRdi => cases added : executeFetchAdd initial <;> simp [step, decoded, added] at transition
     | jrcxz displacement => cases jumped : executeJrcxz initial displacement <;> simp [step, decoded, jumped] at transition
     | loopRcx displacement => cases jumped : executeLoop initial displacement <;> simp [step, decoded, jumped] at transition
     | loadEaxRdi => cases loaded : executeLoad initial <;> simp [step, decoded, loaded] at transition

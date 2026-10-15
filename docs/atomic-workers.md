@@ -125,8 +125,9 @@ RIP, flags and exact actor-labeled events. Further cases cover premature joins
 at every phase, extra dispatch, wrong parent, stale IDs after respawn, creation
 failure, failure after loan acquisition, protected code/stack/data, unrelated
 allocation and store between instructions, changed code and a denied final
-data byte. Existing compiler integration still generates 32 certificates;
-this lifecycle adds no new native runtime certificate.
+data byte. This lifecycle adds no new native runtime certificate. The separate
+[fetch-add profile](fetch-add.md) adds arithmetic and counter-trace proofs;
+this worker dispatcher still accepts only the exchange routine.
 
 Symbolic witnesses build a well-formed owned world through checked adoption
 for every initial and replacement 32-bit word, successfully spawn the worker

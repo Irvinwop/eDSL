@@ -241,6 +241,16 @@ and a successful three-step schedule/join cover every initial/replacement
 counter algorithm, general memory ordering or native start/join refinement;
 see [atomic-worker scope](atomic-workers.md).
 
+The locked fetch-add prerequisite is now implemented: exact compiler bytes,
+all six arithmetic flags, one labeled modular RMW event, checked OS-handle
+composition and arbitrary finite same-cell initial-plus-deltas counter traces.
+Every old/delta pair has an admitted checked-allocation/handle witness. Native
+checks compare flags with Lean and verify 800,000 contended unique old results
+per compiler. The next dependency is a fetch-add worker increment-loop and its
+spawn/join result and safe-reclamation invariants, followed by concrete runtime
+refinement. The existing worker dispatcher still accepts only exchange code;
+see [fetch-add scope](fetch-add.md).
+
 Specify real thread start/join, argument publication, ownership transfer,
 creation failure and partial cleanup. Use sequentially consistent atomics first,
 with a proved mapping to the chosen machine model. If libc/pthreads is used,
@@ -301,7 +311,7 @@ instructions and elapsed time. Do not claim global optimality from a bounded
 search or hardware timing from an ISA step count.
 
 Implemented: exact two-instruction increment/load/store and three-instruction
-exchange counts, the increment lower bound for zero input/RAX, and an exact three-instruction first-syscall
+exchange/fetch-add counts, the increment lower bound for zero input/RAX, and an exact three-instruction first-syscall
 count for exit42, plus `2*count+3` for the all-count assembly loop. Any supported
 first-syscall candidate requesting exit60/status42 from initial RAX = RDI = 0
 needs at least three user instructions; the checked

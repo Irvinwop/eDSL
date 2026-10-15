@@ -120,6 +120,7 @@ theorem syscall_uses_user_state {initial : State} {request : SyscallRequest}
     | movEaxEdi => simp [step, decoded] at transition
     | movEaxEsi => simp [step, decoded] at transition
     | exchangeEaxRdi => cases exchanged : executeExchange initial <;> simp [step, decoded, exchanged] at transition
+    | fetchAddEaxRdi => cases added : executeFetchAdd initial <;> simp [step, decoded, added] at transition
     | jrcxz displacement =>
       cases jumped : executeJrcxz initial displacement <;> simp [step, decoded, jumped] at transition
     | loopRcx displacement =>
@@ -160,6 +161,7 @@ theorem next_preserves_rax_or_rdi {initial middle : State}
       cases transition
       exact Or.inr (by simp [executeMovEaxEsi, State.writeRegister])
     | exchangeEaxRdi => cases exchanged : executeExchange initial <;> simp [step, decoded, exchanged] at transition
+    | fetchAddEaxRdi => cases added : executeFetchAdd initial <;> simp [step, decoded, added] at transition
     | jrcxz displacement =>
       cases jumped : executeJrcxz initial displacement with
       | error error => simp [step, decoded, jumped] at transition
@@ -224,6 +226,13 @@ theorem atomic_preserves_rdi {initial middle : State} {event : AtomicEvent}
         simp [step, decoded, exchanged] at transition
         rw [← transition.2]
         exact executeExchange_preserves_rdi exchanged
+    | fetchAddEaxRdi =>
+      cases added : executeFetchAdd initial with
+      | error fault => simp [step, decoded, added] at transition
+      | ok output =>
+        simp [step, decoded, added] at transition
+        rw [← transition.2]
+        exact executeFetchAdd_preserves_rdi added
 
 theorem Invokes.changing_two_registers_costs_three {initial : State}
     {request : SyscallRequest} {count : Nat} (execution : Invokes initial request count)

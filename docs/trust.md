@@ -123,6 +123,17 @@ context switching, protected invariants, locks and general memory ordering
 remain unproved. The CLI does not infer worker registries. See
 [mutable-worker scope](atomic-workers.md).
 
+The `fetch-add32` profile adds exact MOV/LOCK-XADD/RET certificates with one
+modular-add event and correct addition status flags. Kernel-checked flag proofs
+state arithmetic carry/overflow and preserved nonstatus bits. The OS checked
+handle operation preserves existing resource contracts, has actual-instruction
+and complete-routine bridges, and proves finite same-cell counter traces equal
+the observed initial value plus all deltas modulo 2^32. Symbolic witnesses cover
+every initial word/delta. Native flag observations and unique-old counter stress
+checks supplement these proofs. No fetch-add worker-loop/lifecycle, unrestricted
+interference, natural-number no-overflow, general memory-ordering or physical
+conformance claim follows. See [the fetch-add boundary](fetch-add.md).
+
 Physical interpretation requires the explicit aligned coherent-WB-RAM profile,
 stable translation/permissions, excluded aliases/mixed-size overlaps and stable
 code/stack. Locked-instruction ordering, general x86-TSO, C/C++ memory-model

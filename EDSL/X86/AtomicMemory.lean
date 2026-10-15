@@ -56,6 +56,35 @@ theorem exchangeDWord_success (memory : Memory) (address : Word) (old value : Bi
     exchangeDWord memory address value = .ok (writeDWordUnchecked memory address value, old) := by
   simp [exchangeDWord, supported, allowed, read]
 
+/-- A single indivisible modular fetch-add over the same restricted atomic
+RAM profile. The returned word is the observed destination before addition. -/
+def fetchAddDWord (memory : Memory) (address : Word) (delta : BitVec 32) :
+    Except Error (Memory × BitVec 32) := do
+  if !atomicAddressable address then throw (.unsupportedAtomicAddress address)
+  if !canStoreDWord memory address then throw (.writeDenied address)
+  let old ← loadDWord memory address
+  return (writeDWordUnchecked memory address (old + delta), old)
+
+theorem fetchAddDWord_ok (memory : Memory) (address : Word) (delta : BitVec 32)
+    (result : Memory × BitVec 32) (success : fetchAddDWord memory address delta = .ok result) :
+    ExchangeTransition memory ⟨address, result.2, result.2 + delta⟩ result.1 := by
+  by_cases addressValid : atomicAddressable address = true
+  · by_cases allowed : canStoreDWord memory address = true
+    · cases read : loadDWord memory address with
+      | error fault => simp [fetchAddDWord, addressValid, allowed, read] at success
+      | ok old =>
+        simp [fetchAddDWord, addressValid, allowed, read] at success
+        subst result
+        exact ⟨addressValid, allowed, read, rfl⟩
+    · simp [fetchAddDWord, addressValid, allowed] at success
+  · simp [fetchAddDWord, addressValid] at success
+
+theorem fetchAddDWord_success (memory : Memory) (address : Word) (old delta : BitVec 32)
+    (supported : atomicAddressable address = true) (allowed : canStoreDWord memory address = true)
+    (read : loadDWord memory address = .ok old) :
+    fetchAddDWord memory address delta = .ok (writeDWordUnchecked memory address (old + delta), old) := by
+  simp [fetchAddDWord, supported, allowed, read]
+
 theorem ExchangeTransition.readback {memory result : Memory} {event : AtomicEvent}
     (transition : ExchangeTransition memory event result) : loadDWord result event.address = .ok event.after := by
   rw [transition.2.2.2]

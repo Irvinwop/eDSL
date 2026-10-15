@@ -49,6 +49,7 @@ jobs:
           lake env lean -DwarningAsError=true tests/OSAtomicExchange.lean
           lake env lean -DwarningAsError=true tests/Atomics.lean
           lake env lean -DwarningAsError=true tests/AtomicThreads.lean
+          lake env lean -DwarningAsError=true tests/FetchAdd.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment
@@ -70,6 +71,11 @@ jobs:
         env:
           EDSL_CLANG: clang-18
         run: bash scripts/verify-loops.sh
+      - name: Certify fetch-add and compare arithmetic flags with native observations
+        env:
+          EDSL_CLANG: clang-18
+          EDSL_CLANGXX: clang++-18
+        run: bash scripts/verify-fetch-add.sh
       - name: Preserve owned fixture certificates and build provenance
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -87,4 +93,10 @@ jobs:
         with:
           name: process-fixture-certificates
           path: artifacts/process-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned fetch-add certificates and native observations
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fetch-add-fixture-certificates
+          path: artifacts/fetch-add-fixtures/
           if-no-files-found: error

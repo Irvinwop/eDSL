@@ -29,6 +29,8 @@ or verified OS.
 - `89 f0`: MOV EAX, ESI; `87 07`: implicitly locked XCHG DWORD PTR [RDI], EAX.
   XCHG emits one indivisible RMW event with actual old/new words, updates the
   four-byte operand and zero-extends the old value into RAX, preserving flags.
+- `f0 0f c1 07`: LOCK XADD DWORD PTR [RDI], EAX, an indivisible modular
+  fetch-add with old-value return and all six addition status flags.
 - `e3 cb` / `e2 cb`: JRCXZ / LOOP rel8, signed offsets from the next instruction,
   full RCX and no flag changes. Taken noncanonical branch targets reject. Prefixes
   and other loop/condition forms remain unsupported.
@@ -48,7 +50,7 @@ or verified OS.
 
 Ordinary loads/stores model sequential RAM. A functional four-byte write alone
 is **not an atomicity or concurrent-visibility theorem**. The separate XCHG
-profile has an indivisible abstract event; physical interpretation requires aligned
+and locked-XADD profiles have indivisible abstract events; physical interpretation requires aligned
 coherent WB RAM, stable translation and the restrictions in [atomic exchange](atomic-exchange.md).
 Concurrent code/data changes outside admitted exchange histories,
 MMIO, page faults outside this interface and real exception delivery are out of
@@ -321,7 +323,7 @@ independent old returns/final word/events, neighboring guard bytes, separate
 return stacks, RIP and flags; they also cover lifecycle errors, stale IDs,
 creation failure, partial acquisition rejection, conflicting resource changes
 and unrelated allocation/store between instructions. The certificate profiles
-and 32 compiler/process/loop artifact certificates are unchanged. Symbolic
+are unchanged by this worker layer. Symbolic
 witnesses use checked adoption and spawn for every initial/replacement 32-bit
 pair, with an independent initial-word observation, exact event, joined old word
 and final replacement across a successful three-step schedule/join.
@@ -335,6 +337,28 @@ locks and wait/wake are still planned. Mixed-history result/resource proofs do
 not imply final-memory value chaining across zero-handle gaps. Counts exclude
 runtime/kernel overhead and establish no unconditional progress. See
 [atomic-worker contracts and assumptions](atomic-workers.md).
+
+## Locked fetch-add and modular counters
+
+The exact `fetch-add32` profile checks MOV/LOCK-XADD/RET in three instructions,
+returning the actual old32 value and installing its modular sum with low32 RSI.
+All six addition status flags are modeled and their bit positions, carry and
+signed-overflow interpretations, and other-bit preservation are proved without
+unchecked solver dependencies. Exact raw/full-ELF compiler certificates retain
+the singleton RMW event, termination and unique result/count.
+
+The checked OS-handle operation preserves the shared resource invariant and
+projects to existing guarded histories. Its actual instruction and complete
+compiler-routine bridges bind final machine memory to updated OS cells.
+`AddTrace.counter` proves the final initial-plus-deltas modular sum across every
+successful finite same-cell trace. Positive enabledness and symbolic admitted
+states cover every old/delta pair. This does not yet extend worker dispatch to
+fetch-add or prove native thread lifecycles/general memory ordering.
+
+The integration total is now 38 artifact certificates, including six fetch-add
+certificates. Independent native observations check 144 flag pairs and 800,000
+contended increments with unique old results per compiler. See the exact
+[fetch-add contracts, evidence and limits](fetch-add.md).
 
 ## Restricted ELF loading
 
@@ -460,11 +484,13 @@ lake env lean -DwarningAsError=true tests/AtomicExchange.lean
 lake env lean -DwarningAsError=true tests/OSAtomicExchange.lean
 lake env lean -DwarningAsError=true tests/Atomics.lean
 lake env lean -DwarningAsError=true tests/AtomicThreads.lean
+lake env lean -DwarningAsError=true tests/FetchAdd.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
 bash scripts/verify-process.sh
 bash scripts/verify-loops.sh
+bash scripts/verify-fetch-add.sh
 ```
 
 Integration needs Linux/x86-64, Clang accepting the named modes, GCC, binutils
