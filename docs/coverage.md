@@ -165,11 +165,43 @@ overlap, inaccessible adoption and permission restoration. See [ownership scope]
 These are sequential proof-level authorities. Tickets/principals are constructible
 data, raw instructions do not inspect them, and unmanaged mapping changes are
 excluded from the managed history. No hardware stale-pointer prevention, linear
-token discipline, C/C++ object provenance, runtime allocator, borrowing or
-concurrency theorem is claimed. Adoption's finite scan relies on the explicit
+token discipline, C/C++ object provenance, runtime allocator or concurrency
+theorem is claimed by the ownership registry. Adoption's finite scan relies on the explicit
 well-formedness premise; malformed user-constructed worlds are not validated by
 a global runtime checker. The existing certificate CLI does not synthesize
 ownership registries automatically.
+
+## Shared read borrowing
+
+`EDSL.OS.Borrowing` wraps that ownership world with fresh stored read-loan IDs.
+Checked borrowing authorizes the lender and validates a nonempty contained,
+canonical, nonwrapping, fully readable region. Multiple overlapping loans are
+allowed. While any loan remains, guards freeze the entire referenced allocation
+against managed stores, protection changes, transfer and release; unrelated
+allocations remain mutable. Completion checks the stored borrower and removes
+only its loan ID.
+
+Every admitted operation preserves `WellFormed`. `History.advances` and
+`History.loan_stable` prove exact record/cell/permission stability for surviving
+loans over arbitrary finite guarded histories. `finished_for_history` proves
+finished IDs can never return. `History.loadWord_stable` retains authorized
+word values; `History.buffer_stable` transports independently established
+readable snapshots inside a live loan. `loadWord_exists` supplies successful
+contained word reads under the well-formedness and authority premises.
+
+`borrowed_load32_correct` composes a checked read with the exact load/RET bytes,
+retaining two-instruction termination, unique state/count and divergence
+exclusion. Code/return-stack premises refer to the execution state. Symbolic
+adopted-entry witnesses cover every 32-bit value and preserve its read result
+across every admitted history in which the loan survives. Regressions cover
+all guarded mutation kinds, multiple loans, stale/wrong borrowers, disjoint
+changes, unreadable tails and readable operands crossing a loan boundary.
+
+The finite loan scan relies on `WellFormed`. This remains a logical sequential
+discipline; raw stores, unmanaged mappings and arbitrary interference bypass it.
+No concurrent adequacy, runtime authentication/enforcement, mutable/fractional
+borrowing, region splitting or physical-alias handling is established. The CLI
+does not infer loans. See [the exact borrowing contract](borrowing.md).
 
 ## Restricted ELF loading
 
@@ -288,6 +320,7 @@ lake env lean -DwarningAsError=true tests/Process.lean
 lake env lean -DwarningAsError=true tests/Write.lean
 lake env lean -DwarningAsError=true tests/ControlFlow.lean
 lake env lean -DwarningAsError=true tests/Ownership.lean
+lake env lean -DwarningAsError=true tests/Borrowing.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

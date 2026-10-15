@@ -142,7 +142,13 @@ overlap, the highest live scan ID and an unmapped tail. Expectations concern
 resource use and byte behavior rather than assigned fixture metadata. All cases
 are owned synthetic inputs; no new native enforcement is claimed.
 
-Next work includes splitting/read borrowing, protected invariants and concurrent
+The [shared read borrowing wrapper](borrowing.md) now adds guarded loan
+creation/completion, whole-allocation freezing and arbitrary-history stability
+for surviving loan bytes/permissions. `Ownership.Mutation.run_preserves` provides
+the reusable frame rule for unrelated live allocations. Raw Ownership operations
+remain usable separately and do not acquire borrowing guards automatically.
+
+Next work includes splitting, mutable borrowing, protected invariants and concurrent
 adequacy, stack/heap object lifetimes and provenance, allocation failure/cleanup
 protocols, an allocator strategy, aliases/backing identity and real OS/runtime
 refinement. Thread startup/transfer and join must connect principal identity to

@@ -2,7 +2,8 @@
 
 Status: narrow implemented contracts plus requirements for the broader OS
 domain. **Lean 4** contains a sequential address-space model, its machine-memory
-bridge, an allocation-identity/ownership registry, a restricted ELF loader,
+bridge, an allocation-identity/ownership registry with shared read loans,
+a restricted ELF loader,
 a raw Linux exit60 contract and a bounded
 stream-write/return contract. The general OS eDSL, runtime, concurrency and kernel
 implementation proofs remain planned.
@@ -32,8 +33,16 @@ whole-allocation operations preserve valid disjoint live regions and full
 mappedness; revocation persists through arbitrary finite managed histories,
 including same-address reuse. Owned stores compose with actual store/RET bytes.
 This is a sequential proof discipline, not raw-pointer generation checking,
-authenticated identity, linear permissions or concurrent enforcement. Borrowing,
-thread/scheduler identity, language provenance and allocator refinement remain ahead.
+authenticated identity, linear permissions or concurrent enforcement.
+
+The [borrowing wrapper](borrowing.md) checks readable contained shared loans and
+freezes their whole allocations against managed stores, protection, transfer and
+release. Arbitrary finite guarded histories preserve each surviving loan's
+exact record/cells/permissions and cannot revive a finished loan ID. Checked
+reads compose with the actual load/RET bytes; independently established buffers
+retain their contents under the same history conditions. These remain logical
+sequential rules. Protected invariants, thread/scheduler identity, concurrent
+adequacy, language provenance and allocator refinement remain ahead.
 
 The [process slice](process-exit.md) checks a standalone twelve-byte entry that
 sets exit status42 and requests raw Linux exit60. Its ABI request records the

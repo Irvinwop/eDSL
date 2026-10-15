@@ -41,10 +41,21 @@ The registry is a logical resource discipline. Its principal/ticket fields do
 not authenticate callers or prevent unchecked machine accesses. The histories
 exclude unmanaged changes and arbitrary interference. The finite adoption scan
 is complete under `WellFormed`; manually constructed malformed worlds are not
-globally validated. Borrowing, linear permissions, language provenance, concurrent
+globally validated. Linear permissions, language provenance, concurrent
 adequacy and real allocation/kernel refinement remain unproved. The certificate
 generator retains its existing machine contracts and does not automatically
 infer resource ownership. See [ownership boundary](ownership.md).
+
+The shared-read borrowing wrapper checks stored lender/borrower authority and
+readable contained subregions, freezing the entire allocation while any loan
+remains. Its managed-history proofs preserve every surviving loan's record,
+bytes and permissions, and permanently revoke finished IDs. Authorized reads
+compose with actual load/RET bytes; independent initial buffers can be carried
+through the same histories. Every 32-bit read value has an admitted binary
+witness. These proofs require initial well-formedness and the guarded history;
+arbitrary raw writes, aliases and outside interference are excluded. Copyable
+IDs do not authenticate callers. No runtime enforcement or concurrent adequacy
+is inferred. See [borrowing contracts](borrowing.md).
 
 The restricted ELF path checks complete observed bytes, parser/validation results
 and entry-code binding through a modeled loader. It removes the raw path's

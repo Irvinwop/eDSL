@@ -43,6 +43,7 @@ jobs:
           lake env lean -DwarningAsError=true tests/Write.lean
           lake env lean -DwarningAsError=true tests/ControlFlow.lean
           lake env lean -DwarningAsError=true tests/Ownership.lean
+          lake env lean -DwarningAsError=true tests/Borrowing.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment

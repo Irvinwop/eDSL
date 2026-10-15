@@ -170,10 +170,18 @@ states for every old word/source argument. Regressions cover reuse, transfer,
 cross-allocation stores, hidden cells, final-byte overlap and exact readback.
 See [ownership contracts and limits](ownership.md).
 
+Shared read borrowing is now implemented over that registry. Each stored loan
+names a current lender ticket and readable contained subregion; multiple loans
+freeze their whole allocation until all finish. Checked histories preserve
+loan records, exact cells and permissions, and finished IDs stay revoked.
+Authorized word reads compose with actual load/RET bytes; arbitrary-history
+read and independent buffer stability have checked proofs. Every 32-bit value
+has an admitted symbolic binary witness. See [borrowing scope](borrowing.md).
+
 These remain proof-level authorities: raw pointers contain no epoch, principal
-IDs are proof data and copyable tickets do not form a linear-token logic. Next
-add region splitting, read borrowing and protected invariants with an adequacy
-connection to operational semantics, then thread ownership/start/join. Broader
+IDs are proof data and copyable tickets/loans do not form a linear-token logic.
+Next add protected invariants and thread ownership/start/join with an adequacy
+connection to operational semantics. Region splitting, mutable borrowing, broader
 stack/heap object lifetimes, language provenance, allocator search/failure/cleanup,
 calls and richer memory-loop invariants remain required. Concurrent safety needs
 an interference model that enforces or accounts for resource transitions.
