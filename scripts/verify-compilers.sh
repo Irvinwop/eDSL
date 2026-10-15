@@ -81,3 +81,9 @@ for specification in load32 store32; do
     fi
 done
 echo 'Load/store contract mismatches remain unverified'
+
+# Independent Linux observations for the abstract address-space contracts.
+# Faults are deliberate owned fixtures in child processes with core dumps off.
+"$clang_c" -std=gnu23 -O2 -Wall -Wextra -Werror \
+    fixtures/vm-contract.c -o "$output/vm-contract"
+"$output/vm-contract"

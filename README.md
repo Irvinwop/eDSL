@@ -48,6 +48,8 @@ Implemented and checked:
   bytes, including register/memory framing, return behavior and termination.
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
   read-after-write and disjoint code/stack preservation proofs.
+- A sequential OS address-space model with checked mapping, protection and
+  unmapping, permission-revocation proofs and composition with a binary contract.
 - A Lean certificate CLI and live C/C++ compile→link→byte extraction→proof→native
   integration checks, with fail-closed rejection cases.
 - A two-instruction lower bound within the supported ISA subset.
@@ -56,7 +58,7 @@ Implemented and checked:
 
 The certifier accepts three exact function profiles, each returning in two modeled
 instructions. Other correct encodings remain unsupported. ELF loading,
-Linux kernel/concurrency models and general source eDSLs/validators remain
+Linux syscall/kernel refinement, concurrency and general source eDSLs/validators remain
 planned. See the precise
 [implemented coverage and trust boundary](docs/coverage.md).
 
@@ -65,6 +67,7 @@ planned. See the precise
 | Document | Question it answers |
 | --- | --- |
 | [Implemented coverage](docs/coverage.md) | What can run and what has actually been proved? |
+| [Address-space contracts](docs/address-space.md) | How do mapping and permission changes connect to binary proofs? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |
@@ -78,8 +81,8 @@ planned. See the precise
 | [Trust and evidence](docs/trust.md) | What is currently trusted, checked, assumed, or outside the claim? |
 | [Reuse assessment](docs/research-map.md) | Which existing projects should be evaluated before building new machinery? |
 
-Start with the roadmap, then the OS and platform documents. The proposed first
-real target is a restricted x86-64 function, followed by a static Linux process,
+Start with the roadmap, then the OS and platform documents. The first real
+targets are restricted x86-64 functions; next come a static Linux process,
 owned memory, and a thread/atomic workload. General GNU C++26 ingestion and a
 fully verified Linux kernel are substantial separate research work.
 
@@ -91,6 +94,8 @@ Install [elan](https://github.com/leanprover/elan), then run:
 lake build EDSL edsl-certify
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
+lake env lean -DwarningAsError=true tests/AddressSpace.lean
+lake env lean -DwarningAsError=true tests/OSComposition.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

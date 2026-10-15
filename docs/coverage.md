@@ -2,7 +2,7 @@
 
 Three exact compiler-output profiles verify unsigned 32-bit increment, load and
 store functions. These are usable narrow slices, not a general binary verifier,
-complete ISA, source-language frontend, Linux model or verified OS.
+complete ISA, source-language frontend, Linux syscall implementation or verified OS.
 
 ## Supported machine profile
 
@@ -83,6 +83,23 @@ supported instruction subset that changes RAX needs at least two instructions.
 The increment fixture attains the bound for zero input/initial RAX. This is an
 instruction-subset bound, not an all-x86 or CPU-time optimum.
 
+## Abstract OS address-space contracts
+
+`EDSL.OS.AddressSpace` models sequential byte-granular fresh zero-filled mapping,
+protection changes, unmapping and byte writes. Checked operations reject invalid
+ranges, overlap, holes and unsupported permissions. Stored bytes survive removal
+of read permission; unmapping removes them. Proofs establish outside-region
+framing, preservation of existing mappings and read/fetch/store revocation in
+the projected x86 memory model.
+
+`EDSL.OS.AddressSpace.load32_after_protect` composes a successful abstract
+protection change with the binary load theorem when code, data and return stack
+are disjoint from the changed region. A concrete admitted-entry proof exercises
+the composition. These operations do not yet model page alignment, allocation
+failure, page tables, aliasing, physical reclamation or concurrent revocation.
+Full mappedness is required even for abstract unmap; Linux allows unmapped holes.
+See [address-space contracts](address-space.md) for the exact API and boundary.
+
 ## Live compiler-output certificates
 
 `edsl-certify` reads a raw function-byte file, accepts only the selected profile's
@@ -117,6 +134,8 @@ or confidential material in the upload path.
 lake build EDSL edsl-certify
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
+lake env lean -DwarningAsError=true tests/AddressSpace.lean
+lake env lean -DwarningAsError=true tests/OSComposition.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

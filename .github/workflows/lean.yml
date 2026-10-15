@@ -31,10 +31,12 @@ jobs:
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Build pinned Lean project
         run: lake build EDSL edsl-certify
-      - name: ISA regression and rejection properties
+      - name: ISA, OS contracts and rejection properties
         run: |
           lake env lean -DwarningAsError=true tests/X86.lean
           lake env lean -DwarningAsError=true tests/Memory.lean
+          lake env lean -DwarningAsError=true tests/AddressSpace.lean
+          lake env lean -DwarningAsError=true tests/OSComposition.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment

@@ -1,7 +1,7 @@
 # Trust, assumptions, and evidence
 
-Status: required reporting policy plus the current scaffold's actual boundary.
-The end-to-end compiler/OS pipeline is not implemented.
+Status: required reporting policy plus the current implementation's boundary.
+The general end-to-end compiler/OS pipeline is not implemented.
 
 ## Current boundary
 
@@ -12,6 +12,13 @@ It also retains generic refinement lemmas
 and the original toy example. See [coverage](coverage.md) for assumptions and
 supported encodings. These results do not prove the model's conformance to
 physical hardware, source-language preservation or a complete OS implementation.
+
+The abstract sequential address-space contract is projected into machine memory,
+with checked protection/binary-load composition. It does not verify Linux syscall
+bytes, page-table updates, resource exhaustion or concurrent permission changes.
+Native VM probes are independent conformance observations for selected successful
+operations and denied accesses. Their exact boundary is in the
+[address-space report](address-space.md).
 
 `lake build` checks the declarations with Lean 4.35.0. The audit traverses
 transitive axiom dependencies of declarations under `EDSL` and permits only

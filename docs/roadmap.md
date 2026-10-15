@@ -96,6 +96,13 @@ optimization configuration to expose compiler-specific assumptions.
 
 ### 3. Static process and minimal Linux contract
 
+Implemented supporting OS contract: byte-granular mapping/protection/unmapping
+with permission-revocation and disjoint-framing proofs. A protection change
+outside a binary load's footprint preserves its contract, with a concrete
+admitted-entry witness. Independent Linux VM probes cover zero filling, denied
+access and adjacent-page preservation. Page-granular syscall refinement and the
+process/ELF obligations below remain unimplemented; see [scope](address-space.md).
+
 Model a restricted static ELF, segment/entry validation, startup stack/auxiliary
 state, final-byte identity, minimal syscall ABI and termination. Add a tiny
 process with bounded computation and explicit `write`/exit outcomes. Specify
