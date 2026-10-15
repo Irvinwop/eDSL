@@ -32,7 +32,9 @@ jobs:
       - name: Build pinned Lean project
         run: lake build EDSL edsl-certify
       - name: ISA regression and rejection properties
-        run: lake env lean -DwarningAsError=true tests/X86.lean
+        run: |
+          lake env lean -DwarningAsError=true tests/X86.lean
+          lake env lean -DwarningAsError=true tests/Memory.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment

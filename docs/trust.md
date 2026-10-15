@@ -6,8 +6,9 @@ The end-to-end compiler/OS pipeline is not implemented.
 ## Current boundary
 
 The Lean library includes a restricted x86-64 decoder/machine model, unbounded
-execution proofs, an all-input increment theorem for actual compiler-output
-bytes and a narrow certificate CLI. It also retains generic refinement lemmas
+execution proofs, all-input increment/load/store theorems for actual compiler-output
+bytes, mapped-memory permissions and framing proofs, and a narrow certificate CLI.
+It also retains generic refinement lemmas
 and the original toy example. See [coverage](coverage.md) for assumptions and
 supported encodings. These results do not prove the model's conformance to
 physical hardware, source-language preservation or a complete OS implementation.
@@ -17,6 +18,8 @@ transitive axiom dependencies of declarations under `EDSL` and permits only
 Lean's standard `propext`, `Quot.sound`, and `Classical.choice`. It rejects
 `sorryAx` and any additional axiom. No third-party Lean package is currently
 required. Review of theorem statements and definitions is still essential.
+Byte-reassembly proofs use ordinary bit extensionality and checked arithmetic;
+solver/native-evaluation axioms are not whitelisted by the audit.
 The audit's negative check requires rejection of an injected external axiom
 used by a project theorem. The pinned toolchain's `leanchecker --fresh EDSL`
 also replays stored declarations in a fresh kernel environment. This remains

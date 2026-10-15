@@ -44,17 +44,20 @@ Implemented and checked:
 - A generic behavior-refinement interface, composition, and safety transfer.
 - A restricted x86-64 byte decoder, instruction/stack/memory semantics, and an
   unbounded execution relation with evaluator soundness and completeness.
-- An all-input theorem for actual Clang/GCC increment bytes, including wraparound,
-  register/memory framing, return behavior, termination and exact instruction cost.
+- All-input theorems for actual Clang/GCC increment, 32-bit load and 32-bit store
+  bytes, including register/memory framing, return behavior and termination.
+- Little-endian mapped-memory reads and guarded writes with per-byte permissions,
+  read-after-write and disjoint code/stack preservation proofs.
 - A Lean certificate CLI and live C/C++ compile→link→byte extraction→proof→native
   integration checks, with fail-closed rejection cases.
 - A two-instruction lower bound within the supported ISA subset.
 - Transitive axiom auditing, including generated certificates.
 - Optional native GNU23/GNU++26 compiler probes retained from the bootstrap.
 
-The first certifier accepts one four-byte function profile. Other correct
-encodings remain unsupported. ELF loading, Linux/kernel/concurrency models and
-general source eDSLs/validators remain planned. See the precise
+The certifier accepts three exact function profiles, each returning in two modeled
+instructions. Other correct encodings remain unsupported. ELF loading,
+Linux kernel/concurrency models and general source eDSLs/validators remain
+planned. See the precise
 [implemented coverage and trust boundary](docs/coverage.md).
 
 ## Read the plan
@@ -87,6 +90,7 @@ Install [elan](https://github.com/leanprover/elan), then run:
 ```sh
 lake build EDSL edsl-certify
 lake env lean -DwarningAsError=true tests/X86.lean
+lake env lean -DwarningAsError=true tests/Memory.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

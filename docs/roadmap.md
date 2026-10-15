@@ -72,7 +72,10 @@ nondeterminism, OS traces and temporal composition remain future work.
 The first increment contract is implemented for `8d 47 01 c3`, with live
 Clang C/C++ and GCC C certificates and native boundary checks. Full scope and
 remaining artifact/physical-conformance assumptions are in [coverage](coverage.md).
-Additional instruction encodings and contract classes are the next extensions.
+The memory extension also checks `8b 07 c3` (32-bit load) and `89 37 c3`
+(32-bit store), each from Clang C/C++ and GCC C. Permission, little-endian value,
+outside-footprint framing, preserved code/return stack and two-step termination
+are proved. General instruction sequences and control flow remain next extensions.
 
 Choose a loop-free unsigned fixed-width function specification with edge cases.
 Select a small x86-64 instruction subset, prove exact-byte decoding and
@@ -83,7 +86,7 @@ function specification. Use source/IR annotations as untrusted proof hints.
 
 Invoke a pinned compiler/configuration, ingest its exact function bytes, and
 produce a checked proof/certificate relating those bytes to the specification.
-Handle all admitted inputs, including wraparound. Initially reject memory,
+Handle all admitted inputs, including wraparound. Initially reject general memory,
 foreign calls, exceptions, unsupported instructions and unknown control flow.
 
 Exit: a named Lean theorem for actual compiler output, with recorded build and
@@ -103,6 +106,11 @@ Exit: a process-level trace/result theorem linked to the final artifact, with
 all reachable code/runtime and external contracts accounted for.
 
 ### 4. Owned memory, calls and loops
+
+Implemented foundation: sequential four-byte ordinary-RAM reads/writes, explicit
+per-byte mappedness/write permissions, read-after-write, disjoint framing and
+nonvacuous compiler-profile witnesses. This is not yet object ownership, an
+allocator, concurrent atomicity, calls beyond the modeled return, or loop support.
 
 Add object lifetimes, permissions, stack/heap regions, layout/alignment,
 provenance relations, allocation/mapping failures and cleanup. Prove supported

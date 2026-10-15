@@ -6,14 +6,6 @@ import EDSL.X86.Machine
 
 namespace EDSL.X86
 
-@[simp] theorem ok_bind (value : α) (continuation : α → Except ε β) :
-    (Except.ok value >>= continuation) = continuation value := rfl
-
-@[simp] theorem error_bind (error : ε) (continuation : α → Except ε β) :
-    (Except.error error >>= continuation) = .error error := rfl
-
-@[simp] theorem pure_ok (value : α) : (pure value : Except ε α) = .ok value := rfl
-
 /-- Unbounded finite execution semantics. The fuelled evaluator is an
 implementation of this independently stated transition closure. -/
 inductive Executes : State → State → Nat → Prop where
@@ -105,6 +97,10 @@ theorem returned_preserves_rax {initial final : State}
   | ok instruction =>
     cases instruction with
     | leaEaxRdiDisp8 displacement => simp [step, decoded] at transition
+    | loadEaxRdi =>
+      cases loaded : executeLoad initial <;> simp [step, decoded, loaded] at transition
+    | storeEsiRdi =>
+      cases stored : executeStore initial <;> simp [step, decoded, stored] at transition
     | ret =>
       cases returned : executeRet initial with
       | error error => simp [step, decoded, returned] at transition
