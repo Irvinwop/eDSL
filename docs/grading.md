@@ -12,6 +12,13 @@ these claims through `EDSL.Grading.Known.pair` and `.stride`. A different
 implementation must prove the same `EDSL.Grading.Claim id bytes`; matching a
 published byte table, CFG, instruction count or read order is not required.
 
+The client-only [MOV-initialized stride proof](../tests/fixtures/StrideMov.lean)
+demonstrates a different executed implementation of the same task. Its 22 bytes
+use `MOV EAX,0` in place of the published 19-byte routine's `XOR EAX,EAX`.
+It reuses generic loop assertions and proves the new initialization, offsets,
+branches, return, all-choice semantics and current OS authority. The grader's
+trusted snapshot does not import this client module.
+
 ## Required statement
 
 `Task.lean` owns the registered contract. `SemanticClaim` requires total
@@ -85,14 +92,24 @@ fresh parameterized headers, recursors, opaque bodies and mutual inductives.
 `GradingExportClientFixture.pair` theorem from `tests.fixtures.GradingClient`.
 The [integration script](../scripts/verify-grading.sh) reproduces that workflow
 and checks wrong-code, wrong-task and extra-hypothesis rejection.
+It also exports `EDSL.StrideMov.claim` from `tests.fixtures.StrideMov`, checks
+its assembled raw/ELF bytes, and compares native behavior with the existing
+independent modular-sum/ABI/guard-page oracle. Client elaboration metadata is
+not a packet input; the final proof terms are independently kernel-checked.
 
 ## Packet and checking boundary
 
-Version 1 is an array:
+New clients emit version 2. Each expression field has its own topologically
+ordered table of shared syntax nodes:
 
 ```json
-["edsl-proof-v1", [], ["const", ["EDSL", "Grading", "Known", "pair"], []]]
+["edsl-proof-v2", [], ["dag", [["const", ["EDSL", "Grading", "Known", "pair"], []]], "0"]]
 ```
+
+Version 1 tree packets remain accepted. `encodeTreePacket` explicitly emits
+that legacy format; `encodePacket` emits version 2. Version selection applies
+to every auxiliary type/value/constructor field and the final proof. Mixed
+representations and unknown versions reject.
 
 There are no source files, imports, plugins, options, search paths or expected
 types in the protocol. Expression tags are `bvar`, `sort`, `const`, `app`,
@@ -100,6 +117,22 @@ types in the protocol. Expression tags are `bvar`, `sort`, `const`, `app`,
 decimal strings. Names preserve string versus numeric components. Universes
 support zero/succ/max/imax and explicitly declared auxiliary parameters; the
 final proof is closed and monomorphic.
+
+In a version 2 `dag` field, leaves retain the version 1 shape. Compound-node
+children are decimal-string IDs instead of nested expressions: for example,
+`["app","2","0"]`. Every reference must point to an earlier row. The final
+string is the root ID, and every row must be reachable from that root. A new
+pool is created for each field with its own declared universe context; rows
+cannot refer into another field's pool.
+
+Nodes share raw expression syntax. They contain no cached type judgments,
+substitutions or metaprogram state. The decoder tracks the minimum enclosing
+binder count required by each node, requires a closed root, and computes the
+actual expanded path depth including universes. Small JSON nesting cannot hide
+an excessive expression depth. Structural encoder keys preserve binder
+annotations; binder names, metadata and the irrelevant let flag are canonicalized
+as in version 1. The same kernel checks the complete term against the
+independent expected proposition.
 
 Auxiliary entries are safe `def`, `theorem`, `opaque` or simple nonnested
 `inductive` groups, including mutual inductives. Universe parameters are
@@ -138,6 +171,15 @@ Defaults limit JSON depth to 192, expression depth to 128, aggregate decoder
 steps to 200000, explicit/generated auxiliary names to 256, decoded strings to
 4096 bytes and dependency-audit queue pops to 100000. Decimal/name limits are
 also explicit in `Runtime.Limits`.
+
+Version 2 charges its aggregate decoder budget for rows, references, name and
+universe parsing, and the reverse reachability pass. It does not expand shared
+nodes into duplicated trees. Bound-variable indices must be below the expression
+depth bound before expression construction; projection indices must be below
+the decoder-work bound. The client encoder separately uses the default depth
+and visit caps per field and can conservatively reject source metadata nesting.
+Kernel heartbeats still bound checking work; syntax sharing does not establish
+a wall-clock or allocation bound for arbitrary proofs.
 
 The packet's 10000000 kernel heartbeat quota is divided among all auxiliary
 insertions and the final proof; it is not reset per helper. The artifact wrapper

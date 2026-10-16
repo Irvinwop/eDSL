@@ -18,8 +18,12 @@ readonly aliases.
 The [fixed-contract grader](grading.md) registers these two mathematical tasks
 with all-input termination, current OS admission and an actual reachable
 read-only effect policy. It checks data-only proof packets against the chosen
-task and exact raw/full-ELF artifact. Fresh safe helpers are kernel-checked;
-task preconditions are inhabited for arbitrary admitted byte lists independently
+task and exact raw/full-ELF artifact. Fresh safe helpers are kernel-checked.
+Shared expression packets also carry the client-only MOV-initialized stride
+implementation's universal proof. The same task accepts both implementations
+without requiring identical code or instruction selection. Legacy tree packets
+retain the same fixed expected theorem and dependency audit.
+Task preconditions are inhabited for arbitrary admitted byte lists independently
 of decoding. This is a two-task registry with an explicit sequential callable
 profile, rather than general competitive-programming or whole-OS grading.
 Standalone ELF profiles reach exit42 directly or across a bounded stream write

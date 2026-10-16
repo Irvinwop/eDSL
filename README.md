@@ -44,7 +44,9 @@ Implemented and checked:
 - A [fixed-contract proof grader](docs/grading.md) for the pair and stride sum
   tasks, with data-only proof packets, fresh checked helper declarations,
   exact-artifact binding, useful input witnesses and required current OS
-  authority/read-only effects. The registry and platform profile are limited.
+  authority/read-only effects. Shared expression packets carry a fresh proof
+  for a different stride implementation; legacy packets remain accepted.
+  The registry and platform profile are limited.
 - A generic behavior-refinement interface, composition, and safety transfer.
 - A restricted x86-64 byte decoder, instruction/stack/memory semantics, and an
   unbounded execution relation with evaluator soundness and completeness.

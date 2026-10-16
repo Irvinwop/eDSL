@@ -2,7 +2,7 @@
 Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
-import EDSL.Grading.Runtime.Codec
+import EDSL.Grading.Runtime.Packet
 import EDSL.Grading.Runtime.Audit
 
 /-! Proof-packet admission/checking, using only the options-independent checked
@@ -87,7 +87,8 @@ heartbeat quota are carried through every auxiliary declaration and the proof. -
 def checkPacket (env : Kernel.Environment) (lim : Limits) (expected : Expr)
     (input : String) : Except Failure Checked := do
   closed expected
-  let (entries, proof) ← packetFields lim input
+  let packet ← Packet.fields lim input
+  let entries := packet.declarations
   let checks := entries.size + 1
   let quota := lim.kernelHeartbeats.toNat / checks
   if quota == 0 || lim.kernelRecDepth == 0 then return ← fail .resource "kernel budget per check"
@@ -96,7 +97,7 @@ def checkPacket (env : Kernel.Environment) (lim : Limits) (expected : Expr)
   let mut names := 0
   let mut audit : AuditState := { remaining := lim.maxAuditSteps }
   for entry in entries do
-    let (decl, left) ← (declarationField checkedEnv lim entry).run remaining
+    let (decl, left) ← (Packet.declaration packet.dialect checkedEnv lim entry).run remaining
     remaining := left
     let declared := decl.getNames
     names := names + declared.length
@@ -105,7 +106,7 @@ def checkPacket (env : Kernel.Environment) (lim : Limits) (expected : Expr)
     checkInductiveShape next decl
     audit ← auditNames next audit declared
     checkedEnv := next
-  let (value, left) ← (exprField checkedEnv lim [] [] lim.maxExprDepth 0 proof).run remaining
+  let (value, left) ← (Packet.expression packet.dialect checkedEnv lim [] [] packet.proof).run remaining
   let finalAudit ← checkFinal checkedEnv lim (USize.ofNat quota) audit expected value
     (certificationPrefix.appendCore `proof)
   return {

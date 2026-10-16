@@ -59,13 +59,16 @@ def fixtureEnvironment (base : Kernel.Environment) : IO Kernel.Environment := do
     | .error e => throw <| IO.userError s!"owned fixture setup: {kernelFailure e}"
   return env
 
-def main : IO Unit := do
+def main (shared : Bool) : IO Unit := do
   initSearchPath (← findSysroot)
   let imported ← importModules #[{ module := `EDSL.Pair32.Correctness },
     { module := `EDSL.Stride32.Correctness }] {}
     (trustLevel := 0) (plugins := #[]) (loadExts := false)
   let env ← fixtureEnvironment imported.toKernelEnv
   let lim : Limits := {}
+  let packet (decls : List Declaration) (value : Expr) :=
+    if shared then encodePacket decls value else encodeTreePacket decls value
+  IO.println (if shared then "Checking v2 shared packets" else "Checking v1 tree packets")
   let assertOutcome (label : String) (wanted : Option (FailureKind × String))
       (result : Except Failure Checked) := do
     match wanted, result with
@@ -114,7 +117,8 @@ def main : IO Unit := do
     (.lam `h (mkConst ``False) intro .default)
   run "unknown-constant" (some (.malformed, "unknown constant")) truth (mkConst `OwnedPacket.unknown)
   run "universe-arity" (some (.malformed, "constant universe arity")) truth (.const ``True.intro [0])
-  run "loose-variable" (some (.malformed, "loose bound variable")) truth (.bvar 0)
+  run "loose-variable" (some (.malformed,
+    if shared then "loose bound variable at DAG root" else "loose bound variable")) truth (.bvar 0)
   run "undeclared-final-universe" (some (.malformed, "undeclared universe parameter")) truth (.sort (.param `u))
   run "invalid-projection" (some (.rejected, "kernel invalidProj")) truth (.proj ``True 0 intro)
   run "illtyped-let" (some (.rejected, "kernel letTypeMismatch")) truth (.letE `x nat intro intro false)
@@ -345,7 +349,8 @@ def main : IO Unit := do
   assertOutcome "aggregate-name-budget" (some (.resource, "declared constant names"))
     (checkPacket env { lim with maxDeclarations := 3 } truth
       (← match packet [idDecl, flagDecl] intro with | .ok x => pure x | .error e => throw <| IO.userError s!"{e}"))
-  assertOutcome "expression-depth-budget" (some (.resource, "expression depth"))
+  assertOutcome "expression-depth-budget" (some (.resource,
+    if shared then "expanded DAG expression depth" else "expression depth"))
     (checkPacket env { lim with maxExprDepth := 1 } truth
       (← match packet [] (.lam `h truth intro .default) with | .ok x => pure x | .error e => throw <| IO.userError s!"{e}"))
   let longLiteral := mkStrLit (String.ofList (List.replicate 4097 'x'))
@@ -377,7 +382,8 @@ def main : IO Unit := do
       `EDSLGrader.Internal.ownedTest)
   IO.println "Runtime probes complete; no candidate Expr compiled or evaluated."
 
-#eval main
+#eval main false
+#eval main true
 
 -- Execute with the actual elaborator option enabled. The trusted runtime API
 -- still rejects the ill-typed value because its kernel boundary takes no Options.

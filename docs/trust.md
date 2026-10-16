@@ -95,6 +95,11 @@ and theorem types for two registered pair/stride tasks. It checks fresh safe
 proof helpers as data, the exact artifact and current reachable OS/effect
 obligations; candidate source/modules/options are excluded. Its runtime
 controller and trusted build provisioning remain explicit trust boundaries.
+Version 2 shares expression syntax within each field with backward references,
+scope/depth checks and packet-wide work accounting. It caches no inferred
+typing judgment; the kernel checks complete terms in their actual contexts.
+The separate client MOV-stride proof supplies fresh declarations through this
+boundary, and the trusted registry does not import the candidate module.
 Neither user-supplied `Post := True` nor successful static import establishes
 an intended task result. The grading profile remains
 sequential/read-only, with stores, atomics and syscalls excluded; bounded model

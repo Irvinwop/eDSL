@@ -197,7 +197,9 @@ def freshNames (env : Kernel.Environment) (names : List Name) : DecodeM Unit := 
 
 /-- Only the inductive group's type names are pending, never its constructors or
 recursors. All declarations still go through forced kernel typing/positivity checks. -/
-def declarationField (env : Kernel.Environment) (lim : Limits) (j : Json) : DecodeM Declaration := do
+def declarationFieldWith (env : Kernel.Environment) (lim : Limits)
+    (readExpr : List Name → List (Name × Nat) → Json → DecodeM Expr)
+    (j : Json) : DecodeM Declaration := do
   spend
   match j with
   | .arr #[.str tag, n, ps, t, v] =>
@@ -208,8 +210,8 @@ def declarationField (env : Kernel.Environment) (lim : Limits) (j : Json) : Deco
     let n ← nameField lim n
     freshNames env [n]
     let ps ← paramsField lim ps
-    let t ← exprField env lim ps [] lim.maxExprDepth 0 t
-    let v ← exprField env lim ps [] lim.maxExprDepth 0 v
+    let t ← readExpr ps [] t
+    let v ← readExpr ps [] v
     if tag == "theorem" then return .thmDecl { name := n, levelParams := ps, type := t, value := v }
     if tag == "def" then
       return .defnDecl {
@@ -248,14 +250,14 @@ def declarationField (env : Kernel.Environment) (lim : Limits) (j : Json) : Deco
     let pending := headers.toList.map fun (n, _, _) => (n, ps.length)
     let mut types := #[]
     for (n, t, ctors) in headers do
-      let t ← exprField env lim ps pending lim.maxExprDepth 0 t
+      let t ← readExpr ps pending t
       let mut cs := #[]
       for ctor in ctors do
         let .arr #[cn, ct] := ctor
           | throw { kind := .malformed, message := "constructor entry" }
         cs := cs.push {
           name := ← nameField lim cn
-          type := ← exprField env lim ps pending lim.maxExprDepth 0 ct : Constructor }
+          type := ← readExpr ps pending ct : Constructor }
       types := types.push { name := n, type := t, ctors := cs.toList : InductiveType }
     return .inductDecl ps np types.toList false
   | .arr fields =>
@@ -265,6 +267,10 @@ def declarationField (env : Kernel.Environment) (lim : Limits) (j : Json) : Deco
       throw { kind := .unsupported, message := "declaration kind" }
     throw { kind := .malformed, message := "declaration shape" }
   | _ => throw { kind := .malformed, message := "declaration shape" }
+
+def declarationField (env : Kernel.Environment) (lim : Limits) (j : Json) : DecodeM Declaration :=
+  declarationFieldWith env lim
+    (fun params pending value => exprField env lim params pending lim.maxExprDepth 0 value) j
 
 def nameJson (n : Name) : Json := .arr (parts n)
 where
@@ -302,26 +308,30 @@ def encodeExpr : Expr → Except Failure Json
   | .mdata _ e => encodeExpr e
   | _ => fail .malformed "cannot encode free variable or metavariable"
 
-def encodeDeclaration : Declaration → Except Failure Json
+def encodeDeclarationWith (writeExpr : Expr → Except Failure Json) : Declaration → Except Failure Json
   | .thmDecl v => return .arr #[.str "theorem", nameJson v.name,
-      .arr (v.levelParams.toArray.map nameJson), ← encodeExpr v.type, ← encodeExpr v.value]
+      .arr (v.levelParams.toArray.map nameJson), ← writeExpr v.type, ← writeExpr v.value]
   | .defnDecl v => do
     unless v.safety == .safe do return ← fail .audit "unsafe or partial definition"
     return .arr #[.str "def", nameJson v.name, .arr (v.levelParams.toArray.map nameJson),
-      ← encodeExpr v.type, ← encodeExpr v.value]
+      ← writeExpr v.type, ← writeExpr v.value]
   | .opaqueDecl v => do
     if v.isUnsafe then return ← fail .audit "unsafe opaque"
     return .arr #[.str "opaque", nameJson v.name, .arr (v.levelParams.toArray.map nameJson),
-      ← encodeExpr v.type, ← encodeExpr v.value]
+      ← writeExpr v.type, ← writeExpr v.value]
   | .inductDecl ps np types unsafeFlag => do
     if unsafeFlag then return ← fail .audit "unsafe inductive"
     let entries ← types.toArray.mapM fun t => do
-      let cs ← t.ctors.toArray.mapM fun c => return .arr #[nameJson c.name, ← encodeExpr c.type]
-      return .arr #[nameJson t.name, ← encodeExpr t.type, .arr cs]
+      let cs ← t.ctors.toArray.mapM fun c => return .arr #[nameJson c.name, ← writeExpr c.type]
+      return .arr #[nameJson t.name, ← writeExpr t.type, .arr cs]
     return .arr #[.str "inductive", .arr (ps.toArray.map nameJson), .str (toString np), .arr entries]
   | _ => fail .unsupported "declaration kind"
 
-def encodePacket (decls : List Declaration) (value : Expr) : Except Failure String := do
+def encodeDeclaration (decl : Declaration) : Except Failure Json :=
+  encodeDeclarationWith encodeExpr decl
+
+/-- Legacy tree packet encoder, retained for compatibility and regression tests. -/
+def encodeTreePacket (decls : List Declaration) (value : Expr) : Except Failure String := do
   return (Json.arr #[.str "edsl-proof-v1", .arr (← decls.toArray.mapM encodeDeclaration),
     ← encodeExpr value]).compress
 

@@ -3,6 +3,11 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
+if [[ $(uname -sm) != 'Linux x86_64' ]]; then
+    echo 'Grading fixture native evidence requires Linux x86_64' >&2
+    exit 2
+fi
+
 # All inputs here are owned synthetic fixtures. Never point CI at private
 # findings or upload an arbitrary user's binary, packet or rejection log.
 output=artifacts/grading-fixtures
@@ -14,6 +19,7 @@ if [[ $("$gcc" -dumpversion) != 13 ]]; then
 fi
 lake build edsl-grade edsl-proof-export GradingFixtures
 lake env lean -DwarningAsError=true tests/GradingExportClient.lean > "$output/client-tests.txt"
+lake env lean -DwarningAsError=true tests/GradingPacket.lean > "$output/packet-tests.txt"
 "$gcc" --version > "$output/compiler.txt"
 ld --version > "$output/linker.txt"
 
@@ -31,6 +37,7 @@ prepare() {
 }
 prepare pair fixtures/cfg/pair.c sum_pair
 prepare stride fixtures/cfg/stride.c sum_stride
+prepare stride-mov fixtures/cfg/stride-mov.S sum_stride_mov
 prepare wrong-stride fixtures/cfg/stride.c sum_stride -DEDSL_CFG_STRIDE=1
 
 expect_status() {
@@ -59,6 +66,35 @@ for task in pair stride; do
     expect_status 0 "$task/elf-reference" "${grader[@]}" --elf "$span" "${task}32" \
         "$output/$task/function.elf" "$output/$task/reference.json"
 done
+
+# A new implementation proof is exported from a client-only compiled module.
+# No known-byte equality or candidate module import is used by the grader.
+for mode in reference body; do
+    options=()
+    if [[ $mode == body ]]; then options=(--body); fi
+    "${exporter[@]}" tests.fixtures.StrideMov EDSL.StrideMov.claim \
+        "$output/stride-mov/$mode.json" "${options[@]}" > "$output/stride-mov/export-$mode.txt"
+    expect_status 0 "stride-mov/raw-$mode" "${grader[@]}" stride32 \
+        "$output/stride-mov/function.bin" "$output/stride-mov/$mode.json"
+done
+span=$(cat "$output/stride-mov/span.txt")
+expect_status 0 stride-mov/elf-reference "${grader[@]}" --elf "$span" stride32 \
+    "$output/stride-mov/function.elf" "$output/stride-mov/reference.json"
+expect_status 5 stride-mov/changed-code "${grader[@]}" stride32 \
+    "$output/wrong-stride/function.bin" "$output/stride-mov/reference.json"
+cp "$output/stride-mov/function.bin" "$output/stride-mov/mutated.bin"
+printf '\004' | dd of="$output/stride-mov/mutated.bin" bs=1 seek=18 count=1 conv=notrunc status=none
+expect_status 5 stride-mov/mutated-step "${grader[@]}" stride32 \
+    "$output/stride-mov/mutated.bin" "$output/stride-mov/body.json"
+"$gcc" -std=gnu2x -O2 -Wall -Wextra -Werror -fcf-protection=none -fno-lto \
+    fixtures/cfg/check.c fixtures/cfg/trampoline.S -o "$output/native-check"
+timeout 15 "$output/native-check" stride "$output/stride-mov/function.bin" > "$output/stride-mov/native.txt" 2>&1
+
+# Prior clients' v1 packets still bind the same registered binary/OS claim.
+printf '%s\n' '["edsl-proof-v1",[],["const",["EDSL","Grading","Known","stride"],[]]]' \
+    > "$output/stride/legacy.json"
+expect_status 0 stride/raw-legacy "${grader[@]}" stride32 \
+    "$output/stride/function.bin" "$output/stride/legacy.json"
 
 # Fresh client helpers include a parameterized header recursor, opaque body,
 # safe definitions, proof chain and mutual inductive group. They are data in
@@ -108,6 +144,10 @@ helpers arrive as checked data. No native CPU/kernel/source preservation or
 whole-program/whole-OS claim is made. The separate CFG/native integration checks
 observable ABI behavior; this script exercises the objective proof boundary.
 Rejection, unsupported code and resource exhaustion establish no security defect.
+The different 22-byte MOV-initialized stride implementation carries a fresh
+client-only universal proof. Shared expression packets preserve logical syntax;
+default decoder, audit and kernel quotas remain in force. A separate native
+oracle checks modular sums, odd-word independence, guard pages and ABI frames.
 EOF
 find "$output" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > "$output/SHA256SUMS"
 echo 'Fixed task/artifact grading, fresh client helpers and owned rejection cases passed'

@@ -38,4 +38,4 @@ lean_exe «edsl-proof-export» where
   root := `ExportMain
 
 lean_lib GradingFixtures where
-  roots := #[`tests.fixtures.GradingClient]
+  roots := #[`tests.fixtures.GradingClient, `tests.fixtures.StrideMov]
