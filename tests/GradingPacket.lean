@@ -35,6 +35,11 @@ def main : IO Unit := do
     "mutable candidate module was imported into the trusted snapshot"
   require ((writeClient.toKernelEnv.find? `EDSL.WriteIntermediateSupported.claim).isSome)
     "mutable client module was not loaded"
+  let (movesTrusted, movesClient) ← Export.loadEnvironments `tests.fixtures.WriteMoves
+  require ((movesTrusted.toKernelEnv.find? `EDSL.WriteMovesSupported.claim).isNone)
+    "move/readback candidate module was imported into the trusted snapshot"
+  require ((movesClient.toKernelEnv.find? `EDSL.WriteMovesSupported.claim).isSome)
+    "move/readback client module was not loaded"
   let tree ← unwrap (encodeTreePacket [] (mkConst ``True.intro))
   let shared ← unwrap (encodePacket [] (mkConst ``True.intro))
   let _ ← unwrap (checkPacket trusted {} (mkConst ``True) tree)

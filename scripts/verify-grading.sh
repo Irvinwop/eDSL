@@ -39,6 +39,7 @@ prepare pair fixtures/cfg/pair.c sum_pair
 prepare stride fixtures/cfg/stride.c sum_stride
 prepare write fixtures/cfg/write.c write_word
 prepare write-intermediate fixtures/cfg/write-intermediate.S write_word_intermediate
+prepare write-moves fixtures/cfg/write-moves.S write_word_moves
 prepare stride-mov fixtures/cfg/stride-mov.S sum_stride_mov
 prepare wrong-stride fixtures/cfg/stride.c sum_stride -DEDSL_CFG_STRIDE=1
 
@@ -103,6 +104,30 @@ expect_status 5 write-intermediate/mutated-value "${grader[@]}" write32 \
     "$output/write-intermediate/mutated.bin" "$output/write-intermediate/body.json"
 timeout 15 "$output/native-write-check" "$output/write-intermediate/function.bin" \
     > "$output/write-intermediate/native.txt" 2>&1
+
+# Register copy, an actual owned store, and a current-owner load compose under
+# the same fixed contract. The loaded operand comes from the evolved OS world.
+for mode in reference body; do
+    options=()
+    if [[ $mode == body ]]; then options=(--body); fi
+    "${exporter[@]}" tests.fixtures.WriteMoves EDSL.WriteMovesSupported.claim \
+        "$output/write-moves/$mode.json" "${options[@]}" > "$output/write-moves/export-$mode.txt"
+    expect_status 0 "write-moves/raw-$mode" "${grader[@]}" write32 \
+        "$output/write-moves/function.bin" "$output/write-moves/$mode.json"
+done
+span=$(cat "$output/write-moves/span.txt")
+expect_status 0 write-moves/elf-reference "${grader[@]}" --elf "$span" write32 \
+    "$output/write-moves/function.elf" "$output/write-moves/reference.json"
+expect_status 5 write-moves/changed-code "${grader[@]}" write32 \
+    "$output/write/function.bin" "$output/write-moves/reference.json"
+cp "$output/write-moves/function.bin" "$output/write-moves/mutated.bin"
+printf '\213' | dd of="$output/write-moves/mutated.bin" bs=1 count=1 conv=notrunc status=none
+expect_status 5 write-moves/reversed-copy "${grader[@]}" write32 \
+    "$output/write-moves/mutated.bin" "$output/write-moves/body.json"
+timeout 15 "$output/native-write-check" "$output/write-moves/function.bin" \
+    > "$output/write-moves/native.txt" 2>&1
+expect_status 1 write-moves/native-reversed-copy timeout 15 "$output/native-write-check" \
+    "$output/write-moves/mutated.bin"
 
 # A new implementation proof is exported from a client-only compiled module.
 # No known-byte equality or candidate module import is used by the grader.
@@ -194,6 +219,12 @@ The client-only eleven-byte mutable implementation uses INC/store/DEC/store/RET
 and two actual checked OS evolutions. Both packet modes and raw/full ELF claims
 use the unchanged fixed task and limits. Its five modeled instructions show
 that acceptance does not require the separately proved two-instruction optimum.
+The seven-byte MOV client uses generic register copy/store/load and one checked
+OS mutation, followed by an actual owner-authorized read in that same world.
+Its four modeled instructions and target4/stack8 read trace retain the unchanged
+task and service limits. The reversed-copy mutant is rejected by proof binding
+and by the independent native write oracle. Client modules stay outside the
+trusted grader snapshot.
 EOF
 find "$output" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > "$output/SHA256SUMS"
 echo 'Fixed task/artifact grading, fresh client helpers and owned rejection cases passed'

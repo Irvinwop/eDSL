@@ -46,8 +46,8 @@ Implemented and checked:
   exact-artifact binding, useful input witnesses and required current OS
   authority and registered effects. The store evolves checked OS resources
   along actual machine steps and retains all outside-target memory and loans.
-  Shared expression packets carry fresh proofs for different stride and
-  two-store implementations; legacy packets remain accepted.
+  Shared expression packets carry fresh proofs for different stride, two-store,
+  and MOV store/readback implementations; legacy packets remain accepted.
   The registry and platform profile are limited.
   A separate instruction-count proof shows the word-store task needs at least
   two modeled instructions on useful inputs; the checked store/RET attains two.

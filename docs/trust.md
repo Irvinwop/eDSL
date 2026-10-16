@@ -107,6 +107,10 @@ boundary, and the trusted registry does not import the candidate module.
 The separate two-store client proof follows that same boundary: fresh helpers
 certify eleven assembled bytes and two checked owned-resource mutations, while
 the grading service retains its fixed imports and independent task contract.
+The seven-byte MOV client also proves that unchanged claim: its target read
+uses current owner/ticket authorization after the actual checked store in the
+same evolved OS world. An explicit preserved-RSP binding supplies the actual
+RET step. No target loan, snapshot substitution or future-step premise is added.
 Neither user-supplied `Post := True` nor successful static import establishes
 an intended task result. The grading profiles remain sequential callable RAM.
 Pair/stride exclude stores; write32 permits ordinary fixed-target stores through

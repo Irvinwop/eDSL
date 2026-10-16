@@ -107,6 +107,7 @@ jobs:
           lake env lean -DwarningAsError=true tests/GradingDAG.lean
           lake env lean -DwarningAsError=true tests/StrideMov.lean
           lake env lean -DwarningAsError=true tests/WriteIntermediate.lean
+          lake env lean -DwarningAsError=true tests/WriteMoves.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment

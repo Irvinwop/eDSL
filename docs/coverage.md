@@ -31,6 +31,10 @@ RET implementation, with two actual checked OS evolutions. It meets the same
 all-input contract as the three-byte store/RET, including full argument
 wraparound, current loans and the returned resource frame. Its five modeled
 instructions need not match the separate two-instruction lower-bound witness.
+A seven-byte client composes generic register-copy/store/load MOV32 and RET.
+Its owner-authorized read follows the checked store in the same current OS
+world, retaining the original stack and outside frame. It proves the same
+task and exactly four modeled instructions with target4 then stack8 reads.
 Task preconditions are inhabited for arbitrary admitted byte lists independently
 of decoding; the write witness requires a real value change, and a RET-only
 candidate is proved insufficient. This is a three-task registry with an explicit sequential callable

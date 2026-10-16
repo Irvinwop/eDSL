@@ -37,6 +37,7 @@ lean_exe «edsl-grade» where
 lean_exe «edsl-proof-export» where
   root := `ExportMain
 
+-- Client proof modules compile separately from the grader's trusted imports.
 lean_lib GradingFixtures where
-  roots := #[`tests.fixtures.GradingClient, `tests.fixtures.StrideMov,
-    `tests.fixtures.WriteIntermediate]
+  roots := #[`tests.fixtures]
+  globs := #[.submodules `tests.fixtures]

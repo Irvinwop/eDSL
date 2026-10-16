@@ -30,6 +30,17 @@ retains current code/stack loans and the same actual returned resource frame.
 The first stored value may differ from the final result, as the fixed policy
 allows. Its closed claim is `EDSL.WriteIntermediateSupported.claim`.
 
+The client-only [MOV store/readback proof](../tests/fixtures/WriteMoves.lean)
+uses seven bytes: `MOV ECX,ESI; MOV [RDI],ECX; MOV ECX,[RDI]; RET`.
+All three MOVs use the generic sequential forms. One checked store evolves
+the current OS world; the load uses actual owner/ticket authorization and the
+word in that same evolved world. It creates no target read loan. Preserved
+machine RSP supplies the explicit caller-slot binding for the actual RET.
+`EDSL.WriteMovesSupported.claim` proves the unchanged `write32` contract;
+`modeled_accounting` derives four instructions and the ordered target4/stack8
+reads for every actual returned result. The void task's result remains the
+stored word and its frame; the additional load still needs current read authority.
+
 ## Required statement
 
 `Task.lean` owns the registered contract. `SemanticClaim` requires total
@@ -150,6 +161,12 @@ packets, raw and complete ELF artifacts, changed-code and one-byte wrong-value
 mutation checks use unchanged service limits. Acceptance of both two- and
 five-instruction implementations demonstrates that cost proofs remain separate
 from functional/resource grading.
+The same pipeline checks the seven-byte MOV client in both packet modes and
+as a complete restricted ELF. Reversing its first copy rejects proof reuse and
+fails the independent native write contract. Its four instructions and extra
+target read retain the same task, service limits and returned-resource contract.
+`lake build GradingFixtures` builds the kernel-compiling client modules under
+`tests/fixtures/`; the grader's trusted imports exclude these modules.
 
 ## Packet and checking boundary
 

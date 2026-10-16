@@ -587,6 +587,12 @@ task through two actual OS updates, restoring full RSI across wraparound and
 retaining the complete returned resource frame. It carries a fresh universal
 proof through the data-only grading boundary; acceptance requires no matching
 instruction selection or optimal instruction count.
+A seven-byte generic MOV client now carries that same fixed claim through
+register copy, checked store, owner-authorized readback in the same evolved OS
+world, and actual RET with its preserved caller-slot binding. Its all-input
+proof derives four modeled instructions and target4/stack8 reads. Both raw
+packet modes and the complete restricted ELF reference packet pass the public
+grader with unchanged limits and trusted imports.
 Broader task IO, multiple-target effects, general task registration and concurrent grading are
 subsequent extensions; code validity is never an input assumption used to make
 a task's semantic domain empty.
