@@ -293,6 +293,11 @@ requires rejection. The bundled `leanchecker` replays the stored proofs in a
 fresh kernel environment. These check the current declarations, not the adequacy of a future
 language, OS, or hardware model. The compiler integration command also needs
 Linux/x86-64, Clang, GCC and binutils; it uses only owned synthetic fixtures.
+CI caches the pinned Lean toolchain and Lake build outputs. Compatible previous
+builds supply incremental inputs; Lake still checks source and dependency traces.
+Every run retains the contract tests, axiom audit, fresh kernel replay, and native
+integration checks. Cache misses build normally. Bump the workflow's cache
+version strings to discard old entries when diagnosing a cache problem.
 The sum32 integration selects GCC 13 (`-Os -fno-ivopts`, GNU23 spelled `gnu2x`)
 and Clang 18 (`-Oz`, `gnu23`), with scalar code and LTO/CET disabled. Its
 certificates, native observations and provenance use `artifacts/sum32-fixtures/`.
