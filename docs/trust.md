@@ -100,6 +100,9 @@ scope/depth checks and packet-wide work accounting. It caches no inferred
 typing judgment; the kernel checks complete terms in their actual contexts.
 The separate client MOV-stride proof supplies fresh declarations through this
 boundary, and the trusted registry does not import the candidate module.
+The separate two-store client proof follows that same boundary: fresh helpers
+certify eleven assembled bytes and two checked owned-resource mutations, while
+the grading service retains its fixed imports and independent task contract.
 Neither user-supplied `Post := True` nor successful static import establishes
 an intended task result. The grading profiles remain sequential callable RAM.
 Pair/stride exclude stores; write32 permits ordinary fixed-target stores through

@@ -24,10 +24,17 @@ private def malformed (env : Kernel.Environment) (packet : String) : IO Unit :=
   | .ok _ => throw (IO.userError "mixed packet representation was accepted")
 
 def main : IO Unit := do
-  let (trustedEnv, _) ← Export.loadEnvironments `tests.fixtures.StrideMov
+  let (trustedEnv, clientEnv) ← Export.loadEnvironments `tests.fixtures.StrideMov
   let trusted := trustedEnv.toKernelEnv
   require ((trusted.find? `EDSL.StrideMov.claim).isNone)
     "candidate module was imported into the trusted snapshot"
+  require ((clientEnv.toKernelEnv.find? `EDSL.StrideMov.claim).isSome)
+    "stride client module was not loaded"
+  let (writeTrusted, writeClient) ← Export.loadEnvironments `tests.fixtures.WriteIntermediate
+  require ((writeTrusted.toKernelEnv.find? `EDSL.WriteIntermediateSupported.claim).isNone)
+    "mutable candidate module was imported into the trusted snapshot"
+  require ((writeClient.toKernelEnv.find? `EDSL.WriteIntermediateSupported.claim).isSome)
+    "mutable client module was not loaded"
   let tree ← unwrap (encodeTreePacket [] (mkConst ``True.intro))
   let shared ← unwrap (encodePacket [] (mkConst ``True.intro))
   let _ ← unwrap (checkPacket trusted {} (mkConst ``True) tree)

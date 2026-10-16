@@ -577,6 +577,11 @@ an evolving OS state tied to every real prefix and returned execution. Its
 frames retain all allocations, loans, permissions and outside-target memory.
 Useful current domains include unsupported bytes and require a value change;
 the old pair/stride contracts are preserved by exact equivalence theorems.
+A separate client-only eleven-byte routine now discharges the same mutable
+task through two actual OS updates, restoring full RSI across wraparound and
+retaining the complete returned resource frame. It carries a fresh universal
+proof through the data-only grading boundary; acceptance requires no matching
+instruction selection or optimal instruction count.
 Broader task IO, multiple-target effects, general task registration and concurrent grading are
 subsequent extensions; code validity is never an input assumption used to make
 a task's semantic domain empty.

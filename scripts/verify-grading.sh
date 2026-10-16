@@ -38,6 +38,7 @@ prepare() {
 prepare pair fixtures/cfg/pair.c sum_pair
 prepare stride fixtures/cfg/stride.c sum_stride
 prepare write fixtures/cfg/write.c write_word
+prepare write-intermediate fixtures/cfg/write-intermediate.S write_word_intermediate
 prepare stride-mov fixtures/cfg/stride-mov.S sum_stride_mov
 prepare wrong-stride fixtures/cfg/stride.c sum_stride -DEDSL_CFG_STRIDE=1
 
@@ -79,6 +80,29 @@ expect_status 5 write/no-op "${grader[@]}" write32 \
     "$output/write/no-op.bin" "$output/write/reference.json"
 expect_status 5 write/wrong-task "${grader[@]}" stride32 \
     "$output/write/function.bin" "$output/write/body.json"
+
+# A client-only proof supplies two actual owned-word updates at the same
+# target. INC/DEC restore full RSI across wraparound. Five instructions are
+# accepted under the same task as the two-instruction optimum.
+for mode in reference body; do
+    options=()
+    if [[ $mode == body ]]; then options=(--body); fi
+    "${exporter[@]}" tests.fixtures.WriteIntermediate EDSL.WriteIntermediateSupported.claim \
+        "$output/write-intermediate/$mode.json" "${options[@]}" > "$output/write-intermediate/export-$mode.txt"
+    expect_status 0 "write-intermediate/raw-$mode" "${grader[@]}" write32 \
+        "$output/write-intermediate/function.bin" "$output/write-intermediate/$mode.json"
+done
+span=$(cat "$output/write-intermediate/span.txt")
+expect_status 0 write-intermediate/elf-reference "${grader[@]}" --elf "$span" write32 \
+    "$output/write-intermediate/function.elf" "$output/write-intermediate/reference.json"
+expect_status 5 write-intermediate/changed-code "${grader[@]}" write32 \
+    "$output/write/function.bin" "$output/write-intermediate/reference.json"
+cp "$output/write-intermediate/function.bin" "$output/write-intermediate/mutated.bin"
+printf '\316' | dd of="$output/write-intermediate/mutated.bin" bs=1 seek=2 count=1 conv=notrunc status=none
+expect_status 5 write-intermediate/mutated-value "${grader[@]}" write32 \
+    "$output/write-intermediate/mutated.bin" "$output/write-intermediate/body.json"
+timeout 15 "$output/native-write-check" "$output/write-intermediate/function.bin" \
+    > "$output/write-intermediate/native.txt" 2>&1
 
 # A new implementation proof is exported from a client-only compiled module.
 # No known-byte equality or candidate module import is used by the grader.
@@ -166,6 +190,10 @@ default decoder, audit and kernel quotas remain in force. A separate native
 oracle checks modular sums, odd-word independence, guard pages and ABI frames.
 The write oracle observes full-width input arguments, all data-page bytes,
 unaligned/page-edge targets and ABI frames, and rejects six owned mutants.
+The client-only eleven-byte mutable implementation uses INC/store/DEC/store/RET
+and two actual checked OS evolutions. Both packet modes and raw/full ELF claims
+use the unchanged fixed task and limits. Its five modeled instructions show
+that acceptance does not require the separately proved two-instruction optimum.
 EOF
 find "$output" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > "$output/SHA256SUMS"
 echo 'Fixed task/artifact grading, fresh client helpers and owned rejection cases passed'

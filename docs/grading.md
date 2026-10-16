@@ -21,6 +21,15 @@ It reuses generic loop assertions and proves the new initialization, offsets,
 branches, return, all-choice semantics and current OS authority. The grader's
 trusted snapshot does not import this client module.
 
+The client-only [intermediate-store proof](../tests/fixtures/WriteIntermediate.lean)
+certifies `INC RSI; store ESI; DEC RSI; store ESI; RET` under the same `write32`
+task. Its eleven bytes first write low32(argument+1), then the requested value.
+Full-width RSI restoration covers wraparound; both stores advance the current
+OS state through the real checked mutation gate. This five-instruction routine
+retains current code/stack loans and the same actual returned resource frame.
+The first stored value may differ from the final result, as the fixed policy
+allows. Its closed claim is `EDSL.WriteIntermediateSupported.claim`.
+
 ## Required statement
 
 `Task.lean` owns the registered contract. `SemanticClaim` requires total
@@ -135,6 +144,12 @@ The write fixture checks reference/body packets and the complete restricted
 ELF artifact. Its separate native observer checks the full data-page footprint,
 full-width arguments, unaligned/page-edge targets and ABI frames. Six owned
 mutants exercise missing/wide/shifted/wrong-source stores and register/DF damage.
+The same oracle observes the separately assembled intermediate-store routine,
+including full-width argument wraparound. Its client-only reference/body
+packets, raw and complete ELF artifacts, changed-code and one-byte wrong-value
+mutation checks use unchanged service limits. Acceptance of both two- and
+five-instruction implementations demonstrates that cost proofs remain separate
+from functional/resource grading.
 
 ## Packet and checking boundary
 
