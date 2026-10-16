@@ -17,7 +17,7 @@ uint64_t edsl_moves_effective_flags;
 extern void edsl_moves_probe(const unsigned char *);
 extern const unsigned char edsl_moves_section_start[], edsl_moves_section_end[];
 
-enum kind { register_copy, register_copy64, load, store };
+enum kind { register_copy, register_copy64, register_exchange64, load, store };
 struct contract {
     const char *name;
     const unsigned char *code, *end;
@@ -140,14 +140,51 @@ struct contract {
     X(mutant_direction, register_copy, 0,3,0,no_index,0) \
     X(mutant_omitted, store, 0,6,7,no_index,0) \
     X(mutant_neighbor, store, 0,6,7,no_index,0) \
-    X(mutant_narrow, register_copy64, 0,3,0,no_index,0)
+    X(mutant_narrow, register_copy64, 0,3,0,no_index,0) \
+    X(mutant_exchange_copy, register_exchange64, 0,7,0,no_index,0) \
+    X(mutant_exchange_wrong, register_exchange64, 0,7,0,no_index,0) \
+    X(mutant_exchange_omitted, register_exchange64, 0,7,0,no_index,0) \
+    X(mutant_exchange_narrow, register_exchange64, 0,7,0,no_index,0) \
+    X(mutant_exchange_flags, register_exchange64, 0,7,0,no_index,0)
+/* Requested Cartesian register pairs. These macros name mathematical swap
+ * contracts; the independent assembler windows supply the bytes. */
+#define EXCHANGE_PAIR(X,left,right) \
+    X(exchange_##left##_##right, register_exchange64, left,right,0,no_index,0)
+#define EXCHANGE_ROW(X,left) \
+    EXCHANGE_PAIR(X,left,0) EXCHANGE_PAIR(X,left,1) \
+    EXCHANGE_PAIR(X,left,2) EXCHANGE_PAIR(X,left,3) \
+    EXCHANGE_PAIR(X,left,4) EXCHANGE_PAIR(X,left,5) \
+    EXCHANGE_PAIR(X,left,6) EXCHANGE_PAIR(X,left,7) \
+    EXCHANGE_PAIR(X,left,8) EXCHANGE_PAIR(X,left,9) \
+    EXCHANGE_PAIR(X,left,10) EXCHANGE_PAIR(X,left,11) \
+    EXCHANGE_PAIR(X,left,12) EXCHANGE_PAIR(X,left,13) \
+    EXCHANGE_PAIR(X,left,14) EXCHANGE_PAIR(X,left,15)
+#define SHORT_PAIR(X,other) \
+    X(short_##other##_0, register_exchange64, 0,other,0,no_index,0) \
+    X(short_##other##_1, register_exchange64, 0,other,0,no_index,0) \
+    X(short_##other##_2, register_exchange64, 0,other,0,no_index,0) \
+    X(short_##other##_3, register_exchange64, 0,other,0,no_index,0)
+#define EXCHANGE_CONTRACTS(X) \
+    EXCHANGE_ROW(X,0) EXCHANGE_ROW(X,1) EXCHANGE_ROW(X,2) EXCHANGE_ROW(X,3) \
+    EXCHANGE_ROW(X,4) EXCHANGE_ROW(X,5) EXCHANGE_ROW(X,6) EXCHANGE_ROW(X,7) \
+    EXCHANGE_ROW(X,8) EXCHANGE_ROW(X,9) EXCHANGE_ROW(X,10) EXCHANGE_ROW(X,11) \
+    EXCHANGE_ROW(X,12) EXCHANGE_ROW(X,13) EXCHANGE_ROW(X,14) EXCHANGE_ROW(X,15) \
+    SHORT_PAIR(X,0) SHORT_PAIR(X,1) SHORT_PAIR(X,2) SHORT_PAIR(X,3) \
+    SHORT_PAIR(X,4) SHORT_PAIR(X,5) SHORT_PAIR(X,6) SHORT_PAIR(X,7) \
+    SHORT_PAIR(X,8) SHORT_PAIR(X,9) SHORT_PAIR(X,10) SHORT_PAIR(X,11) \
+    SHORT_PAIR(X,12) SHORT_PAIR(X,13) SHORT_PAIR(X,14) SHORT_PAIR(X,15) \
+    X(exchange_x_0, register_exchange64, 3,1,0,no_index,0) \
+    X(exchange_x_1, register_exchange64, 3,9,0,no_index,0) \
+    X(exchange_x_2, register_exchange64, 11,1,0,no_index,0) \
+    X(exchange_x_3, register_exchange64, 11,9,0,no_index,0)
 #define DECLARE(name,k,d,s,b,i,c) \
     extern const unsigned char edsl_move_##name[], edsl_move_##name##_end[];
 CONTRACTS(DECLARE)
+EXCHANGE_CONTRACTS(DECLARE)
 MUTANTS(DECLARE)
 #define ENTRY(name,k,d,s,b,i,c) \
     {#name,edsl_move_##name,edsl_move_##name##_end,k,d,s,b,i,c},
-static const struct contract contracts[] = { CONTRACTS(ENTRY) };
+static const struct contract contracts[] = { CONTRACTS(ENTRY) EXCHANGE_CONTRACTS(ENTRY) };
 static const struct contract mutants[] = { MUTANTS(ENTRY) };
 
 static void print_words(const uint64_t *values, size_t count)
@@ -201,6 +238,11 @@ static int run_case(const struct contract *contract, unsigned char *memory,
         expected.registers[contract->destination] = (uint32_t)edsl_moves_input.registers[contract->source];
     } else if (contract->kind == register_copy64) {
         expected.registers[contract->destination] = edsl_moves_input.registers[contract->source];
+    } else if (contract->kind == register_exchange64) {
+        /* Both values come from the untouched input snapshot, including
+         * aliases. Reusing the first updated value would lose half the swap. */
+        expected.registers[contract->destination] = edsl_moves_input.registers[contract->source];
+        expected.registers[contract->source] = edsl_moves_input.registers[contract->destination];
     } else if (contract->kind == load) {
         uint64_t value = 0;
         for (unsigned int i = 0; i < 4; ++i) value += (uint64_t)before[offset + i] * (UINT64_C(1) << (8 * i));
@@ -256,7 +298,7 @@ int main(int argc, char **argv)
     if (mapping == MAP_FAILED || mprotect(mapping + page, (size_t)page, PROT_READ | PROT_WRITE)) return 2;
     unsigned char *memory = mapping + page;
     if ((uintptr_t)memory <= UINT32_MAX) return 2;
-    puts("/- Native observations of owned MOV32 register/memory and MOV64 register\n"
+    puts("/- Native observations of owned MOV32 register/memory, MOV64 and XCHG64 register\n"
          "windows; finite conformance evidence for two captured flags profiles.\n"
          "The C mathematical observer independently checked full GPRs, flags and\n"
          "all 32 data bytes. RIP is the extracted instruction end label; the read\n"
@@ -283,7 +325,7 @@ int main(int argc, char **argv)
          "  | .next final => return (allRegisters.map final.registers,final.flags,final.rip,\n"
          "      (List.range 32).map (fun i => final.memory.read (dataBase + BitVec.ofNat 64 i)),observation.reads)\n"
          "  | _ => none");
-    unsigned int observations32 = 0, observations64 = 0;
+    unsigned int observations32 = 0, observations64 = 0, exchanges64 = 0;
     for (size_t i = 0; i < sizeof contracts / sizeof contracts[0]; ++i) {
         for (unsigned int vector = 0; vector < 2; ++vector) {
             /* Even offsets also permit the base=index alias. The offset 28
@@ -297,6 +339,7 @@ int main(int argc, char **argv)
                     return 1;
                 }
                 if (contracts[i].kind == register_copy64) ++observations64;
+                else if (contracts[i].kind == register_exchange64) ++exchanges64;
                 else ++observations32;
             }
         }
@@ -308,9 +351,10 @@ int main(int argc, char **argv)
         }
     }
     puts("end EDSL.Tests.NativeSequentialMoves\n#audit_edsl");
-    fprintf(stderr, "Checked %u native observations (%u MOV32 register/memory, %u MOV64 register); "
+    fprintf(stderr, "Checked %u native observations (%u MOV32 register/memory, %u MOV64 register, %u XCHG64 register); "
         "rejected %zu owned semantic mutants; final ELF bytes matched\n",
-        observations32 + observations64, observations32, observations64, sizeof mutants / sizeof mutants[0]);
+        observations32 + observations64 + exchanges64, observations32, observations64, exchanges64,
+        sizeof mutants / sizeof mutants[0]);
     if (munmap(mapping, (size_t)page * 3)) return 2;
     return 0;
 }

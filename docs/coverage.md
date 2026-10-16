@@ -106,9 +106,9 @@ and alignment checking in the architecture/system reference. Their adequacy to
 physical execution remains a model/physical-conformance boundary.
 
 The separate `X86.Sequential` decoder embeds legacy instructions and adds
-parameterized XOR-self32, TEST64, CMP64, ADD-memory32, MOV-register32/64,
+parameterized XOR-self32, TEST64, CMP64, ADD-memory32, MOV-register32/64, XCHG-register64,
 MOV-load32, MOV-store32, ADD-immediate64, INC64, DEC64, JE and JMP families.
-MOV64 register operands cover all 16 GPRs with REX.W/R/B and ignored X; other
+MOV64 and ModRM XCHG64 register operands cover all 16 GPRs with REX.W/R/B and ignored X; other
 new register operands use the eight lower GPRs. Supported memory operands use
 full-width base/SIB addressing with explicit
 rejection of displacements, absent base/index and other unsupported forms.
@@ -117,6 +117,11 @@ per retired instruction. Ordinary MOV preserves all flags, uses pre-state
 operands even under register/address aliasing, and zero-extends 32-bit results.
 MOV64 register copies preserve the full source and advance by three bytes;
 64-bit memory forms and W=0 REX remain unsupported.
+Register XCHG64 swaps both original full-width operands, preserves every flag
+and memory field, and advances by three bytes for `REX.W 87 /r` or two for
+`REX.W 90+rd`. The short form uses B and ignores R/X. Both forms compose with
+the same current OS world, including exchanges involving RSP; RET separately
+requires the actual original stack binding. LOCK and memory64 forms reject.
 The new store uses the same whole-word permission checks and outside-memory
 frame as the original stores. Its resource bridge follows the actual decoded
 length, including three-byte SIB instructions. A current-resource theorem composes
@@ -129,6 +134,7 @@ the actual checked mutation, world and loans. Exact three-instruction/stack8
 accounting is separate from that post. The distinct registered `storeReturn32`
 task retains the same domains and policies while requiring the returned pointer.
 A fresh four-instruction RCX client proves it outside the direct shape checker;
+the five-byte GCC13 GNU23 `-Oz` register-exchange client does so in three instructions.
 see [pointer-returning stores](store-return32.md) and [grading](grading.md).
 Separate accounting proves a three-instruction lower bound for arbitrary
 policy-admitted candidates on useful inputs requiring a changed RAX, with

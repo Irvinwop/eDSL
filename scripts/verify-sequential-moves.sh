@@ -2,7 +2,7 @@
 # Copyright 2026 Irvinwop. SPDX-License-Identifier: Apache-2.0
 set -euo pipefail
 if [[ $(uname -sm) != 'Linux x86_64' ]]; then
-    echo 'Sequential MOV32/MOV64 native integration requires Linux x86_64' >&2
+    echo 'Sequential MOV32/MOV64/XCHG64 native integration requires Linux x86_64' >&2
     exit 2
 fi
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -42,7 +42,7 @@ flock /tmp/edsl-lean-build.lock lake env lean -DwarningAsError=true "$output/Nat
 cat "$output/kernel-check.txt"
 cat > "$output/scope.txt" <<'SCOPE'
 Finite native/model conformance evidence for owned Linux x86-64 MOV32
-register/memory and MOV64 register-only fixtures; no MOV64 memory admission.
+register/memory and MOV64/XCHG64 register-only fixtures; no 64-bit memory admission.
 The assembler and linker produce one-instruction windows with capture jumps.
 The native observer checks that the final ELF section extracted by objcopy is
 identical to the executed linked section. Its independent requested contracts
@@ -62,26 +62,35 @@ last-four-observed-byte four-byte operands. The additional 112 MOV64 register
 observations cover every GPR as source and destination in both opcode
 directions, all 16 full64 self-copies, REX.R and B independently/together,
 and ignored REX.X in both directions; every prefix byte 48..4f executes.
+The additional 648 XCHG64 register observations cover all 256 ModRM register
+pairs, including self-exchange and either operand RSP; all 16 short-form
+operands with every ignored REX.R/X combination; and four ignored-X ModRM
+forms covering every R/B combination. Each has two flags/value profiles.
+The swap contract reads BOTH operands from the input snapshot and checks all
+16 output registers, so losing an old volatile operand cannot pass unnoticed.
 The observed 32-byte region is inside an owned writable page with guard pages;
 these runs do not test inaccessible operands or establish universal ISA/OS
 correctness, concurrency, timing, fault behavior, speculation or kernel safety.
 RIP expectations use the extracted next-instruction labels; operand-read lists
 are independent requested footprints, not observations of hardware reads.
-All five safe owned semantic mutations are rejected by the independent C
+All ten safe owned semantic mutations are rejected by the independent C
 contract observer and excluded from positive replay: full64 requested as32,
 wrong direction, omitted store, neighboring-byte overwrite, and low32 requested
 as64. Successful MOV64 decoding does not make its requested MOV32 contract
 hold. These mutations are not collectively classified as unsupported opcodes.
+Five exchange mutants replace the swap with a copy, use the wrong operand,
+omit it, swap only 32 bits, or damage CF after the swap. All are register-only.
 The intentionally altered extraction is rejected before any probe executes.
 The harness is single-threaded, non-PIE, and assumes the selected user-mode
 RFLAGS profile with alignment checking/CET disabled.
 SCOPE
 sha256sum fixtures/sequential-moves-check.c fixtures/sequential-moves-probe.S \
-    scripts/verify-sequential-moves.sh tests/SequentialMoves64.lean lean-toolchain lakefile.lean \
+    scripts/verify-sequential-moves.sh tests/SequentialMoves64.lean tests/SequentialXchg64.lean \
+    lean-toolchain lakefile.lean \
     EDSL/X86/Sequential/Model.lean EDSL/X86/Sequential/Decode.lean \
     EDSL/X86/Sequential/Machine.lean "$output/native-check.elf" "$output/instructions.bin" \
     "$output/NativeSequentialMoves.lean" "$output/native-results.txt" "$output/kernel-check.txt" \
     "$output/altered.bin" "$output/altered.lean" "$output/altered-results.txt" \
     "$output/compiler.txt" "$output/platform.txt" "$output/objcopy.txt" "$output/arguments.txt" \
     "$output/disassembly.txt" "$output/elf.txt" "$output/scope.txt" > "$output/SHA256SUMS"
-echo 'Sequential MOV32 register/memory and MOV64 register native/model replay passed'
+echo 'Sequential MOV32 register/memory and MOV64/XCHG64 register native/model replay passed'

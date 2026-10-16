@@ -90,10 +90,13 @@ jobs:
           lake env lean -DwarningAsError=true tests/SequentialMoves.lean
           lake env lean -DwarningAsError=true tests/SequentialMoves64.lean
           lake env lean -DwarningAsError=true tests/SequentialMoveResources.lean
+          lake env lean -DwarningAsError=true tests/SequentialXchg64.lean
+          lake env lean -DwarningAsError=true tests/SequentialXchgResources.lean
           lake env lean -DwarningAsError=true tests/StoreReturn32Raw.lean
           lake env lean -DwarningAsError=true tests/StoreReturn32Resources.lean
           lake env lean -DwarningAsError=true tests/GradingStoreReturn.lean
           lake env lean -DwarningAsError=true tests/StoreReturnRcx.lean
+          lake env lean -DwarningAsError=true tests/StoreReturnXchg.lean
           lake env lean -DwarningAsError=true tests/StoreReturnAccounting.lean
           lake env lean -DwarningAsError=true tests/ArrayResources.lean
           lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
@@ -165,11 +168,11 @@ jobs:
           EDSL_GCC: gcc-13
           EDSL_CLANG: clang-18
         run: bash scripts/verify-sum32.sh
-      - name: Replay owned MOV32 and MOV64 CPU observations through Lean
+      - name: Replay owned MOV32, MOV64 and XCHG64 CPU observations through Lean
         env:
           EDSL_CLANG: clang-18
         run: bash scripts/verify-sequential-moves.sh
-      - name: Preserve owned MOV observations and kernel checks
+      - name: Preserve owned register and memory observations and kernel checks
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sequential-moves-evidence
@@ -196,6 +199,17 @@ jobs:
         with:
           name: store-return-grading-evidence
           path: artifacts/store-return-grading/
+          if-no-files-found: error
+      - name: Grade GCC size-optimized register-exchange output and observe native calls
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-store-return-xchg.sh
+      - name: Preserve owned register-exchange client proof grading evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: store-return-xchg-evidence
+          path: artifacts/store-return-xchg/
           if-no-files-found: error
       - name: Preserve owned sum32 certificates and native observations
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

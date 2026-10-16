@@ -56,6 +56,12 @@ def execute (state : State) (instruction : Instruction) (af : Bool) : Except Err
   | .movReg64 destination source =>
     return ⟨.next { state.writeRegister destination (state.registers source) with
       rip := state.rip + 3 }, reads⟩
+  | .xchgReg64 left right =>
+    return ⟨.next { (state.writeRegister left (state.registers right)).writeRegister
+      right (state.registers left) with rip := state.rip + 3 }, reads⟩
+  | .xchgRax64 other =>
+    return ⟨.next { (state.writeRegister .rax (state.registers other)).writeRegister
+      other (state.registers .rax) with rip := state.rip + 2 }, reads⟩
   | .loadMem32 destination address =>
     let value ← loadDWord state.memory (address.eval state)
     return ⟨.next { state.writeRegister destination (value.setWidth 64) with
@@ -119,6 +125,44 @@ theorem execute_movReg64 (state : State) (destination source : Register) (af : B
     execute state (.movReg64 destination source) af =
       .ok ⟨.next { state.writeRegister destination (state.registers source) with
         rip := state.rip + 3 }, []⟩ := rfl
+
+theorem execute_xchgReg64 (state : State) (left right : Register) (af : Bool) :
+    execute state (.xchgReg64 left right) af =
+      .ok ⟨.next { (state.writeRegister left (state.registers right)).writeRegister
+        right (state.registers left) with rip := state.rip + 3 }, []⟩ := rfl
+
+theorem execute_xchgRax64 (state : State) (other : Register) (af : Bool) :
+    execute state (.xchgRax64 other) af =
+      .ok ⟨.next { (state.writeRegister .rax (state.registers other)).writeRegister
+        other (state.registers .rax) with rip := state.rip + 2 }, []⟩ := rfl
+
+/-- Both operands come from the original state. Aliases need no distinctness
+premise, all other registers survive, and no operand memory is accessed. -/
+theorem execute_xchgReg64_context (state : State) (left right : Register) (af : Bool) :
+    ∃ final, execute state (.xchgReg64 left right) af = .ok ⟨.next final, []⟩ ∧
+      final.registers left = state.registers right ∧
+      final.registers right = state.registers left ∧
+      (∀ register, register ≠ left → register ≠ right →
+        final.registers register = state.registers register) ∧
+      final.memory = state.memory ∧ final.flags = state.flags ∧ final.rip = state.rip + 3 := by
+  refine ⟨_, rfl, ?_, ?_, ?_, rfl, rfl, rfl⟩
+  · by_cases same : left = right <;> simp [State.writeRegister, same]
+  · simp [State.writeRegister]
+  · intro register differentLeft differentRight
+    simp [State.writeRegister, differentLeft, differentRight]
+
+theorem execute_xchgRax64_context (state : State) (other : Register) (af : Bool) :
+    ∃ final, execute state (.xchgRax64 other) af = .ok ⟨.next final, []⟩ ∧
+      final.registers .rax = state.registers other ∧
+      final.registers other = state.registers .rax ∧
+      (∀ register, register ≠ .rax → register ≠ other →
+        final.registers register = state.registers register) ∧
+      final.memory = state.memory ∧ final.flags = state.flags ∧ final.rip = state.rip + 2 := by
+  refine ⟨_, rfl, ?_, ?_, ?_, rfl, rfl, rfl⟩
+  · cases other <;> simp [State.writeRegister]
+  · simp [State.writeRegister]
+  · intro register differentRax differentOther
+    simp [State.writeRegister, differentRax, differentOther]
 
 theorem execute_loadMem32 (state : State) (destination : Register) (address : Address) (af : Bool) :
     execute state (.loadMem32 destination address) af = do
@@ -241,7 +285,7 @@ theorem execute_storeIntent {state : State} {instruction : Instruction} {address
     simp only [Instruction.storeIntent, Option.some.injEq, Prod.mk.injEq] at intent
     rcases intent with ⟨rfl, rfl⟩
     exact execute_storeMem32 state operand source af
-  | movReg32 _ _ | movReg64 _ _ | loadMem32 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _ | addMem32 _ _
+  | movReg32 _ _ | movReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _ | addMem32 _ _
   | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jmp _ =>
     simp [Instruction.storeIntent] at intent
 
@@ -385,7 +429,7 @@ theorem execute_reads {state : State} {instruction : Instruction} {af : Bool}
     cases result : executeShortBranch state true displacement <;> simp only [execute, result, ok_bind, error_bind, pure_ok, Except.ok.injEq, reduceCtorEq] at success
     cases success
     rfl
-  | movReg32 destination source | movReg64 destination source
+  | movReg32 destination source | movReg64 destination source | xchgReg64 left right | xchgRax64 other
   | xorSelf32 destination | test64 left right | cmp64 left right
   | addImm64 destination immediate | inc64 destination | dec64 destination =>
     cases success
@@ -460,7 +504,7 @@ theorem execute_reads_succeed {state : State} {instruction : Instruction} {af : 
       simp only [Instruction.operandReads, List.mem_singleton] at member
       subst read
       exact ⟨rfl, value, loaded⟩
-  | movReg32 _ _ | movReg64 _ _ | storeMem32 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _
+  | movReg32 _ _ | movReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | storeMem32 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _
   | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jmp _ =>
     simp [Instruction.operandReads]
 
@@ -473,7 +517,7 @@ theorem execute_new_memory {state final : State} {instruction : Instruction} {af
     (next : observation.result = .next final) : final.memory = state.memory := by
   cases instruction with
   | legacy old => simp [Instruction.isNew] at newInstruction
-  | movReg32 destination source | movReg64 destination source
+  | movReg32 destination source | movReg64 destination source | xchgReg64 left right | xchgRax64 other
   | xorSelf32 destination | test64 left right | cmp64 left right
   | addImm64 destination immediate | inc64 destination | dec64 destination =>
     cases success
@@ -534,7 +578,7 @@ theorem execute_new_next {state : State} {instruction : Instruction} {af : Bool}
     ∃ final, observation.result = .next final := by
   cases instruction with
   | legacy old => simp [Instruction.isNew] at newInstruction
-  | movReg32 destination source | movReg64 destination source
+  | movReg32 destination source | movReg64 destination source | xchgReg64 left right | xchgRax64 other
   | xorSelf32 destination | test64 left right | cmp64 left right
   | addImm64 destination immediate | inc64 destination | dec64 destination =>
     cases success
@@ -583,7 +627,7 @@ theorem execute_new_flags {state final : State} {instruction : Instruction} {af 
     final.flags &&& ~~~arithmeticFlagMask = state.flags &&& ~~~arithmeticFlagMask := by
   cases instruction with
   | legacy old => simp [Instruction.isNew] at newInstruction
-  | movReg32 destination source | movReg64 destination source =>
+  | movReg32 destination source | movReg64 destination source | xchgReg64 left right | xchgRax64 other =>
     cases success; cases next
     rfl
   | loadMem32 destination address =>

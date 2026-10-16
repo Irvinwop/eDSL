@@ -227,6 +227,31 @@ PROBE qx8b_b, 0x4b,0x8b,0xd8 /* rbx <- r8 */
 PROBE qx8b_r, 0x4e,0x8b,0xd8 /* r11 <- rax */
 PROBE qx8b_rb, 0x4f,0x8b,0xd8 /* r11 <- r8 */
 
+/* All 256 ModRM register pairs, including every alias and RSP position.
+ * The C observer separately requests left <-> right, with no byte decoder. */
+.macro EXCHANGE left,right
+    PROBE exchange_\left\()_\right, (0x48 | ((\left >> 3) << 2) | (\right >> 3)),0x87,(0xc0 | ((\left & 7) << 3) | (\right & 7))
+.endm
+.irp left,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+    .irp right,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+        EXCHANGE \left,\right
+    .endr
+.endr
+/* All 16 opcode-register operands and every ignored R/X combination. */
+.macro SHORT_EXCHANGE other,ignored
+    PROBE short_\other\()_\ignored, (0x48 | (\other >> 3) | (\ignored << 1)),(0x90 | (\other & 7))
+.endm
+.irp other,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+    .irp ignored,0,1,2,3
+        SHORT_EXCHANGE \other,\ignored
+    .endr
+.endr
+/* Ignored X with all R/B combinations for the ModRM encoding. */
+PROBE exchange_x_0, 0x4a,0x87,0xd9 /* rbx <-> rcx */
+PROBE exchange_x_1, 0x4b,0x87,0xd9 /* rbx <-> r9 */
+PROBE exchange_x_2, 0x4e,0x87,0xd9 /* r11 <-> rcx */
+PROBE exchange_x_3, 0x4f,0x87,0xd9 /* r11 <-> r9 */
+
 /* Safe project-owned mutations. The independent contract observer must reject
  * all of these and none is passed to the positive Lean replay. Some bytes now
  * decode successfully but violate their independently requested width. */
@@ -235,6 +260,12 @@ PROBE mutant_direction, 0x89,0xc3
 PROBE mutant_omitted, 0x90,0x90
 PROBE mutant_neighbor, 0x48,0x89,0x37
 PROBE mutant_narrow, 0x89,0xd8 /* requested rax <- full64 rbx, executed eax <- ebx */
+/* Safe register-only defects: never touch memory with arbitrary GPR values. */
+PROBE mutant_exchange_copy, 0x48,0x89,0xf8 /* only copies rdi to rax */
+PROBE mutant_exchange_wrong, 0x48,0x96 /* exchanges rsi instead of rdi */
+PROBE mutant_exchange_omitted, 0x90,0x90
+PROBE mutant_exchange_narrow, 0x97 /* exchanges only eax and edi */
+PROBE mutant_exchange_flags, 0x48,0x97,0xf9 /* swap then set CF */
 .globl edsl_moves_section_end
 edsl_moves_section_end:
 .section .note.GNU-stack,"",@progbits

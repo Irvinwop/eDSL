@@ -136,7 +136,8 @@ independently observed. Ordinary RAM and disabled alignment checking/CET are
 selected environmental assumptions. Observations are finite; they establish
 no source preservation, universal CPU/kernel conformance, concurrency, timing
 or whole-program/whole-OS result. The compiler's GCC13 -Oz register-XCHG output
-is valid native code but currently unsupported by this Lean profile. Raw
+is valid native code outside this direct shape API; verify-store-return-xchg.sh
+checks it through the independent client proof and general grader. Raw
 windows must match in full; extra trailing bytes reject. ELF selects the first
 RET-terminated decoded entry window within64 bytes/32 instructions, without
 skipping unsupported code. No certificate filename alone establishes success.

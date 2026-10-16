@@ -43,6 +43,8 @@ def instruction : Instruction → String
   | .addMem32 destination operand => s!"(.addMem32 {register destination} {address operand})"
   | .movReg32 destination source => s!"(.movReg32 {register destination} {register source})"
   | .movReg64 destination source => s!"(.movReg64 {register destination} {register source})"
+  | .xchgReg64 left right => s!"(.xchgReg64 {register left} {register right})"
+  | .xchgRax64 other => s!"(.xchgRax64 {register other})"
   | .loadMem32 destination operand => s!"(.loadMem32 {register destination} {address operand})"
   | .storeMem32 operand source => s!"(.storeMem32 {address operand} {register source})"
   | .addImm64 destination value => s!"(.addImm64 {register destination} {value.toNat})"

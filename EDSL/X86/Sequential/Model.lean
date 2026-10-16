@@ -30,6 +30,10 @@ inductive Instruction where
   | movReg32 (destination source : Register)
   /-- A full-width register copy, encoded with one REX.W prefix. -/
   | movReg64 (destination source : Register)
+  /-- Full-width register exchange using the ModRM encoding. -/
+  | xchgReg64 (left right : Register)
+  /-- Full-width exchange with RAX using the opcode-register encoding. -/
+  | xchgRax64 (other : Register)
   | loadMem32 (destination : Register) (address : Address)
   | storeMem32 (address : Address) (source : Register)
   | addImm64 (destination : Register) (immediate : Byte)

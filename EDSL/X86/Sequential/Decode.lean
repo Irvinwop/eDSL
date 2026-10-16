@@ -12,8 +12,8 @@ def Instruction.length : Instruction → Nat
   | .legacy (.mov32 _ _) => 5
   | .legacy .ret => 1
   | .legacy _ => 2
-  | .xorSelf32 _ | .movReg32 _ _ | .je _ | .jmp _ => 2
-  | .movReg64 _ _ | .test64 _ _ | .cmp64 _ _ | .inc64 _ | .dec64 _ => 3
+  | .xorSelf32 _ | .movReg32 _ _ | .xchgRax64 _ | .je _ | .jmp _ => 2
+  | .movReg64 _ _ | .xchgReg64 _ _ | .test64 _ _ | .cmp64 _ _ | .inc64 _ | .dec64 _ => 3
   | .addMem32 _ (.base _) | .loadMem32 _ (.base _) | .storeMem32 (.base _) _ => 2
   | .addMem32 _ (.indexed _ _ _) | .loadMem32 _ (.indexed _ _ _)
   | .storeMem32 (.indexed _ _ _) _ => 3
@@ -68,8 +68,9 @@ def decodeAddressAt (state : State) (modrm : Byte) : Except Error Address := do
   else if modrm.toNat % 8 = 5 then throw .unsupportedEncoding
   else return .base (modRMRM modrm)
 
-/-- NEW subset only. Register MOV64 admits one REX.W prefix 48..4F, including
-the R/B register extensions. Other 64-bit families retain exact prefix 48.
+/-- NEW subset only. Register MOV64 and XCHG64 admit one REX.W prefix 48..4F,
+including the R/B register extensions. XCHG's short form uses B to extend its
+opcode register; unused R/X bits are ignored. Other 64-bit families retain exact prefix 48.
 Register ModRM for XOR/TEST/CMP/INC/DEC/ADD-immediate, unprefixed MOV32, and mod=00
 ordinary ADD/MOV-memory addresses.
 SIB allows all scales, no missing index (index=4), no missing base (base=5),
@@ -84,7 +85,13 @@ def decodeNewAt (state : State) (oldError : Error) : Except Error Instruction :=
     return .xorSelf32 (modRMRM modrm)
   else if rexWPrefix opcode then
     let operation ← fetchByte state.memory (state.rip + 1)
-    if operation = 0x89 ∨ operation = 0x8b then
+    if operation = 0x87 then
+      let modrm ← fetchByte state.memory (state.rip + 2)
+      if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
+      return .xchgReg64 (rexModRMRM opcode modrm) (rexModRMReg opcode modrm)
+    else if 0x90 ≤ operation.toNat ∧ operation.toNat ≤ 0x97 then
+      return .xchgRax64 (rexModRMRM opcode operation)
+    else if operation = 0x89 ∨ operation = 0x8b then
       let modrm ← fetchByte state.memory (state.rip + 2)
       if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
       return if operation = 0x89 then .movReg64 (rexModRMRM opcode modrm) (rexModRMReg opcode modrm)
@@ -149,7 +156,8 @@ theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.len
   | legacy old => cases old <;> simp [Instruction.length]
   | addMem32 destination address | loadMem32 destination address | storeMem32 address destination =>
     cases address <;> simp [Instruction.length]
-  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | test64 _ _ | cmp64 _ _ | addImm64 _ _
+  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
+  | test64 _ _ | cmp64 _ _ | addImm64 _ _
   | inc64 _ | dec64 _ | je _ | jmp _ => simp [Instruction.length]
 
 theorem Instruction.length_le_five (instruction : Instruction) : instruction.length ≤ 5 := by
@@ -157,7 +165,8 @@ theorem Instruction.length_le_five (instruction : Instruction) : instruction.len
   | legacy old => cases old <;> simp [Instruction.length]
   | addMem32 destination address | loadMem32 destination address | storeMem32 address destination =>
     cases address <;> simp [Instruction.length]
-  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | test64 _ _ | cmp64 _ _ | addImm64 _ _
+  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
+  | test64 _ _ | cmp64 _ _ | addImm64 _ _
   | inc64 _ | dec64 _ | je _ | jmp _ => simp [Instruction.length]
 
 /-- Admission of a NEW instruction never admits it in the old sequential/TSO

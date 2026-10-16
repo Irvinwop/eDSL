@@ -1,4 +1,4 @@
-# Ordinary MOV and current OS resources
+# Ordinary MOV, register exchange and current OS resources
 
 The separate Lean `X86.Sequential` backend decodes unprefixed `89 /r` and
 `8b /r` register copies, four-byte loads and four-byte stores. Register operands
@@ -22,9 +22,22 @@ or a store source aliases an address register.
 There are no 64-bit memory operations in this extension. W=0 REX, repeated REX
 and extra prefixes reject; TEST/CMP/ADD-immediate/INC/DEC retain exact `48`.
 
+Register-only XCHG64 accepts a single REX.W byte `48`–`4f` followed by
+`87 /r` with mod=11, or `90+rd`. The three-byte ModRM form exchanges the full
+pre-state r/m and reg values across all 16 GPRs, using REX.B/R and ignoring X.
+The two-byte short form exchanges RAX with the opcode register, extended by
+REX.B; R/X are ignored. Both assignments use the original snapshot. Aliased
+operands retain all bits, including short-form RAX/RAX, and every form preserves
+all flags and memory. These instructions have no operand reads, store intent,
+locked event or AF choice. Memory64 exchange, W=0, LOCK and extra prefixes
+reject. The existing legacy atomic memory-XCHG32 semantics is unchanged.
+
 The architectural references are Intel's
 [REX fields, volume 2, section 2.2.1](https://cdrdv2-public.intel.com/825760/325383-sdm-vol-2abcd.pdf)
 and [MOV instruction entry, volume 2B](https://cdrdv2-public.intel.com/868141/253667-089-sdm-vol-2b.pdf).
+The exchange reference is Intel's
+[XCHG entry, volume 2D, pages 6-28–6-29](https://cdrdv2-public.intel.com/789589/334569-sdm-vol-2d.pdf),
+with [REX field rules, volume 2A, section 2.2.1](https://cdrdv2-public.intel.com/929353/253666-093-sdm-vol-2a.pdf).
 
 The existing legacy decoder runs first. Its six supported MOV encodings keep
 their exact representation and behavior. `decodeAt_transport` proves successful
@@ -68,6 +81,15 @@ all flags. It exposes the destination value, every other register and RIP+3.
 Changing RSP retains authority for the original stack slot; it does not establish
 that a subsequent RET can use the new RSP.
 
+`current_xchgReg64_step` and `current_xchgRax64_step` retain that same OS world
+and full memory coupling while exposing both swapped pre-state values, every
+other register, all flags and the actual three- or two-byte PC advance.
+[`tests/SequentialXchgResources.lean`](../tests/SequentialXchgResources.lean)
+checks exact-byte exchanges involving RSP: the original stack loan survives
+a changed machine RSP, and a double exchange restores the actual binding before
+a checked owner store and RET. Retaining a loan alone does not authorize RET
+from the changed RSP.
+
 The all-input integration in
 [`tests/SequentialMoveResources.lean`](../tests/SequentialMoveResources.lean)
 uses exact SIB store/load bytes, a source that aliases the address base, and a
@@ -86,21 +108,28 @@ bits, self-copy width differences, complete context preservation, exact-byte
 CFG admission, fetch failures and rejection by the existing TSO issue path.
 
 [`scripts/verify-sequential-moves.sh`](../scripts/verify-sequential-moves.sh)
-links 106 positive owned instruction windows and checks the extracted ELF section
-against the executed bytes. Its 264 finite observations become named Lean
+links 430 positive owned instruction windows and checks the extracted ELF section
+against the executed bytes. Its 912 finite observations become named Lean
 theorems: the original 152 MOV32 register/memory cases plus 112 MOV64 register
-cases. The 56 MOV64 windows cover 16 assembler `89` copies, 16 explicit `8b`
+cases and 648 XCHG64 register cases. The 56 MOV64 windows cover 16 assembler `89` copies, 16 explicit `8b`
 copies, 16 assembler self-copies and eight ignored-X forms, each with two flag
 and value profiles.
+The 324 XCHG64 windows cover all 256 ModRM register pairs, all 16 short-form
+operands with every ignored R/X combination, and four ignored-X ModRM forms
+covering all R/B combinations. Self-exchange and either operand being RSP are
+included. [`tests/SequentialXchg64.lean`](../tests/SequentialXchg64.lean) adds
+symbolic swap/frame properties and decoding, fetch and subset rejections.
 A C observer independently checks all 16 GPRs, complete
 captured flags and all 32 observed data bytes, including nonzero upper halves,
 unaligned operands and addresses above 4 GiB. A stack-independent assembly
 capture supports modeled RSP changes. The native snapshots are replayed through
 the public Lean step for both AF choices using kernel-checked proofs. Operand
 read lists come from independent requested footprints; they are not hardware
-read traces. Five safe owned width/direction/omitted-store/neighbor mutants,
+read traces. Ten safe owned mutants,
 including a requested MOV64 executed as MOV32,
-must fail the C observer, and altered extracted bytes must fail identity checks.
+must fail the C observer: the five MOV width/direction/omitted-store/neighbor
+cases and five register-exchange cases (copy, wrong operand, omitted swap,
+32-bit swap and flag damage). Altered extracted bytes must fail identity checks.
 These checks use valid ordinary memory; inaccessible/canonical/nonwrapping
 failure cases remain modeled regressions. Evidence goes to
 `artifacts/sequential-moves/`.

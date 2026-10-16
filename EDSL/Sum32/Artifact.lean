@@ -81,6 +81,9 @@ def instructionLiteral : Sequential.Instruction → String
     s!"(.movReg32 {registerLiteral destination} {registerLiteral source})"
   | .movReg64 destination source =>
     s!"(.movReg64 {registerLiteral destination} {registerLiteral source})"
+  | .xchgReg64 left right =>
+    s!"(.xchgReg64 {registerLiteral left} {registerLiteral right})"
+  | .xchgRax64 other => s!"(.xchgRax64 {registerLiteral other})"
   | .loadMem32 destination address =>
     s!"(.loadMem32 {registerLiteral destination} {addressLiteral address})"
   | .storeMem32 address source =>

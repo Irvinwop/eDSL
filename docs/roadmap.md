@@ -74,6 +74,10 @@ constructive all-choice total correctness, actual operand-read traces and
 reachable-prefix fault/divergence exclusion for the checked sum32 loops.
 It also decodes ordinary low8 MOV32 register/load/store forms over full64
 base/SIB addresses and REX.W MOV64 register copies across all 16 GPRs.
+Register XCHG64 now supports ModRM and short RAX encodings across all16 GPRs,
+with simultaneous pre-state value flow, complete flags/RAM frames and current
+OS composition. Native observations cover all ModRM pairs and ignored prefix
+bits; changed RSP retains the original loan without proving a RET binding.
 The current owner-resource bridge derives actual two- and
 three-byte stores and target loads, retaining the same OS history and loan
 frames. Full-pointer copy/store/RET composition retains the same current RAM
@@ -85,6 +89,8 @@ store/copy orderings and a copied-RAX variant against a stronger full-pointer
 return post, with checked OS evolution and exact accounting. The distinct
 `storeReturn32` grading task also accepts a fresh four-instruction RCX proof,
 using the same domains/policies without a shape or accounting admission gate.
+It also accepts an independent three-instruction client proof for actual GCC13
+`-Oz` exchange/store/RET output, retaining that same checked current-resource return.
 Broader pointer contracts and instruction/control-flow inference remain future work.
 Separate pointer-store accounting now derives a three-instruction lower bound
 from actual executions and the existing ordinary-store policy on useful inputs

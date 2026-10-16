@@ -117,7 +117,7 @@ Implemented and checked:
   See [two-array sums](docs/pair32.md).
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
   read-after-write and disjoint code/stack preservation proofs.
-- Ordinary MOV32 register copies, loads and stores, plus MOV64 copies across
+- Ordinary MOV32 register copies, loads and stores, plus MOV64 copies and XCHG64 across
   all 16 GPRs, in the separate sequential backend. Memory operands use full64
   base/SIB addressing and pre-state aliasing. Current owner resources compose
   full-pointer copies with actual loads/stores and retain the code, stack and
@@ -128,6 +128,8 @@ Implemented and checked:
   the actual checked OS update, memory/ABI frames and exact three-instruction
   accounting. A distinct `storeReturn32` grader also accepts a fresh
   four-instruction client proof outside those direct certificate shapes.
+  A five-byte GCC13 `-Oz` exchange/store/RET client carries the same independent
+  contract, actual current OS effects and three-instruction accounting.
   A separate three-instruction lower bound covers useful inputs requiring a
   changed RAX under the registered policy.
   See [pointer-returning stores](docs/store-return32.md) and [grading](docs/grading.md).
@@ -307,6 +309,7 @@ EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return32.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return-grading.sh
+EDSL_GCC=gcc-13 bash scripts/verify-store-return-xchg.sh
 EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 ```
 

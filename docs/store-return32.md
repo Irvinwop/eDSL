@@ -21,7 +21,9 @@ read loan is added. The input's high32 RSI bits remain arbitrary.
 
 Selected GCC13 GNU23 (`gnu2x`) `-Os` output uses the first shape; Clang18
 `gnu23 -Oz` uses the second. The third is a separately owned assembly variant.
-GCC13 `-Oz` emits register XCHG in the selected profile and remains unsupported.
+GCC13 `-Oz` emits `48 97 89 30 c3`: exchange RAX/RDI, store through RAX,
+then RET. Its independent client proof is accepted by the general grader,
+while the three-shape direct certificate API continues to reject it.
 No valid output is silently rewritten into a supported window.
 
 `raw_semantics` derives actual decoding and the three real machine transitions
@@ -101,3 +103,19 @@ reproduces the distinct task and client workflow. It retains evidence in
 `artifacts/store-return-grading/`: sixteen successful raw/ELF packet checks,
 task/code/span rejections and 336 independent native calls across four final
 artifacts. See [grading](grading.md) for packet, admission and trust details.
+
+`EDSL.StoreReturnXchg.claim` proves that five-byte GCC output against the same
+registered task, with no new shape, input-domain, policy or trusted-import gate.
+The exchange assigns the original full target pointer to RAX and original RAX
+to volatile RDI. The checked store uses that actual RAX, and RET uses the
+preserved caller stack. Current OS resources retain the evolved RAM coupling,
+owner metadata and live loans; the returned pointer remains usable for another
+authorized mutation. Accounting proves exactly three modeled instructions
+including RET, with the original stack8 read. The existing conditional minimum
+applies on useful inputs requiring a changed RAX.
+
+`EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return-xchg.sh`
+builds fresh GNU23 `-Oz` output, grades raw/explicit-span ELF reference/body
+packets and observes those same extracted bytes with the independent native
+pointer/store contract. Evidence is retained in `artifacts/store-return-xchg/`.
+This client module is outside the grader's trusted snapshot.

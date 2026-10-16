@@ -211,6 +211,46 @@ theorem current_movReg64_step {call : Call} {shared : Shared} {before : State}
   rw [step_eq_execute af decoded]
   exact executed
 
+/-- A register exchange retains the same current OS world, including the full
+RAM coupling and the original caller-slot loan. Both assigned values come from
+the pre-state, even when the operands alias. Exchanging RSP does not establish
+the stack binding required by a later RET. -/
+theorem current_xchgReg64_step {call : Call} {shared : Shared} {before : State}
+    {left right : Register}
+    (current : Current call shared before)
+    (decoded : Sequential.decodeAt before = .ok (.xchgReg64 left right)) (af : Bool) :
+    ∃ after, step af before = .ok ⟨.next after, []⟩ ∧
+      Current call shared after ∧ after.registers left = before.registers right ∧
+      after.registers right = before.registers left ∧
+      (∀ register, register ≠ left → register ≠ right →
+        after.registers register = before.registers register) ∧
+      after.memory = before.memory ∧ after.flags = before.flags ∧ after.rip = before.rip + 3 := by
+  obtain ⟨after, executed, leftValue, rightValue, other, memory, flags, pc⟩ :=
+    execute_xchgReg64_context before left right af
+  refine ⟨after, ?_, ⟨current.contract, memory.trans current.coupled⟩,
+    leftValue, rightValue, other, memory, flags, pc⟩
+  rw [step_eq_execute af decoded]
+  exact executed
+
+/-- The compact RAX exchange has the same resource contract as the ModRM
+register exchange and advances by its actual two-byte encoding. -/
+theorem current_xchgRax64_step {call : Call} {shared : Shared} {before : State}
+    {other : Register}
+    (current : Current call shared before)
+    (decoded : Sequential.decodeAt before = .ok (.xchgRax64 other)) (af : Bool) :
+    ∃ after, step af before = .ok ⟨.next after, []⟩ ∧
+      Current call shared after ∧ after.registers .rax = before.registers other ∧
+      after.registers other = before.registers .rax ∧
+      (∀ register, register ≠ .rax → register ≠ other →
+        after.registers register = before.registers register) ∧
+      after.memory = before.memory ∧ after.flags = before.flags ∧ after.rip = before.rip + 2 := by
+  obtain ⟨after, executed, raxValue, otherValue, untouched, memory, flags, pc⟩ :=
+    execute_xchgRax64_context before other af
+  refine ⟨after, ?_, ⟨current.contract, memory.trans current.coupled⟩,
+    raxValue, otherValue, untouched, memory, flags, pc⟩
+  rw [step_eq_execute af decoded]
+  exact executed
+
 /-- Current owner authorization and the complete-word permissions derive an
 actual ordinary load at the fixed call target. The effective address is read
 from the full PRE-state, even when the destination aliases an address register.
