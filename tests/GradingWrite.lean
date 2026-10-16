@@ -2,23 +2,13 @@
 Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
-import EDSL.Grading.Known
+import EDSL.Grading.Write32.Accounting
 import EDSL.Audit
 
 set_option warningAsError true
 
 namespace EDSL.Tests.GradingWrite
 open X86 X86.Sequential Grading OS
-
--- A weakened result contract or a domain restricted to already-equal words
--- would invalidate this independent necessary-change consequence.
-theorem useful_requires_change {bytes input initial final}
-    (pre : Write32.Pre bytes input initial) (useful : Write32.Useful input)
-    (post : Write32.Post input initial final) : final.memory ≠ initial.memory := by
-  intro same
-  have result := post.value
-  rw [same, pre.oldValue] at result
-  exact useful (Except.ok.inj result)
 
 -- Unsupported code is not filtered out of the current resource domain by an
 -- assumed decoder/CFG/run result. Its real initial-prefix obligation rejects.
@@ -57,7 +47,7 @@ theorem no_op_not_claim : ¬Claim .write32 [0xc3] := by
   have same := Sequential.Executes.fixed_choices_unique execution
     (Sequential.Executes.ret (choices := fun _ => false) actual)
   rw [same] at post
-  exact useful_requires_change pre.machine witness.raw.useful post rfl
+  exact Write32.useful_requires_memory_change pre.machine witness.raw.useful post rfl
 
 -- The real mutation gate checks the whole borrowed allocation, even when a
 -- store is disjoint from the particular subregion of one live loan.

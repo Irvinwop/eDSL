@@ -75,7 +75,7 @@ reachable-prefix fault/divergence exclusion for the checked sum32 loops.
 Reusable cutpoint composition now derives those guarantees from local actual
 machine steps: static depth decreases inside a segment, and a natural rank
 decreases at cutpoint transfers. Independent contracts and entry admission
-remain required; invariant inference and objective task grading remain open.
+remain required; general invariant inference and broader task grading remain open.
 
 ### 2. First real artifact: a restricted function
 
@@ -483,7 +483,13 @@ count for exit42, plus `2*count+3` for the all-count assembly loop. Any supporte
 first-syscall candidate requesting exit60/status42 from initial RAX = RDI = 0
 needs at least three user instructions; the checked
 entry attains that bound. These bounds cover the supported ISA and count no
-loading or kernel work. Counted locked-add workers additionally have exact
+loading or kernel work. Word-store grading also has an independent candidate
+lower bound: every useful
+input requires at least two modeled instructions, and the checked store/RET
+attains it with the same returned OS history. The proof covers arbitrary actual
+candidates in the present sequential ISA; already-equal inputs admit a one-RET
+raw example, and CPU timing and complete-x86 optimality remain outside scope.
+Counted locked-add workers additionally have exact
 `3*count+3` own-instruction bounds and published-request event totals across
 successful completing schedules; native lifecycle and waiting costs are excluded.
 The ordinary sum32 proofs derive `Ninit+6*n+3` for pointer/count and

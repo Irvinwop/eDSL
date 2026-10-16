@@ -49,6 +49,9 @@ Implemented and checked:
   Shared expression packets carry a fresh proof
   for a different stride implementation; legacy packets remain accepted.
   The registry and platform profile are limited.
+  A separate instruction-count proof shows the word-store task needs at least
+  two modeled instructions on useful inputs; the checked store/RET attains two.
+  This is a bound within the current ISA model, with no CPU-time claim.
 - A generic behavior-refinement interface, composition, and safety transfer.
 - A restricted x86-64 byte decoder, instruction/stack/memory semantics, and an
   unbounded execution relation with evaluator soundness and completeness.

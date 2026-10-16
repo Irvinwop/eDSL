@@ -160,6 +160,18 @@ supported instruction subset that changes RAX needs at least two instructions.
 The increment fixture attains the bound for zero input/initial RAX. This is an
 instruction-subset bound, not an all-x86 or CPU-time optimum.
 
+For the separate sequential ISA, `Sequential.Executes.memory_change_needs_two`
+proves that any actual memory-changing returning execution needs at least two
+modeled instructions. Its return classification covers every modeled
+instruction, including stores, atomics and syscall boundaries, without a
+read-only premise. `Grading.Write32.minimum_modeled_instructions` derives the
+required memory change from the independent word-store contract on useful
+inputs. `claim_minimum` applies it to arbitrary registered candidates;
+`exact_two` and `resource_exact_two` attain two with the actual resource-return
+history. `optimal_for_useful_input` compares all candidates satisfying that
+same input contract. An already-equal RET-only raw example takes one, so this
+bound is limited to useful inputs. See [cost scope](cost-model.md).
+
 ## Counted loop
 
 `increment-loop` checks `89 f8 e3 05 8d 40 01 e2 fb c3`. It returns the low32

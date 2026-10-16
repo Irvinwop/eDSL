@@ -4,7 +4,7 @@ Status: checked instruction counts and restricted lower bounds, plus a plan for
 richer costs. The x86-64 profile proves two-instruction function results, a
 three-instruction first-syscall result and a counted loop's `2*count+3` cost.
 Matching lower bounds apply to specified
-initial-register cases within the supported ISA; see [coverage](coverage.md) and
+input and initial-state cases within the supported ISA; see [coverage](coverage.md) and
 the [process exit contract](process-exit.md). The original
 [abstract example](../EDSL/Examples/Increment.lean) is retained. No complete-ISA
 optimum or timing bound is proved.
@@ -83,6 +83,7 @@ execution, kernel cleanup and waiting are outside these counts.
 | Checked result | Candidate and initial-state scope |
 | --- | --- |
 | Increment, load32 and store32 exact cost: two instructions | Their checked byte profiles, for every admitted function entry; includes return-stack and memory preconditions |
+| `Write32.minimum_modeled_instructions`: at least two instructions, attained by `89 37 c3` | Any actual returning candidate in the current sequential ISA satisfying the independent word-store Pre/Post on a useful input, where old value differs from requested low32 value; includes RET |
 | `Exchange.atomic_execution`: exactly three instructions and one RMW event | Every admitted `exchange32` function entry, including supported atomic operand, disjoint code/stack and readable return; no latency or minimum-cost claim |
 | `FetchAdd.atomic_execution`: exactly three instructions and one modular-add RMW event | Every admitted `fetch-add32` entry with its atomic operand and code/return-stack conditions; includes arithmetic flags, excludes runtime/kernel work and establishes no optimality |
 | `Increment.zero_input_lower_bound`: at least two instructions | Every supported terminating function execution producing the increment result from zero input and zero initial RAX |
@@ -92,6 +93,27 @@ execution, kernel cleanup and waiting are outside these counts.
 | `IncrementLoop.actual_bytes_correct`: exactly `2*count+3` | Every 64-bit initial RCX count and modular input value, admitted executable bytes and return stack; induction proves termination, including zero count |
 | `CounterThreads.completed_selection_count`: exactly `3*count+3` own selections through completion | Every well-formed entry-phase counter worker with full 64-bit initial RCX, exact locked-add-loop code and retained handle/code/stack resources; successful supplied schedules may interleave peers |
 | `MutexReplay.machine_completed_observations`: exactly `13*n+4*busy` instructions | Every completed admitted architectural interleaving of the fixed 37-byte mutex worker, starting with `n` entry workers; a zero-busy schedule attains the `13*n` lower bound |
+
+The word-store bound quantifies over arbitrary candidate bytes and actual
+executions, without a CFG, read-only policy or fixed instruction-selection
+premise. Any actual returning step is RET and preserves memory; a useful
+word-store result must change memory. A returning tail has positive cost,
+including after an atomic step, so a correct memory-changing return needs at
+least two instructions. `Write32.claim_minimum` derives this bound directly
+from the registered `Claim .write32` for any supplied actual execution.
+
+`Write32.exact_two` proves attainment for every admitted `89 37 c3` entry and
+AF stream. `resource_exact_two` retains the same actual returned OS history,
+current RAM coupling and complete resource frame. `optimal_for_useful_input`
+compares that execution against every candidate meeting the same mathematical
+input contract. These theorems live in
+[`Write32.Accounting`](../EDSL/Grading/Write32/Accounting.lean).
+The useful-input condition is essential: the regression proof in
+[`Write32Accounting`](../tests/Write32Accounting.lean) exhibits an admitted
+already-equal input where RET alone satisfies the raw Post in one instruction.
+RET-only code still fails the universal registered task on useful inputs.
+This result concerns the present modeled instruction subset and counts neither
+micro-ops nor CPU time. Grader acceptance imposes no optimality requirement.
 
 The process lower bound is an independent argument about the candidate class:
 each supported ordinary step preserves at least one of RAX and RDI, and the

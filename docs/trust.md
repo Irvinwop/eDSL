@@ -109,6 +109,12 @@ owns these policy hooks and the returned-history requirement. No future
 execution or favorable policy is an admission premise. Native pointers do not
 enforce the logical tickets. Atomics and syscalls remain excluded; bounded model
 instruction counts establish no timing or global minimality theorem.
+The separate owned-word cost proof compares arbitrary actual candidates in the
+current sequential ISA: useful inputs require at least two modeled instructions,
+and the checked store/RET attains two with its current resource-return history.
+It assumes the independent task Pre/Post, and the useful old/new inequality is
+essential. It does not constrain grader acceptance to an optimal implementation
+or establish a complete-x86, micro-op or CPU-time bound.
 
 The abstract sequential address-space contract is projected into machine memory,
 with checked protection/binary-load composition. It does not verify Linux syscall

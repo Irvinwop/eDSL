@@ -244,4 +244,9 @@ The registry currently has three tasks. Expanding input and output contracts,
 multiple-target mutation policies, concurrent grading, task
 registration review and automated invariant generation remains future work.
 Instruction costs can be proved separately; acceptance here does not impose a
-particular implementation cost or establish global optimality.
+particular implementation cost or establish global optimality. The separate
+`Write32.Accounting.claim_minimum` theorem proves at least two modeled
+instructions for every actual accepted word-store execution on a useful input.
+The checked store/RET routine attains two while retaining its actual OS return
+history. See the [cost model](cost-model.md) for candidate scope, the necessary
+useful-input condition and the distinction from CPU time.
