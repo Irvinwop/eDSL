@@ -69,6 +69,9 @@ exclusion. The raw exit contract adds infinite OS observation traces, an
 all-completed-results theorem, explicit conditional progress, an indefinite-wait
 counterexample and a nonempty fair trace. General temporal composition and
 shared-memory nondeterminism remain future work.
+The separate sequential execution layer now also handles undefined AF choices,
+constructive all-choice total correctness, actual operand-read traces and
+reachable-prefix fault/divergence exclusion for the checked sum32 loops.
 
 ### 2. First real artifact: a restricted function
 
@@ -79,7 +82,9 @@ The memory extension also checks `8b 07 c3` (32-bit load) and `89 37 c3`
 (32-bit store), each from Clang C/C++ and GCC C. Permission, little-endian value,
 outside-footprint framing, preserved code/return stack and two-step termination
 are proved. The counted assembly increment loop now has all-count correctness,
-termination and exact cost through a backward branch; wider control flow remains ahead.
+termination and exact cost through a backward branch. The ordinary sum32
+milestone below adds two structurally checked compiler-produced loop shapes;
+general control-flow and invariant inference remain ahead.
 
 Choose a loop-free unsigned fixed-width function specification with edge cases.
 Select a small x86-64 instruction subset, prove exact-byte decoding and
@@ -153,6 +158,28 @@ The counted-loop extension now proves modular increment for every 64-bit count
 with a decreasing natural variant and exact `2*count+3` cost, preserving flags
 and memory. Raw/full-ELF certificates cover the owned assembly from Clang/GCC;
 this is not a compiler source-loop preservation theorem. See [control flow](control-flow.md).
+
+The ordinary [sum32 loop gate](sum32.md) is checked for GCC 13 pointer/count
+(`-Os -fno-ivopts`, 19 bytes) and Clang 18 indexed (`-Oz`, 18 bytes) C outputs.
+Both meet the same independent natural list-sum modulo 2^32 contract.
+`Sum32.sound` constructs actual termination for every undefined-AF stream and
+proves full RAX zero extension, full memory/register/return framing,
+nonarithmetic-flag preservation and exact four-byte-element/stack8 reads.
+Inputs retain full 64-bit count and nonwrapping current spans; empty input
+requires no input loan, readability or canonical pointer.
+
+A reusable decoded-CFG checker validates the two restricted shapes within
+64 bytes/32 static instructions, including zeroing-prologue variations and
+commuted pointer/count updates. Static decode and branch-link proofs bind
+actual `CodeAt` memory. Current code/complete-stack/nonempty-input loans and
+full current OS RAM couple to the same semantic theorem. Raw/full-ELF semantic
+certificate generation retains explicit current caller/resource premises and
+uses an ELF entry as a callable function. Owned native ABI/guard-page
+observations remain external conformance evidence. This completes the
+restricted ordinary read-loop result, while general program grading, source/IR
+preservation, broader loops/calls and native runtime/kernel refinement remain
+unfinished. The new sequential ISA is outside the existing deterministic/TSO
+decoders.
 
 The OS/machine memory bridge now proves that checked word stores update natural-
 address OS cells exactly as the machine store updates projected memory. Actual
@@ -402,7 +429,8 @@ Pin LLVM semantics and implement supported SSA, memory, UB/poison and atomic
 constructs. Prove/check source→LLVM, LLVM→LLVM and LLVM→machine relations
 separately when those preservation claims are requested. Direct machine-code
 proofs remain usable without these layers. Add corresponding machine semantics
-and certificates for loops, calls, transformed control flow and vectorization.
+and certificates for more loop shapes, calls, transformed control flow and
+vectorization.
 
 Grow GNU C23 and GNU C++26 feature ledgers incrementally. C++ elaboration,
 classes, exceptions, templates, standard libraries, modules and coroutines are
@@ -440,6 +468,11 @@ entry attains that bound. These bounds cover the supported ISA and count no
 loading or kernel work. Counted locked-add workers additionally have exact
 `3*count+3` own-instruction bounds and published-request event totals across
 successful completing schedules; native lifecycle and waiting costs are excluded.
+The ordinary sum32 proofs derive `Ninit+6*n+3` for pointer/count and
+`Ninit+5*n+3` for index, including RET. The selected GCC/Clang prologues give
+`6*n+4` and `5*n+5`. These are retired-instruction results for the admitted
+shapes; their 19/18-byte sizes establish neither the cost theorem nor hardware
+performance or optimality.
 The fixed mutex routine additionally has exact `13*n + 4*busy` architectural
 costs and a constructive zero-busy entry schedule attaining `13*n`. Arbitrary
 admitted intermediate states admit completion in their remaining potential,

@@ -88,6 +88,13 @@ Implemented and checked:
   or safety of a whole kernel or distribution. See [client coverage](docs/futex.md).
 - A counted assembly loop with a proved invariant and termination for every
   64-bit count, modular arithmetic result and exact `2*count+3` user-instruction cost.
+- Ordinary C `sum32` pointer/count and indexed loops share an independent
+  list-sum contract modulo 2^32. A structural decoded-CFG checker proves
+  termination for every undefined-AF choice stream, full RAX zero extension,
+  memory/register frames, exact operand reads and derived instruction costs.
+  Current code/stack/input read loans compose with the same theorem; empty
+  input needs no input loan or readable/canonical input pointer. See
+  [the checked sum32 scope](docs/sum32.md).
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
   read-after-write and disjoint code/stack preservation proofs.
 - A sequential OS address-space model with checked mapping, protection and
@@ -120,7 +127,12 @@ encodings remain unsupported. The separate counter certifier binds the exact
 nineteen-byte locked-add loop to prepared OS-worker workload contracts.
 The separate futex client certifier recognizes the exact 32-byte publishing
 routine, with current admission and member/code binding left as explicit
-semantic premises. Linux loader/kernel refinement, broader syscalls,
+semantic premises. The separate `edsl-certify-sum32` checks restricted decoded
+pointer/count and index shapes, including supported zeroing-prologue variations
+and reordered pointer/count updates, in at most 64 bytes and 32 static
+instructions. Raw/full-ELF certificates retain explicit current caller
+input/stack/resource conditions; an ELF function entry supplies no process
+startup contract. Linux loader/kernel refinement, broader syscalls,
 native lock/runtime refinement, weak memory and general source eDSLs/validators remain planned. See
 the precise [implemented coverage and trust boundary](docs/coverage.md).
 
@@ -147,6 +159,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
 | [Stream output and exit](docs/process-write.md) | How do short writes and errors compose with the next userspace instructions? |
 | [Counted control flow](docs/control-flow.md) | How are a backward branch, loop invariant, termination and input-dependent cost proved? |
+| [Ordinary sum32 loops](docs/sum32.md) | How do two compiler-produced loop shapes meet one sum, termination, memory, read-loan and cost contract? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |
@@ -186,7 +199,7 @@ separate research work.
 Install [elan](https://github.com/leanprover/elan), then run:
 
 ```sh
-lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client
+lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
@@ -225,6 +238,12 @@ lake env lean -DwarningAsError=true tests/FutexClientControl.lean
 lake env lean -DwarningAsError=true tests/FutexClientPhysical.lean
 lake env lean -DwarningAsError=true tests/FutexClientCertificate.lean
 lake env lean -DwarningAsError=true tests/FutexClientCoverage.lean
+lake env lean -DwarningAsError=true tests/SequentialISA.lean
+lake env lean -DwarningAsError=true tests/SequentialExecution.lean
+lake env lean -DwarningAsError=true tests/ArrayResources.lean
+lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
+lake env lean -DwarningAsError=true tests/Sum32Index.lean
+lake env lean -DwarningAsError=true tests/Sum32Artifact.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
@@ -236,6 +255,7 @@ bash scripts/verify-mutex.sh
 bash scripts/verify-mutex-workers.sh
 bash scripts/verify-futex.sh
 bash scripts/verify-futex-clients.sh
+EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
 ```
 
 `lean-toolchain` pins Lean 4.35.0. The library currently needs no third-party
@@ -246,6 +266,9 @@ requires rejection. The bundled `leanchecker` replays the stored proofs in a
 fresh kernel environment. These check the current declarations, not the adequacy of a future
 language, OS, or hardware model. The compiler integration command also needs
 Linux/x86-64, Clang, GCC and binutils; it uses only owned synthetic fixtures.
+The sum32 integration selects GCC 13 (`-Os -fno-ivopts`, GNU23 spelled `gnu2x`)
+and Clang 18 (`-Oz`, `gnu23`), with scalar code and LTO/CET disabled. Its
+certificates, native observations and provenance use `artifacts/sum32-fixtures/`.
 
 The optional native compiler probes are separate from proofs:
 

@@ -23,6 +23,50 @@ Native bounded-count observations supplement the all-count theorem. The owned
 assembly artifact is not evidence of C/C++ loop-lowering preservation. See
 [control-flow scope](control-flow.md).
 
+The ordinary [sum32 milestone](sum32.md) uses one independent natural list-sum
+modulo 2^32 contract for compiler-produced pointer/count and indexed loops.
+`EDSL.Sum32.sound` constructs actual terminating execution for every undefined-AF
+stream from current code, full-width count, nonwrapping current array and actual
+eight-byte return-stack premises. It proves full RAX zero extension, full Memory
+equality, the register/return frame, nonarithmetic-flag preservation and exact
+operand reads and instruction cost. `safe` and `no_divergence` cover reachable
+prefixes and all streams. Empty input needs no input loan/readability/canonical
+pointer; its only operand read is the real stack8 slot, with fetches outside
+that observation.
+
+The separate `X86.Sequential` ISA supplies bit-precise arithmetic helpers and
+independent AF choices for XOR/TEST. Both AF outcomes exhaust the logical-flags
+contract; universal choice coverage is a conservative model, without asserting
+that every stream occurs on hardware. The existing deterministic/TSO decoders
+reject the new instruction families and retain their exact-flags and restricted
+minimality theorems. Physical exception, control-state, translation and ordinary
+RAM assumptions remain those of the [machine profile](coverage.md#supported-machine-profile).
+
+Sum32 acceptance checks actual decoding, contiguous CFG layout, branch links
+and supported operations within 64 bytes/32 static instructions. Zeroing
+prologue variants and commuted pointer/count updates use the same structural
+checker. `Valid.decoded` derives real instruction selection through `CodeAt`;
+an expected-code table or a successful future run is no semantic premise.
+Other correct shapes may reject. This does not implement general C or source/IR
+ingestion, arbitrary-program grading, full x86 or a new concurrent backend.
+
+`OS.ArrayResources.Admission` couples full current machine RAM to the OS
+projection and binds current code, complete stack8 and nonempty-input loans.
+Current observations and retained-loan history frames supply the resource
+bridge; no snapshot or future-execution callback is assumed. The checked
+`Artifact.resource_sound` concludes the shared semantic contract, retained
+admission and current permission for every actual operand read. Native loan
+enforcement and unguarded interference remain outside the contract.
+
+The sum32 CLI emits literal semantic certificates with conditional typed
+resource binders. Full-ELF certificates check parsing/loading and prove the same
+execution at the installed function entry, with current caller input/stack/RAM
+and page freshness still explicit. Neither file bytes nor the CLI manufacture
+native OS admission, process startup or whole-ELF safety. Exact instruction
+costs come from execution proofs; 19/18-byte size comparisons and bounded native
+ABI/guard-page observations establish no timing, optimality, source-preservation
+or kernel-conformance theorem. See [artifact details and commands](sum32.md#artifact-and-native-boundary).
+
 The abstract sequential address-space contract is projected into machine memory,
 with checked protection/binary-load composition. It does not verify Linux syscall
 bytes, page-table updates, resource exhaustion or concurrent permission changes.

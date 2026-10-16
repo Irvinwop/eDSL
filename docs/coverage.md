@@ -2,10 +2,14 @@
 
 Five exact compiler-output profiles verify unsigned 32-bit increment, load,
 store, atomic exchange and locked fetch-add functions. A counted assembly-loop
-profile adds modular increment by every 64-bit count and proved termination. Standalone ELF profiles
-reach exit42 directly or across a bounded stream write and compose with explicit
-OS contracts. A separate locked-add-loop certificate connects exact bytes to
-finite OS counter-worker workloads and checked collection. These are narrow slices,
+profile adds modular increment by every 64-bit count and proved termination.
+The separate ordinary `sum32` checker accepts restricted decoded pointer/count
+and indexed loops against one independent list-sum contract, including
+all-choice termination, current read resources and exact operand footprints.
+Standalone ELF profiles reach exit42 directly or across a bounded stream write
+and compose with explicit OS contracts. A separate locked-add-loop certificate
+connects exact bytes to finite OS counter-worker workloads and checked
+collection. These are narrow slices,
 with no general binary verifier, complete ISA, source frontend, Linux implementation
 or verified OS claim.
 
@@ -68,13 +72,27 @@ LEA, MOV, SYSCALL and near RET in the instruction reference, 32-bit GPR writes/a
 and alignment checking in the architecture/system reference. Their adequacy to
 physical execution remains a model/physical-conformance boundary.
 
+The separate `X86.Sequential` decoder embeds legacy instructions and adds
+parameterized XOR-self32, TEST64, CMP64, ADD-memory32, ADD-immediate64,
+INC64, DEC64, JE and JMP families. New register operands use the eight lower
+GPRs; supported memory operands use full-width base/SIB addressing with explicit
+rejection of displacements, absent base/index and other unsupported forms.
+Its bit-precise flag helpers give XOR/TEST an independent undefined-AF choice
+per retired instruction. The existing deterministic and TSO decoders continue
+to reject the new families; their exact-flags and minimality results retain
+their original scope. See the [encoding and flag details](sum32.md#separate-sequential-isa).
+
 ## Checked results
 
 `EDSL.X86.Executes` is an unbounded finite transition closure. Theorems prove
 soundness/completeness of the fuelled evaluator against it, deterministic
 results/costs, and exclusion of an infinite continuing trace (ordinary or atomic)
-after a proved terminating execution. Individual machine execution is deterministic.
+after a proved terminating execution. This legacy machine execution is deterministic.
 `AtomicExecutes` additionally retains the exact ordered RMW-event trace.
+The separate `X86.Sequential.Execution` layer provides choice-indexed actual
+execution, evaluator soundness/completeness, block composition and observed-read
+origins. Its `AllExecutions` contract constructs a finite result for every
+choice stream and derives reachable-prefix safety, no faults and no divergence.
 
 | Profile | Exact bytes | Result for every admitted entry |
 | --- | --- | --- |
@@ -138,6 +156,62 @@ assembly assembled by Clang/GCC; no C/C++ source-preservation claim is made.
 Native observations cover bounded counts; the theorem covers all counts. No
 timing/optimality, general loop inference, memory-lifetime or concurrency theorem
 is implied. See [control flow and exact scope](control-flow.md).
+
+## Ordinary sum32 loops
+
+`EDSL.Sum32.sound` in [Correctness.lean](../EDSL/Sum32/Correctness.lean) proves
+both restricted loop families meet the same independent natural list-sum
+contract modulo 2^32. For every admitted current array and every undefined-AF
+stream it constructs a successful actual decoded execution, rather than
+assuming a future run succeeds. `checked_sound` composes structural acceptance;
+`all_executions`, `safe` and `no_divergence` expose the universal execution,
+fault-exclusion and termination guarantees.
+
+The shared precondition binds current executable bytes, full RSI to the list
+length, current four-byte little-endian elements, a nonwrapping entire input
+span, the actual readable eight-byte return slot, and canonical target/RSP+8.
+The postcondition gives full RAX zero extension, full unchanged Memory, the
+actual return RIP/RSP, every GPR outside `[rax, rcx, rsi, rdi, rsp]` unchanged,
+and all flags outside the six arithmetic bits preserved. Exact reads are the
+successive four-byte elements then stack8, with no one-past read. Empty input
+needs no input allocation, loan, readability or canonical pointer and has only
+the actual stack8 operand read. Code fetches are outside this read observation.
+
+`Sum32.Check` discovers a decoded graph and rechecks finite layout/operation
+facts through `Sum32.checkPlan`: at most 64 bytes and 32 static instructions,
+contiguous nodes, actual decoding and forward/backward branch links. `Valid.decoded`
+transports those facts through actual `CodeAt` memory. Supported zeroing
+prologues can mix MOV-zero/XOR-self, repeat clears and change clear order;
+pointer/count updates can commute. The checker remains restricted to the two
+shapes and register roles, without per-variant whole-byte equality recognizers,
+general invariant inference or an arbitrary-program grader.
+
+| Owned ordinary C output | Bytes | Derived retired-instruction count, including RET |
+| --- | --- | --- |
+| GCC 13 pointer/count, `-Os -fno-ivopts` | 19 | `6*n+4` |
+| Clang 18 indexed, `-Oz` | 18 | `5*n+5` |
+
+Generic costs are `Ninit+6*n+3` and `Ninit+5*n+3`, with `Ninit` the checked
+prologue length. Static byte counts prove no instruction cost, hardware timing
+or optimality. Symbolic input lengths are constrained by full-width count and
+nonwrapping span conditions, not by the static checker bounds.
+
+`OS.ArrayResources` binds authorized current code/stack/nonempty-input loans
+and full current machine RAM to the OS projection. It proves protected framing
+through retained-loan managed histories. `Artifact.pre_of_admission` and
+`resource_sound` derive the same all-choice execution, exact reads and current
+permission for every actual read, retaining resource admission through unchanged
+memory. No field assumes future execution or restores an old snapshot.
+
+`edsl-certify-sum32` emits literal raw/full-ELF semantic certificates using the
+checked theorem, plus conditional typed resource theorems. ELF mode checks the
+whole file and derives code and execution at the same modeled loaded entry.
+Current caller input/stack/RAM, resource authority and loader freshness remain
+explicit. An ELF callable function entry establishes no process startup or
+native OS admission. The owned native script observes exact final linked
+windows through an external ABI trampoline; those finite observations leave
+hardware/kernel conformance external. Full contracts, supported encodings,
+meaningful negative cases and reproduction commands are in [sum32](sum32.md).
 
 ## Abstract OS address-space contracts
 
@@ -409,10 +483,10 @@ is a pure operation, and costs exclude runtime/kernel work. Native start/join,
 context switching, publication, native locks and general weak
 memory remain external. See [counter-worker contracts](counter-workers.md).
 
-The integration total is 46 raw/full-ELF artifact certificates, including four
-counter-worker and four mutex-worker certificates. The counter observer checks 42 sequential requests
+The counter-worker and mutex-worker integrations each include four raw/full-ELF
+artifact certificates. The counter observer checks 42 sequential requests
 and four eight-thread workloads per compiler; it independently rejects four
-terminating semantic mutants. Twenty-six Lean suites include symbolic admission
+terminating semantic mutants. The Lean suites include symbolic admission
 and completion witnesses for every initial word and pair of 64-bit counts.
 
 ## Protected payloads and mutex guards
@@ -489,7 +563,7 @@ contended architectural observations and precise fetch/return-stack faults.
 The certifier's `MachineSpecification` includes architectural prefix lifting,
 enabledness, completed observations/collection and entry completion; the older
 checked-replay contracts remain. Four Clang/GCC raw/full-ELF
-artifacts keep the distinct total at 46 while acquiring stronger certificates.
+artifacts retain their byte bindings with these stronger certificates.
 See [worker execution contracts and limitations](mutex-workers.md).
 
 ## Buffered machine execution
@@ -526,7 +600,7 @@ also constructs publication and a completing physical continuation from any
 paused prefix, with no new busy exchange or stall and at most `15*n` future
 instructions. Entry completion attains `13*n`. Symbolic fixtures admit every
 initial word. The generated separate `TSOSpecification` preserves the original
-immediate-visibility and checked-replay contracts; the artifact total stays 46.
+immediate-visibility and checked-replay contracts for the same artifacts.
 Queue/credit conservation also proves exactly `2*n` physical drains and
 `15*n + 4*busy + blockedCount` model actions for every completing entry trace.
 A constructed no-busy/no-stall path attains `15*n` actions. These are abstract
@@ -556,7 +630,7 @@ traces are also admitted, with no service-progress or fairness promise.
 Owned-byte examples and `tests/Suspend.lean` check peer XCHG updates across
 resumption, full raw results/private clobbers, return-stack behavior, retained
 peer FIFOs and publication, lifecycle failures and real fetch errors. No new
-native artifact certificate is added; the integration total remains 46.
+native artifact certificate is added by this syscall wrapper.
 Linux services, kernel transitions, native identities and composition with an
 ownership/resource world remain separate obligations. See
 [the exact boundary](concurrent-syscalls.md).
@@ -583,9 +657,9 @@ exact bytes, emits a Lean theorem containing those observed bytes, and runs Lean
 with warnings as errors plus transitive axiom auditing. Success requires kernel
 checking; native equality-check execution alone is not correctness evidence.
 
-This is a narrow byte-pattern checker with machine-semantics soundness theorems.
-Other correct encodings remain unsupported. It is not yet a general symbolic
-executor, invariant generator or arbitrary-contract validator.
+`edsl-certify` is a narrow byte-pattern checker with machine-semantics soundness
+theorems. Other correct encodings remain unsupported. It is not yet a general
+symbolic executor, invariant generator or arbitrary-contract validator.
 
 `scripts/verify-compilers.sh` builds each owned fixture with Clang C/C++ and GCC
 C (twelve combinations), links static function containers, extracts `.text`,
@@ -668,7 +742,7 @@ paths and raw errors. See [the complete contract](process-write.md).
 ## Reproduce
 
 ```sh
-lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client
+lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
@@ -707,6 +781,12 @@ lake env lean -DwarningAsError=true tests/FutexClientControl.lean
 lake env lean -DwarningAsError=true tests/FutexClientPhysical.lean
 lake env lean -DwarningAsError=true tests/FutexClientCertificate.lean
 lake env lean -DwarningAsError=true tests/FutexClientCoverage.lean
+lake env lean -DwarningAsError=true tests/SequentialISA.lean
+lake env lean -DwarningAsError=true tests/SequentialExecution.lean
+lake env lean -DwarningAsError=true tests/ArrayResources.lean
+lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
+lake env lean -DwarningAsError=true tests/Sum32Index.lean
+lake env lean -DwarningAsError=true tests/Sum32Artifact.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
@@ -718,10 +798,13 @@ bash scripts/verify-mutex.sh
 bash scripts/verify-mutex-workers.sh
 bash scripts/verify-futex.sh
 bash scripts/verify-futex-clients.sh
+EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
 ```
 
 Integration needs Linux/x86-64, Clang accepting the named modes, GCC, binutils
-and ordinary mmap/mprotect support. To certify raw function files:
+and ordinary mmap/mprotect support. The sum32 fixture script selects GCC 13
+and Clang 18 with the scalar optimization profiles above and writes to
+`artifacts/sum32-fixtures/`. To certify function files:
 
 ```sh
 lake exe edsl-certify increment FUNCTION.bin artifacts/Increment.lean
@@ -740,12 +823,17 @@ lake exe edsl-certify-futex wait WAIT.bin artifacts/FutexWait.lean
 lake exe edsl-certify-futex --elf wake-one WAKE.elf artifacts/FutexWakeELF.lean
 lake exe edsl-certify-futex-client publish-payload-wake PUBLISH.bin artifacts/FutexClientRaw.lean
 lake exe edsl-certify-futex-client --elf publish-payload-wake PUBLISH.elf artifacts/FutexClientELF.lean
+lake exe edsl-certify-sum32 FUNCTION.bin artifacts/Sum32Raw.lean
+lake exe edsl-certify-sum32 --elf FUNCTION.elf artifacts/Sum32ELF.lean
 ```
 
-The two-argument form retains the default `increment` profile. Exit 0 means the
-emitted certificate checked; exit 3 means unsupported, not a defect verdict;
-other nonzero results are failures to certify. Use the successful check result
+For `edsl-certify`, the two-argument form retains the default `increment`
+profile. Exit 0 means the emitted certificate checked; exit 3 means unsupported,
+not a defect verdict; other nonzero results are failures to certify. Use the successful check result
 and exact bytes, not the existence/name of an older certificate file.
+The sum32 CLI also distinguishes malformed input (exit 4) from unsupported
+code/layout (exit 3); its full status contract is in
+[sum32](sum32.md#reproduce-and-rejection-behavior).
 
 ## Private futex adapter
 

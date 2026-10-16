@@ -30,7 +30,7 @@ jobs:
           "$RUNNER_TEMP/elan-installer/elan-init" -y --no-modify-path --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Build pinned Lean project
-        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client
+        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32
       - name: ISA, ELF, OS contracts and rejection properties
         run: |
           lake env lean -DwarningAsError=true tests/X86.lean
@@ -71,6 +71,12 @@ jobs:
           lake env lean -DwarningAsError=true tests/FutexClientPhysical.lean
           lake env lean -DwarningAsError=true tests/FutexClientCertificate.lean
           lake env lean -DwarningAsError=true tests/FutexClientCoverage.lean
+          lake env lean -DwarningAsError=true tests/SequentialISA.lean
+          lake env lean -DwarningAsError=true tests/SequentialExecution.lean
+          lake env lean -DwarningAsError=true tests/ArrayResources.lean
+          lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
+          lake env lean -DwarningAsError=true tests/Sum32Index.lean
+          lake env lean -DwarningAsError=true tests/Sum32Artifact.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment
@@ -78,7 +84,7 @@ jobs:
       - name: Install native integration tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 gcc binutils
+          sudo apt-get install -y clang-18 gcc gcc-13 binutils
       - name: Certify fresh C and C++ compiler outputs and execute owned fixtures
         env:
           EDSL_CLANG: clang-18
@@ -117,6 +123,17 @@ jobs:
         env:
           EDSL_CLANG: clang-18
         run: bash scripts/verify-futex-clients.sh
+      - name: Certify ordinary sum32 loops and observe owned native calls
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-sum32.sh
+      - name: Preserve owned sum32 certificates and native observations
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sum32-fixture-certificates
+          path: artifacts/sum32-fixtures/
+          if-no-files-found: error
       - name: Preserve owned publishing-client certificates and observations
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

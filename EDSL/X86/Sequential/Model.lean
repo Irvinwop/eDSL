@@ -1,0 +1,51 @@
+/-
+Copyright 2026 Irvinwop
+SPDX-License-Identifier: Apache-2.0
+-/
+import EDSL.X86.Machine
+
+namespace EDSL.X86.Sequential
+
+/-- The selected ordinary addressing forms use full 64-bit registers. A SIB
+scale is an exponent, so `scale = 2` multiplies the index by four. -/
+inductive Address where
+  | base (register : Register)
+  | indexed (base index : Register) (scale : Fin 4)
+  deriving DecidableEq, Repr
+
+def Address.eval (address : Address) (state : State) : Word :=
+  match address with
+  | .base register => state.registers register
+  | .indexed baseReg index scale => state.registers baseReg + (state.registers index <<< scale.val)
+
+/-- A separate sequential ISA extension. Existing deterministic and concurrent
+decoders keep their original supported subset. -/
+inductive Instruction where
+  | legacy (instruction : X86.Instruction)
+  | xorSelf32 (destination : Register)
+  | test64 (left right : Register)
+  | cmp64 (left right : Register)
+  | addMem32 (destination : Register) (address : Address)
+  | addImm64 (destination : Register) (immediate : Byte)
+  | inc64 (destination : Register)
+  | dec64 (destination : Register)
+  | je (displacement : Byte)
+  | jmp (displacement : Byte)
+  deriving DecidableEq, Repr
+
+/-- Successful operand reads, separate from instruction fetches. -/
+inductive ReadKind where
+  | data | stack
+  deriving DecidableEq, Repr
+
+structure Read where
+  kind : ReadKind
+  address : Word
+  bytes : Nat
+  deriving DecidableEq, Repr
+
+structure Observation where
+  result : StepResult
+  reads : List Read
+
+end EDSL.X86.Sequential
