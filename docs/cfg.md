@@ -90,7 +90,7 @@ implementations.
 | Input | Implemented evidence |
 | --- | --- |
 | GCC 13 stride-two sum, 19 bytes | Independent even-index sum, all-choice total correctness, current OS admission/read origins, exact `6*count+4` instructions and ordered reads |
-| GCC 13 two-buffer sum with two loops, 35 bytes | Checked raw/full-ELF static import; functional local obligations remain to be proved |
+| GCC 13 two-buffer sum with two loops, 35 bytes | Independent two-list sum, all-choice total correctness, current two-input OS admissions, exact cost and ordered reads; [details](pair32.md) |
 | Owned early-return function, 14 bytes | Complete static graph includes both RETs; truncation at the first RET rejects |
 | Owned two-byte self-loop | Static graph accepted and actual divergence proved; static acceptance does not supply a termination theorem |
 
@@ -151,10 +151,10 @@ not print a functional certification verdict. Its kernel subprocess uses
 The command needs `flock` available in addition to the pinned Lean toolchain.
 The integration script imports owned compiler outputs, observes independent
 native result/ABI oracles, and separately emits `RawFunctional.lean` and
-`ELFFunctional.lean` for the stride contract. Those supplemental proofs bind the
+`ELFFunctional.lean` for the stride and two-array contracts. Those supplemental proofs bind the
 actual artifact bytes to the proved instruction instance, including exact cost,
-read footprint and OS-admission wrappers. The two-loop and early-return imports
-retain static-only status.
+read footprint and OS-admission wrappers. The early-return imports retain
+static-only status.
 
 | Exit status | Meaning |
 | --- | --- |

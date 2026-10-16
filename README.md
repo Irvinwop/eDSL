@@ -100,6 +100,10 @@ Implemented and checked:
   accounting. `edsl-cfg-import` checks raw or explicit-span ELF graphs; imported
   code still needs independent functional and current-read-permission proofs.
   See [local control-flow proofs](docs/cfg.md).
+- A two-loop compiler-output instance proves the independent sum of two lists,
+  exact `6*(lengthA+lengthB)+6` instructions and ordered reads. Its OS bridge
+  retains both current input admissions, including compatible readonly aliases.
+  See [two-array sums](docs/pair32.md).
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
   read-after-write and disjoint code/stack preservation proofs.
 - A sequential OS address-space model with checked mapping, protection and
@@ -166,6 +170,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Counted control flow](docs/control-flow.md) | How are a backward branch, loop invariant, termination and input-dependent cost proved? |
 | [Ordinary sum32 loops](docs/sum32.md) | How do two compiler-produced loop shapes meet one sum, termination, memory, read-loan and cost contract? |
 | [Checked CFGs and local proofs](docs/cfg.md) | How can new control-flow patterns use local Lean obligations against an independent task contract? |
+| [Two-array sum proofs](docs/pair32.md) | How do two loops and two current input resources compose through that interface? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |
@@ -252,6 +257,8 @@ lake env lean -DwarningAsError=true tests/Sum32Index.lean
 lake env lean -DwarningAsError=true tests/Sum32Artifact.lean
 lake env lean -DwarningAsError=true tests/CFG.lean
 lake env lean -DwarningAsError=true tests/Stride32.lean
+lake env lean -DwarningAsError=true tests/Pair32.lean
+lake env lean -DwarningAsError=true tests/Pair32Resources.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

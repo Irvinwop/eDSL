@@ -11,8 +11,10 @@ Lean obligations for independently supplied contracts; its importer establishes
 static graph facts, with functional proof obligations still explicit.
 Its GCC stride-two instance proves the independent even-index modular sum,
 all-choice termination, full ABI/memory framing, current OS read permissions,
-exact `6*count+4` instructions and ordered operand reads. The two-loop input
-currently has static import and native evidence only.
+exact `6*count+4` instructions and ordered operand reads. Its two-loop instance
+proves the sum of two lists, exact `6*(lengthA+lengthB)+6` instructions, ordered
+reads and retained current authority for both inputs, including compatible
+readonly aliases.
 Standalone ELF profiles reach exit42 directly or across a bounded stream write
 and compose with explicit OS contracts. A separate locked-add-loop certificate
 connects exact bytes to finite OS counter-worker workloads and checked
@@ -240,8 +242,11 @@ operand reads. These are model instruction counts, without timing or optimality.
 `edsl-cfg-import` emits kernel-checked literal static imports and a typed local
 proof interface. Raw mode uses the complete supplied window; ELF mode requires
 an explicit `1..64`-byte entry span and checks the full container. It never
-truncates an arbitrary CFG at the first RET. The two-loop 35-byte GCC output is
-statically imported, with its functional contract still unproved. The stride-two
+truncates an arbitrary CFG at the first RET. The two-loop 35-byte GCC output
+additionally has functional local proofs of an independent two-list sum,
+all-choice total correctness, exact cost/reads and two current OS admissions.
+Empty inputs need no input loan or valid pointer; compatible readonly aliases
+are supported. See [two-array contracts and evidence](pair32.md). The stride-two
 instance proves an independent even-index sum, all-choice total correctness,
 current OS read origins and exact `6*count+4` instructions/ordered reads through
 local annotations. See [the precise contracts and extension workflow](cfg.md).
@@ -822,6 +827,8 @@ lake env lean -DwarningAsError=true tests/Sum32Index.lean
 lake env lean -DwarningAsError=true tests/Sum32Artifact.lean
 lake env lean -DwarningAsError=true tests/CFG.lean
 lake env lean -DwarningAsError=true tests/Stride32.lean
+lake env lean -DwarningAsError=true tests/Pair32.lean
+lake env lean -DwarningAsError=true tests/Pair32Resources.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh

@@ -192,11 +192,11 @@ all-choice execution, safety and termination. Static discovery and the
 raw/explicit-span ELF importer are separate from functional certification.
 The stride-two instance proves all-choice total correctness, exact cost and
 ordered reads against an independent even-index sum, with current OS
-input/stack/code authority. A real 35-byte two-loop GCC output has
-static raw/full-ELF import evidence; its functional proof remains open.
-Next discharge a second independent multiloop/branching contract through the
-same API, then bind a fixed task specification and admission interface for
-objective grading. Calls and writable/concurrent CFG effects need additional
+input/stack/code authority. The [35-byte two-loop GCC instance](pair32.md) now
+proves an independent two-list sum, exact cost/read trace and retained current
+admissions for both inputs, including compatible aliases and empty phases.
+Next bind a fixed task specification, admissible input domain and required
+theorem type for objective grading. Calls and writable/concurrent CFG effects need additional
 effect obligations and semantics before broader programs can be accepted.
 
 The OS/machine memory bridge now proves that checked word stores update natural-
@@ -495,6 +495,8 @@ performance or optimality. The generic cutpoint layer now gives a conservative
 support exact instruction/read totals without changing the termination proof.
 The stride-two instance now derives `6*count+4` and the exact even-index operand
 sequence through this API, with RET included.
+The two-loop instance derives `6*(lengthA+lengthB)+6`, with separate ordered
+input footprints and RET included.
 The fixed mutex routine additionally has exact `13*n + 4*busy` architectural
 costs and a constructive zero-busy entry schedule attaining `13*n`. Arbitrary
 admitted intermediate states admit completion in their remaining potential,

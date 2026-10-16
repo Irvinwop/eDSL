@@ -159,6 +159,31 @@ static void suite(const void *code, const char *mode, size_t page)
         observe(code, pa, 3, NULL, 0, 168, "second null/empty");
         const uint32_t *pb = prepare(&b, 3, 1, 2, 0);
         observe(code, NULL, 0, pb, 3, 168, "first null/empty");
+
+        /* Both immutable inputs can name the same current RAM. The expected
+           sums are closed expressions, including prefixes and overlapping
+           suffixes; they do not run another accumulation loop. */
+        for (size_t c = 1; c < sizeof counts / sizeof counts[0]; ++c) {
+            size_t n = counts[c];
+            for (unsigned pattern = 0; pattern < 4; ++pattern) {
+                const uint32_t *p = prepare(&a, n, 1, pattern, 0);
+                uint32_t whole = pattern_sum(pattern, n);
+                observe(code, p, n, p, n, (uint32_t)(UINT64_C(2) * whole),
+                        "same pointer/same input");
+                observe(code, p, n, p, n / 2,
+                        (uint32_t)((uint64_t)whole + pattern_sum(pattern, n / 2)),
+                        "same pointer/unequal lengths");
+                if (n > 1) {
+                    size_t offset = n / 2;
+                    uint32_t suffix = (uint32_t)(whole - pattern_sum(pattern, offset));
+                    uint32_t expected = (uint32_t)((uint64_t)whole + suffix);
+                    observe(code, p, n, p + offset, n - offset, expected,
+                            "overlapping readonly suffix");
+                    observe(code, p + offset, n - offset, p, n, expected,
+                            "overlapping readonly prefix");
+                }
+            }
+        }
     }
     release_guarded(&a);
     release_guarded(&b);

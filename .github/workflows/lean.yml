@@ -79,6 +79,8 @@ jobs:
           lake env lean -DwarningAsError=true tests/Sum32Artifact.lean
           lake env lean -DwarningAsError=true tests/CFG.lean
           lake env lean -DwarningAsError=true tests/Stride32.lean
+          lake env lean -DwarningAsError=true tests/Pair32.lean
+          lake env lean -DwarningAsError=true tests/Pair32Resources.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment

@@ -79,6 +79,13 @@ The stride-two instance discharges those equations for `6*count+4`
 instructions and even-index reads followed by stack8. Its OS bridge retains
 full current RAM coupling and loan authority at actual read origins; physical
 kernel enforcement remains outside the model.
+The [two-array instance](pair32.md) composes both loop phases through the same
+interface and proves `6*(lengthA+lengthB)+6` instructions, ordered A/B/stack
+reads, and an independent concatenated-list sum. Its OS bridge keeps both
+current admissions and uses each input's own loan authority. Inputs may alias
+when their current contracts agree. Resource tests exhibit separate and
+overlapping admissions, empty exceptions and current-B/authority failures;
+none of these results verifies native kernel enforcement or interference.
 
 `edsl-cfg-import` checks static literals and exposes conditional functional
 obligations. Its explicit ELF span includes code after an early RET and is bound
