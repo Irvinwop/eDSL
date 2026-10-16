@@ -5,10 +5,12 @@ the exact supplied artifact. The candidate chooses code and proof; registration
 fixes the input domain, mathematical result, return/ABI frame, OS resources and
 effect policy. It cannot submit a replacement postcondition or extra premise.
 
-The first registry contains `pair32` (the modular sum of both mathematical
-lists) and `stride32` (the modular sum of the even-indexed input words). Both
-use `sequentialReadOnlyX86CallableV1`. The existing GCC implementations discharge
-these claims through `EDSL.Grading.Known.pair` and `.stride`. A different
+The registry contains `pair32` (the modular sum of both mathematical lists),
+`stride32` (the modular sum of the even-indexed input words), and `write32`
+(store the low 32 bits of the full-width argument at the fixed input pointer).
+Pair and stride use `sequentialReadOnlyX86CallableV1`; write uses
+`sequentialOwnedWord32X86CallableV1`. The existing GCC implementations discharge
+these claims through `EDSL.Grading.Known.pair`, `.stride` and `.write`. A different
 implementation must prove the same `EDSL.Grading.Claim id bytes`; matching a
 published byte table, CFG, instruction count or read order is not required.
 
@@ -25,7 +27,10 @@ trusted snapshot does not import this client module.
 correctness for every admitted mathematical input and initial machine state,
 for every modeled undefined-AF choice stream. The independent resource domain
 additionally requires current code/stack/input authority, current full-RAM
-coupling and retained admission at return.
+coupling and retained admission at return. Registration fixes the raw policy,
+resource policy and resource-return predicate; these are not packet fields.
+The pair/stride contracts retain their original meaning through proved
+equivalences with the original read-only contracts in `ReadOnlyTask.lean`.
 
 `ReadOnlyPolicy` covers every actual reachable pre-state. It requires an actual
 decoded read-only instruction, enabled execution for both AF choices, successful
@@ -34,6 +39,27 @@ steps or return. Stores, atomic operations and syscalls are excluded. A temporar
 write followed by restoration still violates this policy. Final memory equality
 alone would miss that violation.
 
+`write32` admits every old/new value pair, arbitrary high RSI bits and the
+actual caller's eight-byte return slot. Its independent postcondition requires
+the low32 value, actual return and RSP+8, all SysV callee-saved GPRs and
+nonarithmetic flags, every outside-target RAM read and complete writable and
+executable maps. Volatile registers, instruction count and intermediate stored
+values are unconstrained. Every actual decoded store must target the fixed
+input pointer. Atomics, syscalls and foreign writes remain excluded, including
+temporary foreign writes followed by restoration. Fetches stay within the
+admitted code span.
+
+The managed write policy uses current code and complete stack loans, a current
+owner/epoch ticket for the entire target word, and no live read loan for the
+target allocation. Each actual store derives a successful `Borrowing.mutate`
+and the matching machine-memory update. Read-only instructions retain the same
+OS state. The lifted prefix/return relations carry the actual AF stream,
+machine steps and operand reads from the registered seed; final resource
+authority cannot be supplied by an unrelated new world. Allocations, loans,
+permissions and outside-target cells are retained throughout. Target reads
+require current owner authorization, full-word containment and actual load
+success; stack reads require the current complete-slot loan.
+
 `Nonvacuous` separately exhibits useful nonempty machine and resource inputs.
 `Domain.pair` and `.stride` construct current allocation/loan worlds for **every**
 byte list of length 1–4096, including unsupported opcodes. Their construction
@@ -41,6 +67,11 @@ does not decode or execute the program. Task preconditions contain no graph
 validity assumption, successful-future-run callback or candidate-selected
 hypothesis. Tests admit `[0xff]` and prove that it fails even a trivial total
 execution claim on a useful input.
+`Write32.Domain.candidate` similarly constructs useful raw/current-resource
+inputs for every 1–4096-byte candidate without decoding it. Its useful witness
+requires the old value to differ from the requested low32 value. Separate
+regression theorems reject both unsupported code and a successfully returning
+RET-only implementation, so a no-op cannot satisfy an already-equal-only domain.
 
 The profile is a sequential callable function with stable ordinary RAM,
 complete return slot, full-width ABI arguments and no asynchronous interference.
@@ -60,6 +91,10 @@ lake env edsl-proof-export EDSL.Grading.Known EDSL.Grading.Known.pair pair.json
 lake env edsl-grade pair32 function.bin pair.json
 lake env edsl-grade --elf 35 pair32 function.elf pair.json
 ```
+
+For the owned-word task, export `EDSL.Grading.Known.write` and select `write32`.
+The owned GCC fixture has three bytes, `89 37 c3`; the independent contract is
+defined in `EDSL.Grading.Write32.Contract`, rather than inferred from those bytes.
 
 The file must contain an implementation covered by the submitted proof. An ELF
 span is explicit and includes any suffix after an early return. Raw code is
@@ -96,6 +131,10 @@ It also exports `EDSL.StrideMov.claim` from `tests.fixtures.StrideMov`, checks
 its assembled raw/ELF bytes, and compares native behavior with the existing
 independent modular-sum/ABI/guard-page oracle. Client elaboration metadata is
 not a packet input; the final proof terms are independently kernel-checked.
+The write fixture checks reference/body packets and the complete restricted
+ELF artifact. Its separate native observer checks the full data-page footprint,
+full-width arguments, unaligned/page-edge targets and ABI frames. Six owned
+mutants exercise missing/wide/shifted/wrong-source stores and register/DF damage.
 
 ## Packet and checking boundary
 
@@ -201,8 +240,8 @@ Failure, unsupported input and timeout establish no security defect. Real
 findings and their evidence remain outside Git and CI under the repository's
 [private findings policy](findings.md). Integration uses project-owned fixtures.
 
-The registry currently has two tasks. Expanding competitive-programming input
-and output contracts, mutation/ownership policies, concurrent grading, task
+The registry currently has three tasks. Expanding input and output contracts,
+multiple-target mutation policies, concurrent grading, task
 registration review and automated invariant generation remains future work.
 Instruction costs can be proved separately; acceptance here does not impose a
 particular implementation cost or establish global optimality.

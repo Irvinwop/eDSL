@@ -41,10 +41,12 @@ and remaining trust must appear in the result.
 Implemented and checked:
 
 - A pinned Lean 4 / Lake project, with warnings treated as errors.
-- A [fixed-contract proof grader](docs/grading.md) for the pair and stride sum
+- A [fixed-contract proof grader](docs/grading.md) for pair/stride sums and an owned-word store
   tasks, with data-only proof packets, fresh checked helper declarations,
   exact-artifact binding, useful input witnesses and required current OS
-  authority/read-only effects. Shared expression packets carry a fresh proof
+  authority and registered effects. The store evolves checked OS resources
+  along actual machine steps and retains all outside-target memory and loans.
+  Shared expression packets carry a fresh proof
   for a different stride implementation; legacy packets remain accepted.
   The registry and platform profile are limited.
 - A generic behavior-refinement interface, composition, and safety transfer.

@@ -16,15 +16,19 @@ proves the sum of two lists, exact `6*(lengthA+lengthB)+6` instructions, ordered
 reads and retained current authority for both inputs, including compatible
 readonly aliases.
 The [fixed-contract grader](grading.md) registers these two mathematical tasks
-with all-input termination, current OS admission and an actual reachable
-read-only effect policy. It checks data-only proof packets against the chosen
+and `write32`, a fixed-pointer low32 store. All require all-input termination
+and current OS admission. Pair/stride require reachable read-only effects;
+write permits ordinary stores at its fixed target, with checked evolving
+ownership, actual prefix/return witnesses and retained allocation/loan,
+permission and outside-target frames. It checks data-only proof packets against the chosen
 task and exact raw/full-ELF artifact. Fresh safe helpers are kernel-checked.
 Shared expression packets also carry the client-only MOV-initialized stride
 implementation's universal proof. The same task accepts both implementations
 without requiring identical code or instruction selection. Legacy tree packets
 retain the same fixed expected theorem and dependency audit.
 Task preconditions are inhabited for arbitrary admitted byte lists independently
-of decoding. This is a two-task registry with an explicit sequential callable
+of decoding; the write witness requires a real value change, and a RET-only
+candidate is proved insufficient. This is a three-task registry with an explicit sequential callable
 profile, rather than general competitive-programming or whole-OS grading.
 Standalone ELF profiles reach exit42 directly or across a bounded stream write
 and compose with explicit OS contracts. A separate locked-add-loop certificate

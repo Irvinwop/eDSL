@@ -83,6 +83,7 @@ jobs:
           lake env lean -DwarningAsError=true tests/Pair32Resources.lean
           lake env lean -DwarningAsError=true tests/GradingDomain.lean
           lake env lean -DwarningAsError=true tests/GradingTask.lean
+          lake env lean -DwarningAsError=true tests/GradingWrite.lean
           lake env lean -DwarningAsError=true tests/GradingArtifact.lean
           lake env lean -DwarningAsError=true tests/GradingDriver.lean
           lake env lean -DwarningAsError=true tests/GradingRuntime.lean

@@ -16,7 +16,7 @@ def main (args : List String) : IO UInt32 := do
       pure (id, input, proof, some span)
     | _ => none
   let some (id, input, proof, span) := selected | do
-    stderr.putStrLn "usage: edsl-grade [--elf SPAN_BYTES] {pair32|stride32} INPUT PROOF.json"
+    stderr.putStrLn "usage: edsl-grade [--elf SPAN_BYTES] {pair32|stride32|write32} INPUT PROOF.json"
     return 2
   try
     let limits : Limits := {}
@@ -32,7 +32,7 @@ def main (args : List String) : IO UInt32 := do
       stderr.putStrLn s!"{repr failure.kind}: {failure.message}; no defect conclusion"
       return failureStatus failure.kind
     | .ok accepted =>
-      IO.println s!"ACCEPTED: fixed task, exact artifact, current OS authority and read-only effects; codeBytes={accepted.codeBytes}, auxiliaryDeclarations={accepted.declarations}, decoderSteps={accepted.decoderSteps}, kernelChecks={accepted.kernelChecks}"
+      IO.println s!"ACCEPTED: fixed task, exact artifact, current OS authority and registered effects; codeBytes={accepted.codeBytes}, auxiliaryDeclarations={accepted.declarations}, decoderSteps={accepted.decoderSteps}, kernelChecks={accepted.kernelChecks}"
       return 0
   catch _ =>
     stderr.putStrLn "internal: IO or trusted installation failure; no defect conclusion"

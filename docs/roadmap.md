@@ -559,15 +559,19 @@ composition, so individually proved components describe the same execution.
 
 ## Completion reports
 
-The first [fixed-contract grader](grading.md) registers the pair and stride
+The [fixed-contract grader](grading.md) registers the pair and stride
 tasks with independent mathematical domains and useful current OS witnesses
 for every admitted byte list, reachable read-only effects, exact-artifact
 binding and fresh safe data-only proof helpers. Shared expression packets now
 carry a separate MOV-initialized implementation
 through the same fixed task boundary, with unchanged submission limits and
-legacy tree compatibility. Mutation-capable resource evolution and broader
-task IO remain separate extensions. General task registration,
-competitive-programming IO, richer effect policies and concurrent grading are
+legacy tree compatibility. A third task, `write32`, now proves a low32 store
+and actual return against an independent contract, with current ownership and
+an evolving OS state tied to every real prefix and returned execution. Its
+frames retain all allocations, loans, permissions and outside-target memory.
+Useful current domains include unsupported bytes and require a value change;
+the old pair/stride contracts are preserved by exact equivalence theorems.
+Broader task IO, multiple-target effects, general task registration and concurrent grading are
 subsequent extensions; code validity is never an input assumption used to make
 a task's semantic domain empty.
 

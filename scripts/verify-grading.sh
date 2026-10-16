@@ -37,6 +37,7 @@ prepare() {
 }
 prepare pair fixtures/cfg/pair.c sum_pair
 prepare stride fixtures/cfg/stride.c sum_stride
+prepare write fixtures/cfg/write.c write_word
 prepare stride-mov fixtures/cfg/stride-mov.S sum_stride_mov
 prepare wrong-stride fixtures/cfg/stride.c sum_stride -DEDSL_CFG_STRIDE=1
 
@@ -53,7 +54,7 @@ expect_status() {
 }
 exporter=(lake env .lake/build/bin/edsl-proof-export)
 grader=(lake env .lake/build/bin/edsl-grade)
-for task in pair stride; do
+for task in pair stride write; do
     "${exporter[@]}" EDSL.Grading.Known "EDSL.Grading.Known.$task" \
         "$output/$task/reference.json" > "$output/$task/export-reference.txt"
     "${exporter[@]}" EDSL.Grading.Known "EDSL.Grading.Known.$task" \
@@ -66,6 +67,18 @@ for task in pair stride; do
     expect_status 0 "$task/elf-reference" "${grader[@]}" --elf "$span" "${task}32" \
         "$output/$task/function.elf" "$output/$task/reference.json"
 done
+
+# This task permits a checked owned-word mutation while retaining every other
+# RAM byte and the ABI frame. The native oracle ignores void RAX and observes
+# the complete data page, unaligned/page-edge targets, and full RSI arguments.
+"$gcc" -std=gnu2x -O2 -Wall -Wextra -Werror -fcf-protection=none -fno-lto \
+    fixtures/cfg/check-write.c fixtures/cfg/trampoline.S -o "$output/native-write-check"
+timeout 15 "$output/native-write-check" "$output/write/function.bin" > "$output/write/native.txt" 2>&1
+printf '\303' > "$output/write/no-op.bin"
+expect_status 5 write/no-op "${grader[@]}" write32 \
+    "$output/write/no-op.bin" "$output/write/reference.json"
+expect_status 5 write/wrong-task "${grader[@]}" stride32 \
+    "$output/write/function.bin" "$output/write/body.json"
 
 # A new implementation proof is exported from a client-only compiled module.
 # No known-byte equality or candidate module import is used by the grader.
@@ -137,8 +150,11 @@ rm "$output/oversized.json"
 
 cat > "$output/scope.txt" <<'EOF'
 Owned fixture evidence only. The grader fixes the registered mathematical task,
-all-input termination, current OS authority and actual reachable read-only
-effects. Raw and complete restricted ELF artifacts are independently bound by
+all-input termination, current OS authority and registered actual-prefix
+effects. Pair/stride remain read-only. Write32 permits ordinary stores only at
+the fixed target through checked current ownership, evolving the OS state
+along the actual execution while framing all loans, allocations and outside
+memory. Raw and complete restricted ELF artifacts are independently bound by
 the kernel. Packet checking imports only trusted installed modules; fresh client
 helpers arrive as checked data. No native CPU/kernel/source preservation or
 whole-program/whole-OS claim is made. The separate CFG/native integration checks
@@ -148,6 +164,8 @@ The different 22-byte MOV-initialized stride implementation carries a fresh
 client-only universal proof. Shared expression packets preserve logical syntax;
 default decoder, audit and kernel quotas remain in force. A separate native
 oracle checks modular sums, odd-word independence, guard pages and ABI frames.
+The write oracle observes full-width input arguments, all data-page bytes,
+unaligned/page-edge targets and ABI frames, and rejects six owned mutants.
 EOF
 find "$output" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > "$output/SHA256SUMS"
 echo 'Fixed task/artifact grading, fresh client helpers and owned rejection cases passed'

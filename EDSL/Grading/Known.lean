@@ -4,13 +4,15 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.Grading.Task
 import EDSL.Grading.Domain
+import EDSL.Grading.Write32.Domain
+import EDSL.Grading.Write32.Correctness
 import EDSL.Pair32.Correctness
 import EDSL.Stride32.Correctness
 
 namespace EDSL.Grading
 open X86 X86.Sequential
 
-/-- Independently constructed current inputs inhabit both registered domains
+/-- Independently constructed current inputs inhabit all registered domains
 for every admitted selected byte span, including unsupported instructions.
 The positive bound is needed for the OS code loan; it is not a machine
 precondition or a decoder-validity assumption. No execution proof is used. -/
@@ -36,6 +38,16 @@ theorem domain_nonvacuous (id : TaskID) (bytes : List Byte)
     have useful : strideTask.useful (strideTask.input resource) := witness.useful
     exact ⟨⟨strideTask.input resource, witness.initial, useful, pre.machine⟩,
       ⟨resource, witness.initial, useful, pre⟩⟩
+  | write32 =>
+    let witness := Write32.Domain.candidate bytes positive bound
+    let resource : Write32.Resources :=
+      ⟨witness.shared, witness.call, witness.initial.registers .rsi, witness.oldValue⟩
+    have pre : Write32.ResourcePre bytes resource witness.initial :=
+      ⟨witness.current, witness.raw.codeBytes, witness.raw.entry, witness.raw.stackPointer,
+        witness.raw.targetPointer, rfl, witness.raw.old⟩
+    have useful : writeTask.useful (writeTask.input resource) := witness.raw.useful
+    exact ⟨⟨writeTask.input resource, witness.initial, useful, pre.machine⟩,
+      ⟨resource, witness.initial, useful, pre⟩⟩
 
 /-- All admitted pair inputs and all AF streams satisfy the fixed semantic
 contract. Graph validity is separately proved evidence used by the adapters. -/
@@ -60,7 +72,7 @@ theorem pair_semantics : SemanticClaim pairTask Pair32.bytes := by
       obtain ⟨result, execution, post, _⟩ := annotation.execution Pair32.valid (.entry machinePre) choices
       exact ⟨result, execution, post, pre.admitted.unchangedMemory post.memory⟩
     · exact (annotations_policy annotation Pair32.valid (.entry machinePre)
-        (pairTask.current resource) (by
+        (pairReadOnlyTask.current resource) (by
           intro source budget node before inside
           exact pre.admitted.unchangedMemory inside.memory)).mono
             (fun _ current => current) (fun _ _ allowed => allowed.1)
@@ -88,10 +100,16 @@ theorem stride_semantics : SemanticClaim strideTask Stride32.bytes := by
       obtain ⟨result, execution, post, _⟩ := annotation.execution Stride32.valid (.entry machinePre) choices
       exact ⟨result, execution, post, pre.admitted.unchangedMemory post.memory⟩
     · exact (annotations_policy annotation Stride32.valid (.entry machinePre)
-        (strideTask.current resource) (by
+        (strideReadOnlyTask.current resource) (by
           intro source budget node before inside
           exact pre.admitted.unchangedMemory inside.memory)).mono
             (fun _ current => current) (fun _ _ allowed => allowed.1)
+
+/-- All raw arguments and current owned-resource inputs satisfy the same
+independent store specification, including every actual-prefix OS effect. -/
+theorem write_semantics : SemanticClaim writeTask Write32.bytes :=
+  ⟨fun _ _ pre => Write32.raw_semantics pre,
+    fun _ _ pre => Write32.resource_semantics pre⟩
 
 namespace Known
 
@@ -103,6 +121,10 @@ theorem pair : Claim .pair32 Pair32.bytes :=
 /-- Full claim for the published stride bytes, under the same callable profile. -/
 theorem stride : Claim .stride32 Stride32.bytes :=
   ⟨stride_semantics, domain_nonvacuous .stride32 Stride32.bytes (by decide) (by decide)⟩
+
+/-- Full mutable task claim, with useful decoder-independent current inputs. -/
+theorem write : Claim .write32 Write32.bytes :=
+  ⟨write_semantics, domain_nonvacuous .write32 Write32.bytes (by decide) (by decide)⟩
 
 end Known
 

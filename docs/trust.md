@@ -91,7 +91,7 @@ none of these results verifies native kernel enforcement or interference.
 obligations. Its explicit ELF span includes code after an early RET and is bound
 to the full modeled container, but file acceptance does not create caller or OS
 admission. The separate [proof grader](grading.md) now fixes those specifications
-and theorem types for two registered pair/stride tasks. It checks fresh safe
+and theorem types for registered pair/stride sums and an owned-word store. It checks fresh safe
 proof helpers as data, the exact artifact and current reachable OS/effect
 obligations; candidate source/modules/options are excluded. Its runtime
 controller and trusted build provisioning remain explicit trust boundaries.
@@ -101,8 +101,13 @@ typing judgment; the kernel checks complete terms in their actual contexts.
 The separate client MOV-stride proof supplies fresh declarations through this
 boundary, and the trusted registry does not import the candidate module.
 Neither user-supplied `Post := True` nor successful static import establishes
-an intended task result. The grading profile remains
-sequential/read-only, with stores, atomics and syscalls excluded; bounded model
+an intended task result. The grading profiles remain sequential callable RAM.
+Pair/stride exclude stores; write32 permits ordinary fixed-target stores through
+current ownership, with OS states chained to actual machine steps and retained
+loans, allocation records, permissions and outside-target cells. Registration
+owns these policy hooks and the returned-history requirement. No future
+execution or favorable policy is an admission premise. Native pointers do not
+enforce the logical tickets. Atomics and syscalls remain excluded; bounded model
 instruction counts establish no timing or global minimality theorem.
 
 The abstract sequential address-space contract is projected into machine memory,

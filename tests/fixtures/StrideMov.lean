@@ -264,7 +264,7 @@ theorem semantics : Grading.SemanticClaim Grading.strideTask bytes := by
       obtain ⟨result, execution, post, _⟩ := annotation.execution valid (.entry machinePre) choices
       exact ⟨result, execution, post, pre.admitted.unchangedMemory post.memory⟩
     · exact (Grading.annotations_policy annotation valid (.entry machinePre)
-        (Grading.strideTask.current resource) (by
+        (Grading.strideReadOnlyTask.current resource) (by
           intro source budget node before inside
           exact pre.admitted.unchangedMemory inside.memory)).mono
             (fun _ current => current) (fun _ _ allowed => allowed.1)
