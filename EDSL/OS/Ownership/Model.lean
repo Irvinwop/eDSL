@@ -3,6 +3,7 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.OS.WordStore
+import EDSL.OS.WordStore64
 
 namespace EDSL.OS.Ownership
 open X86 AddressSpace
@@ -133,6 +134,19 @@ def storeWord (world : World) (owner : Nat) (ticket : Ticket) (address : Word) (
   let allocation ← authorize world owner ticket
   if !containsWord allocation address then throw .outsideAllocation
   let space ← (AddressSpace.storeWord world.space address value).mapError Fault.addressSpace
+  return { world with space := space }
+
+/-- One allocation must authorize the entire eight-byte operand. Readable
+neighbors never enlarge the ticket's natural-address interval. -/
+def containsQWord (allocation : Allocation) (address : Word) : Bool :=
+  decide (allocation.region.base.toNat ≤ address.toNat ∧
+    address.toNat + 8 ≤ allocation.region.base.toNat + allocation.region.length)
+
+def storeWord64 (world : World) (owner : Nat) (ticket : Ticket) (address : Word) (value : Word) :
+    Except Fault World := do
+  let allocation ← authorize world owner ticket
+  if !containsQWord allocation address then throw .outsideAllocation
+  let space ← (AddressSpace.storeQWord world.space address value).mapError Fault.addressSpace
   return { world with space := space }
 
 theorem empty_wellFormed (space : Space) : WellFormed (empty space) := by

@@ -118,11 +118,17 @@ Implemented and checked:
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
   read-after-write and disjoint code/stack preservation proofs.
 - Ordinary MOV32 register copies, loads and stores, plus MOV64 copies and XCHG64 across
-  all 16 GPRs, in the separate sequential backend. Memory operands use full64
+  all 16 GPRs, in the separate sequential backend. Memory operands use full 64-bit
   base/SIB addressing and pre-state aliasing. Current owner resources compose
   full-pointer copies with actual loads/stores and retain the code, stack and
   outside memory frames through the decoded instruction length. See
   [MOV and OS resource scope](docs/sequential-moves.md).
+- Full 64-bit memory loads/stores with complete eight-byte checks and extended
+  base/SIB addressing. Owner/epoch authority, read-only borrowing and checked
+  histories retain outside cells, permissions and live loans. Direct raw/ELF
+  certificates bind GNU23/GNU++26 store/load/RET output to a full 64-bit result
+  and the same evolved current OS world. The existing 32-bit task effects keep
+  their width. See [eight-byte memory contracts](docs/memory64.md).
 - Direct raw/ELF certificates for GNU23 compiler outputs that store a low32
   argument and return the full target pointer. Both store/copy orderings carry
   the actual checked OS update, memory/ABI frames and exact three-instruction
@@ -145,7 +151,7 @@ Implemented and checked:
   scheduling, arbitrary-history result proofs and permanent thread/loan revocation.
 - A restricted ELF64 loader with bounds, permissions, BSS and page-collision
   checks; full-file certificates derive executable entry-code binding.
-- A standalone exit42 ELF certificate, first-syscall execution proofs and an
+- A standalone exit 42 ELF certificate, first-syscall execution proofs and an
   explicit single-thread Linux exit contract separating status from progress.
 - A bounded stream-write/exit certificate covering short transfers, raw errors
   and an explicit return contract; complete output is conditional on full transfer.
@@ -158,7 +164,7 @@ Implemented and checked:
 
 The function certifier accepts three two-instruction profiles, the three-instruction
 `exchange32` and `fetch-add32` profiles and the counted `increment-loop` profile. The process certifier
-accepts exit42 (three user instructions) and write-exit42 (eight across a completed write). Other correct
+accepts exit 42 (three user instructions) and write-exit 42 (eight across a completed write). Other correct
 encodings remain unsupported. The separate counter certifier binds the exact
 nineteen-byte locked-add loop to prepared OS-worker workload contracts.
 The separate futex client certifier recognizes the exact 32-byte publishing
@@ -310,6 +316,7 @@ EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return32.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return-grading.sh
 EDSL_GCC=gcc-13 bash scripts/verify-store-return-xchg.sh
+EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 EDSL_CLANGXX=clang++-18 bash scripts/verify-store-load64.sh
 EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 ```
 

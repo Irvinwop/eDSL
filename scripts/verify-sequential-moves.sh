@@ -41,8 +41,8 @@ flock /tmp/edsl-lean-build.lock lake env lean -DwarningAsError=true "$output/Nat
     > "$output/kernel-check.txt" 2>&1
 cat "$output/kernel-check.txt"
 cat > "$output/scope.txt" <<'SCOPE'
-Finite native/model conformance evidence for owned Linux x86-64 MOV32
-register/memory and MOV64/XCHG64 register-only fixtures; no 64-bit memory admission.
+Finite native/model conformance evidence for owned Linux x86-64 MOV32/MOV64
+register/memory and XCHG64 register-only fixtures.
 The assembler and linker produce one-instruction windows with capture jumps.
 The native observer checks that the final ELF section extracted by objcopy is
 identical to the executed linked section. Its independent requested contracts
@@ -68,24 +68,35 @@ operands with every ignored REX.R/X combination; and four ignored-X ModRM
 forms covering every R/B combination. Each has two flags/value profiles.
 The swap contract reads BOTH operands from the input snapshot and checks all
 16 output registers, so losing an old volatile operand cannot pass unnoticed.
+The additional 232 MOV64 memory observations cover 58 windows with all16
+data registers, all admitted plain bases, every REX.W byte, ignored X outside
+SIB, extended base/index/data, all scales, base/index/data aliases, RSP changes
+and the present R12 SIB index when X=1. Two value/flags profiles and offsets2
+and24 exercise unaligned and final-eight-observed-byte operands. All8 stored
+bytes and the complete32-byte surrounding frame use an independent C oracle.
 The observed 32-byte region is inside an owned writable page with guard pages;
 these runs do not test inaccessible operands or establish universal ISA/OS
 correctness, concurrency, timing, fault behavior, speculation or kernel safety.
 RIP expectations use the extracted next-instruction labels; operand-read lists
 are independent requested footprints, not observations of hardware reads.
-All ten safe owned semantic mutations are rejected by the independent C
+All sixteen safe owned semantic mutations are rejected by the independent C
 contract observer and excluded from positive replay: full64 requested as32,
 wrong direction, omitted store, neighboring-byte overwrite, and low32 requested
 as64. Successful MOV64 decoding does not make its requested MOV32 contract
 hold. These mutations are not collectively classified as unsupported opcodes.
 Five exchange mutants replace the swap with a copy, use the wrong operand,
 omit it, swap only 32 bits, or damage CF after the swap. All are register-only.
+Six memory64 mutants execute32-bit loads/stores, use the wrong source/address,
+reverse the stored bytes (restoring the source), or overwrite a neighboring
+byte. These execute only on the observer's owned mapped region. They are not
+passed to positive model replay and do not establish CPU fault semantics.
 The intentionally altered extraction is rejected before any probe executes.
 The harness is single-threaded, non-PIE, and assumes the selected user-mode
 RFLAGS profile with alignment checking/CET disabled.
 SCOPE
 sha256sum fixtures/sequential-moves-check.c fixtures/sequential-moves-probe.S \
     scripts/verify-sequential-moves.sh tests/SequentialMoves64.lean tests/SequentialXchg64.lean \
+    tests/Memory64.lean tests/SequentialMemory64.lean EDSL/X86/Memory64.lean \
     lean-toolchain lakefile.lean \
     EDSL/X86/Sequential/Model.lean EDSL/X86/Sequential/Decode.lean \
     EDSL/X86/Sequential/Machine.lean "$output/native-check.elf" "$output/instructions.bin" \

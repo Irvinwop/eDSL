@@ -227,6 +227,70 @@ PROBE qx8b_b, 0x4b,0x8b,0xd8 /* rbx <- r8 */
 PROBE qx8b_r, 0x4e,0x8b,0xd8 /* r11 <- rax */
 PROBE qx8b_rb, 0x4f,0x8b,0xd8 /* r11 <- r8 */
 
+/* Full-width memory operands, independently requested by the C contracts.
+ * Every destination/source occurs, as do all admitted plain base registers. */
+QWORD_PROBE load64_0, (%rdi), %rax
+QWORD_PROBE load64_1, (%r8), %rcx
+QWORD_PROBE load64_2, (%rcx), %rdx
+QWORD_PROBE load64_3, (%r10), %rbx
+QWORD_PROBE load64_4, (%rbx), %rsp
+QWORD_PROBE load64_5, (%r14), %rbp
+QWORD_PROBE load64_6, (%rdi), %rsi
+QWORD_PROBE load64_7, (%rax), %rdi
+QWORD_PROBE load64_8, (%r9), %r8
+QWORD_PROBE load64_9, (%rdx), %r9
+QWORD_PROBE load64_10, (%r11), %r10
+QWORD_PROBE load64_11, (%rsi), %r11
+QWORD_PROBE load64_12, (%r15), %r12
+QWORD_PROBE load64_13, (%rax), %r13
+QWORD_PROBE load64_14, (%rcx), %r14
+QWORD_PROBE load64_15, (%r8), %r15
+QWORD_PROBE store64_0, %rax, (%rax)
+QWORD_PROBE store64_1, %rcx, (%rcx)
+QWORD_PROBE store64_2, %rdx, (%rdx)
+QWORD_PROBE store64_3, %rbx, (%rbx)
+QWORD_PROBE store64_4, %rsp, (%rsi)
+QWORD_PROBE store64_5, %rbp, (%rdi)
+QWORD_PROBE store64_6, %rsi, (%rsi)
+QWORD_PROBE store64_7, %rdi, (%rdi)
+QWORD_PROBE store64_8, %r8, (%r8)
+QWORD_PROBE store64_9, %r9, (%r9)
+QWORD_PROBE store64_10, %r10, (%r10)
+QWORD_PROBE store64_11, %r11, (%r11)
+QWORD_PROBE store64_12, %r12, (%r14)
+QWORD_PROBE store64_13, %r13, (%r15)
+QWORD_PROBE store64_14, %r14, (%r14)
+QWORD_PROBE store64_15, %r15, (%r15)
+/* REX.X outside SIB is ignored; R/B still select their respective operands. */
+PROBE load64_x0, 0x4a,0x8b,0x07
+PROBE load64_x1, 0x4b,0x8b,0x07
+PROBE load64_x2, 0x4e,0x8b,0x07
+PROBE load64_x3, 0x4f,0x8b,0x07
+PROBE store64_x0, 0x4a,0x89,0x37
+PROBE store64_x1, 0x4b,0x89,0x37
+PROBE store64_x2, 0x4e,0x89,0x37
+PROBE store64_x3, 0x4f,0x89,0x37
+/* High-bank base/index/data, every scale, then source/destination aliases. */
+PROBE load64_scale0, 0x4f,0x8b,0x14,0x08
+PROBE load64_scale1, 0x4f,0x8b,0x14,0x48
+PROBE load64_scale2, 0x4f,0x8b,0x14,0x88
+PROBE load64_scale3, 0x4f,0x8b,0x14,0xc8
+PROBE store64_scale0, 0x4f,0x89,0x1c,0x08
+PROBE store64_scale1, 0x4f,0x89,0x1c,0x48
+PROBE store64_scale2, 0x4f,0x89,0x1c,0x88
+PROBE store64_scale3, 0x4f,0x89,0x1c,0xc8
+PROBE load64_alias_base, 0x4f,0x8b,0x04,0x08
+PROBE load64_alias_index, 0x4f,0x8b,0x0c,0x08
+PROBE store64_alias_base, 0x4f,0x89,0x04,0x08
+PROBE store64_alias_index, 0x4f,0x89,0x0c,0x08
+/* Index lowbits4 is R12 when X=1, and is not the absent-index encoding. */
+PROBE load64_r12_index, 0x4e,0x8b,0x24,0x64
+PROBE store64_r12_index, 0x4e,0x89,0x2c,0x64
+PROBE load64_r12_base, 0x4b,0x8b,0x24,0x2c
+PROBE store64_r12_base, 0x4b,0x89,0x2c,0x2c
+PROBE load64_same_address, 0x4f,0x8b,0x0c,0x09
+PROBE store64_same_address, 0x4f,0x89,0x0c,0x09
+
 /* All 256 ModRM register pairs, including every alias and RSP position.
  * The C observer separately requests left <-> right, with no byte decoder. */
 .macro EXCHANGE left,right
@@ -266,6 +330,13 @@ PROBE mutant_exchange_wrong, 0x48,0x96 /* exchanges rsi instead of rdi */
 PROBE mutant_exchange_omitted, 0x90,0x90
 PROBE mutant_exchange_narrow, 0x97 /* exchanges only eax and edi */
 PROBE mutant_exchange_flags, 0x48,0x97,0xf9 /* swap then set CF */
+/* Memory64 mutants execute only with owned, mapped addresses. */
+PROBE mutant_load64_narrow, 0x8b,0x07
+PROBE mutant_store64_narrow, 0x89,0x37
+PROBE mutant_store64_source, 0x48,0x89,0x07
+PROBE mutant_store64_address, 0x48,0x89,0x77,0x01
+PROBE mutant_store64_endian, 0x48,0x0f,0xce,0x48,0x89,0x37,0x48,0x0f,0xce
+PROBE mutant_store64_neighbor, 0x48,0x89,0x37,0xc6,0x47,0x08,0x00
 .globl edsl_moves_section_end
 edsl_moves_section_end:
 .section .note.GNU-stack,"",@progbits

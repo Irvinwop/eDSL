@@ -66,7 +66,7 @@ theorem decodeNewAt_transport {source destination : State} {instruction : Instru
   have t3 := transport 3 (by decide)
   simp only [BitVec.add_zero] at t0
   have refinement : SuccessRefines (decodeNewAt source fault) (decodeNewAt destination fault) := by
-    unfold decodeNewAt decodeAddressAt
+    unfold decodeNewAt decodeAddressAt decodeQWordAddressAt
     repeat first
       | exact SuccessRefines.refl _
       | exact t0

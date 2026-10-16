@@ -3,6 +3,7 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.X86.Machine
+import EDSL.X86.Memory64
 
 namespace EDSL.X86.Sequential
 
@@ -36,6 +37,10 @@ inductive Instruction where
   | xchgRax64 (other : Register)
   | loadMem32 (destination : Register) (address : Address)
   | storeMem32 (address : Address) (source : Register)
+  /-- Full-width ordinary DATA load with the pre-instruction address. -/
+  | loadMem64 (destination : Register) (address : Address)
+  /-- Full-width checked ordinary store; this is not a locked operation. -/
+  | storeMem64 (address : Address) (source : Register)
   | addImm64 (destination : Register) (immediate : Byte)
   | inc64 (destination : Register)
   | dec64 (destination : Register)

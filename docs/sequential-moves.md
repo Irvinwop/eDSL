@@ -12,15 +12,20 @@ bytes. A self-copy retains the entire state except RIP+3. All MOV forms
 preserve every flag, independently
 of the undefined-AF choice used by other instruction families.
 
-Memory forms accept mod=00 full64 base addressing and SIB with scales 1/2/4/8,
+MOV32 memory forms accept mod=00 full 64-bit base addressing and SIB with scales 1/2/4/8,
 a present base and a present index. Displacements, RIP-relative operands,
 prefixes, absent index/base, and extended-register memory encodings reject. Base forms
 occupy two bytes; SIB forms occupy three. Unsupported SIB forms never become
 shorter base forms. Both source registers and effective addresses come from
 the pre-state, including when a load destination aliases its base or index,
 or a store source aliases an address register.
-There are no 64-bit memory operations in this extension. W=0 REX, repeated REX
-and extra prefixes reject; TEST/CMP/ADD-immediate/INC/DEC retain exact `48`.
+MOV64 memory forms accept a single REX.W byte48–4f with mod=00 base/SIB
+addressing and all 16 data registers. R/B extend data/base fields and X extends
+the SIB index; X is ignored without SIB. A present R12 index uses X=1, while
+encoded base5 still rejects regardless of B. These forms occupy3/4 bytes and
+use checked eight-byte primitives and a separate current OS contract. See
+[eight-byte memory contracts](memory64.md). W=0 REX, repeated REX and extra
+prefixes reject; TEST/CMP/ADD-immediate/INC/DEC retain exact `48`.
 
 Register-only XCHG64 accepts a single REX.W byte `48`–`4f` followed by
 `87 /r` with mod=11, or `90+rd`. The three-byte ModRM form exchanges the full
@@ -108,16 +113,19 @@ bits, self-copy width differences, complete context preservation, exact-byte
 CFG admission, fetch failures and rejection by the existing TSO issue path.
 
 [`scripts/verify-sequential-moves.sh`](../scripts/verify-sequential-moves.sh)
-links 430 positive owned instruction windows and checks the extracted ELF section
-against the executed bytes. Its 912 finite observations become named Lean
+links 488 positive owned instruction windows and checks the extracted ELF section
+against the executed bytes. Its 1144 finite observations become named Lean
 theorems: the original 152 MOV32 register/memory cases plus 112 MOV64 register
-cases and 648 XCHG64 register cases. The 56 MOV64 windows cover 16 assembler `89` copies, 16 explicit `8b`
+cases, 648 XCHG64 register cases and 232 MOV64 memory cases. The 56 MOV64 register windows cover 16 assembler `89` copies, 16 explicit `8b`
 copies, 16 assembler self-copies and eight ignored-X forms, each with two flag
 and value profiles.
 The 324 XCHG64 windows cover all 256 ModRM register pairs, all 16 short-form
 operands with every ignored R/X combination, and four ignored-X ModRM forms
 covering all R/B combinations. Self-exchange and either operand being RSP are
-included. [`tests/SequentialXchg64.lean`](../tests/SequentialXchg64.lean) adds
+included. The 58 MOV64 memory windows cover all 16 data registers, admitted plain
+bases, ignored-X and extended SIB fields, every scale and address/data aliases;
+offsets2/24 check unaligned and final-eight-observed-byte operands.
+[`tests/SequentialXchg64.lean`](../tests/SequentialXchg64.lean) adds
 symbolic swap/frame properties and decoding, fetch and subset rejections.
 A C observer independently checks all 16 GPRs, complete
 captured flags and all 32 observed data bytes, including nonzero upper halves,
@@ -125,11 +133,13 @@ unaligned operands and addresses above 4 GiB. A stack-independent assembly
 capture supports modeled RSP changes. The native snapshots are replayed through
 the public Lean step for both AF choices using kernel-checked proofs. Operand
 read lists come from independent requested footprints; they are not hardware
-read traces. Ten safe owned mutants,
+read traces. Sixteen safe owned mutants,
 including a requested MOV64 executed as MOV32,
 must fail the C observer: the five MOV width/direction/omitted-store/neighbor
 cases and five register-exchange cases (copy, wrong operand, omitted swap,
-32-bit swap and flag damage). Altered extracted bytes must fail identity checks.
+32-bit swap and flag damage), plus six memory64 cases for narrow load/store,
+wrong source/address, reversed bytes and neighbor overwrite. Altered extracted
+bytes must fail identity checks.
 These checks use valid ordinary memory; inaccessible/canonical/nonwrapping
 failure cases remain modeled regressions. Evidence goes to
 `artifacts/sequential-moves/`.

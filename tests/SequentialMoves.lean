@@ -268,8 +268,9 @@ example : ([[0x89, 0x37], [0x89, 0x06], [0x89, 0xf8], [0x89, 0xf0],
       .ok (.legacy .movEaxEdi), .ok (.legacy .movEaxEsi),
       .ok (.legacy .loadEaxRdi), .ok (.legacy .loadEaxRsi)] := by rfl
 
-/-- Prefixes, displacements, RIP-relative and missing SIB operands are outside
-this profile. In particular no-index SIB cannot be lowered to a 2-byte base
+/-- Extra legacy prefixes, displacements, RIP-relative and missing SIB operands
+are outside this profile; REX.W selects the separate full-width memory forms.
+In particular no-index SIB cannot be lowered to a 2-byte base
 instruction: it would silently give the wrong encoded length. -/
 example : Sequential.decodeAt (entry [0x66, 0x89, 0xc0]) =
     .error (.unsupportedOpcode 0x66) := by rfl
@@ -278,9 +279,9 @@ example : Sequential.decodeAt (entry [0x67, 0x8b, 0x0f]) =
 example : Sequential.decodeAt (entry [0xf0, 0x89, 0x07]) =
     .error .unsupportedEncoding := by rfl
 example : Sequential.decodeAt (entry [0x48, 0x89, 0x07]) =
-    .error .unsupportedEncoding := by rfl
+    .ok (.storeMem64 (.base .rdi) .rax) := by rfl
 example : Sequential.decodeAt (entry [0x49, 0x8b, 0x0f]) =
-    .error .unsupportedEncoding := by rfl
+    .ok (.loadMem64 .rcx (.base .r15)) := by rfl
 example : Sequential.decodeAt (entry [0x89, 0x47, 0]) = .error .unsupportedEncoding := by rfl
 example : Sequential.decodeAt (entry [0x8b, 0x8f, 0, 0, 0, 0]) = .error .unsupportedEncoding := by rfl
 example : Sequential.decodeAt (entry [0x8b, 0x05, 0, 0, 0, 0]) = .error .unsupportedEncoding := by rfl

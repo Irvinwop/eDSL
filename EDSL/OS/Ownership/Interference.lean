@@ -16,11 +16,13 @@ inductive Mutation where
   | release (owner : Nat) (ticket : Ticket)
   | protect (owner : Nat) (ticket : Ticket) (permissions : Permissions)
   | store (owner : Nat) (ticket : Ticket) (address : Word) (value : BitVec 32)
+  | store64 (owner : Nat) (ticket : Ticket) (address : Word) (value : Word)
   deriving DecidableEq, Repr
 
 def Mutation.target : Mutation → Option Nat
   | .allocate .. | .adopt .. => none
-  | .transfer _ ticket _ | .release _ ticket | .protect _ ticket _ | .store _ ticket _ _ =>
+  | .transfer _ ticket _ | .release _ ticket | .protect _ ticket _ | .store _ ticket _ _ |
+      .store64 _ ticket _ _ =>
       some ticket.identifier
 
 def Mutation.run (operation : Mutation) (world : World) : Except Fault (World × Option Ticket) :=
@@ -36,6 +38,8 @@ def Mutation.run (operation : Mutation) (world : World) : Except Fault (World ×
       (Ownership.protect world owner ticket permissions).map fun after => (after, none)
   | .store owner ticket address value =>
       (Ownership.storeWord world owner ticket address value).map fun after => (after, none)
+  | .store64 owner ticket address value =>
+      (Ownership.storeWord64 world owner ticket address value).map fun after => (after, none)
 
 /-- Exact allocation metadata, bytes and permissions are framed together. This
 property concerns a registered live allocation, rather than arbitrary raw cells. -/
@@ -101,6 +105,13 @@ theorem Mutation.run_step (operation : Mutation) (world : World) (result : World
       simp [run, completed, Except.map] at success
       subst result
       exact .store completed
+  | store64 owner ticket address value =>
+    cases completed : Ownership.storeWord64 world owner ticket address value with
+    | error fault => simp [run, completed, Except.map] at success
+    | ok after =>
+      simp [run, completed, Except.map] at success
+      subst result
+      exact .store64 completed
 
 theorem Mutation.run_wellFormed (operation : Mutation) (world : World) (result : World × Option Ticket)
     (valid : WellFormed world) (success : operation.run world = .ok result) : WellFormed result.1 :=
@@ -196,6 +207,21 @@ theorem Mutation.run_preserves (operation : Mutation) (world : World) (result : 
       refine ⟨by rw [facts.2.2.1]; exact found, ?_⟩
       intro query inside
       obtain ⟨affected, _, authorized, _, _, _⟩ := storeWord_ok _ _ _ _ _ _ completed
+      have affectedAt := (authorize_ok _ _ _ _ authorized).1
+      exact facts.2.2.2.2.2.2.2 query affected authorized
+        (disjoint_outside (valid.2 _ _ _ _ affectedAt found (Ne.symm other)) inside)
+  | store64 owner ticket address value =>
+    cases completed : Ownership.storeWord64 world owner ticket address value with
+    | error fault => simp [run, completed, Except.map] at success
+    | ok after =>
+      simp [run, completed, Except.map] at success
+      subst result
+      have other : identifier ≠ ticket.identifier := by simpa [target, eq_comm] using different
+      have facts := storeWord64_wellFormed _ _ _ _ _ _ valid completed
+      intro allocation found
+      refine ⟨by rw [facts.2.2.1]; exact found, ?_⟩
+      intro query inside
+      obtain ⟨affected, _, authorized, _, _, _⟩ := storeWord64_ok _ _ _ _ _ _ completed
       have affectedAt := (authorize_ok _ _ _ _ authorized).1
       exact facts.2.2.2.2.2.2.2 query affected authorized
         (disjoint_outside (valid.2 _ _ _ _ affectedAt found (Ne.symm other)) inside)

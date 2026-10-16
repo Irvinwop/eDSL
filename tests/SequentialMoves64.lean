@@ -182,16 +182,19 @@ theorem w0_rejected :
       .error (.unsupportedOpcode 0x44), .error (.unsupportedOpcode 0x45),
       .error (.unsupportedOpcode 0x46), .error (.unsupportedOpcode 0x47)] := by rfl
 
-/-- No repeated REX, extra legacy prefixes, or weakened memory forms. These
-are pure decoder inputs; unsupported bytes/addresses never execute natively. -/
-theorem prefixes_and_memory_rejected :
+/-- Repeated REX, extra legacy prefixes and displacements reject. Supported
+base and extended-SIB operands retain their full64 memory interpretation. -/
+theorem prefixes_displacements_and_memory_decoding :
     ([[0x48,0x48,0x89,0xd8], [0x49,0x48,0x8b,0xd8], [0x4f,0x4f,0x89,0xd8],
       [0x48,0x66,0x89,0xd8], [0x48,0xf0,0x89,0xd8], [0xf0,0x48,0x89,0xd8],
       [0x48,0x89,0x18], [0x49,0x8b,0x0b], [0x4f,0x89,0x1c,0x24],
       [0x48,0x8b,0x5b,0], [0x48,0x89,0x9b,0,0,0,0],
       [0x48,0x8b,0x1d,0,0,0,0]] : List (List Byte)).map
         (fun bytes => Sequential.decodeAt (entry bytes)) =
-    List.replicate 12 (.error .unsupportedEncoding) := by rfl
+    List.replicate 6 (.error .unsupportedEncoding) ++
+      [.ok (.storeMem64 (.base .rax) .rbx), .ok (.loadMem64 .rcx (.base .r11)),
+        .ok (.storeMem64 (.indexed .r12 .r12 ⟨0, by decide⟩) .r11)] ++
+      List.replicate 3 (.error .unsupportedEncoding) := by rfl
 
 theorem leading_legacy_prefixes_rejected :
     ([[0x66,0x48,0x89,0xd8], [0x67,0x48,0x8b,0xd8],

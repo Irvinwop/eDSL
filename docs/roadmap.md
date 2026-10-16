@@ -72,17 +72,22 @@ shared-memory nondeterminism remain future work.
 The separate sequential execution layer now also handles undefined AF choices,
 constructive all-choice total correctness, actual operand-read traces and
 reachable-prefix fault/divergence exclusion for the checked sum32 loops.
-It also decodes ordinary low8 MOV32 register/load/store forms over full64
+It also decodes ordinary low8 MOV32 register/load/store forms over full 64-bit
 base/SIB addresses and REX.W MOV64 register copies across all 16 GPRs.
-Register XCHG64 now supports ModRM and short RAX encodings across all16 GPRs,
+Register XCHG64 now supports ModRM and short RAX encodings across all 16 GPRs,
 with simultaneous pre-state value flow, complete flags/RAM frames and current
 OS composition. Native observations cover all ModRM pairs and ignored prefix
 bits; changed RSP retains the original loan without proving a RET binding.
 The current owner-resource bridge derives actual two- and
 three-byte stores and target loads, retaining the same OS history and loan
 frames. Full-pointer copy/store/RET composition retains the same current RAM
-coupling and uses the actual original stack binding. MOV64 memory operations
-remain unsupported. [Encoding, aliasing and resource scope](sequential-moves.md) remain
+coupling and uses the actual original stack binding. MOV64 memory now uses
+checked eight-byte primitives and REX.R/B/X base/SIB fields. Single-allocation owner
+authority, read-only borrowing and actual checked mutation histories compose
+store/load/RET in the same evolved OS world; the 32-bit task policies reject
+wide stores rather than treating them as read-only. Exact GNU23/GNU++26 output
+has direct raw/ELF certificates. [Eight-byte memory scope](memory64.md) and
+[encoding, aliasing and resource scope](sequential-moves.md) remain
 explicit; the concurrent backends retain their original instruction subset.
 The direct StoreReturn32 certificate API now proves both selected compiler
 store/copy orderings and a copied-RAX variant against a stronger full-pointer
@@ -503,7 +508,7 @@ search or hardware timing from an ISA step count.
 
 Implemented: exact two-instruction increment/load/store and three-instruction
 exchange/fetch-add counts, the increment lower bound for zero input/RAX, and an exact three-instruction first-syscall
-count for exit42, plus `2*count+3` for the all-count assembly loop. Any supported
+count for exit 42, plus `2*count+3` for the all-count assembly loop. Any supported
 first-syscall candidate requesting exit60/status42 from initial RAX = RDI = 0
 needs at least three user instructions; the checked
 entry attains that bound. These bounds cover the supported ISA and count no

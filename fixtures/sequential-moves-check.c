@@ -17,7 +17,7 @@ uint64_t edsl_moves_effective_flags;
 extern void edsl_moves_probe(const unsigned char *);
 extern const unsigned char edsl_moves_section_start[], edsl_moves_section_end[];
 
-enum kind { register_copy, register_copy64, register_exchange64, load, store };
+enum kind { register_copy, register_copy64, register_exchange64, load, store, load64, store64 };
 struct contract {
     const char *name;
     const unsigned char *code, *end;
@@ -145,7 +145,74 @@ struct contract {
     X(mutant_exchange_wrong, register_exchange64, 0,7,0,no_index,0) \
     X(mutant_exchange_omitted, register_exchange64, 0,7,0,no_index,0) \
     X(mutant_exchange_narrow, register_exchange64, 0,7,0,no_index,0) \
-    X(mutant_exchange_flags, register_exchange64, 0,7,0,no_index,0)
+    X(mutant_exchange_flags, register_exchange64, 0,7,0,no_index,0) \
+    X(mutant_load64_narrow, load64, 0,0,7,no_index,0) \
+    X(mutant_store64_narrow, store64, 0,6,7,no_index,0) \
+    X(mutant_store64_source, store64, 0,6,7,no_index,0) \
+    X(mutant_store64_address, store64, 0,6,7,no_index,0) \
+    X(mutant_store64_endian, store64, 0,6,7,no_index,0) \
+    X(mutant_store64_neighbor, store64, 0,6,7,no_index,0)
+/* Independent requested operands; the C oracle does not decode instruction
+ * bytes. Every GPR is a load destination and a store source. */
+#define MEMORY64_CONTRACTS(X) \
+    X(load64_0, load64, 0,0,7,no_index,0) \
+    X(load64_1, load64, 1,0,8,no_index,0) \
+    X(load64_2, load64, 2,0,1,no_index,0) \
+    X(load64_3, load64, 3,0,10,no_index,0) \
+    X(load64_4, load64, 4,0,3,no_index,0) \
+    X(load64_5, load64, 5,0,14,no_index,0) \
+    X(load64_6, load64, 6,0,7,no_index,0) \
+    X(load64_7, load64, 7,0,0,no_index,0) \
+    X(load64_8, load64, 8,0,9,no_index,0) \
+    X(load64_9, load64, 9,0,2,no_index,0) \
+    X(load64_10, load64, 10,0,11,no_index,0) \
+    X(load64_11, load64, 11,0,6,no_index,0) \
+    X(load64_12, load64, 12,0,15,no_index,0) \
+    X(load64_13, load64, 13,0,0,no_index,0) \
+    X(load64_14, load64, 14,0,1,no_index,0) \
+    X(load64_15, load64, 15,0,8,no_index,0) \
+    X(store64_0, store64, 0,0,0,no_index,0) \
+    X(store64_1, store64, 0,1,1,no_index,0) \
+    X(store64_2, store64, 0,2,2,no_index,0) \
+    X(store64_3, store64, 0,3,3,no_index,0) \
+    X(store64_4, store64, 0,4,6,no_index,0) \
+    X(store64_5, store64, 0,5,7,no_index,0) \
+    X(store64_6, store64, 0,6,6,no_index,0) \
+    X(store64_7, store64, 0,7,7,no_index,0) \
+    X(store64_8, store64, 0,8,8,no_index,0) \
+    X(store64_9, store64, 0,9,9,no_index,0) \
+    X(store64_10, store64, 0,10,10,no_index,0) \
+    X(store64_11, store64, 0,11,11,no_index,0) \
+    X(store64_12, store64, 0,12,14,no_index,0) \
+    X(store64_13, store64, 0,13,15,no_index,0) \
+    X(store64_14, store64, 0,14,14,no_index,0) \
+    X(store64_15, store64, 0,15,15,no_index,0) \
+    X(load64_x0, load64, 0,0,7,no_index,0) \
+    X(load64_x1, load64, 0,0,15,no_index,0) \
+    X(load64_x2, load64, 8,0,7,no_index,0) \
+    X(load64_x3, load64, 8,0,15,no_index,0) \
+    X(store64_x0, store64, 0,6,7,no_index,0) \
+    X(store64_x1, store64, 0,6,15,no_index,0) \
+    X(store64_x2, store64, 0,14,7,no_index,0) \
+    X(store64_x3, store64, 0,14,15,no_index,0) \
+    X(load64_scale0, load64, 10,0,8,9,0) \
+    X(load64_scale1, load64, 10,0,8,9,1) \
+    X(load64_scale2, load64, 10,0,8,9,2) \
+    X(load64_scale3, load64, 10,0,8,9,3) \
+    X(store64_scale0, store64, 0,11,8,9,0) \
+    X(store64_scale1, store64, 0,11,8,9,1) \
+    X(store64_scale2, store64, 0,11,8,9,2) \
+    X(store64_scale3, store64, 0,11,8,9,3) \
+    X(load64_alias_base, load64, 8,0,8,9,0) \
+    X(load64_alias_index, load64, 9,0,8,9,0) \
+    X(store64_alias_base, store64, 0,8,8,9,0) \
+    X(store64_alias_index, store64, 0,9,8,9,0) \
+    X(load64_r12_index, load64, 12,0,4,12,1) \
+    X(store64_r12_index, store64, 0,13,4,12,1) \
+    X(load64_r12_base, load64, 4,0,12,13,0) \
+    X(store64_r12_base, store64, 0,5,12,13,0) \
+    X(load64_same_address, load64, 9,0,9,9,0) \
+    X(store64_same_address, store64, 0,9,9,9,0)
 /* Requested Cartesian register pairs. These macros name mathematical swap
  * contracts; the independent assembler windows supply the bytes. */
 #define EXCHANGE_PAIR(X,left,right) \
@@ -181,10 +248,13 @@ struct contract {
     extern const unsigned char edsl_move_##name[], edsl_move_##name##_end[];
 CONTRACTS(DECLARE)
 EXCHANGE_CONTRACTS(DECLARE)
+MEMORY64_CONTRACTS(DECLARE)
 MUTANTS(DECLARE)
 #define ENTRY(name,k,d,s,b,i,c) \
     {#name,edsl_move_##name,edsl_move_##name##_end,k,d,s,b,i,c},
-static const struct contract contracts[] = { CONTRACTS(ENTRY) EXCHANGE_CONTRACTS(ENTRY) };
+static const struct contract contracts[] = {
+    CONTRACTS(ENTRY) EXCHANGE_CONTRACTS(ENTRY) MEMORY64_CONTRACTS(ENTRY)
+};
 static const struct contract mutants[] = { MUTANTS(ENTRY) };
 
 static void print_words(const uint64_t *values, size_t count)
@@ -215,7 +285,9 @@ static int run_case(const struct contract *contract, unsigned char *memory,
     static const uint64_t flags[] = { 0x202, 0xad7 };
     edsl_moves_input.flags = flags[vector];
     uint64_t address = (uint64_t)(uintptr_t)(memory + offset);
-    if (contract->kind == load || contract->kind == store) {
+    unsigned int width = contract->kind == load64 || contract->kind == store64 ? 8 : 4;
+    if (contract->kind == load || contract->kind == store ||
+        contract->kind == load64 || contract->kind == store64) {
         if (contract->index == no_index) {
             edsl_moves_input.registers[contract->base] = address;
         } else if ((unsigned int)contract->index == contract->base) {
@@ -243,13 +315,15 @@ static int run_case(const struct contract *contract, unsigned char *memory,
          * aliases. Reusing the first updated value would lose half the swap. */
         expected.registers[contract->destination] = edsl_moves_input.registers[contract->source];
         expected.registers[contract->source] = edsl_moves_input.registers[contract->destination];
-    } else if (contract->kind == load) {
+    } else if (contract->kind == load || contract->kind == load64) {
         uint64_t value = 0;
-        for (unsigned int i = 0; i < 4; ++i) value += (uint64_t)before[offset + i] * (UINT64_C(1) << (8 * i));
+        for (unsigned int i = 0; i < width; ++i)
+            value += (uint64_t)before[offset + i] * (UINT64_C(1) << (8 * i));
         expected.registers[contract->destination] = value;
     } else {
-        uint32_t value = (uint32_t)edsl_moves_input.registers[contract->source];
-        for (unsigned int i = 0; i < 4; ++i) expected_memory[offset + i] = (unsigned char)(value >> (8 * i));
+        uint64_t value = edsl_moves_input.registers[contract->source];
+        for (unsigned int i = 0; i < width; ++i)
+            expected_memory[offset + i] = (unsigned char)(value >> (8 * i));
     }
     edsl_moves_probe(contract->code);
     expected.flags = edsl_moves_effective_flags;
@@ -270,7 +344,8 @@ static int run_case(const struct contract *contract, unsigned char *memory,
     print_words(edsl_moves_output.registers, register_count);
     printf(",%" PRIu64 ",%" PRIuPTR ",", edsl_moves_output.flags, (uintptr_t)contract->end);
     print_bytes(memory, memory_size, 1);
-    if (contract->kind == load) printf(",[⟨.data,%" PRIu64 ",4⟩]) := by cases af <;> rfl\n", address);
+    if (contract->kind == load || contract->kind == load64)
+        printf(",[⟨.data,%" PRIu64 ",%u⟩]) := by cases af <;> rfl\n", address, width);
     else puts(",[]) := by cases af <;> rfl");
     return 1;
 }
@@ -298,7 +373,7 @@ int main(int argc, char **argv)
     if (mapping == MAP_FAILED || mprotect(mapping + page, (size_t)page, PROT_READ | PROT_WRITE)) return 2;
     unsigned char *memory = mapping + page;
     if ((uintptr_t)memory <= UINT32_MAX) return 2;
-    puts("/- Native observations of owned MOV32 register/memory, MOV64 and XCHG64 register\n"
+    puts("/- Native observations of owned MOV32/MOV64 register/memory and XCHG64 register\n"
          "windows; finite conformance evidence for two captured flags profiles.\n"
          "The C mathematical observer independently checked full GPRs, flags and\n"
          "all 32 data bytes. RIP is the extracted instruction end label; the read\n"
@@ -325,14 +400,16 @@ int main(int argc, char **argv)
          "  | .next final => return (allRegisters.map final.registers,final.flags,final.rip,\n"
          "      (List.range 32).map (fun i => final.memory.read (dataBase + BitVec.ofNat 64 i)),observation.reads)\n"
          "  | _ => none");
-    unsigned int observations32 = 0, observations64 = 0, exchanges64 = 0;
+    unsigned int observations32 = 0, observations64 = 0, exchanges64 = 0, memory64 = 0;
     for (size_t i = 0; i < sizeof contracts / sizeof contracts[0]; ++i) {
         for (unsigned int vector = 0; vector < 2; ++vector) {
             /* Even offsets also permit the base=index alias. The offset 28
              * cases exercise the last four observed bytes without risking an
              * actual hardware fault for the separate eight-byte mutant. */
-            static const size_t offsets[] = { 2, memory_size - 4 };
-            unsigned int offset_count = contracts[i].kind == load || contracts[i].kind == store ? 2 : 1;
+            size_t width = contracts[i].kind == load64 || contracts[i].kind == store64 ? 8 : 4;
+            const size_t offsets[] = { 2, memory_size - width };
+            unsigned int offset_count = contracts[i].kind == load || contracts[i].kind == store ||
+                contracts[i].kind == load64 || contracts[i].kind == store64 ? 2 : 1;
             for (unsigned int j = 0; j < offset_count; ++j) {
                 if (run_case(&contracts[i], memory, offsets[j], vector, 1) != 1) {
                     fprintf(stderr, "Independent native contract failed: %s/%u/%zu\n", contracts[i].name, vector, offsets[j]);
@@ -340,6 +417,7 @@ int main(int argc, char **argv)
                 }
                 if (contracts[i].kind == register_copy64) ++observations64;
                 else if (contracts[i].kind == register_exchange64) ++exchanges64;
+                else if (contracts[i].kind == load64 || contracts[i].kind == store64) ++memory64;
                 else ++observations32;
             }
         }
@@ -351,9 +429,11 @@ int main(int argc, char **argv)
         }
     }
     puts("end EDSL.Tests.NativeSequentialMoves\n#audit_edsl");
-    fprintf(stderr, "Checked %u native observations (%u MOV32 register/memory, %u MOV64 register, %u XCHG64 register); "
+    fprintf(stderr, "Checked %u native observations (%u MOV32 register/memory, %u MOV64 register, "
+        "%u XCHG64 register, %u MOV64 memory); "
         "rejected %zu owned semantic mutants; final ELF bytes matched\n",
-        observations32 + observations64 + exchanges64, observations32, observations64, exchanges64,
+        observations32 + observations64 + exchanges64 + memory64,
+        observations32, observations64, exchanges64, memory64,
         sizeof mutants / sizeof mutants[0]);
     if (munmap(mapping, (size_t)page * 3)) return 2;
     return 0;

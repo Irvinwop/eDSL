@@ -88,6 +88,10 @@ def instructionLiteral : Sequential.Instruction → String
     s!"(.loadMem32 {registerLiteral destination} {addressLiteral address})"
   | .storeMem32 address source =>
     s!"(.storeMem32 {addressLiteral address} {registerLiteral source})"
+  | .loadMem64 destination address =>
+    s!"(.loadMem64 {registerLiteral destination} {addressLiteral address})"
+  | .storeMem64 address source =>
+    s!"(.storeMem64 {addressLiteral address} {registerLiteral source})"
   | .addImm64 register value => s!"(.addImm64 {registerLiteral register} {value.toNat})"
   | .inc64 register => s!"(.inc64 {registerLiteral register})"
   | .dec64 register => s!"(.dec64 {registerLiteral register})"

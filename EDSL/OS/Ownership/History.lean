@@ -22,6 +22,8 @@ inductive Step : World → World → Prop where
       (success : Ownership.protect before owner ticket permissions = .ok after) : Step before after
   | store {before owner ticket address value after}
       (success : Ownership.storeWord before owner ticket address value = .ok after) : Step before after
+  | store64 {before owner ticket address value after}
+      (success : Ownership.storeWord64 before owner ticket address value = .ok after) : Step before after
 
 inductive History : World → World → Prop where
   | refl {world} : History world world
@@ -92,6 +94,10 @@ theorem Step.advances {before after : World} (step : Step before after) : Advanc
     obtain ⟨_, _, _, _, _, same⟩ := storeWord_ok _ _ _ _ _ _ success
     rw [same]
     exact advances_refl _
+  | store64 success =>
+    obtain ⟨_, _, _, _, _, same⟩ := storeWord64_ok _ _ _ _ _ _ success
+    rw [same]
+    exact advances_refl _
 
 theorem Step.wellFormed {before after : World} (step : Step before after) (valid : WellFormed before) :
     WellFormed after := by
@@ -102,6 +108,7 @@ theorem Step.wellFormed {before after : World} (step : Step before after) (valid
   | release success => exact (release_wellFormed _ _ _ _ valid success).1
   | protect success => exact (protect_wellFormed _ _ _ _ _ valid success).1
   | store success => exact (storeWord_wellFormed _ _ _ _ _ _ valid success).1
+  | store64 success => exact (storeWord64_wellFormed _ _ _ _ _ _ valid success).1
 
 theorem History.advances {before after : World} (history : History before after) : Advances before after := by
   induction history with

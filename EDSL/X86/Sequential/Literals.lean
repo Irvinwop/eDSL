@@ -47,6 +47,8 @@ def instruction : Instruction → String
   | .xchgRax64 other => s!"(.xchgRax64 {register other})"
   | .loadMem32 destination operand => s!"(.loadMem32 {register destination} {address operand})"
   | .storeMem32 operand source => s!"(.storeMem32 {address operand} {register source})"
+  | .loadMem64 destination operand => s!"(.loadMem64 {register destination} {address operand})"
+  | .storeMem64 operand source => s!"(.storeMem64 {address operand} {register source})"
   | .addImm64 destination value => s!"(.addImm64 {register destination} {value.toNat})"
   | .inc64 destination => s!"(.inc64 {register destination})"
   | .dec64 destination => s!"(.dec64 {register destination})"

@@ -44,11 +44,12 @@ jobs:
       # Always invoke Lake: its input traces invalidate changed modules. Cached
       # outputs never skip contract tests, axiom audits, or fresh kernel replay.
       - name: Build pinned Lean project
-        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32 edsl-cfg-import edsl-grade edsl-proof-export edsl-certify-store-return32 GradingFixtures
+        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32 edsl-cfg-import edsl-grade edsl-proof-export edsl-certify-store-return32 edsl-certify-store-load64 GradingFixtures
       - name: ISA, ELF, OS contracts and rejection properties
         run: |
           lake env lean -DwarningAsError=true tests/X86.lean
           lake env lean -DwarningAsError=true tests/Memory.lean
+          lake env lean -DwarningAsError=true tests/Memory64.lean
           lake env lean -DwarningAsError=true tests/AddressSpace.lean
           lake env lean -DwarningAsError=true tests/OSComposition.lean
           lake env lean -DwarningAsError=true tests/WordStore.lean
@@ -57,6 +58,7 @@ jobs:
           lake env lean -DwarningAsError=true tests/Write.lean
           lake env lean -DwarningAsError=true tests/ControlFlow.lean
           lake env lean -DwarningAsError=true tests/Ownership.lean
+          lake env lean -DwarningAsError=true tests/Ownership64.lean
           lake env lean -DwarningAsError=true tests/Borrowing.lean
           lake env lean -DwarningAsError=true tests/Threads.lean
           lake env lean -DwarningAsError=true tests/AtomicExchange.lean
@@ -92,6 +94,9 @@ jobs:
           lake env lean -DwarningAsError=true tests/SequentialMoveResources.lean
           lake env lean -DwarningAsError=true tests/SequentialXchg64.lean
           lake env lean -DwarningAsError=true tests/SequentialXchgResources.lean
+          lake env lean -DwarningAsError=true tests/SequentialMemory64.lean
+          lake env lean -DwarningAsError=true tests/SequentialMemory64Resources.lean
+          lake env lean -DwarningAsError=true tests/StoreLoad64.lean
           lake env lean -DwarningAsError=true tests/StoreReturn32Raw.lean
           lake env lean -DwarningAsError=true tests/StoreReturn32Resources.lean
           lake env lean -DwarningAsError=true tests/GradingStoreReturn.lean
@@ -210,6 +215,18 @@ jobs:
         with:
           name: store-return-xchg-evidence
           path: artifacts/store-return-xchg/
+          if-no-files-found: error
+      - name: Certify full64 memory outputs and observe owned callable functions
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+          EDSL_CLANGXX: clang++-18
+        run: bash scripts/verify-store-load64.sh
+      - name: Preserve owned full64 memory certificates and observations
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: store-load64-evidence
+          path: artifacts/store-load64/
           if-no-files-found: error
       - name: Preserve owned sum32 certificates and native observations
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

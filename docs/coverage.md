@@ -39,7 +39,7 @@ Task preconditions are inhabited for arbitrary admitted byte lists independently
 of decoding; the write witness requires a real value change, and a RET-only
 candidate is proved insufficient. This is a three-task registry with an explicit sequential callable
 profile, rather than general competitive-programming or whole-OS grading.
-Standalone ELF profiles reach exit42 directly or across a bounded stream write
+Standalone ELF profiles reach exit 42 directly or across a bounded stream write
 and compose with explicit OS contracts. A separate locked-add-loop certificate
 connects exact bytes to finite OS counter-worker workloads and checked
 collection. These are narrow slices,
@@ -107,16 +107,26 @@ physical execution remains a model/physical-conformance boundary.
 
 The separate `X86.Sequential` decoder embeds legacy instructions and adds
 parameterized XOR-self32, TEST64, CMP64, ADD-memory32, MOV-register32/64, XCHG-register64,
-MOV-load32, MOV-store32, ADD-immediate64, INC64, DEC64, JE and JMP families.
-MOV64 and ModRM XCHG64 register operands cover all 16 GPRs with REX.W/R/B and ignored X; other
-new register operands use the eight lower GPRs. Supported memory operands use
+MOV-load32/64, MOV-store32/64, ADD-immediate64, INC64, DEC64, JE and JMP families.
+Register-only MOV64 and ModRM XCHG64 cover all 16 GPRs with REX.W/R/B and ignored X.
+New arithmetic and MOV32 register operands use the eight lower GPRs. Supported memory operands use
 full-width base/SIB addressing with explicit
 rejection of displacements, absent base/index and other unsupported forms.
 Its bit-precise flag helpers give XOR/TEST an independent undefined-AF choice
 per retired instruction. Ordinary MOV preserves all flags, uses pre-state
 operands even under register/address aliasing, and zero-extends 32-bit results.
 MOV64 register copies preserve the full source and advance by three bytes;
-64-bit memory forms and W=0 REX remain unsupported.
+MOV64 memory uses all 16 data registers and REX.R/B/X for data/base/SIB index,
+with three-byte base and four-byte SIB encodings. W=0 and extra prefixes reject.
+All8 operand bytes, canonicality, nonwrapping and store permissions are checked.
+The separate 64-bit store intent cannot be admitted as read-only or by the
+existing 32-bit effect policies; data read authority retains its actual width.
+OS cell projection, single-allocation ownership, whole-allocation read-loan
+freezing and checked histories preserve all 64-bit readback, outside cells,
+permissions and existing 32/64 loans. Current resource proofs compose actual
+store/load/RET with the same evolved world, owner/epoch/loan frame and original
+caller stack binding. A direct raw/ELF profile proves actual GNU23/GNU++26
+store/load output and observes full 64-bit values. See [eight-byte memory](memory64.md).
 Register XCHG64 swaps both original full-width operands, preserves every flag
 and memory field, and advances by three bytes for `REX.W 87 /r` or two for
 `REX.W 90+rd`. The short form uses B and ignores R/X. Both forms compose with
@@ -816,7 +826,7 @@ resource cleanup is proved.
 
 ## Bounded stream write and exit
 
-`edsl-certify-process write-exit42` checks the 37-byte entry/code/data window of
+`edsl-certify-process write-exit 42` checks the 37-byte entry/code/data window of
 a complete ELF at entry `0x400000`. Five user instructions request three bytes
 from buffer `0x400022` on descriptor 1; after every admitted write return, three
 more request exit60/status42. Initial modeled registers/flags are unrestricted;
@@ -927,7 +937,7 @@ lake exe edsl-certify exchange32 FUNCTION.bin artifacts/Exchange.lean
 lake exe edsl-certify --elf increment FUNCTION.elf artifacts/ELF.lean
 lake exe edsl-certify --elf increment-loop FUNCTION.elf artifacts/ELFLoop.lean
 lake exe edsl-certify-process PROCESS.elf artifacts/Process.lean
-lake exe edsl-certify-process write-exit42 PROCESS.elf artifacts/WriteProcess.lean
+lake exe edsl-certify-process write-exit 42 PROCESS.elf artifacts/WriteProcess.lean
 lake exe edsl-certify-counter WORKER.bin artifacts/CounterRaw.lean
 lake exe edsl-certify-counter --elf WORKER.elf artifacts/CounterELF.lean
 lake exe edsl-certify-mutex-worker WORKER.bin artifacts/MutexRaw.lean

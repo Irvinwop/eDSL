@@ -16,6 +16,7 @@ def Instruction.operandReads (instruction : Instruction) (state : State) : List 
     [⟨.data, state.registers .rdi, 4⟩]
   | .legacy .loadEaxRsi => [⟨.data, state.registers .rsi, 4⟩]
   | .loadMem32 _ address | .addMem32 _ address => [⟨.data, address.eval state, 4⟩]
+  | .loadMem64 _ address => [⟨.data, address.eval state, 8⟩]
   | _ => []
 
 /-- Ordinary store intent uses the PRE-instruction address and low 32 source
@@ -24,6 +25,13 @@ def Instruction.storeIntent (instruction : Instruction) (state : State) : Option
   match instruction with
   | .legacy old => old.storeIntent state
   | .storeMem32 address source => some (address.eval state, (state.registers source).setWidth 32)
+  | _ => none
+
+/-- Full-width store operands are both captured in the original state. The
+existing 32-bit intent classifier retains its original type and meaning. -/
+def Instruction.storeIntent64 (instruction : Instruction) (state : State) : Option (Word × Word) :=
+  match instruction with
+  | .storeMem64 address source => some (address.eval state, state.registers source)
   | _ => none
 
 /-- The sequential extension does not enroll ordinary MOV stores in a
@@ -41,7 +49,9 @@ canonicality, nonwrapping and per-byte accessibility checks. -/
 def OperandReadSucceeds (state : State) (read : Read) : Prop :=
   match read.kind with
   | .stack => read.bytes = 8 ∧ ∃ value, readWord state.memory read.address = .ok value
-  | .data => read.bytes = 4 ∧ ∃ value, loadDWord state.memory read.address = .ok value
+  | .data => match read.bytes with
+    | 8 => ∃ value, loadQWord state.memory read.address = .ok value
+    | _ => read.bytes = 4 ∧ ∃ value, loadDWord state.memory read.address = .ok value
 
 /-- The explicit AF argument is used only by XOR/TEST. Legacy execution retains
 its complete old result, including concrete flags, stores, atomics and syscall
@@ -68,6 +78,15 @@ def execute (state : State) (instruction : Instruction) (af : Bool) : Except Err
       rip := state.rip + BitVec.ofNat 64 instruction.length }, reads⟩
   | .storeMem32 address source =>
     let memory ← storeDWord state.memory (address.eval state) ((state.registers source).setWidth 32)
+    return ⟨.next { state with
+      memory := memory
+      rip := state.rip + BitVec.ofNat 64 instruction.length }, reads⟩
+  | .loadMem64 destination address =>
+    let value ← loadQWord state.memory (address.eval state)
+    return ⟨.next { state.writeRegister destination value with
+      rip := state.rip + BitVec.ofNat 64 instruction.length }, reads⟩
+  | .storeMem64 address source =>
+    let memory ← storeQWord state.memory (address.eval state) (state.registers source)
     return ⟨.next { state with
       memory := memory
       rip := state.rip + BitVec.ofNat 64 instruction.length }, reads⟩
@@ -178,6 +197,20 @@ theorem execute_storeMem32 (state : State) (address : Address) (source : Registe
         memory := memory
         rip := state.rip + BitVec.ofNat 64 (Instruction.storeMem32 address source).length }, []⟩ := rfl
 
+theorem execute_loadMem64 (state : State) (destination : Register) (address : Address) (af : Bool) :
+    execute state (.loadMem64 destination address) af = do
+      let value ← loadQWord state.memory (address.eval state)
+      return ⟨.next { state.writeRegister destination value with
+        rip := state.rip + BitVec.ofNat 64 (Instruction.loadMem64 destination address).length },
+        [⟨.data, address.eval state, 8⟩]⟩ := rfl
+
+theorem execute_storeMem64 (state : State) (address : Address) (source : Register) (af : Bool) :
+    execute state (.storeMem64 address source) af = do
+      let memory ← storeQWord state.memory (address.eval state) (state.registers source)
+      return ⟨.next { state with
+        memory := memory
+        rip := state.rip + BitVec.ofNat 64 (Instruction.storeMem64 address source).length }, []⟩ := rfl
+
 /-- Register operands are captured before the destination update, including
 self-moves. All flags and all memory fields are preserved. -/
 theorem execute_movReg32_context (state : State) (destination source : Register) (af : Bool) :
@@ -260,6 +293,37 @@ theorem execute_loadMem32_success_iff {state : State} {destination : Register} {
   rw [execute_loadMem32]
   cases loaded : loadDWord state.memory (address.eval state) <;> simp [eq_comm]
 
+/-- The actual checked load uses the PRE-instruction address, even when the
+destination is an address base or index. No distinctness assumption is needed. -/
+theorem execute_loadMem64_context {state : State} {destination : Register} {address : Address}
+    {value : Word} (af : Bool)
+    (loaded : loadQWord state.memory (address.eval state) = .ok value) :
+    ∃ final, execute state (.loadMem64 destination address) af =
+        .ok ⟨.next final, [⟨.data, address.eval state, 8⟩]⟩ ∧
+      final.registers destination = value ∧
+      (∀ register, register ≠ destination → final.registers register = state.registers register) ∧
+      final.memory = state.memory ∧ final.flags = state.flags ∧
+      final.rip = state.rip + BitVec.ofNat 64 (Instruction.loadMem64 destination address).length := by
+  refine ⟨{ state.writeRegister destination value with
+    rip := state.rip + BitVec.ofNat 64 (Instruction.loadMem64 destination address).length },
+    ?_, ?_, ?_, rfl, rfl, rfl⟩
+  · simp only [execute_loadMem64, loaded, ok_bind, pure_ok]
+  · simp [State.writeRegister]
+  · intro register different
+    simp [State.writeRegister, different]
+
+/-- Success exposes the actual eight-byte primitive result; an observation
+cannot assert an unchecked or differently addressed load. -/
+theorem execute_loadMem64_success_iff {state : State} {destination : Register} {address : Address}
+    {af : Bool} {observation : Observation} :
+    execute state (.loadMem64 destination address) af = .ok observation ↔
+      ∃ value, loadQWord state.memory (address.eval state) = .ok value ∧
+        observation = ⟨.next { state.writeRegister destination value with
+          rip := state.rip + BitVec.ofNat 64 (Instruction.loadMem64 destination address).length },
+          [⟨.data, address.eval state, 8⟩]⟩ := by
+  rw [execute_loadMem64]
+  cases loaded : loadQWord state.memory (address.eval state) <;> simp [eq_comm]
+
 /-- Every classified ordinary store executes the same checked store primitive.
 This also covers the embedded legacy ordinary stores without changing them. -/
 theorem execute_storeIntent {state : State} {instruction : Instruction} {address : Word}
@@ -285,7 +349,7 @@ theorem execute_storeIntent {state : State} {instruction : Instruction} {address
     simp only [Instruction.storeIntent, Option.some.injEq, Prod.mk.injEq] at intent
     rcases intent with ⟨rfl, rfl⟩
     exact execute_storeMem32 state operand source af
-  | movReg32 _ _ | movReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _ | addMem32 _ _
+  | movReg32 _ _ | movReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | loadMem64 _ _ | storeMem64 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _ | addMem32 _ _
   | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jmp _ =>
     simp [Instruction.storeIntent] at intent
 
@@ -353,6 +417,84 @@ theorem execute_storeIntent_frame {initial final : State} {instruction : Instruc
     intro query outside
     exact writeDWord_frame initial.memory address query value outside
 
+/-- A full-width ordinary store executes exactly the checked eight-byte
+primitive using the original address and original source register. -/
+theorem execute_storeIntent64 {state : State} {instruction : Instruction} {address value : Word}
+    (af : Bool) (intent : instruction.storeIntent64 state = some (address, value)) :
+    execute state instruction af = do
+      let memory ← storeQWord state.memory address value
+      return ⟨.next { state with
+        memory := memory
+        rip := state.rip + BitVec.ofNat 64 instruction.length }, []⟩ := by
+  cases instruction <;>
+    simp only [Instruction.storeIntent64, Option.some.injEq, Prod.mk.injEq, reduceCtorEq] at intent
+  rcases intent with ⟨rfl, rfl⟩
+  exact execute_storeMem64 state _ _ af
+
+/-- Successful stores expose the exact checked memory result and empty operand
+read footprint. Validation queries never become data reads. -/
+theorem execute_storeIntent64_success_iff {state : State} {instruction : Instruction} {address : Word}
+    {value : Word} {af : Bool} {observation : Observation}
+    (intent : instruction.storeIntent64 state = some (address, value)) :
+    execute state instruction af = .ok observation ↔
+      ∃ memory, storeQWord state.memory address value = .ok memory ∧
+        observation = ⟨.next { state with
+          memory := memory
+          rip := state.rip + BitVec.ofNat 64 instruction.length }, []⟩ := by
+  rw [execute_storeIntent64 af intent]
+  cases stored : storeQWord state.memory address value <;> simp [eq_comm]
+
+/-- Complete success/failure behavior: all eight bytes are validated before an
+updated state exists. This is a sequential byte update, not an atomicity claim. -/
+theorem execute_storeIntent64_checked {state : State} {instruction : Instruction} {address : Word}
+    {value : Word} (af : Bool)
+    (intent : instruction.storeIntent64 state = some (address, value)) :
+    execute state instruction af =
+      if canStoreQWord state.memory address then
+        .ok ⟨.next { state with
+          memory := writeQWordUnchecked state.memory address value
+          rip := state.rip + BitVec.ofNat 64 instruction.length }, []⟩
+      else .error (.writeDenied address) := by
+  rw [execute_storeIntent64 af intent]
+  cases allowed : canStoreQWord state.memory address <;> simp [storeQWord, allowed]
+
+/-- Store intent determines the full next state, including preserved registers
+and flags. Permission failure produces no partial next-state observation. -/
+theorem execute_storeIntent64_next_iff {initial final : State} {instruction : Instruction}
+    {address : Word} {value : Word} {af : Bool} {reads : List Read}
+    (intent : instruction.storeIntent64 initial = some (address, value)) :
+    execute initial instruction af = .ok ⟨.next final, reads⟩ ↔
+      canStoreQWord initial.memory address = true ∧
+      final = { initial with
+        memory := writeQWordUnchecked initial.memory address value
+        rip := initial.rip + BitVec.ofNat 64 instruction.length } ∧ reads = [] := by
+  rw [execute_storeIntent64_checked af intent]
+  cases canStoreQWord initial.memory address <;> simp [eq_comm]
+
+/-- Successful ordinary stores preserve every byte outside their exact
+eight-byte footprint and both permission maps, and load back the full source word. -/
+theorem execute_storeIntent64_frame {initial final : State} {instruction : Instruction}
+    {address : Word} {value : Word} {af : Bool} {observation : Observation}
+    (intent : instruction.storeIntent64 initial = some (address, value))
+    (success : execute initial instruction af = .ok observation)
+    (next : observation.result = .next final) :
+    final.registers = initial.registers ∧ final.flags = initial.flags ∧
+      final.rip = initial.rip + BitVec.ofNat 64 instruction.length ∧
+      loadQWord final.memory address = .ok value ∧
+      (∀ query, 8 ≤ (query - address).toNat → final.memory.read query = initial.memory.read query) ∧
+      final.memory.executable = initial.memory.executable ∧
+      final.memory.writable = initial.memory.writable ∧ observation.reads = [] := by
+  rw [execute_storeIntent64_checked af intent] at success
+  cases allowed : canStoreQWord initial.memory address with
+  | false => simp [allowed] at success
+  | true =>
+    simp only [allowed, ↓reduceIte, Except.ok.injEq] at success
+    cases success
+    cases next
+    refine ⟨rfl, rfl, rfl, (qword_store_sound _ _ _ allowed).2, ?_, rfl, rfl, rfl⟩
+    intro query outside
+    exact writeQWord_frame initial.memory address query value outside
+
 theorem execute_xorSelf32 (state : State) (destination : Register) (af : Bool) :
     execute state (.xorSelf32 destination) af =
       .ok ⟨.next { state.writeRegister destination 0 with
@@ -415,8 +557,17 @@ theorem execute_reads {state : State} {instruction : Instruction} {af : Bool}
     cases loaded : loadDWord state.memory (address.eval state) <;> simp [execute, loaded] at success
     cases success
     rfl
+  | loadMem64 destination address =>
+    cases loaded : loadQWord state.memory (address.eval state) <;> simp [execute, loaded] at success
+    cases success
+    rfl
   | storeMem32 address source =>
     cases stored : storeDWord state.memory (address.eval state) ((state.registers source).setWidth 32) <;>
+      simp [execute, stored] at success
+    cases success
+    rfl
+  | storeMem64 address source =>
+    cases stored : storeQWord state.memory (address.eval state) (state.registers source) <;>
       simp [execute, stored] at success
     cases success
     rfl
@@ -504,15 +655,24 @@ theorem execute_reads_succeed {state : State} {instruction : Instruction} {af : 
       simp only [Instruction.operandReads, List.mem_singleton] at member
       subst read
       exact ⟨rfl, value, loaded⟩
-  | movReg32 _ _ | movReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | storeMem32 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _
+  | loadMem64 destination address =>
+    cases loaded : loadQWord state.memory (address.eval state) with
+    | error fault => simp [execute, loaded] at success
+    | ok value =>
+      intro read member
+      simp only [Instruction.operandReads, List.mem_singleton] at member
+      subst read
+      exact ⟨value, loaded⟩
+  | movReg32 _ _ | movReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | storeMem32 _ _ | storeMem64 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _
   | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jmp _ =>
     simp [Instruction.operandReads]
 
-/-- New operations with no store intent preserve the full memory, including
-its permission maps. Ordinary MOV stores require their checked-store contract. -/
+/-- New operations without either store width preserve the full memory and
+permission maps. Both intent premises are essential for ordinary MOV stores. -/
 theorem execute_new_memory {state final : State} {instruction : Instruction} {af : Bool}
     {observation : Observation} (newInstruction : instruction.isNew = true)
     (noStore : instruction.storeIntent state = none)
+    (noStore64 : instruction.storeIntent64 state = none)
     (success : execute state instruction af = .ok observation)
     (next : observation.result = .next final) : final.memory = state.memory := by
   cases instruction with
@@ -528,7 +688,13 @@ theorem execute_new_memory {state final : State} {instruction : Instruction} {af
     cases success
     cases next
     rfl
+  | loadMem64 destination address =>
+    cases loaded : loadQWord state.memory (address.eval state) <;> simp [execute, loaded] at success
+    cases success
+    cases next
+    rfl
   | storeMem32 address source => simp [Instruction.storeIntent] at noStore
+  | storeMem64 address source => simp [Instruction.storeIntent64] at noStore64
   | je displacement =>
     cases branched : executeShortBranch state (state.flags.getLsbD 6) displacement with
     | error fault => simp only [execute, branched, error_bind, reduceCtorEq] at success
@@ -587,8 +753,17 @@ theorem execute_new_next {state : State} {instruction : Instruction} {af : Bool}
     cases loaded : loadDWord state.memory (address.eval state) <;> simp [execute, loaded] at success
     cases success
     exact ⟨_, rfl⟩
+  | loadMem64 destination address =>
+    cases loaded : loadQWord state.memory (address.eval state) <;> simp [execute, loaded] at success
+    cases success
+    exact ⟨_, rfl⟩
   | storeMem32 address source =>
     cases stored : storeDWord state.memory (address.eval state) ((state.registers source).setWidth 32) <;>
+      simp [execute, stored] at success
+    cases success
+    exact ⟨_, rfl⟩
+  | storeMem64 address source =>
+    cases stored : storeQWord state.memory (address.eval state) (state.registers source) <;>
       simp [execute, stored] at success
     cases success
     exact ⟨_, rfl⟩
@@ -634,8 +809,17 @@ theorem execute_new_flags {state final : State} {instruction : Instruction} {af 
     cases loaded : loadDWord state.memory (address.eval state) <;> simp [execute, loaded] at success
     cases success; cases next
     rfl
+  | loadMem64 destination address =>
+    cases loaded : loadQWord state.memory (address.eval state) <;> simp [execute, loaded] at success
+    cases success; cases next
+    rfl
   | storeMem32 address source =>
     cases stored : storeDWord state.memory (address.eval state) ((state.registers source).setWidth 32) <;>
+      simp [execute, stored] at success
+    cases success; cases next
+    rfl
+  | storeMem64 address source =>
+    cases stored : storeQWord state.memory (address.eval state) (state.registers source) <;>
       simp [execute, stored] at success
     cases success; cases next
     rfl
