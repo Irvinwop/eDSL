@@ -12,7 +12,7 @@ mkdir -p "$output"
 gcc=${EDSL_GCC:-gcc-13}
 clang=${EDSL_CLANG:-clang-18}
 if [[ $("$gcc" -dumpversion) != 13 ]] ||
-    ! "$clang" --version | head -n 1 | rg -q 'clang version 18\.'; then
+    ! "$clang" --version | head -n 1 | grep -q 'clang version 18\.'; then
     echo 'Unsupported compiler profile: this evidence selects GCC 13 and Clang 18' >&2
     exit 2
 fi
@@ -66,7 +66,7 @@ prepare() {
     ld "${link_args[@]}"
     objcopy --dump-section ".text=$directory/function.bin" "$directory/function.elf"
     LC_ALL=C readelf -rW "$directory/function.elf" > "$directory/relocations.txt"
-    if ! rg -q '^There are no relocations in this file\.' "$directory/relocations.txt"; then
+    if ! grep -q '^There are no relocations in this file\.' "$directory/relocations.txt"; then
         echo "Unsupported relocated native window: $name" >&2
         exit 2
     fi
