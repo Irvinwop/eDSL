@@ -122,6 +122,12 @@ frame as the original stores. Its resource bridge follows the actual decoded
 length, including three-byte SIB instructions. A current-resource theorem composes
 a full-pointer copy, a real store through that pointer and the original RET slot.
 See [MOV details](sequential-moves.md).
+`EDSL.StoreReturn32` adds direct raw/ELF certificates for two real compiler
+store/pointer-copy orderings and a copied-RAX store variant. The independent
+post requires the full target pointer in RAX, and current OS proofs retain
+the actual checked mutation, world and loans. Exact three-instruction/stack8
+accounting is separate from that post. This stronger contract is not yet a
+registered grader task; see [pointer-returning stores](store-return32.md).
 The existing deterministic and TSO decoders retain their original subset;
 their exact-flags and minimality results retain their original scope. Legacy
 encodings keep precedence in sequential decoding. See the

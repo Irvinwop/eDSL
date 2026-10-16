@@ -80,6 +80,10 @@ frames. Full-pointer copy/store/RET composition retains the same current RAM
 coupling and uses the actual original stack binding. MOV64 memory operations
 remain unsupported. [Encoding, aliasing and resource scope](sequential-moves.md) remain
 explicit; the concurrent backends retain their original instruction subset.
+The direct StoreReturn32 certificate API now proves both selected compiler
+store/copy orderings and a copied-RAX variant against a stronger full-pointer
+return post, with checked OS evolution and exact accounting. General pointer
+task grading and broader instruction/control-flow inference remain future work.
 Reusable cutpoint composition now derives those guarantees from local actual
 machine steps: static depth decreases inside a segment, and a natural rank
 decreases at cutpoint transfers. Independent contracts and entry admission

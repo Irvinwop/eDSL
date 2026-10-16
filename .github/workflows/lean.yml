@@ -44,7 +44,7 @@ jobs:
       # Always invoke Lake: its input traces invalidate changed modules. Cached
       # outputs never skip contract tests, axiom audits, or fresh kernel replay.
       - name: Build pinned Lean project
-        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32 edsl-cfg-import edsl-grade edsl-proof-export GradingFixtures
+        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32 edsl-cfg-import edsl-grade edsl-proof-export edsl-certify-store-return32 GradingFixtures
       - name: ISA, ELF, OS contracts and rejection properties
         run: |
           lake env lean -DwarningAsError=true tests/X86.lean
@@ -90,6 +90,8 @@ jobs:
           lake env lean -DwarningAsError=true tests/SequentialMoves.lean
           lake env lean -DwarningAsError=true tests/SequentialMoves64.lean
           lake env lean -DwarningAsError=true tests/SequentialMoveResources.lean
+          lake env lean -DwarningAsError=true tests/StoreReturn32Raw.lean
+          lake env lean -DwarningAsError=true tests/StoreReturn32Resources.lean
           lake env lean -DwarningAsError=true tests/ArrayResources.lean
           lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
           lake env lean -DwarningAsError=true tests/Sum32Index.lean
@@ -169,6 +171,17 @@ jobs:
         with:
           name: sequential-moves-evidence
           path: artifacts/sequential-moves/
+          if-no-files-found: error
+      - name: Certify pointer-returning stores and observe full pointer and memory frames
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-store-return32.sh
+      - name: Preserve owned pointer-return store certificates and observations
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: store-return32-evidence
+          path: artifacts/store-return32/
           if-no-files-found: error
       - name: Preserve owned sum32 certificates and native observations
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

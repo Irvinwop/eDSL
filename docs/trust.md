@@ -50,6 +50,14 @@ retain their original subset and their exact-flags and restricted
 minimality theorems. Physical exception, control-state, translation and ordinary
 RAM assumptions remain those of the [machine profile](coverage.md#supported-machine-profile).
 
+The [pointer-returning store certificates](store-return32.md) strengthen the
+independent store post with full64 RAX equality to the target. Actual raw and
+current-resource executions cover both compiler orderings. Typed literal raw
+and ELF certificates recompute acceptance and compose the existing loader with
+explicit current caller premises; native observations remain separate. They
+add no source-preservation or concurrent-backend claim, and do not alter the
+existing registered void-store grading contract.
+
 Sum32 acceptance checks actual decoding, contiguous CFG layout, branch links
 and supported operations within 64 bytes/32 static instructions. Zeroing
 prologue variants and commuted pointer/count updates use the same structural
