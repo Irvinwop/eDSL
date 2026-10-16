@@ -72,6 +72,11 @@ shared-memory nondeterminism remain future work.
 The separate sequential execution layer now also handles undefined AF choices,
 constructive all-choice total correctness, actual operand-read traces and
 reachable-prefix fault/divergence exclusion for the checked sum32 loops.
+It also decodes ordinary low8 MOV32 register/load/store forms over full64
+base/SIB addresses. The current owner-resource bridge derives actual two- and
+three-byte stores and target loads, retaining the same OS history and loan
+frames. [Encoding, aliasing and resource scope](sequential-moves.md) remain
+explicit; the concurrent backends retain their original instruction subset.
 Reusable cutpoint composition now derives those guarantees from local actual
 machine steps: static depth decreases inside a segment, and a natural rank
 decreases at cutpoint transfers. Independent contracts and entry admission

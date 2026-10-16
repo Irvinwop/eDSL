@@ -102,14 +102,21 @@ and alignment checking in the architecture/system reference. Their adequacy to
 physical execution remains a model/physical-conformance boundary.
 
 The separate `X86.Sequential` decoder embeds legacy instructions and adds
-parameterized XOR-self32, TEST64, CMP64, ADD-memory32, ADD-immediate64,
-INC64, DEC64, JE and JMP families. New register operands use the eight lower
-GPRs; supported memory operands use full-width base/SIB addressing with explicit
+parameterized XOR-self32, TEST64, CMP64, ADD-memory32, MOV-register32,
+MOV-load32, MOV-store32, ADD-immediate64, INC64, DEC64, JE and JMP families.
+New register operands use the eight lower GPRs; supported memory operands use
+full-width base/SIB addressing with explicit
 rejection of displacements, absent base/index and other unsupported forms.
 Its bit-precise flag helpers give XOR/TEST an independent undefined-AF choice
-per retired instruction. The existing deterministic and TSO decoders continue
-to reject the new families; their exact-flags and minimality results retain
-their original scope. See the [encoding and flag details](sum32.md#separate-sequential-isa).
+per retired instruction. Ordinary MOV preserves all flags, uses pre-state
+operands even under register/address aliasing, and zero-extends register results.
+The new store uses the same whole-word permission checks and outside-memory
+frame as the original stores. Its resource bridge follows the actual decoded
+length, including three-byte SIB instructions. See [MOV details](sequential-moves.md).
+The existing deterministic and TSO decoders retain their original subset;
+their exact-flags and minimality results retain their original scope. Legacy
+encodings keep precedence in sequential decoding. See the
+[encoding and flag details](sum32.md#separate-sequential-isa).
 
 ## Checked results
 

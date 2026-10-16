@@ -12,10 +12,11 @@ def Instruction.length : Instruction → Nat
   | .legacy (.mov32 _ _) => 5
   | .legacy .ret => 1
   | .legacy _ => 2
-  | .xorSelf32 _ | .je _ | .jmp _ => 2
+  | .xorSelf32 _ | .movReg32 _ _ | .je _ | .jmp _ => 2
   | .test64 _ _ | .cmp64 _ _ | .inc64 _ | .dec64 _ => 3
-  | .addMem32 _ (.base _) => 2
-  | .addMem32 _ (.indexed _ _ _) => 3
+  | .addMem32 _ (.base _) | .loadMem32 _ (.base _) | .storeMem32 (.base _) _ => 2
+  | .addMem32 _ (.indexed _ _ _) | .loadMem32 _ (.indexed _ _ _)
+  | .storeMem32 (.indexed _ _ _) _ => 3
   | .addImm64 _ _ => 4
 
 def Instruction.isNew : Instruction → Bool
@@ -31,8 +32,21 @@ def lowRegister (code : Fin 8) : Register :=
 def modRMReg (byte : Byte) : Register := lowRegister ⟨byte.toNat / 8 % 8, Nat.mod_lt _ (by decide)⟩
 def modRMRM (byte : Byte) : Register := lowRegister ⟨byte.toNat % 8, Nat.mod_lt _ (by decide)⟩
 
+/-- The common mod=00 address subset. SIB has a real base and index; prefixes,
+displacements, RIP-relative and absent-base/index forms remain unsupported. -/
+def decodeAddressAt (state : State) (modrm : Byte) : Except Error Address := do
+  if modrm.toNat / 64 ≠ 0 then throw .unsupportedEncoding
+  if modrm.toNat % 8 = 4 then
+    let sib ← fetchByte state.memory (state.rip + 2)
+    if sib.toNat / 8 % 8 = 4 ∨ sib.toNat % 8 = 5 then throw .unsupportedEncoding
+    return .indexed (modRMRM sib) (modRMReg sib)
+      ⟨sib.toNat / 64, by have := sib.isLt; omega⟩
+  else if modrm.toNat % 8 = 5 then throw .unsupportedEncoding
+  else return .base (modRMRM modrm)
+
 /-- NEW subset only. No prefixes other than exact REX.W=48, register ModRM for
-XOR/TEST/CMP/INC/DEC/ADD-immediate, and mod=00 ordinary ADD-memory addresses.
+XOR/TEST/CMP/INC/DEC/ADD-immediate, unprefixed 89/8B register MOV, and mod=00
+ordinary ADD/MOV-memory addresses.
 SIB allows all scales, no missing index (index=4), no missing base (base=5),
 and no displacement. A plain base=4 must use SIB; base=5 would be RIP-relative
 and is rejected. Unsupported forms never fall through to weaker addressing. -/
@@ -63,15 +77,16 @@ def decodeNewAt (state : State) (oldError : Error) : Except Error Instruction :=
     else throw .unsupportedEncoding
   else if opcode = 0x03 then
     let modrm ← fetchByte state.memory (state.rip + 1)
-    if modrm.toNat / 64 ≠ 0 then throw .unsupportedEncoding
-    if modrm.toNat % 8 = 4 then
-      let sib ← fetchByte state.memory (state.rip + 2)
-      if sib.toNat / 8 % 8 = 4 ∨ sib.toNat % 8 = 5 then throw .unsupportedEncoding
-      return .addMem32 (modRMReg modrm)
-        (.indexed (modRMRM sib) (modRMReg sib)
-          ⟨sib.toNat / 64, by have := sib.isLt; omega⟩)
-    else if modrm.toNat % 8 = 5 then throw .unsupportedEncoding
-    else return .addMem32 (modRMReg modrm) (.base (modRMRM modrm))
+    return .addMem32 (modRMReg modrm) (← decodeAddressAt state modrm)
+  else if opcode = 0x89 ∨ opcode = 0x8b then
+    let modrm ← fetchByte state.memory (state.rip + 1)
+    if modrm.toNat / 64 = 3 then
+      return if opcode = 0x89 then .movReg32 (modRMRM modrm) (modRMReg modrm)
+        else .movReg32 (modRMReg modrm) (modRMRM modrm)
+    else
+      let address ← decodeAddressAt state modrm
+      return if opcode = 0x89 then .storeMem32 address (modRMReg modrm)
+        else .loadMem32 (modRMReg modrm) address
   else if opcode = 0x74 then
     return .je (← fetchByte state.memory (state.rip + 1))
   else if opcode = 0xeb then
@@ -101,14 +116,18 @@ def SuccessfulFetchTransport (source destination : State) : Prop :=
 theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.length := by
   cases instruction with
   | legacy old => cases old <;> simp [Instruction.length]
-  | addMem32 destination address => cases address <;> simp [Instruction.length]
-  | xorSelf32 _ | test64 _ _ | cmp64 _ _ | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jmp _ => simp [Instruction.length]
+  | addMem32 destination address | loadMem32 destination address | storeMem32 address destination =>
+    cases address <;> simp [Instruction.length]
+  | xorSelf32 _ | movReg32 _ _ | test64 _ _ | cmp64 _ _ | addImm64 _ _
+  | inc64 _ | dec64 _ | je _ | jmp _ => simp [Instruction.length]
 
 theorem Instruction.length_le_five (instruction : Instruction) : instruction.length ≤ 5 := by
   cases instruction with
   | legacy old => cases old <;> simp [Instruction.length]
-  | addMem32 destination address => cases address <;> simp [Instruction.length]
-  | xorSelf32 _ | test64 _ _ | cmp64 _ _ | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jmp _ => simp [Instruction.length]
+  | addMem32 destination address | loadMem32 destination address | storeMem32 address destination =>
+    cases address <;> simp [Instruction.length]
+  | xorSelf32 _ | movReg32 _ _ | test64 _ _ | cmp64 _ _ | addImm64 _ _
+  | inc64 _ | dec64 _ | je _ | jmp _ => simp [Instruction.length]
 
 /-- Admission of a NEW instruction never admits it in the old sequential/TSO
 profile; those clients continue to use the untouched legacy decoder. -/

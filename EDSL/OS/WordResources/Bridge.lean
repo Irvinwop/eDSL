@@ -77,8 +77,8 @@ theorem decode_store32 {call : Call} {shared : Shared} {before : State}
   apply decodeAt_legacy
   simp [X86.decodeAt, b0, b1]
 
-/-- Every authorized ordinary store retains the complete code and return slot;
-for this binary the next instruction is an actually readable/executable RET. -/
+/-- For the exact legacy STORE/RET bytes, the two-byte store retains the
+complete code and return slot, including the readable/executable RET. -/
 theorem decode_ret_after_store32 {call : Call} {evolved : Shared} {before : State}
     (current : Current call evolved (storeAfter before evolved))
     (bytes : call.bytes = Examples.Compiler.MemoryOps.storeBytes)
@@ -118,6 +118,8 @@ theorem store32_ret_steps {call : Call} {shared : Shared} {before : State}
     simp [Sequential.Instruction.storeIntent, X86.Instruction.storeIntent, pointer]
   obtain ⟨evolved, admitted, actual, middleCurrent, effect, loans⟩ :=
     current_store_step current decoded intent afStore
+  change step afStore before = .ok ⟨.next (storeAfter before evolved), []⟩ at actual
+  change Current call evolved (storeAfter before evolved) at middleCurrent
   have retDecoded := decode_ret_after_store32 middleCurrent bytes entry
   have ret := current_ret_step middleCurrent retDecoded (by exact stack) afRet
   exact ⟨evolved, admitted, actual, ret.1, ret.2.1, effect, loans, ret.2.2.1⟩

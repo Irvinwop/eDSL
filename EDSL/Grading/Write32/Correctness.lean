@@ -27,6 +27,8 @@ theorem resource_policy {resource initial} (pre : ResourcePre bytes resource ini
   have middleEq : EDSL.OS.WordResources.storeAfter initial evolved = afterStore initial := by
     have same := Except.ok.inj (actual.symm.trans (store_step raw false))
     exact StepResult.next.inj (congrArg Observation.result same)
+  change EDSL.OS.WordResources.Current resource.call evolved
+    (EDSL.OS.WordResources.storeAfter initial evolved) at currentStore
   rw [middleEq] at currentStore
   have currentReturn : EDSL.OS.WordResources.Current resource.call evolved
       (returned initial (resourceInput resource).returnAddress) :=

@@ -37,8 +37,12 @@ that observation.
 The separate `X86.Sequential` ISA supplies bit-precise arithmetic helpers and
 independent AF choices for XOR/TEST. Both AF outcomes exhaust the logical-flags
 contract; universal choice coverage is a conservative model, without asserting
-that every stream occurs on hardware. The existing deterministic/TSO decoders
-reject the new instruction families and retain their exact-flags and restricted
+that every stream occurs on hardware. Its generic ordinary MOV forms preserve
+all flags and evaluate addresses/source operands before updating the destination.
+The [current-resource bridge](sequential-moves.md) derives actual stores and loads
+from present authority, retaining complete RAM coupling and original code/stack
+loans through the actual instruction length. The existing deterministic/TSO decoders
+retain their original subset and their exact-flags and restricted
 minimality theorems. Physical exception, control-state, translation and ordinary
 RAM assumptions remain those of the [machine profile](coverage.md#supported-machine-profile).
 

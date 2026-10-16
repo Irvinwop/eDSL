@@ -1,0 +1,253 @@
+/* Copyright 2026 Irvinwop. SPDX-License-Identifier: Apache-2.0 */
+#include <inttypes.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+enum { register_count = 16, memory_size = 32, no_index = -1 };
+struct snapshot { uint64_t registers[register_count]; uint64_t flags; };
+_Static_assert(offsetof(struct snapshot, flags) == 128 && sizeof(struct snapshot) == 136,
+    "Assembly snapshot ABI changed");
+struct snapshot edsl_moves_input, edsl_moves_output;
+uint64_t edsl_moves_effective_flags;
+extern void edsl_moves_probe(const unsigned char *);
+extern const unsigned char edsl_moves_section_start[], edsl_moves_section_end[];
+
+enum kind { register_copy, load, store };
+struct contract {
+    const char *name;
+    const unsigned char *code, *end;
+    enum kind kind;
+    unsigned int destination, source, base;
+    int index;
+    unsigned int scale;
+};
+/* These contracts specify the requested operation independently of its bytes:
+ * the C observer contains no opcode, ModRM or SIB decoder. */
+#define CONTRACTS(X) \
+    X(r89_0, register_copy, 0,1,0,no_index,0) \
+    X(r89_1, register_copy, 1,2,0,no_index,0) \
+    X(r89_2, register_copy, 2,3,0,no_index,0) \
+    X(r89_3, register_copy, 3,4,0,no_index,0) \
+    X(r89_4, register_copy, 4,5,0,no_index,0) \
+    X(r89_5, register_copy, 5,6,0,no_index,0) \
+    X(r89_6, register_copy, 6,7,0,no_index,0) \
+    X(r89_7, register_copy, 7,0,0,no_index,0) \
+    X(r8b_0, register_copy, 0,7,0,no_index,0) \
+    X(r8b_1, register_copy, 1,0,0,no_index,0) \
+    X(r8b_2, register_copy, 2,1,0,no_index,0) \
+    X(r8b_3, register_copy, 3,2,0,no_index,0) \
+    X(r8b_4, register_copy, 4,3,0,no_index,0) \
+    X(r8b_5, register_copy, 5,4,0,no_index,0) \
+    X(r8b_6, register_copy, 6,5,0,no_index,0) \
+    X(r8b_7, register_copy, 7,6,0,no_index,0) \
+    X(self_0, register_copy, 0,0,0,no_index,0) \
+    X(self_1, register_copy, 1,1,0,no_index,0) \
+    X(self_2, register_copy, 2,2,0,no_index,0) \
+    X(self_3, register_copy, 3,3,0,no_index,0) \
+    X(self_4, register_copy, 4,4,0,no_index,0) \
+    X(self_5, register_copy, 5,5,0,no_index,0) \
+    X(self_6, register_copy, 6,6,0,no_index,0) \
+    X(self_7, register_copy, 7,7,0,no_index,0) \
+    X(load_0, load, 0,0,0,no_index,0) \
+    X(load_1, load, 1,0,1,no_index,0) \
+    X(load_2, load, 2,0,2,no_index,0) \
+    X(load_3, load, 3,0,3,no_index,0) \
+    X(load_6, load, 6,0,6,no_index,0) \
+    X(load_7, load, 7,0,7,no_index,0) \
+    X(store_0, store, 0,0,0,no_index,0) \
+    X(store_1, store, 0,1,1,no_index,0) \
+    X(store_2, store, 0,2,2,no_index,0) \
+    X(store_3, store, 0,3,3,no_index,0) \
+    X(store_6, store, 0,6,6,no_index,0) \
+    X(store_7, store, 0,7,7,no_index,0) \
+    X(legacy_load, load, 0,0,7,no_index,0) \
+    X(legacy_store, store, 0,6,7,no_index,0) \
+    X(sibload_0, load, 1,0,7,1,0) \
+    X(sibload_1, load, 1,0,7,1,1) \
+    X(sibload_2, load, 1,0,7,1,2) \
+    X(sibload_3, load, 1,0,7,1,3) \
+    X(sibstore_0, store, 0,7,7,1,0) \
+    X(sibstore_1, store, 0,7,7,1,1) \
+    X(sibstore_2, store, 0,7,7,1,2) \
+    X(sibstore_3, store, 0,7,7,1,3) \
+    X(sib_rsp_load, load, 4,0,4,5,1) \
+    X(sib_rsp_store, store, 0,5,4,5,1) \
+    X(sib_same_load, load, 1,0,1,1,0) \
+    X(sib_same_store, store, 0,1,1,1,0)
+#define MUTANTS(X) \
+    X(mutant_width, register_copy, 0,3,0,no_index,0) \
+    X(mutant_direction, register_copy, 0,3,0,no_index,0) \
+    X(mutant_omitted, store, 0,6,7,no_index,0) \
+    X(mutant_neighbor, store, 0,6,7,no_index,0)
+#define DECLARE(name,k,d,s,b,i,c) \
+    extern const unsigned char edsl_move_##name[], edsl_move_##name##_end[];
+CONTRACTS(DECLARE)
+MUTANTS(DECLARE)
+#define ENTRY(name,k,d,s,b,i,c) \
+    {#name,edsl_move_##name,edsl_move_##name##_end,k,d,s,b,i,c},
+static const struct contract contracts[] = { CONTRACTS(ENTRY) };
+static const struct contract mutants[] = { MUTANTS(ENTRY) };
+
+static void print_words(const uint64_t *values, size_t count)
+{
+    putchar('[');
+    for (size_t i = 0; i < count; ++i) printf("%s%" PRIu64, i ? "," : "", values[i]);
+    putchar(']');
+}
+static void print_bytes(const unsigned char *values, size_t count, int options)
+{
+    putchar('[');
+    for (size_t i = 0; i < count; ++i)
+        printf("%s%s%u", i ? "," : "", options ? "some " : "", (unsigned int)values[i]);
+    putchar(']');
+}
+
+static int run_case(const struct contract *contract, unsigned char *memory,
+    size_t offset, unsigned int vector, int emit)
+{
+    unsigned char before[memory_size], expected_memory[memory_size];
+    for (unsigned int i = 0; i < memory_size; ++i)
+        before[i] = (unsigned char)(0x81u + i * 37u + vector * 29u);
+    memcpy(memory, before, memory_size);
+    memcpy(expected_memory, before, memory_size);
+    for (unsigned int i = 0; i < register_count; ++i)
+        edsl_moves_input.registers[i] = UINT64_C(0xabc1000000000000) +
+            (uint64_t)(i + 1) * UINT64_C(0x0101000020304051) + vector * UINT64_C(0x1122334455667788);
+    static const uint64_t flags[] = { 0x202, 0xad7 };
+    edsl_moves_input.flags = flags[vector];
+    uint64_t address = (uint64_t)(uintptr_t)(memory + offset);
+    if (contract->kind != register_copy) {
+        if (contract->index == no_index) {
+            edsl_moves_input.registers[contract->base] = address;
+        } else if ((unsigned int)contract->index == contract->base) {
+            if (address % 2 != 0 || contract->scale != 0) return -1;
+            edsl_moves_input.registers[contract->base] = address / 2;
+        } else {
+            uint64_t index = UINT64_C(0x100000003) + vector;
+            edsl_moves_input.registers[contract->index] = index;
+            edsl_moves_input.registers[contract->base] = address - index * (UINT64_C(1) << contract->scale);
+        }
+        uint64_t evaluated = edsl_moves_input.registers[contract->base];
+        if (contract->index != no_index)
+            evaluated += edsl_moves_input.registers[contract->index] * (UINT64_C(1) << contract->scale);
+        if (evaluated != address || edsl_moves_input.registers[contract->base] <= UINT32_MAX ||
+            (contract->index != no_index && edsl_moves_input.registers[contract->index] <= UINT32_MAX))
+            return -1;
+    }
+    struct snapshot expected = edsl_moves_input;
+    if (contract->kind == register_copy) {
+        expected.registers[contract->destination] = (uint32_t)edsl_moves_input.registers[contract->source];
+    } else if (contract->kind == load) {
+        uint64_t value = 0;
+        for (unsigned int i = 0; i < 4; ++i) value += (uint64_t)before[offset + i] * (UINT64_C(1) << (8 * i));
+        expected.registers[contract->destination] = value;
+    } else {
+        uint32_t value = (uint32_t)edsl_moves_input.registers[contract->source];
+        for (unsigned int i = 0; i < 4; ++i) expected_memory[offset + i] = (unsigned char)(value >> (8 * i));
+    }
+    edsl_moves_probe(contract->code);
+    expected.flags = edsl_moves_effective_flags;
+    int matches = memcmp(expected.registers, edsl_moves_output.registers, sizeof expected.registers) == 0 &&
+        expected.flags == edsl_moves_output.flags && memcmp(memory, expected_memory, memory_size) == 0;
+    if (!matches || !emit) return matches;
+
+    size_t length = (size_t)((uintptr_t)contract->end - (uintptr_t)contract->code);
+    printf("-- Native case %s, flags vector %u, target offset %zu.\n", contract->name, vector, offset);
+    printf("theorem observed_%s_%u_%zu (af : Bool) : observe af (entry ",
+        contract->name, vector, offset);
+    print_bytes(contract->code, length, 0);
+    printf(" %" PRIuPTR " ", (uintptr_t)contract->code);
+    print_words(edsl_moves_input.registers, register_count);
+    printf(" %" PRIu64 " %" PRIuPTR " ", edsl_moves_effective_flags, (uintptr_t)memory);
+    print_bytes(before, memory_size, 0);
+    printf(") %" PRIuPTR " = some (", (uintptr_t)memory);
+    print_words(edsl_moves_output.registers, register_count);
+    printf(",%" PRIu64 ",%" PRIuPTR ",", edsl_moves_output.flags, (uintptr_t)contract->end);
+    print_bytes(memory, memory_size, 1);
+    if (contract->kind == load) printf(",[⟨.data,%" PRIu64 ",4⟩]) := by cases af <;> rfl\n", address);
+    else puts(",[]) := by cases af <;> rfl");
+    return 1;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc != 2) return 2;
+    FILE *file = fopen(argv[1], "rb");
+    if (!file) return 2;
+    size_t section_size = (size_t)((uintptr_t)edsl_moves_section_end - (uintptr_t)edsl_moves_section_start);
+    unsigned char *file_bytes = malloc(section_size + 1);
+    if (!file_bytes) return 2;
+    size_t file_size = fread(file_bytes, 1, section_size + 1, file);
+    int failed = ferror(file);
+    fclose(file);
+    if (failed || file_size != section_size ||
+        memcmp(file_bytes, edsl_moves_section_start, section_size) != 0) {
+        fputs("Final ELF section extraction differs from executed bytes\n", stderr);
+        return 2;
+    }
+    free(file_bytes);
+    long page = sysconf(_SC_PAGESIZE);
+    if (page < memory_size * 2) return 2;
+    unsigned char *mapping = mmap(NULL, (size_t)page * 3, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (mapping == MAP_FAILED || mprotect(mapping + page, (size_t)page, PROT_READ | PROT_WRITE)) return 2;
+    unsigned char *memory = mapping + page;
+    if ((uintptr_t)memory <= UINT32_MAX) return 2;
+    puts("/- Native observations of owned MOV32 windows; finite conformance evidence.\n"
+         "The C mathematical observer independently checked full GPRs, flags and\n"
+         "all 32 data bytes. RIP is the extracted instruction end label; the read\n"
+         "footprint is the independent requested contract, not a CPU trace. -/\n"
+         "import EDSL.X86.Sequential.Machine\nimport EDSL.Audit\n"
+         "namespace EDSL.Tests.NativeSequentialMoves\nopen EDSL.X86\n"
+         "def allRegisters : List Register := [.rax,.rcx,.rdx,.rbx,.rsp,.rbp,.rsi,.rdi,"
+         ".r8,.r9,.r10,.r11,.r12,.r13,.r14,.r15]\n"
+         "def entry (code : List Byte) (pc : Word) (registers : List Word)\n"
+         "    (flags dataBase : Word) (bytes : List Byte) : State where\n"
+         "  registers r := registers.getD (allRegisters.idxOf r) 0\n"
+         "  rip := pc\n  flags := flags\n"
+         "  memory := {\n"
+         "    read := fun a => if pc.toNat ≤ a.toNat ∧ a.toNat < pc.toNat + code.length\n"
+         "      then code[a.toNat - pc.toNat]?\n"
+         "      else if dataBase.toNat ≤ a.toNat ∧ a.toNat < dataBase.toNat + bytes.length\n"
+         "      then bytes[a.toNat - dataBase.toNat]? else none\n"
+         "    executable := fun a => decide (pc.toNat ≤ a.toNat ∧ a.toNat < pc.toNat + code.length)\n"
+         "    writable := fun a => decide (dataBase.toNat ≤ a.toNat ∧ a.toNat < dataBase.toNat + bytes.length) }\n"
+         "def observe (af : Bool) (initial : State) (dataBase : Word) :\n"
+         "    Option (List Word × Word × Word × List (Option Byte) × List Sequential.Read) := do\n"
+         "  let observation ← (Sequential.step af initial).toOption\n"
+         "  match observation.result with\n"
+         "  | .next final => return (allRegisters.map final.registers,final.flags,final.rip,\n"
+         "      (List.range 32).map (fun i => final.memory.read (dataBase + BitVec.ofNat 64 i)),observation.reads)\n"
+         "  | _ => none");
+    unsigned int observations = 0;
+    for (size_t i = 0; i < sizeof contracts / sizeof contracts[0]; ++i) {
+        for (unsigned int vector = 0; vector < 2; ++vector) {
+            /* Even offsets also permit the base=index alias. The offset 28
+             * cases exercise the last four observed bytes without risking an
+             * actual hardware fault for the separate eight-byte mutant. */
+            static const size_t offsets[] = { 2, memory_size - 4 };
+            unsigned int offset_count = contracts[i].kind == register_copy ? 1 : 2;
+            for (unsigned int j = 0; j < offset_count; ++j) {
+                if (run_case(&contracts[i], memory, offsets[j], vector, 1) != 1) {
+                    fprintf(stderr, "Independent native contract failed: %s/%u/%zu\n", contracts[i].name, vector, offsets[j]);
+                    return 1;
+                }
+                ++observations;
+            }
+        }
+    }
+    for (size_t i = 0; i < sizeof mutants / sizeof mutants[0]; ++i) {
+        if (run_case(&mutants[i], memory, 2, 0, 0) != 0) {
+            fprintf(stderr, "Independent observer failed to reject owned mutant: %s\n", mutants[i].name);
+            return 1;
+        }
+    }
+    puts("end EDSL.Tests.NativeSequentialMoves\n#audit_edsl");
+    fprintf(stderr, "Checked %u native MOV32 observations and rejected 4 owned mutants; final ELF bytes matched\n", observations);
+    if (munmap(mapping, (size_t)page * 3)) return 2;
+    return 0;
+}

@@ -92,7 +92,13 @@ structure Current (call : Call) (shared : Shared) (machine : State) : Prop where
   contract : Contract call shared
   coupled : machine.memory = AddressSpace.toMemory shared.resources.space
 
-/-- Exact actual machine state after either supported ordinary word store. -/
+/-- Exact current RAM and decoded instruction advance after an ordinary store. -/
+def storeAfterLength (before : State) (evolved : Shared) (length : Nat) : State :=
+  { before with
+    memory := AddressSpace.toMemory evolved.resources.space
+    rip := before.rip + BitVec.ofNat 64 length }
+
+/-- The two-byte legacy ordinary-store convenience state. -/
 def storeAfter (before : State) (evolved : Shared) : State :=
   { before with memory := AddressSpace.toMemory evolved.resources.space, rip := before.rip + 2 }
 
@@ -125,32 +131,16 @@ theorem actual_store_bridge {shared evolved : Shared} {before : State}
     (intent : instruction.storeIntent before = some (address, value))
     (success : Borrowing.mutate shared (.store owner ticket address value) = .ok (evolved, none))
     (af : Bool) :
-    step af before = .ok ⟨.next (storeAfter before evolved), []⟩ ∧
+    step af before = .ok ⟨.next (storeAfterLength before evolved instruction.length), []⟩ ∧
       Mutex.StoreEffect shared evolved address value := by
   have effect := Mutex.store_effect success
   have machine : storeDWord before.memory address value =
       .ok (AddressSpace.toMemory evolved.resources.space) := by
     rw [coupled]
     exact effect.machine
-  have enabled : canStoreDWord before.memory address = true := by
-    unfold storeDWord at machine
-    split at machine
-    · assumption
-    · cases machine
-  have projected : writeDWordUnchecked before.memory address value =
-      AddressSpace.toMemory evolved.resources.space := by
-    simpa [storeDWord, enabled] using machine
   refine ⟨?_, effect⟩
-  rw [step_eq_execute af decoded]
-  cases instruction with
-  | legacy old =>
-    rw [execute_legacy, executeInstruction_storeIntent intent]
-    rcases (old.storeIntent_eq_some_iff before address value).mp intent with
-      ⟨rfl, _, _⟩ | ⟨rfl, _, _⟩ <;>
-      simp [enabled, projected, Sequential.Instruction.operandReads, storeAfter]
-  | xorSelf32 _ | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addImm64 _ _
-  | inc64 _ | dec64 _ | je _ | jmp _ =>
-    simp [Sequential.Instruction.storeIntent] at intent
+  rw [step_eq_execute af decoded, execute_storeIntent af intent, machine]
+  rfl
 
 /-- Every live loan and its values survive one checked store. Allocation
 metadata, including all owner/epoch tickets, is retained by StoreEffect. -/
@@ -192,8 +182,8 @@ theorem current_store_step {call : Call} {shared : Shared} {before : State}
     ∃ evolved,
       Borrowing.mutate shared (.store (Threads.principal call.worker) call.ticket call.targetPointer value) =
         .ok (evolved, none) ∧
-      step af before = .ok ⟨.next (storeAfter before evolved), []⟩ ∧
-      Current call evolved (storeAfter before evolved) ∧
+      step af before = .ok ⟨.next (storeAfterLength before evolved instruction.length), []⟩ ∧
+      Current call evolved (storeAfterLength before evolved instruction.length) ∧
       Mutex.StoreEffect shared evolved call.targetPointer value ∧
       (∀ identifier loan, shared.loans identifier = some loan →
         ∀ query, loan.region.Contains query →
@@ -202,6 +192,43 @@ theorem current_store_step {call : Call} {shared : Shared} {before : State}
   obtain ⟨actual, effect⟩ := actual_store_bridge current.coupled decoded intent stored af
   obtain ⟨contract, loans⟩ := contract_store current.contract stored
   exact ⟨evolved, stored, actual, ⟨contract, rfl⟩, effect, loans⟩
+
+/-- Current owner authorization and the complete-word permissions derive an
+actual ordinary load at the fixed call target. The effective address is read
+from the full PRE-state, even when the destination aliases an address register.
+No target loan is created. The retained caller slot is independent of machine
+RSP; a later RET still requires its own explicit stack binding. -/
+theorem current_load_step {call : Call} {shared : Shared} {before : State}
+    {destination : Register} {address : Address}
+    (current : Current call shared before)
+    (decoded : Sequential.decodeAt before = .ok (.loadMem32 destination address))
+    (effective : address.eval before = call.targetPointer) (af : Bool) :
+    ∃ (value : BitVec 32) (after : State),
+      step af before = .ok ⟨.next after, [⟨.data, call.targetPointer, 4⟩]⟩ ∧
+      after.registers destination = value.setWidth 64 ∧
+      loadDWord before.memory call.targetPointer = .ok value ∧
+      (∃ allocation,
+        Ownership.authorize shared.resources (Threads.principal call.worker) call.ticket = .ok allocation ∧
+        Ownership.containsWord allocation call.targetPointer = true) ∧
+      OperandReadSucceeds before ⟨.data, call.targetPointer, 4⟩ ∧
+      Current call shared after ∧
+      (∀ register, register ≠ destination → after.registers register = before.registers register) ∧
+      after.memory = before.memory ∧ after.flags = before.flags ∧
+      after.rip = before.rip + BitVec.ofNat 64 (Sequential.Instruction.loadMem32 destination address).length := by
+  obtain ⟨allocation, authorized, fits⟩ := current.contract.word.authorize
+  obtain ⟨value, observed⟩ := current.contract.word.load_exists
+  have loaded : loadDWord before.memory call.targetPointer = .ok value := by
+    rw [current.coupled]
+    exact observed
+  let after : State := { before.writeRegister destination (value.setWidth 64) with
+    rip := before.rip + BitVec.ofNat 64 (Sequential.Instruction.loadMem32 destination address).length }
+  refine ⟨value, after, ?_, ?_, loaded, ⟨allocation, authorized, fits⟩,
+    ⟨rfl, value, loaded⟩, ⟨current.contract, current.coupled⟩, ?_, rfl, rfl, rfl⟩
+  · rw [step_eq_execute af decoded]
+    simp only [execute_loadMem32, effective, loaded, ok_bind, pure_ok, after]
+  · simp [after, State.writeRegister]
+  · intro register different
+    simp [after, State.writeRegister, different]
 
 /-- Current authority follows actual readonly continuation or return steps. -/
 theorem current_readOnly_step {call : Call} {shared : Shared} {before : State}

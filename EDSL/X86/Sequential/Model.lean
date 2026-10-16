@@ -26,6 +26,10 @@ inductive Instruction where
   | test64 (left right : Register)
   | cmp64 (left right : Register)
   | addMem32 (destination : Register) (address : Address)
+  /-- A 32-bit register copy; the destination is zero-extended to 64 bits. -/
+  | movReg32 (destination source : Register)
+  | loadMem32 (destination : Register) (address : Address)
+  | storeMem32 (address : Address) (source : Register)
   | addImm64 (destination : Register) (immediate : Byte)
   | inc64 (destination : Register)
   | dec64 (destination : Register)

@@ -96,7 +96,7 @@ register roles; it infers no general loop invariant or arbitrary contract.
 ## Separate sequential ISA
 
 [`Sequential.Machine`](../EDSL/X86/Sequential/Machine.lean) embeds legacy
-instructions exactly and adds nine parameterized families:
+instructions exactly and adds these parameterized families:
 
 | Family | Supported new encoding/effect |
 | --- | --- |
@@ -104,13 +104,16 @@ instructions exactly and adds nine parameterized families:
 | TEST64 | `48 85 /r`, two registers; full-width AND for flags only |
 | CMP64 | `48 39 /r`, two registers; subtract the reg operand from the r/m operand for flags |
 | ADD-memory32 | `03 /r`, mod=00 base or SIB address; read four bytes and zero-extend the 32-bit register result |
+| MOV-register32 | `89 /r` or `8b /r`, register mode; copy low32 and zero-extend into the full destination |
+| MOV-load32 | `8b /r`, mod=00 base or SIB address; actual four-byte read and zero-extended destination |
+| MOV-store32 | `89 /r`, mod=00 base or SIB address; actual checked four-byte store with all registers/flags preserved |
 | ADD-immediate64 | `48 83 /0`, register destination and sign-extended imm8 |
 | INC64 | `48 ff /0`, register destination, preserving CF |
 | DEC64 | `48 ff /1`, register destination, preserving CF |
 | JE | `74 rel8`, consume ZF and check a taken target |
 | JMP | `eb rel8`, check the relative target |
 
-New ModRM register operands use the eight lower GPRs. Memory ADD accepts no
+New ModRM register operands use the eight lower GPRs. Memory ADD/MOV accepts no
 displacement: a plain base excludes encoded RSP/RBP; SIB supports scales
 1/2/4/8 with a present base and index, excludes index=4 and base=5, and evaluates
 both registers at 64 bits. RIP-relative, missing-base/index, other prefixes,
@@ -129,9 +132,10 @@ contract. An AF choice stays in the concrete flags word until overwritten.
 Quantifying over all streams conservatively covers undefinedness without
 asserting that a physical processor realizes every stream.
 
-The existing deterministic and TSO decoders retain their original subset and
-reject all nine new families. Legacy execution embeds with its complete state,
-flags and cost for every stream. Existing exact-flags and restricted minimality
+The existing deterministic and TSO decoders retain their original subset.
+Additional encodings reject there; overlapping legacy MOV encodings keep their
+original representation in the sequential decoder. Legacy execution embeds with
+its complete state, flags and cost for every stream. Existing exact-flags and restricted minimality
 theorems retain their scope. This sequential extension establishes no new
 concurrent or buffered execution backend.
 

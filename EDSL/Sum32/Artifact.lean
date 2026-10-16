@@ -77,6 +77,12 @@ def instructionLiteral : Sequential.Instruction → String
   | .cmp64 left right => s!"(.cmp64 {registerLiteral left} {registerLiteral right})"
   | .addMem32 destination address =>
     s!"(.addMem32 {registerLiteral destination} {addressLiteral address})"
+  | .movReg32 destination source =>
+    s!"(.movReg32 {registerLiteral destination} {registerLiteral source})"
+  | .loadMem32 destination address =>
+    s!"(.loadMem32 {registerLiteral destination} {addressLiteral address})"
+  | .storeMem32 address source =>
+    s!"(.storeMem32 {addressLiteral address} {registerLiteral source})"
   | .addImm64 register value => s!"(.addImm64 {registerLiteral register} {value.toNat})"
   | .inc64 register => s!"(.inc64 {registerLiteral register})"
   | .dec64 register => s!"(.dec64 {registerLiteral register})"

@@ -107,7 +107,8 @@ theorem clearTarget_some {instruction : SeqInstruction} {register : Register}
       subst zero
       exact Or.inr rfl
     next => cases cleared
-  | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jmp _ =>
+  | movReg32 _ _ | loadMem32 _ _ | storeMem32 _ _ | test64 _ _ | cmp64 _ _
+  | addMem32 _ _ | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jmp _ =>
     cases cleared
 
 theorem Plan.prologue_rax {plan : Plan} (valid : plan.prologueValid = true) :

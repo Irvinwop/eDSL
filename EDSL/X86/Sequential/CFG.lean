@@ -31,13 +31,14 @@ def Graph.depth (graph : Graph) (index : graph.Index) : Nat := (graph.node index
 locked operations and system calls need further resource-effect obligations. -/
 def readOnly : Instruction → Bool
   | .legacy .storeEsiRdi | .legacy .storeEaxRsi | .legacy .exchangeEaxRdi
-  | .legacy .fetchAddEaxRdi | .legacy .syscall => false
+  | .legacy .fetchAddEaxRdi | .legacy .syscall | .storeMem32 _ _ => false
   | .legacy (.leaEaxRdiDisp8 _) | .legacy (.leaEaxRaxDisp8 _)
   | .legacy .movEaxEdi | .legacy .movEaxEsi | .legacy (.jrcxz _)
   | .legacy (.loopRcx _) | .legacy (.jnz _) | .legacy .cmpEaxZero
   | .legacy .loadEaxRdi | .legacy .loadEaxRsi | .legacy (.mov32 _ _)
   | .legacy .ret | .xorSelf32 _ | .test64 _ _ | .cmp64 _ _
-  | .addMem32 _ _ | .addImm64 _ _ | .inc64 _ | .dec64 _ | .je _ | .jmp _ => true
+  | .addMem32 _ _ | .movReg32 _ _ | .loadMem32 _ _ | .addImm64 _ _
+  | .inc64 _ | .dec64 _ | .je _ | .jmp _ => true
 
 /-- All possible relative RIP offsets, independently of runtime branch flags.
 RET leaves the graph through the protected runtime stack instead. -/

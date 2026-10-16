@@ -271,6 +271,8 @@ theorem resource_policy {resource initial} (pre : ResourcePre bytes resource ini
   have firstEq : EDSL.OS.WordResources.storeAfter (afterInc initial) world1 = afterFirst initial := by
     have same := Except.ok.inj (actual1.symm.trans (first_step raw false))
     exact StepResult.next.inj (congrArg Observation.result same)
+  change EDSL.OS.WordResources.Current resource.call world1
+    (EDSL.OS.WordResources.storeAfter (afterInc initial) world1) at currentFirst
   rw [firstEq] at currentFirst
   have currentDec : EDSL.OS.WordResources.Current resource.call world1 (afterDec initial) :=
     ⟨currentFirst.contract, currentFirst.coupled⟩
@@ -282,6 +284,8 @@ theorem resource_policy {resource initial} (pre : ResourcePre bytes resource ini
   have secondEq : EDSL.OS.WordResources.storeAfter (afterDec initial) world2 = afterSecond initial := by
     have same := Except.ok.inj (actual2.symm.trans (second_step raw false))
     exact StepResult.next.inj (congrArg Observation.result same)
+  change EDSL.OS.WordResources.Current resource.call world2
+    (EDSL.OS.WordResources.storeAfter (afterDec initial) world2) at currentSecond
   rw [secondEq] at currentSecond
   have currentReturn : EDSL.OS.WordResources.Current resource.call world2
       (finalState initial (resourceInput resource).returnAddress) :=
