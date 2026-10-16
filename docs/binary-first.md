@@ -1,8 +1,10 @@
 # Binary-first verification
 
-Status: the first restricted x86-64 increment profile is implemented, with
-live compiler-output certificates. See [coverage](coverage.md) for its exact
-scope. The broader pipeline below remains planned.
+Status: restricted x86-64 function, memory, loop and OS composition results are
+implemented, with live compiler-output certificates. A reusable read-only CFG
+layer now supports local proofs against independent contracts. See
+[coverage](coverage.md) for exact scope; general program ingestion, grading and
+the broader pipeline below remain planned.
 
 ## One machine-code target for many implementation languages
 
@@ -46,6 +48,20 @@ or device model. Optimizations can make recovery of invariants harder even
 when all instructions are supported.
 
 ## Source and IR as assistance
+
+The current [CFG workflow](cfg.md) turns a raw function window or explicit ELF
+entry span into checked graph facts and a typed local-proof interface. An agent
+can supply cutpoint invariants, decreasing ranks and local instruction/read
+proofs without adding a whole-function recognizer. The actual interpreter still
+decodes the exact current bytes. Static import is a starting point for a proof;
+it does not certify the task's functional answer.
+
+For objective grading, the task's independent specification, admissible inputs
+and required theorem type must be fixed before candidate verification. The
+proof must establish that contract for the candidate's exact bytes and every
+admitted behavior. It cannot substitute a convenient candidate-specific result
+predicate. Automating that task interface and general proof discovery remains
+future work.
 
 Source structure, LLVM IR, symbols, debug mappings and compiler optimization
 remarks can suggest functions, invariants, ownership and simulation relations.

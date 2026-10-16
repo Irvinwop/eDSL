@@ -27,3 +27,6 @@ lean_exe «edsl-certify-futex-client» where
 
 lean_exe «edsl-certify-sum32» where
   root := `Sum32Main
+
+lean_exe «edsl-cfg-import» where
+  root := `CFGMain

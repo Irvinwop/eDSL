@@ -72,6 +72,10 @@ shared-memory nondeterminism remain future work.
 The separate sequential execution layer now also handles undefined AF choices,
 constructive all-choice total correctness, actual operand-read traces and
 reachable-prefix fault/divergence exclusion for the checked sum32 loops.
+Reusable cutpoint composition now derives those guarantees from local actual
+machine steps: static depth decreases inside a segment, and a natural rank
+decreases at cutpoint transfers. Independent contracts and entry admission
+remain required; invariant inference and objective task grading remain open.
 
 ### 2. First real artifact: a restricted function
 
@@ -83,8 +87,9 @@ The memory extension also checks `8b 07 c3` (32-bit load) and `89 37 c3`
 outside-footprint framing, preserved code/return stack and two-step termination
 are proved. The counted assembly increment loop now has all-count correctness,
 termination and exact cost through a backward branch. The ordinary sum32
-milestone below adds two structurally checked compiler-produced loop shapes;
-general control-flow and invariant inference remain ahead.
+milestone below adds two structurally checked compiler-produced loop shapes.
+The reusable CFG layer now supports local proofs beyond those shape recognizers;
+general invariant inference remains ahead.
 
 Choose a loop-free unsigned fixed-width function specification with edge cases.
 Select a small x86-64 instruction subset, prove exact-byte decoding and
@@ -180,6 +185,19 @@ restricted ordinary read-loop result, while general program grading, source/IR
 preservation, broader loops/calls and native runtime/kernel refinement remain
 unfinished. The new sequential ISA is outside the existing deterministic/TSO
 decoders.
+
+The [reusable CFG gate](cfg.md) now checks complete explicit windows within
+64 bytes/32 instructions and composes sparse-cutpoint local VCs into actual
+all-choice execution, safety and termination. Static discovery and the
+raw/explicit-span ELF importer are separate from functional certification.
+The stride-two instance proves all-choice total correctness, exact cost and
+ordered reads against an independent even-index sum, with current OS
+input/stack/code authority. A real 35-byte two-loop GCC output has
+static raw/full-ELF import evidence; its functional proof remains open.
+Next discharge a second independent multiloop/branching contract through the
+same API, then bind a fixed task specification and admission interface for
+objective grading. Calls and writable/concurrent CFG effects need additional
+effect obligations and semantics before broader programs can be accepted.
 
 The OS/machine memory bridge now proves that checked word stores update natural-
 address OS cells exactly as the machine store updates projected memory. Actual
@@ -472,7 +490,11 @@ The ordinary sum32 proofs derive `Ninit+6*n+3` for pointer/count and
 `Ninit+5*n+3` for index, including RET. The selected GCC/Clang prologues give
 `6*n+4` and `5*n+5`. These are retired-instruction results for the admitted
 shapes; their 19/18-byte sizes establish neither the cost theorem nor hardware
-performance or optimality.
+performance or optimality. The generic cutpoint layer now gives a conservative
+`(maxDepth+1)*(entryRank+1)` execution bound; optional local accounting equations
+support exact instruction/read totals without changing the termination proof.
+The stride-two instance now derives `6*count+4` and the exact even-index operand
+sequence through this API, with RET included.
 The fixed mutex routine additionally has exact `13*n + 4*busy` architectural
 costs and a constructive zero-busy entry schedule attaining `13*n`. Arbitrary
 admitted intermediate states admit completion in their remaining potential,

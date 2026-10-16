@@ -95,6 +95,11 @@ Implemented and checked:
   Current code/stack/input read loans compose with the same theorem; empty
   input needs no input loan or readable/canonical input pointer. See
   [the checked sum32 scope](docs/sum32.md).
+- A reusable read-only CFG checker with sparse cutpoints and local Lean proof
+  obligations, actual-byte binding, all-AF termination/safety and optional exact
+  accounting. `edsl-cfg-import` checks raw or explicit-span ELF graphs; imported
+  code still needs independent functional and current-read-permission proofs.
+  See [local control-flow proofs](docs/cfg.md).
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
   read-after-write and disjoint code/stack preservation proofs.
 - A sequential OS address-space model with checked mapping, protection and
@@ -160,6 +165,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Stream output and exit](docs/process-write.md) | How do short writes and errors compose with the next userspace instructions? |
 | [Counted control flow](docs/control-flow.md) | How are a backward branch, loop invariant, termination and input-dependent cost proved? |
 | [Ordinary sum32 loops](docs/sum32.md) | How do two compiler-produced loop shapes meet one sum, termination, memory, read-loan and cost contract? |
+| [Checked CFGs and local proofs](docs/cfg.md) | How can new control-flow patterns use local Lean obligations against an independent task contract? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |
@@ -199,7 +205,7 @@ separate research work.
 Install [elan](https://github.com/leanprover/elan), then run:
 
 ```sh
-lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32
+lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32 edsl-cfg-import
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
@@ -244,6 +250,8 @@ lake env lean -DwarningAsError=true tests/ArrayResources.lean
 lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
 lake env lean -DwarningAsError=true tests/Sum32Index.lean
 lake env lean -DwarningAsError=true tests/Sum32Artifact.lean
+lake env lean -DwarningAsError=true tests/CFG.lean
+lake env lean -DwarningAsError=true tests/Stride32.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
@@ -256,6 +264,7 @@ bash scripts/verify-mutex-workers.sh
 bash scripts/verify-futex.sh
 bash scripts/verify-futex-clients.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
+EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 ```
 
 `lean-toolchain` pins Lean 4.35.0. The library currently needs no third-party
@@ -269,6 +278,9 @@ Linux/x86-64, Clang, GCC and binutils; it uses only owned synthetic fixtures.
 The sum32 integration selects GCC 13 (`-Os -fno-ivopts`, GNU23 spelled `gnu2x`)
 and Clang 18 (`-Oz`, `gnu23`), with scalar code and LTO/CET disabled. Its
 certificates, native observations and provenance use `artifacts/sum32-fixtures/`.
+The CFG integration uses GCC 13 and `flock`, checks complete raw/explicit-span
+ELF imports, and separately proves the stride function's independent contract.
+Its owned native observations and generated proofs use `artifacts/cfg-fixtures/`.
 
 The optional native compiler probes are separate from proofs:
 

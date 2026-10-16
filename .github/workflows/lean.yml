@@ -30,7 +30,7 @@ jobs:
           "$RUNNER_TEMP/elan-installer/elan-init" -y --no-modify-path --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Build pinned Lean project
-        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32
+        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32 edsl-cfg-import
       - name: ISA, ELF, OS contracts and rejection properties
         run: |
           lake env lean -DwarningAsError=true tests/X86.lean
@@ -77,6 +77,8 @@ jobs:
           lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
           lake env lean -DwarningAsError=true tests/Sum32Index.lean
           lake env lean -DwarningAsError=true tests/Sum32Artifact.lean
+          lake env lean -DwarningAsError=true tests/CFG.lean
+          lake env lean -DwarningAsError=true tests/Stride32.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment
@@ -133,6 +135,16 @@ jobs:
         with:
           name: sum32-fixture-certificates
           path: artifacts/sum32-fixtures/
+          if-no-files-found: error
+      - name: Check finite CFG imports and observe owned native functions
+        env:
+          EDSL_GCC: gcc-13
+        run: bash scripts/verify-cfg.sh
+      - name: Preserve owned CFG imports and native observations
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cfg-fixture-evidence
+          path: artifacts/cfg-fixtures/
           if-no-files-found: error
       - name: Preserve owned publishing-client certificates and observations
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

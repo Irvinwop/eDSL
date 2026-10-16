@@ -67,6 +67,28 @@ costs come from execution proofs; 19/18-byte size comparisons and bounded native
 ABI/guard-page observations establish no timing, optimality, source-preservation
 or kernel-conformance theorem. See [artifact details and commands](sum32.md#artifact-and-native-boundary).
 
+The [reusable CFG layer](cfg.md) checks complete finite instruction partitions,
+actual decoder agreement, successor closure and static depths. Local Lean VCs
+separately prove current code/PC binding, current operand-read permission,
+independent postconditions and decreasing dynamic ranks. Their composition
+constructs actual all-AF execution; successful future evaluation is no premise.
+Read-origin theorems retain a real prefix and its current RAM, including the
+complete RET operand. Optional accounting derives exact instruction/read totals
+from local equations after totality is proved.
+The stride-two instance discharges those equations for `6*count+4`
+instructions and even-index reads followed by stack8. Its OS bridge retains
+full current RAM coupling and loan authority at actual read origins; physical
+kernel enforcement remains outside the model.
+
+`edsl-cfg-import` checks static literals and exposes conditional functional
+obligations. Its explicit ELF span includes code after an early RET and is bound
+to the full modeled container, but file acceptance does not create caller or OS
+admission. A fixed independent task specification and theorem type are required
+before this can serve an objective grader. Neither user-supplied `Post := True`
+nor successful import establishes an intended task result. The profile remains
+sequential/read-only, with stores, atomics and syscalls excluded; bounded model
+instruction counts establish no timing or global minimality theorem.
+
 The abstract sequential address-space contract is projected into machine memory,
 with checked protection/binary-load composition. It does not verify Linux syscall
 bytes, page-table updates, resource exhaustion or concurrent permission changes.

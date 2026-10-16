@@ -4,18 +4,16 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.Sum32.Shape
 import EDSL.X86.Sequential.Machine
+import EDSL.X86.Sequential.Code
 
 namespace EDSL.Sum32
 open X86
 
 /-- The checker reads the candidate's own finite bytes. This memory has no
 data or return stack; it is used solely for instruction decoding. -/
-def codeMemory (bytes : List Byte) : Memory where
-  read address := bytes[address.toNat]?
-  executable address := decide (address.toNat < bytes.length)
+abbrev codeMemory := Sequential.codeMemory
 
-def codeState (bytes : List Byte) (offset : Nat) : State :=
-  ⟨fun _ => 0, BitVec.ofNat 64 offset, 0, codeMemory bytes⟩
+abbrev codeState := Sequential.codeState
 
 def linearFrom (start : Nat) : List Node → Nat → Bool
   | [], finish => decide (start = finish)
@@ -101,29 +99,8 @@ theorem code_fetch_transport {bytes : List Byte} {memory : Memory} {base : Word}
     (code : CodeAt memory base bytes) (size : bytes.length ≤ 64) (offset : Nat)
     (inside : offset < bytes.length) (state : State)
     (currentMemory : state.memory = memory) (currentPC : state.rip = base + BitVec.ofNat 64 offset) :
-    Sequential.SuccessfulFetchTransport (codeState bytes offset) state := by
-  intro relative short byte fetched
-  have offsetSmall : offset < 2^64 := by omega
-  have relativeSmall : relative < 2^64 := by omega
-  have totalSmall : offset + relative < 2^64 := by omega
-  have natural : (BitVec.ofNat 64 offset + BitVec.ofNat 64 relative).toNat = offset + relative := by
-    simp only [BitVec.toNat_add, BitVec.toNat_ofNat]
-    rw [Nat.mod_eq_of_lt offsetSmall, Nat.mod_eq_of_lt relativeSmall, Nat.mod_eq_of_lt totalSmall]
-  change fetchByte (codeMemory bytes) (BitVec.ofNat 64 offset + BitVec.ofNat 64 relative) = .ok byte at fetched
-  unfold fetchByte at fetched
-  split at fetched
-  next allowed =>
-    cases read : (codeMemory bytes).read (BitVec.ofNat 64 offset + BitVec.ofNat 64 relative) with
-    | none => simp [read] at fetched
-    | some observed =>
-      have same : observed = byte := Except.ok.inj (by simpa only [read] using fetched)
-      subst observed
-      have present : bytes[offset + relative]? = some byte := by
-        simpa only [codeMemory, natural] using read
-      have actual := code.2 (offset + relative) byte present
-      rw [currentMemory, currentPC]
-      simpa only [BitVec.ofNat_add, BitVec.add_assoc] using actual
-  next => cases fetched
+    Sequential.SuccessfulFetchTransport (codeState bytes offset) state :=
+  Sequential.code_fetch_transport code size offset inside state currentMemory currentPC
 
 theorem Valid.node_bound {bytes : List Byte} {plan : Plan} (valid : Valid bytes plan)
     (node : Node) (member : node ∈ plan.nodes) : node.offset < bytes.length :=
@@ -131,14 +108,8 @@ theorem Valid.node_bound {bytes : List Byte} {plan : Plan} (valid : Valid bytes 
 
 theorem CodeAt.canonical_offset {bytes : List Byte} {memory : Memory} {base : Word}
     (code : CodeAt memory base bytes) (offset : Nat) (inside : offset < bytes.length) :
-    canonical (base + BitVec.ofNat 64 offset) = true := by
-  let byte := bytes[offset]'inside
-  have present : bytes[offset]? = some byte := List.getElem?_eq_getElem inside
-  have fetched := code.2 offset byte present
-  unfold fetchByte at fetched
-  split at fetched
-  next allowed => exact (Bool.and_eq_true_iff.mp allowed).1
-  next => cases fetched
+    canonical (base + BitVec.ofNat 64 offset) = true :=
+  Sequential.code_canonical_offset code offset inside
 
 theorem Plan.header_member (plan : Plan) : ⟨plan.header, plan.mode.guard⟩ ∈ plan.nodes := by
   simp [Plan.nodes]

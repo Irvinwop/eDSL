@@ -31,6 +31,10 @@ import EDSL.X86.Sequential.Execution
 import EDSL.OS.ArrayResources
 import EDSL.Sum32.Correctness
 import EDSL.Sum32.Artifact
+import EDSL.X86.Sequential.CFGArtifact
+import EDSL.X86.Sequential.CutpointsAccounting
+import EDSL.Stride32.Correctness
+import EDSL.Stride32.Accounting
 import EDSL.OS.MutexReplay.Footprints
 import EDSL.Examples.StoreBuffer
 import EDSL.CounterCertificate

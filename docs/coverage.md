@@ -6,6 +6,13 @@ profile adds modular increment by every 64-bit count and proved termination.
 The separate ordinary `sum32` checker accepts restricted decoded pointer/count
 and indexed loops against one independent list-sum contract, including
 all-choice termination, current read resources and exact operand footprints.
+The reusable read-only CFG layer checks finite control flow and composes local
+Lean obligations for independently supplied contracts; its importer establishes
+static graph facts, with functional proof obligations still explicit.
+Its GCC stride-two instance proves the independent even-index modular sum,
+all-choice termination, full ABI/memory framing, current OS read permissions,
+exact `6*count+4` instructions and ordered operand reads. The two-loop input
+currently has static import and native evidence only.
 Standalone ELF profiles reach exit42 directly or across a bounded stream write
 and compose with explicit OS contracts. A separate locked-add-loop certificate
 connects exact bytes to finite OS counter-worker workloads and checked
@@ -212,6 +219,32 @@ native OS admission. The owned native script observes exact final linked
 windows through an external ABI trampoline; those finite observations leave
 hardware/kernel conformance external. Full contracts, supported encodings,
 meaningful negative cases and reproduction commands are in [sum32](sum32.md).
+
+## Reusable CFGs and local proof obligations
+
+`X86.Sequential.CFG.check` validates an entire explicit window of at most
+64 bytes and 32 static instructions: actual decoding, a complete positive-length
+partition, closed successors, entry cutpoint and decreasing noncutpoint depths.
+The profile excludes stores, locked operations and syscalls. Discovery proposes
+data that the checker revalidates. The actual machine still selects instructions
+by current fetch/decode and `CodeAt`, rather than through the graph.
+
+`CFG.Annotations` supplies current code/PC binding, cutpoint invariants and
+dynamic ranks, interior annotations and local instruction/read-permission proofs
+for every AF choice. The generic theorem constructs all-choice actual execution,
+postconditions, prefix safety and no divergence, bounded by
+`(maxDepth+1)*(entryRank+1)`. `Cutpoints.Accounting` optionally composes proved
+local cost/read equations into exact retired-instruction counts and ordered
+operand reads. These are model instruction counts, without timing or optimality.
+
+`edsl-cfg-import` emits kernel-checked literal static imports and a typed local
+proof interface. Raw mode uses the complete supplied window; ELF mode requires
+an explicit `1..64`-byte entry span and checks the full container. It never
+truncates an arbitrary CFG at the first RET. The two-loop 35-byte GCC output is
+statically imported, with its functional contract still unproved. The stride-two
+instance proves an independent even-index sum, all-choice total correctness,
+current OS read origins and exact `6*count+4` instructions/ordered reads through
+local annotations. See [the precise contracts and extension workflow](cfg.md).
 
 ## Abstract OS address-space contracts
 
@@ -742,7 +775,7 @@ paths and raw errors. See [the complete contract](process-write.md).
 ## Reproduce
 
 ```sh
-lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32
+lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32 edsl-cfg-import
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
@@ -787,6 +820,8 @@ lake env lean -DwarningAsError=true tests/ArrayResources.lean
 lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
 lake env lean -DwarningAsError=true tests/Sum32Index.lean
 lake env lean -DwarningAsError=true tests/Sum32Artifact.lean
+lake env lean -DwarningAsError=true tests/CFG.lean
+lake env lean -DwarningAsError=true tests/Stride32.lean
 bash scripts/check-audit.sh
 lake env leanchecker --fresh EDSL
 bash scripts/verify-compilers.sh
@@ -799,6 +834,7 @@ bash scripts/verify-mutex-workers.sh
 bash scripts/verify-futex.sh
 bash scripts/verify-futex-clients.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
+EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 ```
 
 Integration needs Linux/x86-64, Clang accepting the named modes, GCC, binutils
@@ -825,6 +861,8 @@ lake exe edsl-certify-futex-client publish-payload-wake PUBLISH.bin artifacts/Fu
 lake exe edsl-certify-futex-client --elf publish-payload-wake PUBLISH.elf artifacts/FutexClientELF.lean
 lake exe edsl-certify-sum32 FUNCTION.bin artifacts/Sum32Raw.lean
 lake exe edsl-certify-sum32 --elf FUNCTION.elf artifacts/Sum32ELF.lean
+lake exe edsl-cfg-import FUNCTION.bin artifacts/CFG.lean
+lake exe edsl-cfg-import --elf 35 FUNCTION.elf artifacts/CFGELF.lean
 ```
 
 For `edsl-certify`, the two-argument form retains the default `increment`
@@ -834,6 +872,9 @@ and exact bytes, not the existence/name of an older certificate file.
 The sum32 CLI also distinguishes malformed input (exit 4) from unsupported
 code/layout (exit 3); its full status contract is in
 [sum32](sum32.md#reproduce-and-rejection-behavior).
+`edsl-cfg-import` status 0 means a checked static import, with local functional
+and access proofs still required. Its statuses and explicit-span behavior are
+documented in [the CFG interface](cfg.md#import-raw-bytes-or-an-explicit-elf-span).
 
 ## Private futex adapter
 
