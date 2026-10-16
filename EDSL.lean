@@ -36,6 +36,8 @@ import EDSL.X86.Sequential.CutpointsAccounting
 import EDSL.Stride32.Correctness
 import EDSL.Stride32.Accounting
 import EDSL.Pair32.Correctness
+import EDSL.Grading.Known
+import EDSL.Grading.Artifact
 import EDSL.OS.MutexReplay.Footprints
 import EDSL.Examples.StoreBuffer
 import EDSL.CounterCertificate

@@ -30,7 +30,7 @@ jobs:
           "$RUNNER_TEMP/elan-installer/elan-init" -y --no-modify-path --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Build pinned Lean project
-        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32 edsl-cfg-import
+        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32 edsl-cfg-import edsl-grade edsl-proof-export GradingFixtures
       - name: ISA, ELF, OS contracts and rejection properties
         run: |
           lake env lean -DwarningAsError=true tests/X86.lean
@@ -81,6 +81,11 @@ jobs:
           lake env lean -DwarningAsError=true tests/Stride32.lean
           lake env lean -DwarningAsError=true tests/Pair32.lean
           lake env lean -DwarningAsError=true tests/Pair32Resources.lean
+          lake env lean -DwarningAsError=true tests/GradingDomain.lean
+          lake env lean -DwarningAsError=true tests/GradingTask.lean
+          lake env lean -DwarningAsError=true tests/GradingArtifact.lean
+          lake env lean -DwarningAsError=true tests/GradingDriver.lean
+          lake env lean -DwarningAsError=true tests/GradingRuntime.lean
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment
@@ -142,6 +147,16 @@ jobs:
         env:
           EDSL_GCC: gcc-13
         run: bash scripts/verify-cfg.sh
+      - name: Grade exact artifacts against fixed tasks with data-only proofs
+        env:
+          EDSL_GCC: gcc-13
+        run: bash scripts/verify-grading.sh
+      - name: Preserve owned proof-grading evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: grading-fixture-evidence
+          path: artifacts/grading-fixtures/
+          if-no-files-found: error
       - name: Preserve owned CFG imports and native observations
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

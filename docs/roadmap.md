@@ -559,6 +559,14 @@ composition, so individually proved components describe the same execution.
 
 ## Completion reports
 
+The first [fixed-contract grader](grading.md) registers the pair and stride
+tasks with independent mathematical domains and useful current OS witnesses
+for every admitted byte list, reachable read-only effects, exact-artifact
+binding and fresh safe data-only proof helpers. General task registration,
+competitive-programming IO, richer effect policies and concurrent grading are
+subsequent extensions; code validity is never an input assumption used to make
+a task's semantic domain empty.
+
 Each milestone report must list named theorems and their hypotheses, exact
 supported constructs and platform profile, artifact bindings, remaining trusted
 components, reproducible commands and meaningful negative checks. Tests check

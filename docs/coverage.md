@@ -15,6 +15,13 @@ exact `6*count+4` instructions and ordered operand reads. Its two-loop instance
 proves the sum of two lists, exact `6*(lengthA+lengthB)+6` instructions, ordered
 reads and retained current authority for both inputs, including compatible
 readonly aliases.
+The [fixed-contract grader](grading.md) registers these two mathematical tasks
+with all-input termination, current OS admission and an actual reachable
+read-only effect policy. It checks data-only proof packets against the chosen
+task and exact raw/full-ELF artifact. Fresh safe helpers are kernel-checked;
+task preconditions are inhabited for arbitrary admitted byte lists independently
+of decoding. This is a two-task registry with an explicit sequential callable
+profile, rather than general competitive-programming or whole-OS grading.
 Standalone ELF profiles reach exit42 directly or across a bounded stream write
 and compose with explicit OS contracts. A separate locked-add-loop certificate
 connects exact bytes to finite OS counter-worker workloads and checked

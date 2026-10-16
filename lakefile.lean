@@ -30,3 +30,12 @@ lean_exe «edsl-certify-sum32» where
 
 lean_exe «edsl-cfg-import» where
   root := `CFGMain
+
+lean_exe «edsl-grade» where
+  root := `GradeMain
+
+lean_exe «edsl-proof-export» where
+  root := `ExportMain
+
+lean_lib GradingFixtures where
+  roots := #[`tests.fixtures.GradingClient]

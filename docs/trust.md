@@ -90,9 +90,13 @@ none of these results verifies native kernel enforcement or interference.
 `edsl-cfg-import` checks static literals and exposes conditional functional
 obligations. Its explicit ELF span includes code after an early RET and is bound
 to the full modeled container, but file acceptance does not create caller or OS
-admission. A fixed independent task specification and theorem type are required
-before this can serve an objective grader. Neither user-supplied `Post := True`
-nor successful import establishes an intended task result. The profile remains
+admission. The separate [proof grader](grading.md) now fixes those specifications
+and theorem types for two registered pair/stride tasks. It checks fresh safe
+proof helpers as data, the exact artifact and current reachable OS/effect
+obligations; candidate source/modules/options are excluded. Its runtime
+controller and trusted build provisioning remain explicit trust boundaries.
+Neither user-supplied `Post := True` nor successful static import establishes
+an intended task result. The grading profile remains
 sequential/read-only, with stores, atomics and syscalls excluded; bounded model
 instruction counts establish no timing or global minimality theorem.
 
