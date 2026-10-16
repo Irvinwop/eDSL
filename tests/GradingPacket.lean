@@ -30,16 +30,8 @@ def main : IO Unit := do
     "candidate module was imported into the trusted snapshot"
   require ((clientEnv.toKernelEnv.find? `EDSL.StrideMov.claim).isSome)
     "stride client module was not loaded"
-  let (writeTrusted, writeClient) ← Export.loadEnvironments `tests.fixtures.WriteIntermediate
-  require ((writeTrusted.toKernelEnv.find? `EDSL.WriteIntermediateSupported.claim).isNone)
-    "mutable candidate module was imported into the trusted snapshot"
-  require ((writeClient.toKernelEnv.find? `EDSL.WriteIntermediateSupported.claim).isSome)
-    "mutable client module was not loaded"
-  let (movesTrusted, movesClient) ← Export.loadEnvironments `tests.fixtures.WriteMoves
-  require ((movesTrusted.toKernelEnv.find? `EDSL.WriteMovesSupported.claim).isNone)
-    "move/readback candidate module was imported into the trusted snapshot"
-  require ((movesClient.toKernelEnv.find? `EDSL.WriteMovesSupported.claim).isSome)
-    "move/readback client module was not loaded"
+  -- Other clients run in separate processes through GradingIsolation.lean.
+  -- Retaining several imported proof environments at once consumes gigabytes.
   let tree ← unwrap (encodeTreePacket [] (mkConst ``True.intro))
   let shared ← unwrap (encodePacket [] (mkConst ``True.intro))
   let _ ← unwrap (checkPacket trusted {} (mkConst ``True) tree)

@@ -8,6 +8,7 @@ import EDSL.Grading.Write32.Domain
 import EDSL.Grading.Write32.Correctness
 import EDSL.Pair32.Correctness
 import EDSL.Stride32.Correctness
+import EDSL.StoreReturn32.Resources
 
 namespace EDSL.Grading
 open X86 X86.Sequential
@@ -38,7 +39,7 @@ theorem domain_nonvacuous (id : TaskID) (bytes : List Byte)
     have useful : strideTask.useful (strideTask.input resource) := witness.useful
     exact ⟨⟨strideTask.input resource, witness.initial, useful, pre.machine⟩,
       ⟨resource, witness.initial, useful, pre⟩⟩
-  | write32 =>
+  | write32 | storeReturn32 =>
     let witness := Write32.Domain.candidate bytes positive bound
     let resource : Write32.Resources :=
       ⟨witness.shared, witness.call, witness.initial.registers .rsi, witness.oldValue⟩
@@ -111,6 +112,25 @@ theorem write_semantics : SemanticClaim writeTask Write32.bytes :=
   ⟨fun _ _ pre => Write32.raw_semantics pre,
     fun _ _ pre => Write32.resource_semantics pre⟩
 
+/-- The registered pointer result follows from actual machine execution and
+current-resource effects for each production shape. Accounting stays separate
+from the registered mathematical task and its unchanged input domains. -/
+theorem storeReturn_semantics (shape : StoreReturn32.Shape) :
+    SemanticClaim storeReturnTask shape.bytes := by
+  constructor
+  · intro input initial pre
+    have semantics := StoreReturn32.raw_semantics pre
+    refine ⟨?_, semantics.2⟩
+    intro choices
+    obtain ⟨result, execution, contract⟩ := semantics.1 choices
+    exact ⟨result, execution, contract.1⟩
+  · intro resource initial pre
+    have semantics := StoreReturn32.resource_semantics pre
+    refine ⟨?_, semantics.2⟩
+    intro choices
+    obtain ⟨result, execution, contract, returned⟩ := semantics.1 choices
+    exact ⟨result, execution, contract.1, returned⟩
+
 namespace Known
 
 /-- Full claim for the published pair bytes, combining universal semantic
@@ -125,6 +145,24 @@ theorem stride : Claim .stride32 Stride32.bytes :=
 /-- Full mutable task claim, with useful decoder-independent current inputs. -/
 theorem write : Claim .write32 Write32.bytes :=
   ⟨write_semantics, domain_nonvacuous .write32 Write32.bytes (by decide) (by decide)⟩
+
+/-- Each exact production shape proves the distinct registered task on its
+full raw/current-resource domains, without changing the void-store task. -/
+theorem storeReturn (shape : StoreReturn32.Shape) : Claim .storeReturn32 shape.bytes :=
+  ⟨storeReturn_semantics shape, domain_nonvacuous .storeReturn32 shape.bytes
+    (by cases shape <;> decide) (by cases shape <;> decide)⟩
+
+/-- Closed export target for the store-before-copy compiler ordering. -/
+theorem storeReturnStoreCopy : Claim .storeReturn32 StoreReturn32.Shape.storeCopy.bytes :=
+  storeReturn .storeCopy
+
+/-- Closed export target for the copy-before-store compiler ordering. -/
+theorem storeReturnCopyStore : Claim .storeReturn32 StoreReturn32.Shape.copyStore.bytes :=
+  storeReturn .copyStore
+
+/-- Closed export target for the copied-pointer assembly store. -/
+theorem storeReturnCopyStoreRax : Claim .storeReturn32 StoreReturn32.Shape.copyStoreRax.bytes :=
+  storeReturn .copyStoreRax
 
 end Known
 

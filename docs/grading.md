@@ -6,9 +6,10 @@ fixes the input domain, mathematical result, return/ABI frame, OS resources and
 effect policy. It cannot submit a replacement postcondition or extra premise.
 
 The registry contains `pair32` (the modular sum of both mathematical lists),
-`stride32` (the modular sum of the even-indexed input words), and `write32`
-(store the low 32 bits of the full-width argument at the fixed input pointer).
-Pair and stride use `sequentialReadOnlyX86CallableV1`; write uses
+`stride32` (the modular sum of the even-indexed input words), `write32`
+(store the low 32 bits of the full-width argument at the fixed input pointer),
+and `storeReturn32` (the same store plus the complete target pointer in RAX).
+Pair and stride use `sequentialReadOnlyX86CallableV1`; both store tasks use
 `sequentialOwnedWord32X86CallableV1`. The existing GCC implementations discharge
 these claims through `EDSL.Grading.Known.pair`, `.stride` and `.write`. A different
 implementation must prove the same `EDSL.Grading.Claim id bytes`; matching a
@@ -41,6 +42,14 @@ machine RSP supplies the explicit caller-slot binding for the actual RET.
 reads for every actual returned result. The void task's result remains the
 stored word and its frame; the additional load still needs current read authority.
 
+The client-only [pointer-return proof](../tests/fixtures/StoreReturnRcx.lean)
+uses nine bytes: `MOV RCX,RDI; MOV [RCX],ESI; MOV RAX,RCX; RET`.
+`EDSL.StoreReturnRcx.claim` proves the distinct `storeReturn32` task with one
+actual checked OS mutation, retained full RAM coupling and caller loans.
+Its four-instruction accounting is separate from the registered contract.
+The direct pointer-store certifier's three shapes exclude this implementation;
+the general grader accepts its checked proof under unchanged default limits.
+
 ## Required statement
 
 `Task.lean` owns the registered contract. `SemanticClaim` requires total
@@ -68,6 +77,15 @@ values are unconstrained. Every actual decoded store must target the fixed
 input pointer. Atomics, syscalls and foreign writes remain excluded, including
 temporary foreign writes followed by restoration. Fetches stay within the
 admitted code span.
+
+`storeReturn32` reuses exactly the same inputs, present raw/current-resource
+preconditions, useful domain, machine/resource policies and actual resource
+return predicate. Its independent `StoreReturn32.Post` additionally requires
+`final.registers .rax = input.address`, without restricting the pointer to 32 bits.
+`storeReturn_claim_write` projects the stronger claim to the original void
+contract. An actual admitted store/RET execution proves the reverse implication
+false: the unchanged `Known.write` implementation need not return the pointer.
+Neither task requires a known instruction sequence or exact instruction count.
 
 The managed write policy uses current code and complete stack loans, a current
 owner/epoch ticket for the entire target word, and no live read loan for the
@@ -115,6 +133,18 @@ lake env edsl-grade --elf 35 pair32 function.elf pair.json
 For the owned-word task, export `EDSL.Grading.Known.write` and select `write32`.
 The owned GCC fixture has three bytes, `89 37 c3`; the independent contract is
 defined in `EDSL.Grading.Write32.Contract`, rather than inferred from those bytes.
+
+For the pointer-result task, select `storeReturn32`. The closed known export
+targets are `EDSL.Grading.Known.storeReturnStoreCopy`, `.storeReturnCopyStore`
+and `.storeReturnCopyStoreRax`. Export a fresh implementation independently:
+
+```sh
+lake build edsl-grade edsl-proof-export GradingFixtures
+lake env edsl-proof-export tests.fixtures.StoreReturnRcx EDSL.StoreReturnRcx.claim rcx.json
+lake env edsl-grade storeReturn32 function.bin rcx.json
+lake env edsl-grade --elf 9 storeReturn32 function.elf rcx.json
+EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return-grading.sh
+```
 
 The file must contain an implementation covered by the submitted proof. An ELF
 span is explicit and includes any suffix after an early return. Raw code is
@@ -167,6 +197,17 @@ fails the independent native write contract. Its four instructions and extra
 target read retain the same task, service limits and returned-resource contract.
 `lake build GradingFixtures` builds the kernel-compiling client modules under
 `tests/fixtures/`; the grader's trusted imports exclude these modules.
+Each client-isolation check runs in its own Lean process to bound the number
+of imported proof environments retained in memory.
+
+The [pointer-result integration](../scripts/verify-store-return-grading.sh)
+checks all three known implementations and the fresh RCX client in both packet
+modes against raw and full explicit-span ELF artifacts. A valid void-store
+proof on the same original bytes passes `write32` and fails `storeReturn32`.
+Changed task/code/span and pointer truncation prevent proof reuse. Trusted
+snapshot isolation is checked before replay. The independent full-pointer
+native oracle executes the same four final artifacts in 336 calls and rejects
+six owned mutants; native observation remains separate from universal proofs.
 
 ## Packet and checking boundary
 
@@ -272,7 +313,7 @@ Failure, unsupported input and timeout establish no security defect. Real
 findings and their evidence remain outside Git and CI under the repository's
 [private findings policy](findings.md). Integration uses project-owned fixtures.
 
-The registry currently has three tasks. Expanding input and output contracts,
+The registry currently has four tasks. Expanding input and output contracts,
 multiple-target mutation policies, concurrent grading, task
 registration review and automated invariant generation remains future work.
 Instruction costs can be proved separately; acceptance here does not impose a

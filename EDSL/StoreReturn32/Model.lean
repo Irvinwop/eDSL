@@ -3,14 +3,15 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.Grading.Write32.Resources
+import EDSL.StoreReturn32.Contract
 
 set_option warningAsError true
 
 namespace EDSL.StoreReturn32
 open X86 X86.Sequential
 
-/-- Exact callable windows. The mathematical contract below is independent
-of these instruction choices and their ordering. -/
+/-- Exact callable windows. The independent callable contract does not fix
+these instruction choices or their ordering. -/
 inductive Shape where
   | storeCopy
   | copyStore
@@ -45,13 +46,6 @@ theorem check_sound {candidate : List Byte} {shape : Shape}
     · split at accepted
       · next same => cases accepted; exact same
       · cases accepted
-
-/-- Independent low32 store, complete RAM/permission and ABI frame, caller
-return, and full-width returned pointer. The void write32 contract by itself
-does not require this RAX value. -/
-structure Post (input : Grading.Write32.Input) (initial final : State) : Prop
-    extends Grading.Write32.Post input initial final where
-  pointer : final.registers .rax = input.address
 
 /-- Exact accounting for these three-instruction implementations, separate
 from their mathematical result. Fetches are outside the operand-read list.

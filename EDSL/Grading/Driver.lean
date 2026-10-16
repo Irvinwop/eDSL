@@ -16,12 +16,14 @@ def taskID : String → Option TaskID
   | "pair32" => some .pair32
   | "stride32" => some .stride32
   | "write32" => some .write32
+  | "storeReturn32" => some .storeReturn32
   | _ => none
 
 def taskExpr : TaskID → Expr
   | .pair32 => mkConst ``TaskID.pair32
   | .stride32 => mkConst ``TaskID.stride32
   | .write32 => mkConst ``TaskID.write32
+  | .storeReturn32 => mkConst ``TaskID.storeReturn32
 
 /-- Balanced quotation is a controller optimization, not a trusted conversion
 axiom. Its exact value is checked by the kernel in the expected statement. -/

@@ -126,7 +126,9 @@ Implemented and checked:
 - Direct raw/ELF certificates for GNU23 compiler outputs that store a low32
   argument and return the full target pointer. Both store/copy orderings carry
   the actual checked OS update, memory/ABI frames and exact three-instruction
-  accounting. See [pointer-returning stores](docs/store-return32.md).
+  accounting. A distinct `storeReturn32` grader also accepts a fresh
+  four-instruction client proof outside those direct certificate shapes.
+  See [pointer-returning stores](docs/store-return32.md) and [grading](docs/grading.md).
 - A sequential OS address-space model with checked mapping, protection and
   unmapping, permission-revocation proofs and composition with a binary contract.
 - A checked OS word store whose cell update projects exactly to the machine
@@ -277,6 +279,8 @@ lake env lean -DwarningAsError=true tests/SequentialMoves64.lean
 lake env lean -DwarningAsError=true tests/SequentialMoveResources.lean
 lake env lean -DwarningAsError=true tests/StoreReturn32Raw.lean
 lake env lean -DwarningAsError=true tests/StoreReturn32Resources.lean
+lake env lean -DwarningAsError=true tests/GradingStoreReturn.lean
+lake env lean -DwarningAsError=true tests/StoreReturnRcx.lean
 lake env lean -DwarningAsError=true tests/ArrayResources.lean
 lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
 lake env lean -DwarningAsError=true tests/Sum32Index.lean
@@ -299,6 +303,7 @@ bash scripts/verify-futex-clients.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return32.sh
+EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return-grading.sh
 EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 ```
 

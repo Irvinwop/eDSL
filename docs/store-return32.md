@@ -77,5 +77,20 @@ These are sequential ordinary-RAM contracts with explicit CPU/kernel and
 caller-environment assumptions. Native observations are finite and do not
 establish universal hardware behavior, concurrent visibility, timing, source
 preservation or whole-program/OS safety. The existing registered `write32`
-grader leaves RAX unconstrained; this stronger direct certificate API does
-not relabel that task or register a new pointer-result grading task.
+grader leaves RAX unconstrained. The separate `storeReturn32` task requires the
+stronger independent post with exactly the same present domains and current
+policies. It imposes no direct shape, instruction-count or read-order gate.
+
+The client-only `EDSL.StoreReturnRcx.claim` proves `MOV RCX,RDI; MOV [RCX],ESI;
+MOV RAX,RCX; RET`, retaining actual current OS effects and caller resources.
+These nine bytes are outside the direct certificate checker. The grader accepts
+its reference/body proof packets for raw/full explicit-span ELF inputs, while
+the direct CLI reports unsupported. Four-instruction accounting is proved
+separately. The new task implies the unchanged void-store task; an actual
+admitted store/RET execution refutes the reverse implication.
+
+`EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return-grading.sh`
+reproduces the distinct task and client workflow. It retains evidence in
+`artifacts/store-return-grading/`: sixteen successful raw/ELF packet checks,
+task/code/span rejections and 336 independent native calls across four final
+artifacts. See [grading](grading.md) for packet, admission and trust details.

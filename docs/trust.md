@@ -56,7 +56,11 @@ current-resource executions cover both compiler orderings. Typed literal raw
 and ELF certificates recompute acceptance and compose the existing loader with
 explicit current caller premises; native observations remain separate. They
 add no source-preservation or concurrent-backend claim, and do not alter the
-existing registered void-store grading contract.
+existing registered void-store grading contract. A separate `storeReturn32`
+registration requires that stronger post with the same present domains, current
+policies and actual returned resource history. Its fresh RCX implementation
+is a client-only proof packet; the trusted snapshot excludes its module and
+checks the packet against independently selected task/artifact literals.
 
 Sum32 acceptance checks actual decoding, contiguous CFG layout, branch links
 and supported operations within 64 bytes/32 static instructions. Zeroing

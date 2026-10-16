@@ -126,8 +126,10 @@ See [MOV details](sequential-moves.md).
 store/pointer-copy orderings and a copied-RAX store variant. The independent
 post requires the full target pointer in RAX, and current OS proofs retain
 the actual checked mutation, world and loans. Exact three-instruction/stack8
-accounting is separate from that post. This stronger contract is not yet a
-registered grader task; see [pointer-returning stores](store-return32.md).
+accounting is separate from that post. The distinct registered `storeReturn32`
+task retains the same domains and policies while requiring the returned pointer.
+A fresh four-instruction RCX client proves it outside the direct shape checker;
+see [pointer-returning stores](store-return32.md) and [grading](grading.md).
 The existing deterministic and TSO decoders retain their original subset;
 their exact-flags and minimality results retain their original scope. Legacy
 encodings keep precedence in sequential decoding. See the

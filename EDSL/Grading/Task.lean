@@ -4,6 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.Grading.ReadOnlyTask
 import EDSL.Grading.Write32.Resources
+import EDSL.StoreReturn32.Contract
 
 namespace EDSL.Grading
 open X86 X86.Sequential
@@ -103,18 +104,53 @@ def writeTask : Task where
   resourcePolicy _ := Write32.ResourcePolicy
   resourceReturn _ := Write32.ResourceReturn
 
+/-- A distinct mathematical task adds full-pointer return to the same owned
+word store and current-resource contracts. The domain, policies and profile
+are unchanged; no instruction selection or accounting is an admission premise. -/
+def storeReturnTask : Task where
+  profile := .sequentialOwnedWord32X86CallableV1
+  Input := Write32.Input
+  pre := Write32.Pre
+  post := StoreReturn32.Post
+  useful := Write32.Useful
+  Resource := Write32.Resources
+  input := Write32.resourceInput
+  resourcePre := Write32.ResourcePre
+  machinePolicy := Write32.RawPolicy
+  resourcePolicy _ := Write32.ResourcePolicy
+  resourceReturn _ := Write32.ResourceReturn
+
 inductive TaskID where
-  | pair32 | stride32 | write32
+  | pair32 | stride32 | write32 | storeReturn32
   deriving DecidableEq, Repr
 
 def registered : TaskID → Task
   | .pair32 => pairTask
   | .stride32 => strideTask
   | .write32 => writeTask
+  | .storeReturn32 => storeReturnTask
 
 /-- The trusted task ID and literal artifact bytes determine this type. -/
 def Claim (id : TaskID) (bytes : List Byte) : Prop :=
   SemanticClaim (registered id) bytes ∧ Nonvacuous (registered id) bytes
+
+/-- Forgetting the returned pointer yields the unchanged void-store claim,
+while preserving its independent domains, policies and actual resource history. -/
+theorem storeReturn_claim_write {bytes : List Byte}
+    (claim : Claim .storeReturn32 bytes) : Claim .write32 bytes := by
+  refine ⟨⟨?_, ?_⟩, ⟨claim.2.machine, claim.2.resource⟩⟩
+  · intro input initial pre
+    have semantics := claim.1.machine input initial pre
+    refine ⟨?_, semantics.2⟩
+    intro choices
+    obtain ⟨result, execution, post⟩ := semantics.1 choices
+    exact ⟨result, execution, post.toPost⟩
+  · intro resource initial pre
+    have semantics := claim.1.resource resource initial pre
+    refine ⟨?_, semantics.2⟩
+    intro choices
+    obtain ⟨result, execution, post, returned⟩ := semantics.1 choices
+    exact ⟨result, execution, post.toPost, returned⟩
 
 /-- Policy generalization does not weaken either published legacy claim. -/
 theorem pair_claim_iff (bytes : List Byte) :

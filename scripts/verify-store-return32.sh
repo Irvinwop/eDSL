@@ -140,8 +140,9 @@ is valid native code but currently unsupported by this Lean profile. Raw
 windows must match in full; extra trailing bytes reject. ELF selects the first
 RET-terminated decoded entry window within64 bytes/32 instructions, without
 skipping unsupported code. No certificate filename alone establishes success.
-The existing write32 registered grader leaves RAX unconstrained; these stronger
-direct certificates do not register or relabel a pointer-return grading task.
+The existing write32 registered grader leaves RAX unconstrained. A separate
+storeReturn32 task grades proofs of the stronger result under the same present
+domains and policies; this script exercises the direct certificate API only.
 SCOPE
 {
     sha256sum fixtures/store-return.c fixtures/store-return-copy.S fixtures/store-return-check.c \

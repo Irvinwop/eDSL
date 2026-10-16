@@ -82,8 +82,10 @@ remain unsupported. [Encoding, aliasing and resource scope](sequential-moves.md)
 explicit; the concurrent backends retain their original instruction subset.
 The direct StoreReturn32 certificate API now proves both selected compiler
 store/copy orderings and a copied-RAX variant against a stronger full-pointer
-return post, with checked OS evolution and exact accounting. General pointer
-task grading and broader instruction/control-flow inference remain future work.
+return post, with checked OS evolution and exact accounting. The distinct
+`storeReturn32` grading task also accepts a fresh four-instruction RCX proof,
+using the same domains/policies without a shape or accounting admission gate.
+Broader pointer contracts and instruction/control-flow inference remain future work.
 Reusable cutpoint composition now derives those guarantees from local actual
 machine steps: static depth decreases inside a segment, and a natural rank
 decreases at cutpoint transfers. Independent contracts and entry admission

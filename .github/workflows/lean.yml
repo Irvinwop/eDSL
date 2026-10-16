@@ -92,6 +92,8 @@ jobs:
           lake env lean -DwarningAsError=true tests/SequentialMoveResources.lean
           lake env lean -DwarningAsError=true tests/StoreReturn32Raw.lean
           lake env lean -DwarningAsError=true tests/StoreReturn32Resources.lean
+          lake env lean -DwarningAsError=true tests/GradingStoreReturn.lean
+          lake env lean -DwarningAsError=true tests/StoreReturnRcx.lean
           lake env lean -DwarningAsError=true tests/ArrayResources.lean
           lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
           lake env lean -DwarningAsError=true tests/Sum32Index.lean
@@ -182,6 +184,17 @@ jobs:
         with:
           name: store-return32-evidence
           path: artifacts/store-return32/
+          if-no-files-found: error
+      - name: Grade full-pointer results and a fresh implementation proof
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-store-return-grading.sh
+      - name: Preserve owned pointer-result proof grading evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: store-return-grading-evidence
+          path: artifacts/store-return-grading/
           if-no-files-found: error
       - name: Preserve owned sum32 certificates and native observations
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
