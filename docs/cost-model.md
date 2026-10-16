@@ -84,6 +84,7 @@ execution, kernel cleanup and waiting are outside these counts.
 | --- | --- |
 | Increment, load32 and store32 exact cost: two instructions | Their checked byte profiles, for every admitted function entry; includes return-stack and memory preconditions |
 | `Write32.minimum_modeled_instructions`: at least two instructions, attained by `89 37 c3` | Any actual returning candidate in the current sequential ISA satisfying the independent word-store Pre/Post on a useful input, where old value differs from requested low32 value; includes RET |
+| `StoreReturn32.minimum_modeled_instructions`: at least three instructions | Any actual returning candidate under the registered ordinary-store raw policy and independent pointer-store Pre/Post, with a useful value change and initial RAX different from the target; includes RET |
 | `Exchange.atomic_execution`: exactly three instructions and one RMW event | Every admitted `exchange32` function entry, including supported atomic operand, disjoint code/stack and readable return; no latency or minimum-cost claim |
 | `FetchAdd.atomic_execution`: exactly three instructions and one modular-add RMW event | Every admitted `fetch-add32` entry with its atomic operand and code/return-stack conditions; includes arithmetic flags, excludes runtime/kernel work and establishes no optimality |
 | `Increment.zero_input_lower_bound`: at least two instructions | Every supported terminating function execution producing the increment result from zero input and zero initial RAX |
@@ -114,6 +115,34 @@ already-equal input where RET alone satisfies the raw Post in one instruction.
 RET-only code still fails the universal registered task on useful inputs.
 This result concerns the present modeled instruction subset and counts neither
 micro-ops nor CPU time. Grader acceptance imposes no optimality requirement.
+
+The pointer-return bound additionally requires the registered ordinary-store
+`RawPolicy` and an initial RAX different from the target pointer. RET preserves
+both RAM and RAX. Each policy-admitted preceding instruction preserves either
+RAM (read-only effects) or all registers (ordinary stores), so changing both RAM
+and RAX before returning requires at least three modeled instructions.
+`StoreReturn32.claim_minimum` derives the post and policy from the registered
+`Claim .storeReturn32` for the same supplied actual execution and AF stream.
+Candidate bytes, instruction selection and control flow are unrestricted
+within that policy and the present sequential ISA.
+
+`StoreReturn32.exact_three` and `resource_exact_three` expose attainment by all
+three direct pointer-store shapes, including the actual current OS return and
+loan frame. `optimal_for_useful_input` compares them with candidates meeting
+the same independent input and policy, useful-value and initial-RAX conditions.
+These are separate accounting theorems, not grader acceptance requirements.
+See [the lower bound](../EDSL/StoreReturn32/LowerBound.lean) and
+[attainment](../EDSL/StoreReturn32/Accounting.lean).
+
+The initial-RAX condition matters: a real useful store/RET execution can satisfy
+the pointer post in two instructions when RAX already contains the target.
+The [boundary regressions](../tests/StoreReturnAccounting.lean) construct present
+admission and actual execution, rather than assuming a successful result.
+They also exhibit an admitted already-equal word where pointer-copy/RET meets
+the post in two despite an initially different RAX and the same raw policy.
+That case shows why the useful-value condition is separately necessary.
+The three-instruction bound does not cover atomic profiles, physical x86,
+micro-ops, cycles, kernel/runtime work or unrestricted source programs.
 
 The process lower bound is an independent argument about the candidate class:
 each supported ordinary step preserves at least one of RAX and RDI, and the

@@ -94,6 +94,7 @@ jobs:
           lake env lean -DwarningAsError=true tests/StoreReturn32Resources.lean
           lake env lean -DwarningAsError=true tests/GradingStoreReturn.lean
           lake env lean -DwarningAsError=true tests/StoreReturnRcx.lean
+          lake env lean -DwarningAsError=true tests/StoreReturnAccounting.lean
           lake env lean -DwarningAsError=true tests/ArrayResources.lean
           lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
           lake env lean -DwarningAsError=true tests/Sum32Index.lean

@@ -128,6 +128,8 @@ Implemented and checked:
   the actual checked OS update, memory/ABI frames and exact three-instruction
   accounting. A distinct `storeReturn32` grader also accepts a fresh
   four-instruction client proof outside those direct certificate shapes.
+  A separate three-instruction lower bound covers useful inputs requiring a
+  changed RAX under the registered policy.
   See [pointer-returning stores](docs/store-return32.md) and [grading](docs/grading.md).
 - A sequential OS address-space model with checked mapping, protection and
   unmapping, permission-revocation proofs and composition with a binary contract.
@@ -281,6 +283,7 @@ lake env lean -DwarningAsError=true tests/StoreReturn32Raw.lean
 lake env lean -DwarningAsError=true tests/StoreReturn32Resources.lean
 lake env lean -DwarningAsError=true tests/GradingStoreReturn.lean
 lake env lean -DwarningAsError=true tests/StoreReturnRcx.lean
+lake env lean -DwarningAsError=true tests/StoreReturnAccounting.lean
 lake env lean -DwarningAsError=true tests/ArrayResources.lean
 lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
 lake env lean -DwarningAsError=true tests/Sum32Index.lean

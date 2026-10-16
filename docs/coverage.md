@@ -130,6 +130,10 @@ accounting is separate from that post. The distinct registered `storeReturn32`
 task retains the same domains and policies while requiring the returned pointer.
 A fresh four-instruction RCX client proves it outside the direct shape checker;
 see [pointer-returning stores](store-return32.md) and [grading](grading.md).
+Separate accounting proves a three-instruction lower bound for arbitrary
+policy-admitted candidates on useful inputs requiring a changed RAX, with
+attainment by the three direct shapes. This includes RET and retains the actual
+OS return frame; it is not a hardware or unrestricted-program optimum.
 The existing deterministic and TSO decoders retain their original subset;
 their exact-flags and minimality results retain their original scope. Legacy
 encodings keep precedence in sequential decoding. See the

@@ -86,6 +86,10 @@ return post, with checked OS evolution and exact accounting. The distinct
 `storeReturn32` grading task also accepts a fresh four-instruction RCX proof,
 using the same domains/policies without a shape or accounting admission gate.
 Broader pointer contracts and instruction/control-flow inference remain future work.
+Separate pointer-store accounting now derives a three-instruction lower bound
+from actual executions and the existing ordinary-store policy on useful inputs
+requiring a changed RAX. Direct shapes attain it with their current OS return;
+the independent grader still accepts slower proved implementations.
 Reusable cutpoint composition now derives those guarantees from local actual
 machine steps: static depth decreases inside a segment, and a natural rank
 decreases at cutpoint transfers. Independent contracts and entry admission

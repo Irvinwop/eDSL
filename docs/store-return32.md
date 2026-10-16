@@ -37,6 +37,13 @@ including RET, and only the original stack8 operand read. This is accounting
 for these implementations, without a global minimum-operations, micro-op or
 cycle claim. Operand read lists exclude instruction fetches.
 
+A separate `minimum_modeled_instructions` theorem proves a lower bound of
+three for any actual candidate satisfying the registered ordinary-store raw
+policy and independent post on a useful input whose initial RAX differs from
+the target. The three direct shapes attain it with the same current OS return
+and loan frame. This conditional model-relative bound adds no admission or
+cost requirement to the grader. See [cost scope and boundary cases](cost-model.md).
+
 The CLI emits literal certificates checked by Lean's kernel:
 
 ```sh
