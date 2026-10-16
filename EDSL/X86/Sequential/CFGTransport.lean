@@ -86,7 +86,8 @@ theorem execute_next_target {initial final : State} {instruction : Instruction} 
         simp [execute, X86.executeInstruction, branched] at success
       cases success; cases next
       simpa [Targets, Instruction.length] using shortBranch_target branched
-  | xorSelf32 destination | movReg32 destination source | test64 left right | cmp64 left right
+  | xorSelf32 destination | movReg32 destination source | movReg64 destination source
+  | test64 left right | cmp64 left right
   | addImm64 destination immediate | inc64 destination | dec64 destination =>
     cases success; cases next
     simp [Targets, Instruction.length]
@@ -122,7 +123,7 @@ theorem execute_next_memory {initial final : State} {instruction : Instruction} 
     cases success
     cases next
     exact executeInstruction_ordinary_memory noStore (Or.inl result)
-  | xorSelf32 _ | movReg32 _ _ | loadMem32 _ _ | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addImm64 _ _
+  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | loadMem32 _ _ | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addImm64 _ _
   | inc64 _ | dec64 _ | je _ | jmp _ =>
     exact execute_new_memory rfl rfl success next
   | storeMem32 _ _ => simp [readOnly] at allowed
@@ -174,7 +175,7 @@ theorem execute_result {initial : State} {instruction : Instruction} {af : Bool}
         simp [execute, X86.executeInstruction, branched] at success
       cases success
       exact ⟨_, Or.inl rfl⟩
-  | xorSelf32 _ | movReg32 _ _ | loadMem32 _ _ | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addImm64 _ _
+  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | loadMem32 _ _ | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addImm64 _ _
   | inc64 _ | dec64 _ | je _ | jmp _ =>
     obtain ⟨final, next⟩ := execute_new_next rfl success
     exact ⟨final, Or.inl next⟩
@@ -217,7 +218,7 @@ theorem targets_translate (node : Node) (base : Word) :
   cases instruction : node.instruction with
   | legacy old => cases old <;>
       simp [Targets, Node.successors, instruction, BitVec.ofNat_add, BitVec.add_assoc]
-  | xorSelf32 _ | movReg32 _ _ | loadMem32 _ _ | storeMem32 _ _
+  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | loadMem32 _ _ | storeMem32 _ _
   | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addImm64 _ _
   | inc64 _ | dec64 _ | je _ | jmp _ =>
       simp [Targets, Node.successors, instruction, BitVec.ofNat_add, BitVec.add_assoc]

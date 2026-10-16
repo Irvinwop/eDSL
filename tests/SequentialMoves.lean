@@ -277,10 +277,10 @@ example : Sequential.decodeAt (entry [0x67, 0x8b, 0x0f]) =
     .error (.unsupportedOpcode 0x67) := by rfl
 example : Sequential.decodeAt (entry [0xf0, 0x89, 0x07]) =
     .error .unsupportedEncoding := by rfl
-example : Sequential.decodeAt (entry [0x48, 0x89, 0xc0]) =
+example : Sequential.decodeAt (entry [0x48, 0x89, 0x07]) =
     .error .unsupportedEncoding := by rfl
 example : Sequential.decodeAt (entry [0x49, 0x8b, 0x0f]) =
-    .error (.unsupportedOpcode 0x49) := by rfl
+    .error .unsupportedEncoding := by rfl
 example : Sequential.decodeAt (entry [0x89, 0x47, 0]) = .error .unsupportedEncoding := by rfl
 example : Sequential.decodeAt (entry [0x8b, 0x8f, 0, 0, 0, 0]) = .error .unsupportedEncoding := by rfl
 example : Sequential.decodeAt (entry [0x8b, 0x05, 0, 0, 0, 0]) = .error .unsupportedEncoding := by rfl

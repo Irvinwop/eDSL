@@ -106,17 +106,22 @@ and alignment checking in the architecture/system reference. Their adequacy to
 physical execution remains a model/physical-conformance boundary.
 
 The separate `X86.Sequential` decoder embeds legacy instructions and adds
-parameterized XOR-self32, TEST64, CMP64, ADD-memory32, MOV-register32,
+parameterized XOR-self32, TEST64, CMP64, ADD-memory32, MOV-register32/64,
 MOV-load32, MOV-store32, ADD-immediate64, INC64, DEC64, JE and JMP families.
-New register operands use the eight lower GPRs; supported memory operands use
+MOV64 register operands cover all 16 GPRs with REX.W/R/B and ignored X; other
+new register operands use the eight lower GPRs. Supported memory operands use
 full-width base/SIB addressing with explicit
 rejection of displacements, absent base/index and other unsupported forms.
 Its bit-precise flag helpers give XOR/TEST an independent undefined-AF choice
 per retired instruction. Ordinary MOV preserves all flags, uses pre-state
-operands even under register/address aliasing, and zero-extends register results.
+operands even under register/address aliasing, and zero-extends 32-bit results.
+MOV64 register copies preserve the full source and advance by three bytes;
+64-bit memory forms and W=0 REX remain unsupported.
 The new store uses the same whole-word permission checks and outside-memory
 frame as the original stores. Its resource bridge follows the actual decoded
-length, including three-byte SIB instructions. See [MOV details](sequential-moves.md).
+length, including three-byte SIB instructions. A current-resource theorem composes
+a full-pointer copy, a real store through that pointer and the original RET slot.
+See [MOV details](sequential-moves.md).
 The existing deterministic and TSO decoders retain their original subset;
 their exact-flags and minimality results retain their original scope. Legacy
 encodings keep precedence in sequential decoding. See the
@@ -864,6 +869,9 @@ lake env lean -DwarningAsError=true tests/FutexClientCertificate.lean
 lake env lean -DwarningAsError=true tests/FutexClientCoverage.lean
 lake env lean -DwarningAsError=true tests/SequentialISA.lean
 lake env lean -DwarningAsError=true tests/SequentialExecution.lean
+lake env lean -DwarningAsError=true tests/SequentialMoves.lean
+lake env lean -DwarningAsError=true tests/SequentialMoves64.lean
+lake env lean -DwarningAsError=true tests/SequentialMoveResources.lean
 lake env lean -DwarningAsError=true tests/ArrayResources.lean
 lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
 lake env lean -DwarningAsError=true tests/Sum32Index.lean
@@ -884,6 +892,7 @@ bash scripts/verify-mutex-workers.sh
 bash scripts/verify-futex.sh
 bash scripts/verify-futex-clients.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
+EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 ```
 

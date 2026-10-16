@@ -105,6 +105,7 @@ instructions exactly and adds these parameterized families:
 | CMP64 | `48 39 /r`, two registers; subtract the reg operand from the r/m operand for flags |
 | ADD-memory32 | `03 /r`, mod=00 base or SIB address; read four bytes and zero-extend the 32-bit register result |
 | MOV-register32 | `89 /r` or `8b /r`, register mode; copy low32 and zero-extend into the full destination |
+| MOV-register64 | `48`–`4f` REX.W then `89 /r` or `8b /r`, register mode; copy the full source across all 16 GPRs |
 | MOV-load32 | `8b /r`, mod=00 base or SIB address; actual four-byte read and zero-extended destination |
 | MOV-store32 | `89 /r`, mod=00 base or SIB address; actual checked four-byte store with all registers/flags preserved |
 | ADD-immediate64 | `48 83 /0`, register destination and sign-extended imm8 |
@@ -113,12 +114,15 @@ instructions exactly and adds these parameterized families:
 | JE | `74 rel8`, consume ZF and check a taken target |
 | JMP | `eb rel8`, check the relative target |
 
-New ModRM register operands use the eight lower GPRs. Memory ADD/MOV accepts no
+MOV64 register operands use REX.R and REX.B to select all 16 GPRs; REX.X is
+ignored in register mode. Other new register operands use the eight lower GPRs.
+Memory ADD/MOV accepts no
 displacement: a plain base excludes encoded RSP/RBP; SIB supports scales
 1/2/4/8 with a present base and index, excludes index=4 and base=5, and evaluates
-both registers at 64 bits. RIP-relative, missing-base/index, other prefixes,
-REX register extensions, other widths and other addressing forms reject.
-The exact `48` prefix is supported only for the listed 64-bit families.
+both registers at 64 bits. Memory operands reject REX prefixes, 64-bit loads
+and stores, RIP-relative addressing, missing-base/index and other unsupported
+forms. The other listed 64-bit families require exact `48`; W=0 REX, repeated
+REX and extra prefixes reject. See [MOV scope and references](sequential-moves.md).
 
 [`Sequential.Flags`](../EDSL/X86/Sequential/Flags.lean) proves the six status
 bits, arithmetic carry/borrow/overflow and preservation of all remaining bits.

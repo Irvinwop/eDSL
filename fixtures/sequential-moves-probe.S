@@ -150,12 +150,91 @@ PROBE sib_rsp_store, 0x89,0x2c,0x6c
 PROBE sib_same_load, 0x8b,0x0c,0x09
 PROBE sib_same_store, 0x89,0x0c,0x09
 
+/* Assembler-selected 89 register copies: every destination and source, with
+ * low/high bank combinations exercising REX.R and REX.B independently. */
+.macro QWORD_PROBE name, source, destination
+.globl edsl_move_\name
+.globl edsl_move_\name\()_end
+.type edsl_move_\name,@function
+edsl_move_\name:
+    movq \source, \destination
+edsl_move_\name\()_end:
+    jmp edsl_moves_capture
+.size edsl_move_\name,.-edsl_move_\name
+.endm
+QWORD_PROBE q89_0, %rcx, %rax
+QWORD_PROBE q89_1, %r10, %rcx
+QWORD_PROBE q89_2, %rbx, %rdx
+QWORD_PROBE q89_3, %r12, %rbx
+QWORD_PROBE q89_4, %rbp, %rsp
+QWORD_PROBE q89_5, %r14, %rbp
+QWORD_PROBE q89_6, %rdi, %rsi
+QWORD_PROBE q89_7, %r8, %rdi
+QWORD_PROBE q89_8, %r9, %r8
+QWORD_PROBE q89_9, %rdx, %r9
+QWORD_PROBE q89_10, %r11, %r10
+QWORD_PROBE q89_11, %rsp, %r11
+QWORD_PROBE q89_12, %r13, %r12
+QWORD_PROBE q89_13, %rsi, %r13
+QWORD_PROBE q89_14, %r15, %r14
+QWORD_PROBE q89_15, %rax, %r15
+
+/* Alternate 8B encodings with explicit requested operands in the C contracts.
+ * The same ModRM fields reverse direction compared with the 89 windows. */
+PROBE q8b_0, 0x49,0x8b,0xc7 /* rax <- r15 */
+PROBE q8b_1, 0x48,0x8b,0xc8 /* rcx <- rax */
+PROBE q8b_2, 0x49,0x8b,0xd1 /* rdx <- r9 */
+PROBE q8b_3, 0x48,0x8b,0xda /* rbx <- rdx */
+PROBE q8b_4, 0x49,0x8b,0xe3 /* rsp <- r11 */
+PROBE q8b_5, 0x48,0x8b,0xec /* rbp <- rsp */
+PROBE q8b_6, 0x49,0x8b,0xf5 /* rsi <- r13 */
+PROBE q8b_7, 0x48,0x8b,0xfe /* rdi <- rsi */
+PROBE q8b_8, 0x4c,0x8b,0xc7 /* r8 <- rdi */
+PROBE q8b_9, 0x4d,0x8b,0xc8 /* r9 <- r8 */
+PROBE q8b_10, 0x4c,0x8b,0xd1 /* r10 <- rcx */
+PROBE q8b_11, 0x4d,0x8b,0xda /* r11 <- r10 */
+PROBE q8b_12, 0x4c,0x8b,0xe3 /* r12 <- rbx */
+PROBE q8b_13, 0x4d,0x8b,0xec /* r13 <- r12 */
+PROBE q8b_14, 0x4c,0x8b,0xf5 /* r14 <- rbp */
+PROBE q8b_15, 0x4d,0x8b,0xfe /* r15 <- r14 */
+
+/* Full64 self-copies preserve high halves, including arbitrary RSP. */
+QWORD_PROBE qself_0, %rax, %rax
+QWORD_PROBE qself_1, %rcx, %rcx
+QWORD_PROBE qself_2, %rdx, %rdx
+QWORD_PROBE qself_3, %rbx, %rbx
+QWORD_PROBE qself_4, %rsp, %rsp
+QWORD_PROBE qself_5, %rbp, %rbp
+QWORD_PROBE qself_6, %rsi, %rsi
+QWORD_PROBE qself_7, %rdi, %rdi
+QWORD_PROBE qself_8, %r8, %r8
+QWORD_PROBE qself_9, %r9, %r9
+QWORD_PROBE qself_10, %r10, %r10
+QWORD_PROBE qself_11, %r11, %r11
+QWORD_PROBE qself_12, %r12, %r12
+QWORD_PROBE qself_13, %r13, %r13
+QWORD_PROBE qself_14, %r14, %r14
+QWORD_PROBE qself_15, %r15, %r15
+
+/* REX.X is ignored in register mode for each R/B combination and direction.
+ * Together with the assembler windows, all prefix bytes 48..4F execute. */
+PROBE qx89_low, 0x4a,0x89,0xd8 /* rax <- rbx */
+PROBE qx89_b, 0x4b,0x89,0xd8 /* r8 <- rbx */
+PROBE qx89_r, 0x4e,0x89,0xd8 /* rax <- r11 */
+PROBE qx89_rb, 0x4f,0x89,0xd8 /* r8 <- r11 */
+PROBE qx8b_low, 0x4a,0x8b,0xd8 /* rbx <- rax */
+PROBE qx8b_b, 0x4b,0x8b,0xd8 /* rbx <- r8 */
+PROBE qx8b_r, 0x4e,0x8b,0xd8 /* r11 <- rax */
+PROBE qx8b_rb, 0x4f,0x8b,0xd8 /* r11 <- r8 */
+
 /* Safe project-owned mutations. The independent contract observer must reject
- * all of these; none is claimed supported or passed to the Lean replay. */
+ * all of these and none is passed to the positive Lean replay. Some bytes now
+ * decode successfully but violate their independently requested width. */
 PROBE mutant_width, 0x48,0x89,0xd8
 PROBE mutant_direction, 0x89,0xc3
 PROBE mutant_omitted, 0x90,0x90
 PROBE mutant_neighbor, 0x48,0x89,0x37
+PROBE mutant_narrow, 0x89,0xd8 /* requested rax <- full64 rbx, executed eax <- ebx */
 .globl edsl_moves_section_end
 edsl_moves_section_end:
 .section .note.GNU-stack,"",@progbits

@@ -13,7 +13,7 @@ def Instruction.length : Instruction → Nat
   | .legacy .ret => 1
   | .legacy _ => 2
   | .xorSelf32 _ | .movReg32 _ _ | .je _ | .jmp _ => 2
-  | .test64 _ _ | .cmp64 _ _ | .inc64 _ | .dec64 _ => 3
+  | .movReg64 _ _ | .test64 _ _ | .cmp64 _ _ | .inc64 _ | .dec64 _ => 3
   | .addMem32 _ (.base _) | .loadMem32 _ (.base _) | .storeMem32 (.base _) _ => 2
   | .addMem32 _ (.indexed _ _ _) | .loadMem32 _ (.indexed _ _ _)
   | .storeMem32 (.indexed _ _ _) _ => 3
@@ -29,8 +29,32 @@ def lowRegister (code : Fin 8) : Register :=
   | 0 => .rax | 1 => .rcx | 2 => .rdx | 3 => .rbx
   | 4 => .rsp | 5 => .rbp | 6 => .rsi | _ => .rdi
 
+def highRegister (code : Fin 8) : Register :=
+  match code.val with
+  | 0 => .r8 | 1 => .r9 | 2 => .r10 | 3 => .r11
+  | 4 => .r12 | 5 => .r13 | 6 => .r14 | _ => .r15
+
+/-- One REX.W prefix. R and B extend register operands; X has no role in
+register mode, while the encoded prefix still occupies one byte. -/
+def rexWPrefix (rex : Byte) : Bool :=
+  rex == 0x48 || rex == 0x49 || rex == 0x4a || rex == 0x4b ||
+    rex == 0x4c || rex == 0x4d || rex == 0x4e || rex == 0x4f
+
+@[simp] theorem rexWPrefix_eq_true (rex : Byte) : rexWPrefix rex = true ↔
+    rex = 0x48#8 ∨ rex = 0x49#8 ∨ rex = 0x4a#8 ∨ rex = 0x4b#8 ∨
+      rex = 0x4c#8 ∨ rex = 0x4d#8 ∨ rex = 0x4e#8 ∨ rex = 0x4f#8 := by
+  simp only [rexWPrefix, Bool.or_eq_true, beq_iff_eq, or_assoc, BitVec.ofNat_eq_ofNat]
+
 def modRMReg (byte : Byte) : Register := lowRegister ⟨byte.toNat / 8 % 8, Nat.mod_lt _ (by decide)⟩
 def modRMRM (byte : Byte) : Register := lowRegister ⟨byte.toNat % 8, Nat.mod_lt _ (by decide)⟩
+
+def rexModRMReg (rex byte : Byte) : Register :=
+  if rex.getLsbD 2 then highRegister ⟨byte.toNat / 8 % 8, Nat.mod_lt _ (by decide)⟩
+  else modRMReg byte
+
+def rexModRMRM (rex byte : Byte) : Register :=
+  if rex.getLsbD 0 then highRegister ⟨byte.toNat % 8, Nat.mod_lt _ (by decide)⟩
+  else modRMRM byte
 
 /-- The common mod=00 address subset. SIB has a real base and index; prefixes,
 displacements, RIP-relative and absent-base/index forms remain unsupported. -/
@@ -44,8 +68,9 @@ def decodeAddressAt (state : State) (modrm : Byte) : Except Error Address := do
   else if modrm.toNat % 8 = 5 then throw .unsupportedEncoding
   else return .base (modRMRM modrm)
 
-/-- NEW subset only. No prefixes other than exact REX.W=48, register ModRM for
-XOR/TEST/CMP/INC/DEC/ADD-immediate, unprefixed 89/8B register MOV, and mod=00
+/-- NEW subset only. Register MOV64 admits one REX.W prefix 48..4F, including
+the R/B register extensions. Other 64-bit families retain exact prefix 48.
+Register ModRM for XOR/TEST/CMP/INC/DEC/ADD-immediate, unprefixed MOV32, and mod=00
 ordinary ADD/MOV-memory addresses.
 SIB allows all scales, no missing index (index=4), no missing base (base=5),
 and no displacement. A plain base=4 must use SIB; base=5 would be RIP-relative
@@ -57,9 +82,15 @@ def decodeNewAt (state : State) (oldError : Error) : Except Error Instruction :=
     if modrm.toNat / 64 ≠ 3 ∨ modrm.toNat / 8 % 8 ≠ modrm.toNat % 8 then
       throw .unsupportedEncoding
     return .xorSelf32 (modRMRM modrm)
-  else if opcode = 0x48 then
+  else if rexWPrefix opcode then
     let operation ← fetchByte state.memory (state.rip + 1)
-    if operation = 0x85 ∨ operation = 0x39 then
+    if operation = 0x89 ∨ operation = 0x8b then
+      let modrm ← fetchByte state.memory (state.rip + 2)
+      if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
+      return if operation = 0x89 then .movReg64 (rexModRMRM opcode modrm) (rexModRMReg opcode modrm)
+        else .movReg64 (rexModRMReg opcode modrm) (rexModRMRM opcode modrm)
+    else if opcode ≠ 0x48 then throw .unsupportedEncoding
+    else if operation = 0x85 ∨ operation = 0x39 then
       let modrm ← fetchByte state.memory (state.rip + 2)
       if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
       return if operation = 0x85 then .test64 (modRMRM modrm) (modRMReg modrm)
@@ -118,7 +149,7 @@ theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.len
   | legacy old => cases old <;> simp [Instruction.length]
   | addMem32 destination address | loadMem32 destination address | storeMem32 address destination =>
     cases address <;> simp [Instruction.length]
-  | xorSelf32 _ | movReg32 _ _ | test64 _ _ | cmp64 _ _ | addImm64 _ _
+  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | test64 _ _ | cmp64 _ _ | addImm64 _ _
   | inc64 _ | dec64 _ | je _ | jmp _ => simp [Instruction.length]
 
 theorem Instruction.length_le_five (instruction : Instruction) : instruction.length ≤ 5 := by
@@ -126,7 +157,7 @@ theorem Instruction.length_le_five (instruction : Instruction) : instruction.len
   | legacy old => cases old <;> simp [Instruction.length]
   | addMem32 destination address | loadMem32 destination address | storeMem32 address destination =>
     cases address <;> simp [Instruction.length]
-  | xorSelf32 _ | movReg32 _ _ | test64 _ _ | cmp64 _ _ | addImm64 _ _
+  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | test64 _ _ | cmp64 _ _ | addImm64 _ _
   | inc64 _ | dec64 _ | je _ | jmp _ => simp [Instruction.length]
 
 /-- Admission of a NEW instruction never admits it in the old sequential/TSO

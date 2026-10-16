@@ -28,6 +28,8 @@ inductive Instruction where
   | addMem32 (destination : Register) (address : Address)
   /-- A 32-bit register copy; the destination is zero-extended to 64 bits. -/
   | movReg32 (destination source : Register)
+  /-- A full-width register copy, encoded with one REX.W prefix. -/
+  | movReg64 (destination source : Register)
   | loadMem32 (destination : Register) (address : Address)
   | storeMem32 (address : Address) (source : Register)
   | addImm64 (destination : Register) (immediate : Byte)

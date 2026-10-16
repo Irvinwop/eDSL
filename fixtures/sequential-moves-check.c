@@ -17,7 +17,7 @@ uint64_t edsl_moves_effective_flags;
 extern void edsl_moves_probe(const unsigned char *);
 extern const unsigned char edsl_moves_section_start[], edsl_moves_section_end[];
 
-enum kind { register_copy, load, store };
+enum kind { register_copy, register_copy64, load, store };
 struct contract {
     const char *name;
     const unsigned char *code, *end;
@@ -78,12 +78,69 @@ struct contract {
     X(sib_rsp_load, load, 4,0,4,5,1) \
     X(sib_rsp_store, store, 0,5,4,5,1) \
     X(sib_same_load, load, 1,0,1,1,0) \
-    X(sib_same_store, store, 0,1,1,1,0)
+    X(sib_same_store, store, 0,1,1,1,0) \
+    X(q89_0, register_copy64, 0,1,0,no_index,0) \
+    X(q89_1, register_copy64, 1,10,0,no_index,0) \
+    X(q89_2, register_copy64, 2,3,0,no_index,0) \
+    X(q89_3, register_copy64, 3,12,0,no_index,0) \
+    X(q89_4, register_copy64, 4,5,0,no_index,0) \
+    X(q89_5, register_copy64, 5,14,0,no_index,0) \
+    X(q89_6, register_copy64, 6,7,0,no_index,0) \
+    X(q89_7, register_copy64, 7,8,0,no_index,0) \
+    X(q89_8, register_copy64, 8,9,0,no_index,0) \
+    X(q89_9, register_copy64, 9,2,0,no_index,0) \
+    X(q89_10, register_copy64, 10,11,0,no_index,0) \
+    X(q89_11, register_copy64, 11,4,0,no_index,0) \
+    X(q89_12, register_copy64, 12,13,0,no_index,0) \
+    X(q89_13, register_copy64, 13,6,0,no_index,0) \
+    X(q89_14, register_copy64, 14,15,0,no_index,0) \
+    X(q89_15, register_copy64, 15,0,0,no_index,0) \
+    X(q8b_0, register_copy64, 0,15,0,no_index,0) \
+    X(q8b_1, register_copy64, 1,0,0,no_index,0) \
+    X(q8b_2, register_copy64, 2,9,0,no_index,0) \
+    X(q8b_3, register_copy64, 3,2,0,no_index,0) \
+    X(q8b_4, register_copy64, 4,11,0,no_index,0) \
+    X(q8b_5, register_copy64, 5,4,0,no_index,0) \
+    X(q8b_6, register_copy64, 6,13,0,no_index,0) \
+    X(q8b_7, register_copy64, 7,6,0,no_index,0) \
+    X(q8b_8, register_copy64, 8,7,0,no_index,0) \
+    X(q8b_9, register_copy64, 9,8,0,no_index,0) \
+    X(q8b_10, register_copy64, 10,1,0,no_index,0) \
+    X(q8b_11, register_copy64, 11,10,0,no_index,0) \
+    X(q8b_12, register_copy64, 12,3,0,no_index,0) \
+    X(q8b_13, register_copy64, 13,12,0,no_index,0) \
+    X(q8b_14, register_copy64, 14,5,0,no_index,0) \
+    X(q8b_15, register_copy64, 15,14,0,no_index,0) \
+    X(qself_0, register_copy64, 0,0,0,no_index,0) \
+    X(qself_1, register_copy64, 1,1,0,no_index,0) \
+    X(qself_2, register_copy64, 2,2,0,no_index,0) \
+    X(qself_3, register_copy64, 3,3,0,no_index,0) \
+    X(qself_4, register_copy64, 4,4,0,no_index,0) \
+    X(qself_5, register_copy64, 5,5,0,no_index,0) \
+    X(qself_6, register_copy64, 6,6,0,no_index,0) \
+    X(qself_7, register_copy64, 7,7,0,no_index,0) \
+    X(qself_8, register_copy64, 8,8,0,no_index,0) \
+    X(qself_9, register_copy64, 9,9,0,no_index,0) \
+    X(qself_10, register_copy64, 10,10,0,no_index,0) \
+    X(qself_11, register_copy64, 11,11,0,no_index,0) \
+    X(qself_12, register_copy64, 12,12,0,no_index,0) \
+    X(qself_13, register_copy64, 13,13,0,no_index,0) \
+    X(qself_14, register_copy64, 14,14,0,no_index,0) \
+    X(qself_15, register_copy64, 15,15,0,no_index,0) \
+    X(qx89_low, register_copy64, 0,3,0,no_index,0) \
+    X(qx89_b, register_copy64, 8,3,0,no_index,0) \
+    X(qx89_r, register_copy64, 0,11,0,no_index,0) \
+    X(qx89_rb, register_copy64, 8,11,0,no_index,0) \
+    X(qx8b_low, register_copy64, 3,0,0,no_index,0) \
+    X(qx8b_b, register_copy64, 3,8,0,no_index,0) \
+    X(qx8b_r, register_copy64, 11,0,0,no_index,0) \
+    X(qx8b_rb, register_copy64, 11,8,0,no_index,0)
 #define MUTANTS(X) \
     X(mutant_width, register_copy, 0,3,0,no_index,0) \
     X(mutant_direction, register_copy, 0,3,0,no_index,0) \
     X(mutant_omitted, store, 0,6,7,no_index,0) \
-    X(mutant_neighbor, store, 0,6,7,no_index,0)
+    X(mutant_neighbor, store, 0,6,7,no_index,0) \
+    X(mutant_narrow, register_copy64, 0,3,0,no_index,0)
 #define DECLARE(name,k,d,s,b,i,c) \
     extern const unsigned char edsl_move_##name[], edsl_move_##name##_end[];
 CONTRACTS(DECLARE)
@@ -121,7 +178,7 @@ static int run_case(const struct contract *contract, unsigned char *memory,
     static const uint64_t flags[] = { 0x202, 0xad7 };
     edsl_moves_input.flags = flags[vector];
     uint64_t address = (uint64_t)(uintptr_t)(memory + offset);
-    if (contract->kind != register_copy) {
+    if (contract->kind == load || contract->kind == store) {
         if (contract->index == no_index) {
             edsl_moves_input.registers[contract->base] = address;
         } else if ((unsigned int)contract->index == contract->base) {
@@ -142,6 +199,8 @@ static int run_case(const struct contract *contract, unsigned char *memory,
     struct snapshot expected = edsl_moves_input;
     if (contract->kind == register_copy) {
         expected.registers[contract->destination] = (uint32_t)edsl_moves_input.registers[contract->source];
+    } else if (contract->kind == register_copy64) {
+        expected.registers[contract->destination] = edsl_moves_input.registers[contract->source];
     } else if (contract->kind == load) {
         uint64_t value = 0;
         for (unsigned int i = 0; i < 4; ++i) value += (uint64_t)before[offset + i] * (UINT64_C(1) << (8 * i));
@@ -197,7 +256,8 @@ int main(int argc, char **argv)
     if (mapping == MAP_FAILED || mprotect(mapping + page, (size_t)page, PROT_READ | PROT_WRITE)) return 2;
     unsigned char *memory = mapping + page;
     if ((uintptr_t)memory <= UINT32_MAX) return 2;
-    puts("/- Native observations of owned MOV32 windows; finite conformance evidence.\n"
+    puts("/- Native observations of owned MOV32 register/memory and MOV64 register\n"
+         "windows; finite conformance evidence for two captured flags profiles.\n"
          "The C mathematical observer independently checked full GPRs, flags and\n"
          "all 32 data bytes. RIP is the extracted instruction end label; the read\n"
          "footprint is the independent requested contract, not a CPU trace. -/\n"
@@ -223,20 +283,21 @@ int main(int argc, char **argv)
          "  | .next final => return (allRegisters.map final.registers,final.flags,final.rip,\n"
          "      (List.range 32).map (fun i => final.memory.read (dataBase + BitVec.ofNat 64 i)),observation.reads)\n"
          "  | _ => none");
-    unsigned int observations = 0;
+    unsigned int observations32 = 0, observations64 = 0;
     for (size_t i = 0; i < sizeof contracts / sizeof contracts[0]; ++i) {
         for (unsigned int vector = 0; vector < 2; ++vector) {
             /* Even offsets also permit the base=index alias. The offset 28
              * cases exercise the last four observed bytes without risking an
              * actual hardware fault for the separate eight-byte mutant. */
             static const size_t offsets[] = { 2, memory_size - 4 };
-            unsigned int offset_count = contracts[i].kind == register_copy ? 1 : 2;
+            unsigned int offset_count = contracts[i].kind == load || contracts[i].kind == store ? 2 : 1;
             for (unsigned int j = 0; j < offset_count; ++j) {
                 if (run_case(&contracts[i], memory, offsets[j], vector, 1) != 1) {
                     fprintf(stderr, "Independent native contract failed: %s/%u/%zu\n", contracts[i].name, vector, offsets[j]);
                     return 1;
                 }
-                ++observations;
+                if (contracts[i].kind == register_copy64) ++observations64;
+                else ++observations32;
             }
         }
     }
@@ -247,7 +308,9 @@ int main(int argc, char **argv)
         }
     }
     puts("end EDSL.Tests.NativeSequentialMoves\n#audit_edsl");
-    fprintf(stderr, "Checked %u native MOV32 observations and rejected 4 owned mutants; final ELF bytes matched\n", observations);
+    fprintf(stderr, "Checked %u native observations (%u MOV32 register/memory, %u MOV64 register); "
+        "rejected %zu owned semantic mutants; final ELF bytes matched\n",
+        observations32 + observations64, observations32, observations64, sizeof mutants / sizeof mutants[0]);
     if (munmap(mapping, (size_t)page * 3)) return 2;
     return 0;
 }

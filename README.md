@@ -117,10 +117,11 @@ Implemented and checked:
   See [two-array sums](docs/pair32.md).
 - Little-endian mapped-memory reads and guarded writes with per-byte permissions,
   read-after-write and disjoint code/stack preservation proofs.
-- Ordinary MOV32 register copies, loads and stores in the separate sequential
-  backend, with full64 base/SIB addressing and pre-state aliasing. Current owner
-  resources derive actual loads/stores and retain the code, stack and outside
-  memory frames through the decoded instruction length. See
+- Ordinary MOV32 register copies, loads and stores, plus MOV64 copies across
+  all 16 GPRs, in the separate sequential backend. Memory operands use full64
+  base/SIB addressing and pre-state aliasing. Current owner resources compose
+  full-pointer copies with actual loads/stores and retain the code, stack and
+  outside memory frames through the decoded instruction length. See
   [MOV and OS resource scope](docs/sequential-moves.md).
 - A sequential OS address-space model with checked mapping, protection and
   unmapping, permission-revocation proofs and composition with a binary contract.
@@ -268,6 +269,7 @@ lake env lean -DwarningAsError=true tests/FutexClientCoverage.lean
 lake env lean -DwarningAsError=true tests/SequentialISA.lean
 lake env lean -DwarningAsError=true tests/SequentialExecution.lean
 lake env lean -DwarningAsError=true tests/SequentialMoves.lean
+lake env lean -DwarningAsError=true tests/SequentialMoves64.lean
 lake env lean -DwarningAsError=true tests/SequentialMoveResources.lean
 lake env lean -DwarningAsError=true tests/ArrayResources.lean
 lake env lean -DwarningAsError=true tests/Sum32Pointer.lean

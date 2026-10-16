@@ -39,9 +39,13 @@ independent AF choices for XOR/TEST. Both AF outcomes exhaust the logical-flags
 contract; universal choice coverage is a conservative model, without asserting
 that every stream occurs on hardware. Its generic ordinary MOV forms preserve
 all flags and evaluate addresses/source operands before updating the destination.
+Register copies distinguish zero-extended MOV32 from full-width MOV64. MOV64
+supports all 16 GPRs and adds no 64-bit memory operations.
 The [current-resource bridge](sequential-moves.md) derives actual stores and loads
 from present authority, retaining complete RAM coupling and original code/stack
-loans through the actual instruction length. The existing deterministic/TSO decoders
+loans through the actual instruction length. The full-pointer-copy/store/RET integration uses
+the actual preserved RSP binding; a copy into RSP retains the original stack
+authority and requires a separate binding before RET. The deterministic/TSO decoders
 retain their original subset and their exact-flags and restricted
 minimality theorems. Physical exception, control-state, translation and ordinary
 RAM assumptions remain those of the [machine profile](coverage.md#supported-machine-profile).

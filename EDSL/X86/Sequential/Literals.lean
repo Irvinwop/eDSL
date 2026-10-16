@@ -42,6 +42,7 @@ def instruction : Instruction → String
   | .cmp64 left right => s!"(.cmp64 {register left} {register right})"
   | .addMem32 destination operand => s!"(.addMem32 {register destination} {address operand})"
   | .movReg32 destination source => s!"(.movReg32 {register destination} {register source})"
+  | .movReg64 destination source => s!"(.movReg64 {register destination} {register source})"
   | .loadMem32 destination operand => s!"(.loadMem32 {register destination} {address operand})"
   | .storeMem32 operand source => s!"(.storeMem32 {address operand} {register source})"
   | .addImm64 destination value => s!"(.addImm64 {register destination} {value.toNat})"

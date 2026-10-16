@@ -79,7 +79,7 @@ theorem decodeNewAt_transport {source destination : State} {instruction : Instru
   exact refinement instruction decoded
 
 private def NewOpcode (opcode : Byte) : Prop :=
-  opcode = 0x31#8 ∨ opcode = 0x48#8 ∨ opcode = 0x03#8 ∨ opcode = 0x74#8 ∨ opcode = 0xeb#8
+  opcode = 0x31#8 ∨ opcode = 0x03#8 ∨ opcode = 0x74#8 ∨ opcode = 0xeb#8 ∨ rexWPrefix opcode = true
 
 private def MovOpcode (opcode : Byte) : Prop := opcode = 0x89#8 ∨ opcode = 0x8b#8
 
@@ -94,20 +94,33 @@ private theorem decodeNewAt_opcode {state : State} {instruction : Instruction} {
     by_cases supported : NewOpcode opcode ∨ MovOpcode opcode
     · exact supported
     · simp only [NewOpcode, MovOpcode, not_or] at supported
-      rcases supported with ⟨⟨h31, h48, h03, h74, heb⟩, h89, h8b⟩
-      simp [decodeNewAt, fetched, h31, h48, h03, h74, heb, h89, h8b] at decoded
+      rcases supported with ⟨⟨h31, h03, h74, heb, hrex⟩, h89, h8b⟩
+      rw [rexWPrefix_eq_true] at hrex
+      simp [decodeNewAt, fetched, h31, h03, h74, heb, hrex, h89, h8b] at decoded
 
 private theorem old_rejects_new_opcode {state : State} {opcode : Byte}
     (fetched : fetchByte state.memory state.rip = .ok opcode) (newOpcode : NewOpcode opcode) :
     X86.decodeAt state = .error (.unsupportedOpcode opcode) := by
-  rcases newOpcode with rfl | rfl | rfl | rfl | rfl <;> simp [X86.decodeAt, fetched]
+  rcases newOpcode with rfl | rfl | rfl | rfl | rex
+  · simp [X86.decodeAt, fetched]
+  · simp [X86.decodeAt, fetched]
+  · simp [X86.decodeAt, fetched]
+  · simp [X86.decodeAt, fetched]
+  · rcases (rexWPrefix_eq_true _).mp rex with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+      simp [X86.decodeAt, fetched]
 
 private theorem decodeNewAt_fallback_irrelevant {state : State} {opcode : Byte}
     (fetched : fetchByte state.memory state.rip = .ok opcode)
     (newOpcode : NewOpcode opcode ∨ MovOpcode opcode)
     (left right : Error) : decodeNewAt state left = decodeNewAt state right := by
   rcases newOpcode with old | mov
-  · rcases old with rfl | rfl | rfl | rfl | rfl <;> simp [decodeNewAt, fetched]
+  · rcases old with rfl | rfl | rfl | rfl | rex
+    · simp [decodeNewAt, fetched]
+    · simp [decodeNewAt, fetched]
+    · simp [decodeNewAt, fetched]
+    · simp [decodeNewAt, fetched]
+    · rcases (rexWPrefix_eq_true _).mp rex with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+        simp [decodeNewAt, fetched]
   · rcases mov with rfl | rfl <;> simp [decodeNewAt, fetched]
 
 /-- The overlapping MOV opcodes need their actual ModRM byte, rather than an

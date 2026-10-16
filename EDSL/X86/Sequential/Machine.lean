@@ -53,6 +53,9 @@ def execute (state : State) (instruction : Instruction) (af : Bool) : Except Err
   | .movReg32 destination source =>
     return ⟨.next { state.writeRegister destination
       (((state.registers source).setWidth 32).setWidth 64) with rip := state.rip + 2 }, reads⟩
+  | .movReg64 destination source =>
+    return ⟨.next { state.writeRegister destination (state.registers source) with
+      rip := state.rip + 3 }, reads⟩
   | .loadMem32 destination address =>
     let value ← loadDWord state.memory (address.eval state)
     return ⟨.next { state.writeRegister destination (value.setWidth 64) with
@@ -112,6 +115,11 @@ theorem execute_movReg32 (state : State) (destination source : Register) (af : B
       .ok ⟨.next { state.writeRegister destination
         (((state.registers source).setWidth 32).setWidth 64) with rip := state.rip + 2 }, []⟩ := rfl
 
+theorem execute_movReg64 (state : State) (destination source : Register) (af : Bool) :
+    execute state (.movReg64 destination source) af =
+      .ok ⟨.next { state.writeRegister destination (state.registers source) with
+        rip := state.rip + 3 }, []⟩ := rfl
+
 theorem execute_loadMem32 (state : State) (destination : Register) (address : Address) (af : Bool) :
     execute state (.loadMem32 destination address) af = do
       let value ← loadDWord state.memory (address.eval state)
@@ -148,6 +156,34 @@ theorem execute_movReg32_self (state : State) (register : Register) (af : Bool) 
   rw [value]
   simp only [BitVec.toNat_setWidth]
   exact Nat.mod_eq_of_lt (Nat.lt_of_lt_of_le (Nat.mod_lt _ (by decide)) (by decide))
+
+/-- Full-width MOV uses the PRE-instruction source for every register, including
+self-copies and RSP destinations. It preserves all flags and the full memory. -/
+theorem execute_movReg64_context (state : State) (destination source : Register) (af : Bool) :
+    ∃ final, execute state (.movReg64 destination source) af = .ok ⟨.next final, []⟩ ∧
+      final.registers destination = state.registers source ∧
+      (∀ register, register ≠ destination → final.registers register = state.registers register) ∧
+      final.memory = state.memory ∧ final.flags = state.flags ∧ final.rip = state.rip + 3 := by
+  refine ⟨_, rfl, ?_, ?_, rfl, rfl, rfl⟩
+  · simp [State.writeRegister]
+  · intro register different
+    simp [State.writeRegister, different]
+
+/-- A full-width self-copy leaves the entire state identical except for RIP. -/
+theorem execute_movReg64_self (state : State) (register : Register) (af : Bool) :
+    execute state (.movReg64 register register) af =
+      .ok ⟨.next { state with rip := state.rip + 3 }, []⟩ := by
+  rw [execute_movReg64]
+  have unchanged : state.writeRegister register (state.registers register) = state := by
+    have registers :
+        (fun other => if other = register then state.registers register else state.registers other) =
+          state.registers := by
+      funext other
+      split
+      · next equal => subst other; rfl
+      · rfl
+    simp only [State.writeRegister, registers]
+  rw [unchanged]
 
 /-- The actual checked load uses the PRE-instruction address, even when the
 destination is an address base or index. No distinctness assumption is needed. -/
@@ -205,7 +241,7 @@ theorem execute_storeIntent {state : State} {instruction : Instruction} {address
     simp only [Instruction.storeIntent, Option.some.injEq, Prod.mk.injEq] at intent
     rcases intent with ⟨rfl, rfl⟩
     exact execute_storeMem32 state operand source af
-  | movReg32 _ _ | loadMem32 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _ | addMem32 _ _
+  | movReg32 _ _ | movReg64 _ _ | loadMem32 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _ | addMem32 _ _
   | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jmp _ =>
     simp [Instruction.storeIntent] at intent
 
@@ -349,7 +385,8 @@ theorem execute_reads {state : State} {instruction : Instruction} {af : Bool}
     cases result : executeShortBranch state true displacement <;> simp only [execute, result, ok_bind, error_bind, pure_ok, Except.ok.injEq, reduceCtorEq] at success
     cases success
     rfl
-  | movReg32 destination source | xorSelf32 destination | test64 left right | cmp64 left right
+  | movReg32 destination source | movReg64 destination source
+  | xorSelf32 destination | test64 left right | cmp64 left right
   | addImm64 destination immediate | inc64 destination | dec64 destination =>
     cases success
     rfl
@@ -423,7 +460,7 @@ theorem execute_reads_succeed {state : State} {instruction : Instruction} {af : 
       simp only [Instruction.operandReads, List.mem_singleton] at member
       subst read
       exact ⟨rfl, value, loaded⟩
-  | movReg32 _ _ | storeMem32 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _
+  | movReg32 _ _ | movReg64 _ _ | storeMem32 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _
   | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jmp _ =>
     simp [Instruction.operandReads]
 
@@ -436,7 +473,8 @@ theorem execute_new_memory {state final : State} {instruction : Instruction} {af
     (next : observation.result = .next final) : final.memory = state.memory := by
   cases instruction with
   | legacy old => simp [Instruction.isNew] at newInstruction
-  | movReg32 destination source | xorSelf32 destination | test64 left right | cmp64 left right
+  | movReg32 destination source | movReg64 destination source
+  | xorSelf32 destination | test64 left right | cmp64 left right
   | addImm64 destination immediate | inc64 destination | dec64 destination =>
     cases success
     cases next
@@ -496,7 +534,8 @@ theorem execute_new_next {state : State} {instruction : Instruction} {af : Bool}
     ∃ final, observation.result = .next final := by
   cases instruction with
   | legacy old => simp [Instruction.isNew] at newInstruction
-  | movReg32 destination source | xorSelf32 destination | test64 left right | cmp64 left right
+  | movReg32 destination source | movReg64 destination source
+  | xorSelf32 destination | test64 left right | cmp64 left right
   | addImm64 destination immediate | inc64 destination | dec64 destination =>
     cases success
     exact ⟨_, rfl⟩
@@ -544,7 +583,7 @@ theorem execute_new_flags {state final : State} {instruction : Instruction} {af 
     final.flags &&& ~~~arithmeticFlagMask = state.flags &&& ~~~arithmeticFlagMask := by
   cases instruction with
   | legacy old => simp [Instruction.isNew] at newInstruction
-  | movReg32 destination source =>
+  | movReg32 destination source | movReg64 destination source =>
     cases success; cases next
     rfl
   | loadMem32 destination address =>

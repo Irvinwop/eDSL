@@ -128,7 +128,7 @@ example : X86.Sequential.decodeAt (entry [3, 4, 0x27]) = .error .unsupportedEnco
 example : X86.Sequential.decodeAt (entry [3, 4, 0x0d]) = .error .unsupportedEncoding := by rfl
 example : X86.Sequential.decodeAt (entry [0x67, 3, 7]) = .error (.unsupportedOpcode 0x67) := by rfl
 example : X86.Sequential.decodeAt (entry [0x66, 0x31, 0xc0]) = .error (.unsupportedOpcode 0x66) := by rfl
-example : X86.Sequential.decodeAt (entry [0x49, 0x85, 0xf6]) = .error (.unsupportedOpcode 0x49) := by rfl
+example : X86.Sequential.decodeAt (entry [0x49, 0x85, 0xf6]) = .error .unsupportedEncoding := by rfl
 example : X86.Sequential.decodeAt (entry [0x48, 0xff]) = .error (.inaccessibleInstruction 4098) := by rfl
 
 /-- All nine added families remain rejected by the old profile used by TSO.

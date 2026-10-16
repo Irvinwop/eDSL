@@ -102,11 +102,78 @@ theorem checked_sib_store_then_load_rsp {call : Call} {shared : Shared} {before 
   · rw [currentFinal.coupled]
     exact currentFinal.contract.stack
 
+private def pointerBytes : List Byte := [0x48, 0x89, 0xf8, 0x89, 0x30, 0xc3]
+
+private theorem pointer_decoded {call : Call} {shared : Shared} {machine : State}
+    (current : Current call shared machine) (codeBytes : call.bytes = pointerBytes)
+    (offset : Nat) (inside : offset < pointerBytes.length)
+    (pc : machine.rip = call.code + BitVec.ofNat 64 offset)
+    {instruction : Sequential.Instruction}
+    (literal : Sequential.decodeAt (codeState pointerBytes offset) = .ok instruction) :
+    Sequential.decodeAt machine = .ok instruction := by
+  have code : CodeAt machine.memory call.code pointerBytes := by
+    rw [current.coupled, ← codeBytes]
+    exact current.contract.code
+  exact decodeAt_transport (code_fetch_transport code (by decide) offset inside machine rfl pc) literal
+
+/-- Copy a full-width owned pointer to RAX, store through that actual copied
+pointer, and return it. Current resources derive all three actual steps and
+the same evolved OS world; no 32-bit pointer bound or future-step premise is used. -/
+theorem checked_pointer_copy_store_return {call : Call} {shared : Shared} {before : State}
+    (current : Current call shared before) (codeBytes : call.bytes = pointerBytes)
+    (entry : before.rip = call.code) (pointer : before.registers .rdi = call.targetPointer)
+    (stack : before.registers .rsp = call.stack) (afCopy afStore afRet : Bool) :
+    ∃ copied evolved written final,
+      step afCopy before = .ok ⟨.next copied, []⟩ ∧
+      copied.registers .rax = call.targetPointer ∧
+      Borrowing.mutate shared (.store (Threads.principal call.worker) call.ticket
+        call.targetPointer ((before.registers .rsi).setWidth 32)) = .ok (evolved, none) ∧
+      step afStore copied = .ok ⟨.next written, []⟩ ∧
+      step afRet written = .ok ⟨.returned final, [⟨.stack, call.stack, 8⟩]⟩ ∧
+      final.registers .rax = call.targetPointer ∧ final.rip = call.returnAddress ∧
+      final.registers .rsp = call.stack + 8 ∧ Current call evolved final ∧
+      loadDWord final.memory call.targetPointer = .ok ((before.registers .rsi).setWidth 32) ∧
+      Mutex.StoreEffect shared evolved call.targetPointer ((before.registers .rsi).setWidth 32) := by
+  have copyDecoded := pointer_decoded current codeBytes 0 (by decide) (by simpa using entry)
+    (instruction := .movReg64 .rax .rdi) rfl
+  obtain ⟨copied, actualCopy, currentCopy, assigned, other, _, _, advance⟩ :=
+    current_movReg64_step current copyDecoded afCopy
+  have copiedPointer : copied.registers .rax = call.targetPointer := assigned.trans pointer
+  have copiedPC : copied.rip = call.code + 3 := by simpa [entry] using advance
+  have storeDecoded := pointer_decoded currentCopy codeBytes 3 (by decide) copiedPC
+    (instruction := .storeMem32 (.base .rax) .rsi) rfl
+  have source : copied.registers .rsi = before.registers .rsi := other .rsi (by decide)
+  have intent : Sequential.Instruction.storeIntent (.storeMem32 (.base .rax) .rsi) copied =
+      some (call.targetPointer, (before.registers .rsi).setWidth 32) := by
+    simp [Sequential.Instruction.storeIntent, Address.eval, copiedPointer, source]
+  obtain ⟨evolved, stored, actualStore, currentWritten, effect, _⟩ :=
+    current_store_step currentCopy storeDecoded intent afStore
+  let written := storeAfterLength copied evolved 2
+  change step afStore copied = .ok ⟨.next written, []⟩ at actualStore
+  change Current call evolved written at currentWritten
+  have writtenPC : written.rip = call.code + 5 := by
+    simp [written, storeAfterLength, copiedPC, BitVec.add_assoc]
+  have retDecoded := pointer_decoded currentWritten codeBytes 5 (by decide) writtenPC
+    (instruction := .legacy .ret) rfl
+  have stackBinding : written.registers .rsp = call.stack :=
+    (other .rsp (by decide)).trans stack
+  have ret := current_ret_step currentWritten retDecoded stackBinding afRet
+  let final := returnAfter written call.returnAddress
+  have currentFinal : Current call evolved final := ret.2.1
+  refine ⟨copied, evolved, written, final, actualCopy, copiedPointer, stored, actualStore,
+    ?_, ?_, rfl, ?_, currentFinal, ?_, effect⟩
+  · simpa only [stackBinding] using ret.1
+  · simpa [final, returnAfter, State.writeRegister, written, storeAfterLength] using copiedPointer
+  · simp [final, returnAfter, State.writeRegister, stackBinding]
+  · rw [currentFinal.coupled]
+    exact effect.readback
+
 end EDSL.Tests.SequentialMoveResources
 
 #print axioms EDSL.OS.WordResources.actual_store_bridge
 #print axioms EDSL.OS.WordResources.current_store_step
 #print axioms EDSL.OS.WordResources.current_load_step
 #print axioms EDSL.Tests.SequentialMoveResources.checked_sib_store_then_load_rsp
+#print axioms EDSL.Tests.SequentialMoveResources.checked_pointer_copy_store_return
 
 #audit_edsl

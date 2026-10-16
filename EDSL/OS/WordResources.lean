@@ -193,6 +193,24 @@ theorem current_store_step {call : Call} {shared : Shared} {before : State}
   obtain ⟨contract, loans⟩ := contract_store current.contract stored
   exact ⟨evolved, stored, actual, ⟨contract, rfl⟩, effect, loans⟩
 
+/-- An actual full-width register copy retains the current OS world and its
+complete RAM coupling. Original code/stack loans survive even if RSP changes;
+an actual RET still requires its separate caller-slot binding. -/
+theorem current_movReg64_step {call : Call} {shared : Shared} {before : State}
+    {destination source : Register}
+    (current : Current call shared before)
+    (decoded : Sequential.decodeAt before = .ok (.movReg64 destination source)) (af : Bool) :
+    ∃ after, step af before = .ok ⟨.next after, []⟩ ∧
+      Current call shared after ∧ after.registers destination = before.registers source ∧
+      (∀ register, register ≠ destination → after.registers register = before.registers register) ∧
+      after.memory = before.memory ∧ after.flags = before.flags ∧ after.rip = before.rip + 3 := by
+  obtain ⟨after, executed, assigned, other, memory, flags, pc⟩ :=
+    execute_movReg64_context before destination source af
+  refine ⟨after, ?_, ⟨current.contract, memory.trans current.coupled⟩,
+    assigned, other, memory, flags, pc⟩
+  rw [step_eq_execute af decoded]
+  exact executed
+
 /-- Current owner authorization and the complete-word permissions derive an
 actual ordinary load at the fixed call target. The effective address is read
 from the full PRE-state, even when the destination aliases an address register.
