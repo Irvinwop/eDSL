@@ -9,9 +9,11 @@ The registry contains `pair32` (the modular sum of both mathematical lists),
 `stride32` (the modular sum of the even-indexed input words), `write32`
 (store the low 32 bits of the full-width argument at the fixed input pointer),
 `storeReturn32` (the same store plus the complete target pointer in RAX),
-and `storeReturnValue64` (the complete 64-bit argument stored and returned).
+`storeReturnValue64` (the complete 64-bit argument stored and returned),
+and [`countedStore64`](counted-store64-grading.md) (the full64 argument plus count,
+with zero-count target retention and current evolving ownership).
 Pair and stride use `sequentialReadOnlyX86CallableV1`; the two low32 store tasks use
-`sequentialOwnedWord32X86CallableV1`, and the full64 result uses
+`sequentialOwnedWord32X86CallableV1`, and both full64 tasks use
 `sequentialOwnedWord64X86CallableV1`. The existing GCC implementations discharge
 these claims through `EDSL.Grading.Known.pair`, `.stride` and `.write`. A different
 implementation must prove the same `EDSL.Grading.Claim id bytes`; matching a
@@ -325,7 +327,7 @@ Failure, unsupported input and timeout establish no security defect. Real
 findings and their evidence remain outside Git and CI under the repository's
 [private findings policy](findings.md). Integration uses project-owned fixtures.
 
-The registry currently has five tasks. Expanding input and output contracts,
+The registry currently has six tasks. Expanding input and output contracts,
 multiple-target mutation policies, concurrent grading, task
 registration review and automated invariant generation remains future work.
 Instruction costs can be proved separately; acceptance here does not impose a

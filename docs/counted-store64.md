@@ -94,7 +94,8 @@ transitive axiom audit. ELF output also establishes the loaded-code theorem
 and a callable result with explicit loader/caller facts. Status codes follow
 the other direct certifiers: 0 certified, 1 proof failure, 2 usage, 3
 unsupported, 4 malformed and 5 I/O failure. A stale output file does not
-establish certification. The fixed-contract grader registry is unchanged.
+establish certification. The separate [fixed-contract grader](counted-store64-grading.md)
+checks this same mathematical contract without requiring this byte shape or cost.
 
 The integration script compiles and links the owned fixture, checks both
 generated certificates, and executes its exact extracted bytes through an

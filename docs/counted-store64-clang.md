@@ -61,7 +61,8 @@ theorems and their axiom audit. ELF additionally binds the parsed restricted
 container and loaded entry with explicit caller facts. Status codes remain
 0 certified, 1 proof failure, 2 usage, 3 unsupported, 4 malformed and 5 I/O
 failure. Other shapes remain unsupported. Failure or a stale file establishes
-no certification or defect. The fixed-contract grader registry is unchanged.
+no certification or defect. The separate [fixed-contract grader](counted-store64-grading.md)
+checks the same result/resource contract without this shape or instruction formula.
 
 Lean regressions cover arbitrary zero-count old values, symbolic high-half
 and maximum counts, seven-fuel rejection for a single iteration, returned

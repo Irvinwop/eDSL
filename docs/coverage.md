@@ -18,7 +18,8 @@ readonly aliases.
 The [fixed-contract grader](grading.md) registers these two mathematical tasks
 and `write32`, a fixed-pointer low32 store, `storeReturn32`, which additionally
 returns the full pointer, and `storeReturnValue64`, which stores and returns the
-full64 argument. All require all-input termination
+full64 argument, and `countedStore64`, which adds a full64 count with zero-count
+target retention. All require all-input termination
 and current OS admission. Pair/stride require reachable read-only effects;
 write permits ordinary stores at its fixed target, with checked evolving
 ownership, actual prefix/return witnesses and retained allocation/loan,
@@ -52,7 +53,9 @@ proves exactly `6*count.toNat+4` (GCC) or `4*count.toNat+4` (Clang) retired
 model instructions, including RET, and the original STACK8 operand read.
 Separate raw/ELF checkers retain each profile's formula and bind final
 artifacts; 504 native calls per profile and six generic owned mutants provide finite
-evidence. This does not add a grader task or an operation-optimality theorem.
+evidence. A separate [counted-store grader task](counted-store64-grading.md)
+accepts both checked proofs under the same independent contract. No byte shape
+or accounting is part of its acceptance; no operation-optimality theorem follows.
 Standalone ELF profiles reach exit 42 directly or across a bounded stream write
 and compose with explicit OS contracts. A separate locked-add-loop certificate
 connects exact bytes to finite OS counter-worker workloads and checked

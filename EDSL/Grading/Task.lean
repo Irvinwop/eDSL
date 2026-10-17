@@ -6,6 +6,7 @@ import EDSL.Grading.ReadOnlyTask
 import EDSL.Grading.Write32.Resources
 import EDSL.StoreReturn32.Contract
 import EDSL.Grading.StoreReturnValue64.Resources
+import EDSL.CountedStore64.Contract
 
 namespace EDSL.Grading
 open X86 X86.Sequential
@@ -137,8 +138,23 @@ def storeReturnValue64Task : Task where
   resourcePolicy _ := StoreReturnValue64.ResourcePolicy
   resourceReturn _ := StoreReturnValue64.ResourceReturn
 
+/-- A full-width count selects a mathematical result, never a loop layout or
+instruction budget. Current ownership and actual returned history remain fixed. -/
+def countedStore64Task : Task where
+  profile := .sequentialOwnedWord64X86CallableV1
+  Input := CountedStore64.Input
+  pre := CountedStore64.Pre
+  post := CountedStore64.Post
+  useful := CountedStore64.Useful
+  Resource := CountedStore64.Resources
+  input := CountedStore64.resourceInput
+  resourcePre := CountedStore64.ResourcePre
+  machinePolicy := CountedStore64.RawPolicy
+  resourcePolicy _ := CountedStore64.ResourcePolicy
+  resourceReturn _ := CountedStore64.ResourceReturn
+
 inductive TaskID where
-  | pair32 | stride32 | write32 | storeReturn32 | storeReturnValue64
+  | pair32 | stride32 | write32 | storeReturn32 | storeReturnValue64 | countedStore64
   deriving DecidableEq, Repr
 
 def registered : TaskID → Task
@@ -147,6 +163,7 @@ def registered : TaskID → Task
   | .write32 => writeTask
   | .storeReturn32 => storeReturnTask
   | .storeReturnValue64 => storeReturnValue64Task
+  | .countedStore64 => countedStore64Task
 
 /-- The trusted task ID and literal artifact bytes determine this type. -/
 def Claim (id : TaskID) (bytes : List Byte) : Prop :=

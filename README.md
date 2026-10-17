@@ -147,6 +147,8 @@ Implemented and checked:
 - Separate GCC13 and Clang18 counted-store profiles prove the same independent
   full64 result and complete frames for every full64 count, with actual evolving
   OS ownership. Exact instruction costs are `6*N+4` and `4*N+4`, including RET.
+  The distinct [`countedStore64` grading task](docs/counted-store64-grading.md)
+  accepts both proofs under one fixed contract, with accounting kept separate.
   See [counted stores](docs/counted-store64.md) and the [Clang profile](docs/counted-store64-clang.md).
 - A sequential OS address-space model with checked mapping, protection and
   unmapping, permission-revocation proofs and composition with a binary contract.
@@ -328,6 +330,7 @@ EDSL_GCC=gcc-13 bash scripts/verify-store-return-xchg.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 EDSL_CLANGXX=clang++-18 bash scripts/verify-store-load64.sh
 EDSL_GCC=gcc-13 bash scripts/verify-counted-store64.sh
 EDSL_CLANG=clang-18 bash scripts/verify-counted-store64-clang.sh
+EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-counted-store64-grading.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 EDSL_CLANGXX=clang++-18 bash scripts/verify-store-return-value64-grading.sh
 EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 ```

@@ -11,6 +11,9 @@ import EDSL.Stride32.Correctness
 import EDSL.StoreReturn32.Resources
 import EDSL.Grading.StoreReturnValue64.Domain
 import EDSL.Grading.StoreReturnValue64.Correctness
+import EDSL.CountedStore64.Domain
+import EDSL.CountedStore64.Proof
+import EDSL.CountedStore64.Clang.Proof
 
 namespace EDSL.Grading
 open X86 X86.Sequential
@@ -54,6 +57,11 @@ theorem domain_nonvacuous (id : TaskID) (bytes : List Byte)
   | storeReturnValue64 =>
     let witness := StoreReturnValue64.Domain.candidate bytes positive bound
     exact ⟨⟨StoreReturnValue64.resourceInput witness.resource, witness.initial,
+      witness.useful, witness.pre.machine⟩,
+      ⟨witness.resource, witness.initial, witness.useful, witness.pre⟩⟩
+  | countedStore64 =>
+    let witness := CountedStore64.Domain.candidate bytes positive bound
+    exact ⟨⟨CountedStore64.resourceInput witness.resource, witness.initial,
       witness.useful, witness.pre.machine⟩,
       ⟨witness.resource, witness.initial, witness.useful, witness.pre⟩⟩
 
@@ -145,6 +153,38 @@ theorem storeReturnValue64_semantics :
   ⟨fun _ _ pre => StoreReturnValue64.raw_semantics pre,
     fun _ _ pre => StoreReturnValue64.resource_semantics pre⟩
 
+/-- Both compiler loops satisfy the same registered mathematical contract.
+Their instruction budgets are separate accounting, never part of acceptance. -/
+theorem countedStore64_gcc_semantics :
+    SemanticClaim countedStore64Task CountedStore64.GCC.bytes := by
+  constructor
+  · intro input initial pre
+    refine ⟨?_, CountedStore64.GCC.raw_policy pre⟩
+    intro choices
+    obtain ⟨result, actual, post, _⟩ := CountedStore64.GCC.raw_semantics pre choices
+    exact ⟨result, actual, post⟩
+  · intro resource initial pre
+    have semantics := CountedStore64.GCC.resource_semantics pre
+    refine ⟨?_, semantics.2⟩
+    intro choices
+    obtain ⟨result, actual, post, returned, _⟩ := semantics.1 choices
+    exact ⟨result, actual, post, returned⟩
+
+theorem countedStore64_clang_semantics :
+    SemanticClaim countedStore64Task CountedStore64.Clang.bytes := by
+  constructor
+  · intro input initial pre
+    refine ⟨?_, CountedStore64.Clang.raw_policy pre⟩
+    intro choices
+    obtain ⟨result, actual, post, _⟩ := CountedStore64.Clang.raw_semantics pre choices
+    exact ⟨result, actual, post⟩
+  · intro resource initial pre
+    have semantics := CountedStore64.Clang.resource_semantics pre
+    refine ⟨?_, semantics.2⟩
+    intro choices
+    obtain ⟨result, actual, post, returned, _⟩ := semantics.1 choices
+    exact ⟨result, actual, post, returned⟩
+
 namespace Known
 
 /-- Full claim for the published pair bytes, combining universal semantic
@@ -183,6 +223,14 @@ raw and current-resource inputs. -/
 theorem storeReturnValue64 : Claim .storeReturnValue64 StoreLoad64.bytes :=
   ⟨storeReturnValue64_semantics,
     domain_nonvacuous .storeReturnValue64 StoreLoad64.bytes (by decide) (by decide)⟩
+
+theorem countedStore64GCC : Claim .countedStore64 CountedStore64.GCC.bytes :=
+  ⟨countedStore64_gcc_semantics,
+    domain_nonvacuous .countedStore64 CountedStore64.GCC.bytes (by decide) (by decide)⟩
+
+theorem countedStore64Clang : Claim .countedStore64 CountedStore64.Clang.bytes :=
+  ⟨countedStore64_clang_semantics,
+    domain_nonvacuous .countedStore64 CountedStore64.Clang.bytes (by decide) (by decide)⟩
 
 end Known
 
