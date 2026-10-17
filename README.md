@@ -133,6 +133,9 @@ Implemented and checked:
   A pure-call OS resource bridge retains the same code/caller-slot loans
   and complete RAM, including conditional RSP changes and actual RET.
   See [conditional moves](docs/sequential-cmov64.md).
+- All sixteen short conditional branches in the sequential backend, with
+  signed displacements, taken-target checks, checked CFG edges and preservation
+  of the same current OS resource world. See [branch scope](docs/sequential-short-jcc.md).
 - Six complete GCC/Clang comparison outputs prove full64 unsigned maximum,
   unsigned minimum and signed maximum against independent mathematical order.
   The three grading tasks retain current code/caller-slot authority and the

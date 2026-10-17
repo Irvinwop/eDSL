@@ -12,7 +12,7 @@ def Instruction.length : Instruction → Nat
   | .legacy (.mov32 _ _) => 5
   | .legacy .ret => 1
   | .legacy _ => 2
-  | .xorSelf32 _ | .movReg32 _ _ | .xchgRax64 _ | .je _ | .jmp _ => 2
+  | .xorSelf32 _ | .movReg32 _ _ | .xchgRax64 _ | .je _ | .jcc _ _ | .jmp _ => 2
   | .movReg64 _ _ | .addReg64 _ _ | .xchgReg64 _ _ | .test64 _ _ | .cmp64 _ _
   | .inc64 _ | .dec64 _ => 3
   | .addMem32 _ (.base _) | .loadMem32 _ (.base _) | .storeMem32 (.base _) _ => 2
@@ -154,6 +154,8 @@ extend its opcode register; unused R/X bits are ignored. Other 64-bit families
 retain exact prefix 48.
 Register ModRM for XOR/TEST/CMP/INC/DEC/ADD-immediate, unprefixed MOV32, and mod=00
 ordinary ADD/MOV-memory addresses.
+Short conditional branches admit the unprefixed 70..7F rel8 forms. The
+legacy-first decoder retains 75 as JNZ, and 74 retains the existing JE API.
 SIB allows all scales, no missing index (index=4), no missing base (base=5),
 and no displacement. A plain base=4 must use SIB; base=5 would be RIP-relative
 and is rejected. Unsupported forms never fall through to weaker addressing. -/
@@ -180,6 +182,9 @@ def decodeNewAt (state : State) (oldError : Error) : Except Error Instruction :=
         else .loadMem32 (modRMReg modrm) address
   else if opcode = 0x74 then
     return .je (← fetchByte state.memory (state.rip + 1))
+  else if 0x70 ≤ opcode.toNat ∧ opcode.toNat ≤ 0x7f ∧ opcode ≠ 0x75 then
+    return .jcc (Condition.ofNibble ⟨opcode.toNat % 16, Nat.mod_lt _ (by decide)⟩)
+      (← fetchByte state.memory (state.rip + 1))
   else if opcode = 0xeb then
     return .jmp (← fetchByte state.memory (state.rip + 1))
   else throw oldError
@@ -212,7 +217,7 @@ theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.len
     cases address <;> simp [Instruction.length]
   | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
   | test64 _ _ | cmp64 _ _ | addImm64 _ _
-  | inc64 _ | dec64 _ | je _ | jmp _ => simp [Instruction.length]
+  | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ => simp [Instruction.length]
 
 theorem Instruction.length_le_five (instruction : Instruction) : instruction.length ≤ 5 := by
   cases instruction with
@@ -222,7 +227,7 @@ theorem Instruction.length_le_five (instruction : Instruction) : instruction.len
     cases address <;> simp [Instruction.length]
   | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
   | test64 _ _ | cmp64 _ _ | addImm64 _ _
-  | inc64 _ | dec64 _ | je _ | jmp _ => simp [Instruction.length]
+  | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ => simp [Instruction.length]
 
 /-- Admission of a NEW instruction never admits it in the old sequential/TSO
 profile; those clients continue to use the untouched legacy decoder. -/

@@ -104,6 +104,7 @@ def instructionLiteral : Sequential.Instruction → String
   | .inc64 register => s!"(.inc64 {registerLiteral register})"
   | .dec64 register => s!"(.dec64 {registerLiteral register})"
   | .je value => s!"(.je {value.toNat})"
+  | .jcc condition value => s!"(.jcc {Sequential.Literals.condition condition} {value.toNat})"
   | .jmp value => s!"(.jmp {value.toNat})"
 
 def nodeLiteral (node : Node) : String :=

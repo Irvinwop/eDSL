@@ -131,6 +131,8 @@ def execute (state : State) (instruction : Instruction) (af : Bool) : Except Err
     return ⟨.next { state.writeRegister destination (state.registers destination - 1) with
       rip := state.rip + 3, flags := decFlags64 state.flags (state.registers destination) }, reads⟩
   | .je displacement => return ⟨.next (← executeShortBranch state (state.flags.getLsbD 6) displacement), reads⟩
+  | .jcc condition displacement =>
+    return ⟨.next (← executeShortBranch state (condition.holds state.flags) displacement), reads⟩
   | .jmp displacement => return ⟨.next (← executeShortBranch state true displacement), reads⟩
 
 def step (af : Bool) (state : State) : Except Error Observation := do
@@ -397,7 +399,7 @@ theorem execute_storeIntent {state : State} {instruction : Instruction} {address
     rcases intent with ⟨rfl, rfl⟩
     exact execute_storeMem32 state operand source af
   | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | loadMem64 _ _ | storeMem64 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _ | addMem32 _ _
-  | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jmp _ =>
+  | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ =>
     simp [Instruction.storeIntent] at intent
 
 /-- Successful stores expose the exact checked memory result and empty operand
@@ -636,6 +638,10 @@ theorem execute_jmp (state : State) (displacement : Byte) (af : Bool) :
     execute state (.jmp displacement) af = do
       return ⟨.next (← executeShortBranch state true displacement), []⟩ := rfl
 
+theorem execute_jcc (state : State) (condition : Condition) (displacement : Byte) (af : Bool) :
+    execute state (.jcc condition displacement) af = do
+      return ⟨.next (← executeShortBranch state (condition.holds state.flags) displacement), []⟩ := rfl
+
 /-- Observation footprints cannot be supplied independently of execution. -/
 theorem execute_reads {state : State} {instruction : Instruction} {af : Bool}
     {observation : Observation} (success : execute state instruction af = .ok observation) :
@@ -665,6 +671,11 @@ theorem execute_reads {state : State} {instruction : Instruction} {af : Bool}
     rfl
   | je displacement =>
     cases result : executeShortBranch state (state.flags.getLsbD 6) displacement <;>
+      simp only [execute, result, ok_bind, error_bind, pure_ok, Except.ok.injEq, reduceCtorEq] at success
+    cases success
+    rfl
+  | jcc condition displacement =>
+    cases result : executeShortBranch state (condition.holds state.flags) displacement <;>
       simp only [execute, result, ok_bind, error_bind, pure_ok, Except.ok.injEq, reduceCtorEq] at success
     cases success
     rfl
@@ -757,7 +768,7 @@ theorem execute_reads_succeed {state : State} {instruction : Instruction} {af : 
       subst read
       exact ⟨value, loaded⟩
   | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | storeMem32 _ _ | storeMem64 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _
-  | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jmp _ =>
+  | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ =>
     simp [Instruction.operandReads]
 
 /-- New operations without either store width preserve the full memory and
@@ -791,6 +802,14 @@ theorem execute_new_memory {state final : State} {instruction : Instruction} {af
   | storeMem64 address source => simp [Instruction.storeIntent64] at noStore64
   | je displacement =>
     cases branched : executeShortBranch state (state.flags.getLsbD 6) displacement with
+    | error fault => simp only [execute, branched, error_bind, reduceCtorEq] at success
+    | ok result =>
+      simp only [execute, branched, ok_bind, pure_ok, Except.ok.injEq] at success
+      cases success
+      cases next
+      exact executeShortBranch_memory branched
+  | jcc condition displacement =>
+    cases branched : executeShortBranch state (condition.holds state.flags) displacement with
     | error fault => simp only [execute, branched, error_bind, reduceCtorEq] at success
     | ok result =>
       simp only [execute, branched, ok_bind, pure_ok, Except.ok.injEq] at success
@@ -864,6 +883,13 @@ theorem execute_new_next {state : State} {instruction : Instruction} {af : Bool}
     exact ⟨_, rfl⟩
   | je displacement =>
     cases branched : executeShortBranch state (state.flags.getLsbD 6) displacement with
+    | error fault => simp only [execute, branched, error_bind, reduceCtorEq] at success
+    | ok result =>
+      simp only [execute, branched, ok_bind, pure_ok, Except.ok.injEq] at success
+      cases success
+      exact ⟨_, rfl⟩
+  | jcc condition displacement =>
+    cases branched : executeShortBranch state (condition.holds state.flags) displacement with
     | error fault => simp only [execute, branched, error_bind, reduceCtorEq] at success
     | ok result =>
       simp only [execute, branched, ok_bind, pure_ok, Except.ok.injEq] at success
@@ -946,6 +972,13 @@ theorem execute_new_flags {state final : State} {instruction : Instruction} {af 
     exact addFlags32_preserves ..
   | je displacement =>
     cases branched : executeShortBranch state (state.flags.getLsbD 6) displacement with
+    | error fault => simp only [execute, branched, error_bind, reduceCtorEq] at success
+    | ok result =>
+      simp only [execute, branched, ok_bind, pure_ok, Except.ok.injEq] at success
+      cases success; cases next
+      rw [shortBranch_flags branched]
+  | jcc condition displacement =>
+    cases branched : executeShortBranch state (condition.holds state.flags) displacement with
     | error fault => simp only [execute, branched, error_bind, reduceCtorEq] at success
     | ok result =>
       simp only [execute, branched, ok_bind, pure_ok, Except.ok.injEq] at success

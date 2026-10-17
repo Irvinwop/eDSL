@@ -13,7 +13,7 @@ def Targets (pc : Word) (instruction : Instruction) : List Word :=
   match instruction with
   | .legacy .ret => []
   | .legacy (.jrcxz displacement) | .legacy (.loopRcx displacement)
-  | .legacy (.jnz displacement) | .je displacement => [fallthrough, branch displacement]
+  | .legacy (.jnz displacement) | .je displacement | .jcc _ displacement => [fallthrough, branch displacement]
   | .jmp displacement => [branch displacement]
   | _ => [fallthrough]
 
@@ -110,6 +110,12 @@ theorem execute_next_target {initial final : State} {instruction : Instruction} 
         reduceCtorEq] at success
     cases success; cases next
     simpa [Targets, Instruction.length] using shortBranch_target branched
+  | jcc condition displacement =>
+    cases branched : executeShortBranch initial (condition.holds initial.flags) displacement <;>
+      simp only [execute, branched, ok_bind, error_bind, pure_ok, Except.ok.injEq,
+        reduceCtorEq] at success
+    cases success; cases next
+    simpa [Targets, Instruction.length] using shortBranch_target branched
   | jmp displacement =>
     cases branched : executeShortBranch initial true displacement <;>
       simp [execute, branched] at success
@@ -131,7 +137,7 @@ theorem execute_next_memory {initial final : State} {instruction : Instruction} 
     cases next
     exact executeInstruction_ordinary_memory noStore (Or.inl result)
   | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | loadMem64 _ _ | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addImm64 _ _
-  | inc64 _ | dec64 _ | je _ | jmp _ =>
+  | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ =>
     exact execute_new_memory rfl rfl rfl success next
   | storeMem32 _ _ | storeMem64 _ _ => simp [readOnly] at allowed
 
@@ -183,7 +189,7 @@ theorem execute_result {initial : State} {instruction : Instruction} {af : Bool}
       cases success
       exact ⟨_, Or.inl rfl⟩
   | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | loadMem64 _ _ | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addImm64 _ _
-  | inc64 _ | dec64 _ | je _ | jmp _ =>
+  | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ =>
     obtain ⟨final, next⟩ := execute_new_next rfl success
     exact ⟨final, Or.inl next⟩
   | storeMem32 _ _ | storeMem64 _ _ => simp [readOnly] at allowed
@@ -227,7 +233,7 @@ theorem targets_translate (node : Node) (base : Word) :
       simp [Targets, Node.successors, instruction, BitVec.ofNat_add, BitVec.add_assoc]
   | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | storeMem32 _ _ | loadMem64 _ _ | storeMem64 _ _
   | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addImm64 _ _
-  | inc64 _ | dec64 _ | je _ | jmp _ =>
+  | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ =>
       simp [Targets, Node.successors, instruction, BitVec.ofNat_add, BitVec.add_assoc]
 
 /-- A real successful continuation identifies a checked destination. Its code

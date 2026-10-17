@@ -53,6 +53,13 @@ sixteen conditions include proved signed/unsigned CMP order adequacy;
 Memory-source CMOV stays unsupported because even a false condition performs
 the architectural source read. Pure-call resource contracts couple the same
 world and original caller slot; changed RSP does not grant a new binding.
+All sixteen [short conditional branches](sequential-short-jcc.md) reuse these
+status conditions. Their universal contracts preserve every register, flag and
+memory field and require canonicality only for a taken target. The next fetch
+still requires actual executable bytes. CFG transport proves dynamic edges,
+and the pure-call bridge retains the same OS world and original loans.
+Native boundary checks vary all six arithmetic status bits and ID independently;
+they remain finite evidence and do not validate privileged execution or faults.
 Separate [comparison client proofs](comparison64.md) connect six final GCC/Clang
 windows to mathematical unsigned max/min and signed max, including full64 signed
 overflow boundaries. Their code/caller-slot domain is independently inhabited

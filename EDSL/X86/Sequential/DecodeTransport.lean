@@ -96,7 +96,7 @@ private theorem decodeREXWAt_refines {source destination : State} (rex : Byte)
     | intro value
 
 /-- New decoding, including LEA's SIB fetch, both register ADD directions,
-and CMOV's condition opcode and register operands,
+CMOV's condition opcode and register operands, and short Jcc displacements,
 preserves success under the same fetch transport. A fixed fallback error
 cannot itself yield a successful instruction. -/
 theorem decodeNewAt_transport {source destination : State} {instruction : Instruction} (fault : Error)
@@ -123,8 +123,24 @@ theorem decodeNewAt_transport {source destination : State} {instruction : Instru
       | intro value
   exact refinement instruction decoded
 
+private def NewJccOpcode (opcode : Byte) : Prop :=
+  0x70 ≤ opcode.toNat ∧ opcode.toNat ≤ 0x7f ∧ opcode ≠ 0x75#8
+
+/-- Opcode 75 belongs to the legacy decoder, so it is deliberately excluded
+from the new-opcode disjointness argument. Opcode 74 keeps its JE constructor. -/
+private theorem newJccOpcode_cases : ∀ opcode : Byte, NewJccOpcode opcode ↔
+    opcode = 0x70 ∨ opcode = 0x71 ∨ opcode = 0x72 ∨ opcode = 0x73 ∨
+    opcode = 0x74 ∨ opcode = 0x76 ∨ opcode = 0x77 ∨ opcode = 0x78 ∨
+    opcode = 0x79 ∨ opcode = 0x7a ∨ opcode = 0x7b ∨ opcode = 0x7c ∨
+    opcode = 0x7d ∨ opcode = 0x7e ∨ opcode = 0x7f := by
+  intro opcode
+  simp only [NewJccOpcode, BitVec.toNat_eq, BitVec.toNat_ne, BitVec.ofNat_eq_ofNat,
+    BitVec.toNat_ofNat, Nat.reducePow, Nat.reduceMod]
+  omega
+
 private def NewOpcode (opcode : Byte) : Prop :=
-  opcode = 0x31#8 ∨ opcode = 0x03#8 ∨ opcode = 0x74#8 ∨ opcode = 0xeb#8 ∨ rexWPrefix opcode = true
+  opcode = 0x31#8 ∨ opcode = 0x03#8 ∨ opcode = 0x74#8 ∨ opcode = 0xeb#8 ∨
+    rexWPrefix opcode = true ∨ NewJccOpcode opcode
 
 private def MovOpcode (opcode : Byte) : Prop := opcode = 0x89#8 ∨ opcode = 0x8b#8
 
@@ -139,33 +155,40 @@ private theorem decodeNewAt_opcode {state : State} {instruction : Instruction} {
     by_cases supported : NewOpcode opcode ∨ MovOpcode opcode
     · exact supported
     · simp only [NewOpcode, MovOpcode, not_or] at supported
-      rcases supported with ⟨⟨h31, h03, h74, heb, hrex⟩, h89, h8b⟩
+      rcases supported with ⟨⟨h31, h03, h74, heb, hrex, hjcc⟩, h89, h8b⟩
       rw [rexWPrefix_eq_true] at hrex
-      simp [decodeNewAt, fetched, h31, h03, h74, heb, hrex, h89, h8b] at decoded
+      change ¬(0x70 ≤ opcode.toNat ∧ opcode.toNat ≤ 0x7f ∧ opcode ≠ 0x75#8) at hjcc
+      simp [decodeNewAt, fetched, h31, h03, h74, heb, hrex, h89, h8b, hjcc] at decoded
 
 private theorem old_rejects_new_opcode {state : State} {opcode : Byte}
     (fetched : fetchByte state.memory state.rip = .ok opcode) (newOpcode : NewOpcode opcode) :
     X86.decodeAt state = .error (.unsupportedOpcode opcode) := by
-  rcases newOpcode with rfl | rfl | rfl | rfl | rex
+  rcases newOpcode with rfl | rfl | rfl | rfl | rex | jcc
   · simp [X86.decodeAt, fetched]
   · simp [X86.decodeAt, fetched]
   · simp [X86.decodeAt, fetched]
   · simp [X86.decodeAt, fetched]
   · rcases (rexWPrefix_eq_true _).mp rex with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
       simp [X86.decodeAt, fetched]
+  · rcases (newJccOpcode_cases opcode).mp jcc with
+      rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+        simp [X86.decodeAt, fetched]
 
 private theorem decodeNewAt_fallback_irrelevant {state : State} {opcode : Byte}
     (fetched : fetchByte state.memory state.rip = .ok opcode)
     (newOpcode : NewOpcode opcode ∨ MovOpcode opcode)
     (left right : Error) : decodeNewAt state left = decodeNewAt state right := by
   rcases newOpcode with old | mov
-  · rcases old with rfl | rfl | rfl | rfl | rex
+  · rcases old with rfl | rfl | rfl | rfl | rex | jcc
     · simp [decodeNewAt, fetched]
     · simp [decodeNewAt, fetched]
     · simp [decodeNewAt, fetched]
     · simp [decodeNewAt, fetched]
     · rcases (rexWPrefix_eq_true _).mp rex with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
         simp [decodeNewAt, fetched]
+    · rcases (newJccOpcode_cases opcode).mp jcc with
+        rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+          simp [decodeNewAt, fetched]
   · rcases mov with rfl | rfl <;> simp [decodeNewAt, fetched]
 
 /-- The overlapping MOV opcodes need their actual ModRM byte, rather than an

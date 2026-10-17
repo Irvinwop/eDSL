@@ -4,6 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.OS.ArrayResources
 import EDSL.X86.Sequential.Return
+import EDSL.X86.Sequential.ShortBranch
 
 set_option warningAsError true
 
@@ -75,6 +76,23 @@ theorem current_cmovReg64_step {call : Call} {shared : Shared} {before : State}
   refine ⟨after, ?_, current.sameMemory memory, assigned, other, memory, flags, pc⟩
   rw [step_eq_execute af decoded]
   exact executed
+
+/-- A branch carries the current complete OS world to its selected PC. Code
+and original caller-slot loans remain usable; the contract grants no new loan
+or fetch permission at a destination outside the current code region. -/
+theorem current_shortBranch_step {call : Call} {shared : Shared} {before : State}
+    {instruction : Sequential.Instruction} {condition : Condition} {displacement : Byte}
+    (current : Current call shared before)
+    (decoded : Sequential.decodeAt before = .ok instruction)
+    (form : ShortBranchForm instruction condition displacement)
+    (safe : ShortBranchSafe before condition displacement) (af : Bool) :
+    let after := { before with rip := shortBranchTarget before condition displacement }
+    step af before = .ok ⟨.next after, []⟩ ∧ Current call shared after ∧
+      after.registers = before.registers ∧ after.memory = before.memory ∧
+      after.flags = before.flags := by
+  refine ⟨?_, current.sameMemory rfl, rfl, rfl, rfl⟩
+  rw [step_eq_execute af decoded]
+  exact execute_shortBranch_context before form safe af
 
 def returnAfter (before : State) (returnAddress : Word) : State :=
   { before.writeRegister .rsp (before.registers .rsp + 8) with rip := returnAddress }

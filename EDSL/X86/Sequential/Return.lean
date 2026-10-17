@@ -62,7 +62,7 @@ theorem execute_returned_only_ret {initial final : State}
       exact congrArg Sequential.Instruction.legacy (legacy_returned_only_ret result)
   | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | storeMem32 _ _ | loadMem64 _ _ | storeMem64 _ _
   | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addImm64 _ _
-  | inc64 _ | dec64 _ | je _ | jmp _ =>
+  | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ =>
     obtain ⟨middle, next⟩ := execute_new_next rfl actual
     rw [returned] at next
     cases next

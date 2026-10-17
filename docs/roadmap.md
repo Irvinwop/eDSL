@@ -104,6 +104,11 @@ Six final GCC/Clang comparison clients and three independent scalar comparison
 tasks now compose that foundation with current code/caller-slot resources and
 raw/ELF proof grading. See [comparison scope](comparison64.md).
 Memory CMOV remains future work; see [conditional move scope](sequential-cmov64.md).
+All sixteen unprefixed short Jcc conditions now share the existing condition
+semantics, signed-rel8 execution, dynamic/static CFG edge proofs and same-world
+code/caller-slot resource composition. JE and legacy JNZ keep their decoder
+identities. Near/prefixed forms and additional compiler-loop contracts remain
+future work; see [short-branch scope](sequential-short-jcc.md).
 The direct StoreReturn32 certificate API now proves both selected compiler
 store/copy orderings and a copied-RAX variant against a stronger full-pointer
 return post, with checked OS evolution and exact accounting. The distinct

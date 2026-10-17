@@ -68,6 +68,7 @@ def instruction : Instruction → String
   | .inc64 destination => s!"(.inc64 {register destination})"
   | .dec64 destination => s!"(.dec64 {register destination})"
   | .je value => s!"(.je {value.toNat})"
+  | .jcc status value => s!"(.jcc {condition status} {value.toNat})"
   | .jmp value => s!"(.jmp {value.toNat})"
 
 end EDSL.X86.Sequential.Literals

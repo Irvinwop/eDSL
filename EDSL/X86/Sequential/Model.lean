@@ -54,6 +54,9 @@ inductive Instruction where
   | inc64 (destination : Register)
   | dec64 (destination : Register)
   | je (displacement : Byte)
+  /-- Short conditional control flow using the incoming architectural flags.
+  Decoder compatibility retains opcode 74 as `je` and opcode 75 as legacy JNZ. -/
+  | jcc (condition : Condition) (displacement : Byte)
   | jmp (displacement : Byte)
   deriving DecidableEq, Repr
 

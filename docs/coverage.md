@@ -9,6 +9,9 @@ all-choice termination, current read resources and exact operand footprints.
 The reusable read-only CFG layer checks finite control flow and composes local
 Lean obligations for independently supplied contracts; its importer establishes
 static graph facts, with functional proof obligations still explicit.
+Its [short conditional branches](sequential-short-jcc.md) cover all sixteen
+unprefixed rel8 conditions, checked dynamic CFG edges, exact context framing
+and retention of the same current code/caller-slot resource world.
 Its GCC stride-two instance proves the independent even-index modular sum,
 all-choice termination, full ABI/memory framing, current OS read permissions,
 exact `6*count+4` instructions and ordered operand reads. Its two-loop instance
@@ -130,7 +133,7 @@ physical execution remains a model/physical-conformance boundary.
 The separate `X86.Sequential` decoder embeds legacy instructions and adds
 parameterized XOR-self32, TEST64, CMP64, ADD-memory32, ADD-register64, LEA64,
 MOV-register32/64, XCHG-register64,
-MOV-load32/64, MOV-store32/64, ADD-immediate64, INC64, DEC64, JE and JMP families.
+MOV-load32/64, MOV-store32/64, ADD-immediate64, INC64, DEC64, short Jcc and JMP families.
 Register-only MOV64, ADD64 and ModRM XCHG64 cover all 16 GPRs with REX.W/R/B and ignored X.
 TEST/CMP, immediate ADD, INC/DEC and MOV32 register operands use the eight lower GPRs. Supported memory operands use
 full-width base/SIB addressing with explicit
@@ -156,6 +159,11 @@ order. A pure-call resource bridge requires only current code/caller-slot loans
 and derives actual CMOV and RET steps without unrelated target ownership.
 Memory CMOV, narrower forms and extra prefixes reject. See
 [conditional moves](sequential-cmov64.md) for scope and finite native evidence.
+Unprefixed `70..7F` short Jcc includes all sixteen conditions with signed rel8
+targets and exact register/flag/RAM framing. JE and legacy JNZ retain their
+representations. CFGs include both edges, while the pure-call OS bridge keeps
+the same current world and original loans. Near and prefixed forms reject;
+see [short conditional branches](sequential-short-jcc.md).
 The separate 64-bit store intent cannot be admitted as read-only or by the
 existing 32-bit effect policies; data read authority retains its actual width.
 OS cell projection, single-allocation ownership, whole-allocation read-loan

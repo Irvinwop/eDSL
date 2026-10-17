@@ -105,6 +105,8 @@ jobs:
           lake env lean -DwarningAsError=true tests/SequentialArithmetic64Resources.lean
           lake env lean -DwarningAsError=true tests/SequentialCmov64.lean
           lake env lean -DwarningAsError=true tests/SequentialCmov64Resources.lean
+          lake env lean -DwarningAsError=true tests/SequentialJcc.lean
+          lake env lean -DwarningAsError=true tests/SequentialJccResources.lean
           lake env lean -DwarningAsError=true tests/Comparison64.lean
           lake env lean -DwarningAsError=true tests/GradingComparison64.lean
           lake env lean -DwarningAsError=true tests/StoreLoad64.lean
