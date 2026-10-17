@@ -31,6 +31,11 @@ inductive Instruction where
   | movReg32 (destination source : Register)
   /-- A full-width register copy, encoded with one REX.W prefix. -/
   | movReg64 (destination source : Register)
+  /-- Full-width effective-address arithmetic. It performs no data access and
+  preserves every flag, including when the computed value is noncanonical. -/
+  | lea64 (destination : Register) (address : Address)
+  /-- Register-register addition with full-width result and arithmetic flags. -/
+  | addReg64 (destination source : Register)
   /-- Full-width register exchange using the ModRM encoding. -/
   | xchgReg64 (left right : Register)
   /-- Full-width exchange with RAX using the opcode-register encoding. -/

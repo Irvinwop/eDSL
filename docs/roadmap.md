@@ -89,6 +89,12 @@ wide stores rather than treating them as read-only. Exact GNU23/GNU++26 output
 has direct raw/ELF certificates. [Eight-byte memory scope](memory64.md) and
 [encoding, aliasing and resource scope](sequential-moves.md) remain
 explicit; the concurrent backends retain their original instruction subset.
+LEA64 and register ADD64 now extend this sequential ISA with pre-state
+aliasing, full64 results and current-world resource frames. LEA is pure
+address arithmetic; register ADD defines the six arithmetic flags. These
+operations supply ISA coverage for direct-add compiler probes, whose complete
+independent result/resource proofs remain a subsequent client milestone.
+See [arithmetic scope](sequential-arithmetic64.md).
 The direct StoreReturn32 certificate API now proves both selected compiler
 store/copy orderings and a copied-RAX variant against a stronger full-pointer
 return post, with checked OS evolution and exact accounting. The distinct

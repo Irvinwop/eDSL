@@ -54,8 +54,50 @@ theorem legacy_decodeAt_transport {source destination : State} {instruction : X8
       | intro value
   exact refinement instruction decoded
 
-/-- The new decoder has the same success-preserving property when its fallback
-error is fixed. That error cannot itself yield a successful instruction. -/
+private theorem decodeAddressAt_refines {source destination : State} (modrm : Byte)
+    (transport : SuccessfulFetchTransport source destination) :
+    SuccessRefines (decodeAddressAt source modrm) (decodeAddressAt destination modrm) := by
+  have t2 := transport 2 (by decide)
+  unfold decodeAddressAt
+  repeat first
+    | exact SuccessRefines.refl _
+    | exact t2
+    | apply SuccessRefines.ite
+    | apply SuccessRefines.bind
+    | intro value
+
+private theorem decodeQWordAddressAt_refines {source destination : State} (rex modrm : Byte)
+    (transport : SuccessfulFetchTransport source destination) :
+    SuccessRefines (decodeQWordAddressAt source rex modrm) (decodeQWordAddressAt destination rex modrm) := by
+  have t3 := transport 3 (by decide)
+  unfold decodeQWordAddressAt
+  repeat first
+    | exact SuccessRefines.refl _
+    | exact t3
+    | apply SuccessRefines.ite
+    | apply SuccessRefines.bind
+    | intro value
+
+private theorem decodeREXWAt_refines {source destination : State} (rex : Byte)
+    (transport : SuccessfulFetchTransport source destination) :
+    SuccessRefines (decodeREXWAt source rex) (decodeREXWAt destination rex) := by
+  have t1 := transport 1 (by decide)
+  have t2 := transport 2 (by decide)
+  have t3 := transport 3 (by decide)
+  unfold decodeREXWAt
+  repeat first
+    | exact SuccessRefines.refl _
+    | exact t1
+    | exact t2
+    | exact t3
+    | exact decodeQWordAddressAt_refines _ _ transport
+    | apply SuccessRefines.ite
+    | apply SuccessRefines.bind
+    | intro value
+
+/-- New decoding, including LEA's SIB fetch and both register ADD directions,
+preserves success under the same fetch transport. A fixed fallback error
+cannot itself yield a successful instruction. -/
 theorem decodeNewAt_transport {source destination : State} {instruction : Instruction} (fault : Error)
     (transport : SuccessfulFetchTransport source destination)
     (decoded : decodeNewAt source fault = .ok instruction) :
@@ -66,13 +108,15 @@ theorem decodeNewAt_transport {source destination : State} {instruction : Instru
   have t3 := transport 3 (by decide)
   simp only [BitVec.add_zero] at t0
   have refinement : SuccessRefines (decodeNewAt source fault) (decodeNewAt destination fault) := by
-    unfold decodeNewAt decodeAddressAt decodeQWordAddressAt
+    unfold decodeNewAt
     repeat first
       | exact SuccessRefines.refl _
       | exact t0
       | exact t1
       | exact t2
       | exact t3
+      | exact decodeAddressAt_refines _ transport
+      | exact decodeREXWAt_refines _ transport
       | apply SuccessRefines.ite
       | apply SuccessRefines.bind
       | intro value
@@ -147,7 +191,8 @@ private theorem legacy_mov_decode_congr {source destination : State} {opcode mod
     simp [X86.decodeAt, sourceOpcode, destinationOpcode, sourceModrm, destinationModrm]
 
 /-- Transfer ANY successful decode to any memory/base preserving its successful
-fetches at offsets below five. No equality, readability, or permission premise
+fetches at offsets below five. The legacy-first selection remains unchanged,
+including legacy LEA successes. No equality, readability, or permission premise
 is imposed on unsuccessful source fetches, including bytes beyond a final RET. -/
 theorem decodeAt_transport {source destination : State} {instruction : Instruction}
     (transport : SuccessfulFetchTransport source destination)

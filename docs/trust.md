@@ -40,7 +40,12 @@ contract; universal choice coverage is a conservative model, without asserting
 that every stream occurs on hardware. Its generic ordinary MOV forms preserve
 all flags and evaluate addresses/source operands before updating the destination.
 Register copies distinguish zero-extended MOV32 from full-width MOV64. MOV64
-supports all 16 GPRs and adds no 64-bit memory operations.
+supports all 16 GPRs; its memory forms use separately checked eight-byte access
+and ownership contracts. LEA64 computes addresses without a data access or a
+canonicality check on the result, preserving all flags. Register ADD64 uses
+the full64 six-flag arithmetic contract. Their
+[conformance evidence](sequential-arithmetic64.md) remains finite; it does not
+establish the physical adequacy of the ISA model.
 The [current-resource bridge](sequential-moves.md) derives actual stores and loads
 from present authority, retaining complete RAM coupling and original code/stack
 loans through the actual instruction length. The full-pointer-copy/store/RET integration uses

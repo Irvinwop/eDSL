@@ -106,6 +106,8 @@ instructions exactly and adds these parameterized families:
 | ADD-memory32 | `03 /r`, mod=00 base or SIB address; read four bytes and zero-extend the 32-bit register result |
 | MOV-register32 | `89 /r` or `8b /r`, register mode; copy low32 and zero-extend into the full destination |
 | MOV-register64 | `48`–`4f` REX.W then `89 /r` or `8b /r`, register mode; copy the full source across all 16 GPRs |
+| LEA64 | REX.W `48`–`4f` then `8d /r`, mod=00 present base/SIB; full64 address arithmetic with no operand access and all flags preserved |
+| ADD-register64 | REX.W `48`–`4f` then `01 /r` or `03 /r`, register mode; full64 addition and all six arithmetic flags |
 | XCHG-register64 | `48`–`4f` then `87 /r` in register mode or `90+rd`; swap both original full 64-bit values, preserving all flags/RAM |
 | MOV-load32 | `8b /r`, mod=00 base or SIB address; actual four-byte read and zero-extended destination |
 | MOV-store32 | `89 /r`, mod=00 base or SIB address; actual checked four-byte store with all registers/flags preserved |
@@ -116,19 +118,24 @@ instructions exactly and adds these parameterized families:
 | JE | `74 rel8`, consume ZF and check a taken target |
 | JMP | `eb rel8`, check the relative target |
 
-Register-only MOV64 and ModRM XCHG64 use REX.R/B to select all 16 GPRs;
+Register-only MOV64, ADD64 and ModRM XCHG64 use REX.R/B to select all 16 GPRs;
 REX.X is ignored in register mode. Short XCHG64 uses B for the opcode register,
-ignores R/X and advances by two bytes. New arithmetic and MOV32 register operands use the eight lower GPRs.
+ignores R/X and advances by two bytes. TEST/CMP, immediate ADD, INC/DEC and
+MOV32 register operands use the eight lower GPRs.
 Memory ADD/MOV accepts no
 displacement: a plain base excludes encoded RSP/RBP; SIB supports scales
 1/2/4/8 with a present base and index, excludes index=4 and base=5, and evaluates
 both registers at 64 bits. Those 32-bit memory forms reject REX prefixes.
 MOV64 memory separately uses R/B/X for data/base/index across all 16 GPRs,
 including present R12 index with X=1, with checked eight-byte loads/stores and3/4-byte
-encodings. Displacements, RIP-relative and absent base/index still reject.
+encodings. LEA64 uses that address subset without accessing data or checking
+the computed value's canonicality. Displacements, RIP-relative and absent
+base/index still reject.
 The other listed 64-bit families require exact `48`; W=0 REX, repeated
 REX and extra prefixes reject. XCHG64 admits no memory operand or LOCK prefix.
 See [MOV/exchange scope and references](sequential-moves.md).
+The [arithmetic scope](sequential-arithmetic64.md) documents independent native
+conformance evidence; these ISA additions do not expand sum32's accepted shapes.
 The [eight-byte memory contract](memory64.md) retains a separate current OS
 authority discipline and never weakens the sum32 checker or32-bit effect policies.
 

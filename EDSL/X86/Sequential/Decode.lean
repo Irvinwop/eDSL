@@ -13,12 +13,13 @@ def Instruction.length : Instruction → Nat
   | .legacy .ret => 1
   | .legacy _ => 2
   | .xorSelf32 _ | .movReg32 _ _ | .xchgRax64 _ | .je _ | .jmp _ => 2
-  | .movReg64 _ _ | .xchgReg64 _ _ | .test64 _ _ | .cmp64 _ _ | .inc64 _ | .dec64 _ => 3
+  | .movReg64 _ _ | .addReg64 _ _ | .xchgReg64 _ _ | .test64 _ _ | .cmp64 _ _
+  | .inc64 _ | .dec64 _ => 3
   | .addMem32 _ (.base _) | .loadMem32 _ (.base _) | .storeMem32 (.base _) _ => 2
   | .addMem32 _ (.indexed _ _ _) | .loadMem32 _ (.indexed _ _ _)
   | .storeMem32 (.indexed _ _ _) _ => 3
-  | .loadMem64 _ (.base _) | .storeMem64 (.base _) _ => 3
-  | .loadMem64 _ (.indexed _ _ _) | .storeMem64 (.indexed _ _ _) _ => 4
+  | .lea64 _ (.base _) | .loadMem64 _ (.base _) | .storeMem64 (.base _) _ => 3
+  | .lea64 _ (.indexed _ _ _) | .loadMem64 _ (.indexed _ _ _) | .storeMem64 (.indexed _ _ _) _ => 4
   | .addImm64 _ _ => 4
 
 def Instruction.isNew : Instruction → Bool
@@ -88,10 +89,57 @@ def decodeQWordAddressAt (state : State) (rex modrm : Byte) : Except Error Addre
   else if modrm.toNat % 8 = 5 then throw .unsupportedEncoding
   else return .base (rexModRMRM rex modrm)
 
-/-- NEW subset only. Register/ordinary-memory MOV64 and register XCHG64 admit
-one REX.W prefix 48..4F, including R/B and the SIB index extension X. XCHG's
-short form uses B to extend its opcode register; unused R/X bits are ignored.
-Other 64-bit families retain exact prefix 48.
+/-- Continue after the enclosing decoder has recognized one REX.W prefix.
+All addressing restrictions and register-only ADD checks remain explicit. -/
+def decodeREXWAt (state : State) (opcode : Byte) : Except Error Instruction := do
+  let operation ← fetchByte state.memory (state.rip + 1)
+  if operation = 0x87 then
+    let modrm ← fetchByte state.memory (state.rip + 2)
+    if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
+    return .xchgReg64 (rexModRMRM opcode modrm) (rexModRMReg opcode modrm)
+  else if 0x90 ≤ operation.toNat ∧ operation.toNat ≤ 0x97 then
+    return .xchgRax64 (rexModRMRM opcode operation)
+  else if operation = 0x89 ∨ operation = 0x8b then
+    let modrm ← fetchByte state.memory (state.rip + 2)
+    if modrm.toNat / 64 = 3 then
+      return if operation = 0x89 then .movReg64 (rexModRMRM opcode modrm) (rexModRMReg opcode modrm)
+        else .movReg64 (rexModRMReg opcode modrm) (rexModRMRM opcode modrm)
+    else
+      let address ← decodeQWordAddressAt state opcode modrm
+      return if operation = 0x89 then .storeMem64 address (rexModRMReg opcode modrm)
+        else .loadMem64 (rexModRMReg opcode modrm) address
+  else if operation = 0x8d then
+    let modrm ← fetchByte state.memory (state.rip + 2)
+    return .lea64 (rexModRMReg opcode modrm) (← decodeQWordAddressAt state opcode modrm)
+  else if operation = 0x01 ∨ operation = 0x03 then
+    let modrm ← fetchByte state.memory (state.rip + 2)
+    if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
+    return if operation = 0x01 then .addReg64 (rexModRMRM opcode modrm) (rexModRMReg opcode modrm)
+      else .addReg64 (rexModRMReg opcode modrm) (rexModRMRM opcode modrm)
+  else if opcode ≠ 0x48 then throw .unsupportedEncoding
+  else if operation = 0x85 ∨ operation = 0x39 then
+    let modrm ← fetchByte state.memory (state.rip + 2)
+    if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
+    return if operation = 0x85 then .test64 (modRMRM modrm) (modRMReg modrm)
+      else .cmp64 (modRMRM modrm) (modRMReg modrm)
+  else if operation = 0x83 then
+    let modrm ← fetchByte state.memory (state.rip + 2)
+    if modrm.toNat / 64 ≠ 3 ∨ modrm.toNat / 8 % 8 ≠ 0 then throw .unsupportedEncoding
+    return .addImm64 (modRMRM modrm) (← fetchByte state.memory (state.rip + 3))
+  else if operation = 0xff then
+    let modrm ← fetchByte state.memory (state.rip + 2)
+    if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
+    if modrm.toNat / 8 % 8 = 0 then return .inc64 (modRMRM modrm)
+    else if modrm.toNat / 8 % 8 = 1 then return .dec64 (modRMRM modrm)
+    else throw .unsupportedEncoding
+  else throw .unsupportedEncoding
+
+/-- NEW subset only. MOV64, LEA64, register ADD64 and register XCHG64 admit
+one REX.W prefix 48..4F, including R/B and the SIB index extension X. Register
+ADD ignores X and rejects memory forms. LEA uses the existing mod=00 address
+subset to compute a value without a data access. XCHG's short form uses B to
+extend its opcode register; unused R/X bits are ignored. Other 64-bit families
+retain exact prefix 48.
 Register ModRM for XOR/TEST/CMP/INC/DEC/ADD-immediate, unprefixed MOV32, and mod=00
 ordinary ADD/MOV-memory addresses.
 SIB allows all scales, no missing index (index=4), no missing base (base=5),
@@ -105,39 +153,7 @@ def decodeNewAt (state : State) (oldError : Error) : Except Error Instruction :=
       throw .unsupportedEncoding
     return .xorSelf32 (modRMRM modrm)
   else if rexWPrefix opcode then
-    let operation ← fetchByte state.memory (state.rip + 1)
-    if operation = 0x87 then
-      let modrm ← fetchByte state.memory (state.rip + 2)
-      if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
-      return .xchgReg64 (rexModRMRM opcode modrm) (rexModRMReg opcode modrm)
-    else if 0x90 ≤ operation.toNat ∧ operation.toNat ≤ 0x97 then
-      return .xchgRax64 (rexModRMRM opcode operation)
-    else if operation = 0x89 ∨ operation = 0x8b then
-      let modrm ← fetchByte state.memory (state.rip + 2)
-      if modrm.toNat / 64 = 3 then
-        return if operation = 0x89 then .movReg64 (rexModRMRM opcode modrm) (rexModRMReg opcode modrm)
-          else .movReg64 (rexModRMReg opcode modrm) (rexModRMRM opcode modrm)
-      else
-        let address ← decodeQWordAddressAt state opcode modrm
-        return if operation = 0x89 then .storeMem64 address (rexModRMReg opcode modrm)
-          else .loadMem64 (rexModRMReg opcode modrm) address
-    else if opcode ≠ 0x48 then throw .unsupportedEncoding
-    else if operation = 0x85 ∨ operation = 0x39 then
-      let modrm ← fetchByte state.memory (state.rip + 2)
-      if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
-      return if operation = 0x85 then .test64 (modRMRM modrm) (modRMReg modrm)
-        else .cmp64 (modRMRM modrm) (modRMReg modrm)
-    else if operation = 0x83 then
-      let modrm ← fetchByte state.memory (state.rip + 2)
-      if modrm.toNat / 64 ≠ 3 ∨ modrm.toNat / 8 % 8 ≠ 0 then throw .unsupportedEncoding
-      return .addImm64 (modRMRM modrm) (← fetchByte state.memory (state.rip + 3))
-    else if operation = 0xff then
-      let modrm ← fetchByte state.memory (state.rip + 2)
-      if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
-      if modrm.toNat / 8 % 8 = 0 then return .inc64 (modRMRM modrm)
-      else if modrm.toNat / 8 % 8 = 1 then return .dec64 (modRMRM modrm)
-      else throw .unsupportedEncoding
-    else throw .unsupportedEncoding
+    decodeREXWAt state opcode
   else if opcode = 0x03 then
     let modrm ← fetchByte state.memory (state.rip + 1)
     return .addMem32 (modRMReg modrm) (← decodeAddressAt state modrm)
@@ -180,9 +196,9 @@ theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.len
   cases instruction with
   | legacy old => cases old <;> simp [Instruction.length]
   | addMem32 destination address | loadMem32 destination address | storeMem32 address destination
-  | loadMem64 destination address | storeMem64 address destination =>
+  | lea64 destination address | loadMem64 destination address | storeMem64 address destination =>
     cases address <;> simp [Instruction.length]
-  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
+  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
   | test64 _ _ | cmp64 _ _ | addImm64 _ _
   | inc64 _ | dec64 _ | je _ | jmp _ => simp [Instruction.length]
 
@@ -190,9 +206,9 @@ theorem Instruction.length_le_five (instruction : Instruction) : instruction.len
   cases instruction with
   | legacy old => cases old <;> simp [Instruction.length]
   | addMem32 destination address | loadMem32 destination address | storeMem32 address destination
-  | loadMem64 destination address | storeMem64 address destination =>
+  | lea64 destination address | loadMem64 destination address | storeMem64 address destination =>
     cases address <;> simp [Instruction.length]
-  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
+  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
   | test64 _ _ | cmp64 _ _ | addImm64 _ _
   | inc64 _ | dec64 _ | je _ | jmp _ => simp [Instruction.length]
 

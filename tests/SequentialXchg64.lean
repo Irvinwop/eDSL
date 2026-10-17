@@ -143,7 +143,7 @@ theorem modrm_complete_context (registers : Register → Word) (flags : Word) (d
       (entry [0x4e,0x87,0xe4] registers flags data).memory,flags,4099,[]) := by
   have decoded : Sequential.decodeAt (entry [0x4e,0x87,0xe4] registers flags data) =
       .ok (.xchgReg64 .rsp .r12) := by
-    simp [Sequential.decodeAt, X86.decodeAt, Sequential.decodeNewAt, entry,
+    simp [Sequential.decodeAt, X86.decodeAt, Sequential.decodeNewAt, Sequential.decodeREXWAt, entry,
       fetchByte, canonical, Sequential.rexWPrefix, Sequential.rexModRMReg,
       Sequential.rexModRMRM, Sequential.highRegister, Sequential.modRMRM, Sequential.lowRegister]
   unfold nextView
@@ -161,7 +161,7 @@ theorem short_complete_context (registers : Register → Word) (flags : Word) (d
       (entry [0x4e,0x94] registers flags data).memory,flags,4098,[]) := by
   have decoded : Sequential.decodeAt (entry [0x4e,0x94] registers flags data) =
       .ok (.xchgRax64 .rsp) := by
-    simp [Sequential.decodeAt, X86.decodeAt, Sequential.decodeNewAt, entry,
+    simp [Sequential.decodeAt, X86.decodeAt, Sequential.decodeNewAt, Sequential.decodeREXWAt, entry,
       fetchByte, canonical, Sequential.rexWPrefix, Sequential.rexModRMRM,
       Sequential.modRMRM, Sequential.lowRegister]
   unfold nextView

@@ -123,6 +123,11 @@ Implemented and checked:
   full-pointer copies with actual loads/stores and retain the code, stack and
   outside memory frames through the decoded instruction length. See
   [MOV and OS resource scope](docs/sequential-moves.md).
+- LEA64 address arithmetic and register ADD64 in that sequential backend.
+  LEA preserves all flags and computes without a data access, including
+  noncanonical values; ADD defines all six arithmetic flags. Both retain
+  complete RAM and current OS authority under register aliasing. See
+  [arithmetic scope](docs/sequential-arithmetic64.md).
 - Full 64-bit memory loads/stores with complete eight-byte checks and extended
   base/SIB addressing. Owner/epoch authority, read-only borrowing and checked
   histories retain outside cells, permissions and live loans. Direct raw/ELF
@@ -327,6 +332,7 @@ bash scripts/verify-futex.sh
 bash scripts/verify-futex-clients.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
+EDSL_CLANG=clang-18 bash scripts/verify-sequential-arithmetic64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return32.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return-grading.sh
 EDSL_GCC=gcc-13 bash scripts/verify-store-return-xchg.sh

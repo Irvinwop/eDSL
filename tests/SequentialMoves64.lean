@@ -149,7 +149,7 @@ theorem complete_context (registers : Register → Word) (flags : Word) (data : 
       (entry [0x4f,0x89,0xd8] registers flags data).memory, flags, 4099, []) := by
   have decoded : Sequential.decodeAt (entry [0x4f,0x89,0xd8] registers flags data) =
       .ok (.movReg64 .r8 .r11) := by
-    simp [Sequential.decodeAt, X86.decodeAt, Sequential.decodeNewAt, entry,
+    simp [Sequential.decodeAt, X86.decodeAt, Sequential.decodeNewAt, Sequential.decodeREXWAt, entry,
       fetchByte, canonical, Sequential.rexWPrefix, Sequential.rexModRMReg,
       Sequential.rexModRMRM, Sequential.highRegister]
   unfold nextView
