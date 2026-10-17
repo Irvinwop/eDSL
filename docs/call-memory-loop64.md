@@ -1,8 +1,9 @@
 # Counted helper calls with DATA8 and a private stack
 
-`EDSL.CallMemoryLoop64` proves two complete compiler outputs that repeatedly
-call a store/reload helper while preserving saved registers in mutable stack
-RAM. Both meet one independent mathematical contract for every full64 value
+`EDSL.CallMemoryLoop64` defines one independent mathematical contract, proved
+by two complete nested compiler outputs and two distinct closed-form clients.
+The nested outputs repeatedly call a store/reload helper while preserving
+saved registers in mutable stack RAM. All four cover every full64 value
 `x` and count `n`, including zero and `2^64-1`, every old DATA word and every
 undefined-AF choice stream:
 
@@ -19,11 +20,13 @@ loan metadata. Both owner capabilities remain current and usable. Private
 contents may change; the frame is the provided allocation, including any
 capacity beyond the bytes these clients use.
 
-Both universal compiler claims have successful pinned Lean 4.35.0 builds with
+The universal compiler claims have successful pinned Lean 4.35.0 builds with
 warnings as errors. Their audited theorem dependencies use only `propext`,
 `Classical.choice` and `Quot.sound`. The default combined gate requires fresh
 compiler-byte binding, native observations, dependency audits, fresh kernel
-replay and a complete source/provenance snapshot.
+replay, raw/full-ELF proof grading and a complete source/provenance snapshot.
+The [standalone fixed grader](call-memory-loop64-grading.md) checks this same
+contract without requiring a loop or intermediate DATA writes.
 
 ## Present resources and stack high-water mark
 
@@ -107,20 +110,41 @@ The generic `OS.CallMemory64.Cutpoints.Certificate` is also implemented, with
 local actual-step obligations, current worlds, static segment depths and a
 decreasing natural rank. Its checked client uses the existing inline
 store/LEA/RET program to prove the independent DATA/result/ABI contract and
-prefix composition. The two new compiler proofs use covered histories and
+prefix composition. The two nested compiler proofs use covered histories and
 direct remaining-count induction; they do not instantiate that certificate.
+
+## Distinct closed-form clients
+
+`fixtures/call-memory-loop64-closed-form.c` uses the unchanged GNU23 `-Os`
+compiler/linker profile to compute `result = x+n`, store `result-1` when
+`n != 0`, and return `result`. GCC 13 emits 17 bytes and Clang 18 emits 19,
+both with entry 0 and no helper. They prove the same full64 contract and
+current-resource obligations, including the 32-byte private capacity and
+actual old DATA retention at zero. Acceptance specifies final outputs and
+resources; it requires neither a CALL, target read nor intermediate stores.
+
+Import `tests.fixtures.CallMemoryLoop64.ClosedForm` for
+`EDSL.CallMemoryLoop64.ClosedForm.claim` with `Profile.gcc` or `Profile.clang`.
+Its `covered`, `evaluated` and `actual` theorems retain the same evolved world,
+return and resource frame. Separate exact model costs are four/six
+instructions for zero/nonzero GCC input and five/seven for Clang. These prove
+no global minimum, cycles or micro-ops. Closed named aliases for packet export
+are in `tests.fixtures.CallMemoryLoop64ClosedFormExports`; see
+[build, export and raw/ELF grading commands](call-memory-loop64-grading.md#clients-and-commands).
+These clients receive universal proofs and proof grading, with no closed-form
+native observation or C/volatile source-preservation claim.
 
 ## Reproduction and evidence boundaries
 
-On Linux x86-64, the default integration interface requires both formal and
-native phases:
+On Linux x86-64, the default integration interface requires native, formal and
+grading phases with a stable public source snapshot:
 
 ```sh
 bash scripts/verify-call-memory-loop64.sh
 ```
 
-Explicit native-only mode skips the universal proof phase and reports
-`formal=NOTRUN`:
+Explicit native-only mode skips both formal and grading phases and reports
+`formal=NOTRUN` and `grading=NOTRUN`:
 
 ```sh
 bash scripts/verify-call-memory-loop64.sh --native-only
@@ -137,12 +161,32 @@ bash scripts/check-call-memory-loop64-proofs.sh OUTPUT GCC_TEXT CLANG_TEXT
 It embeds decimal byte literals from those files, checks their binding to both
 closed claims, derives execution for arbitrary current resources and the
 reachable domain, audits dependencies and replays the generated module and
-imports in a fresh kernel. Full ELF files provide compile/link/entry/extraction
-provenance here. This milestone adds no full-ELF artifact `Claim`, grader task
-or CLI; existing grader propositions, limits and foundational imports retain
-their scope. The combined gate joins these phases with a complete source
-snapshot and provenance; individual proof builds and a native-only report
-provide separate evidence for their respective phases.
+imports, including the closed-form proofs, in a fresh kernel. The grading
+helper also requires the linked
+`function.elf` beside each raw extraction. Its caller holds the Lean lock:
+
+```sh
+flock /tmp/edsl-lean-build.lock \
+  bash scripts/check-call-memory-loop64-grading.sh OUTPUT GCC_TEXT CLANG_TEXT
+```
+
+This gate requires both nested raw/ELF pairs and freshly compiled closed-form
+raw/ELF pairs to pass in separate CLI processes at unchanged default budgets.
+It also requires dependency audits, artifact/protocol/binding negatives,
+import isolation, legitimate container reuse, and source/input/installation
+stability. The parent acquires this lock
+only for grading; never wrap the self-locking formal helper in another Lean
+lock. Use fresh output directories for the helpers.
+
+`EDSL.Grading.CallMemoryLoop64.Artifact.Claim` binds successful pure selection
+of the entire literal raw/ELF file, span and entry to the unchanged counted
+program claim. The shared CallStack selector and existing task propositions
+and budgets retain their scope; matching driver/exporter foundational imports
+now include the generic counted artifact and resource infrastructure. No
+compiler fixture is a trusted import. The callable theorem assumes current
+admitted resources, without claiming ELF startup or other-segment/process
+safety. Individual proof builds and native-only reports remain evidence for
+their respective phases, not completion of the combined gate.
 
 Two independent GCC 13/Clang 18 observer builds authenticate both complete input
 files and both end-bounded embedded 45/52-byte slots before output admission or
@@ -158,8 +202,9 @@ stack and DATA pages. Checks cover the original return word, ABI, endpoint
 mapping permissions and every observed page byte outside the union. Owned
 synthetic mutants exercise skipped iterations, missing stores, stale reloads,
 outside-DATA writes and callee-saved damage. Extraction and embedded-slot
-mutations must reject before observation. Native-only evidence reports
-`formal=NOTRUN`; no native inline or closed-form client is claimed.
+mutations must reject before observation. The parent native-only report records
+`formal=NOTRUN` and `grading=NOTRUN`; no native inline or closed-form client is
+claimed.
 
 ## Target assumptions and limits
 

@@ -5,6 +5,11 @@ the exact supplied artifact. The candidate chooses code and proof; registration
 fixes the input domain, mathematical result, return/ABI frame, OS resources and
 effect policy. It cannot submit a replacement postcondition or extra premise.
 
+The separate [`edsl-grade-call-memory-loop64`](call-memory-loop64-grading.md)
+controller checks the full64 counted DATA8 contract with current DATA and
+private-stack resources. Nested and closed-form compiler clients prove the
+same final-output contract; their instruction costs remain separate results.
+
 The registry contains `pair32` (the modular sum of both mathematical lists),
 `stride32` (the modular sum of the even-indexed input words), `write32`
 (store the low 32 bits of the full-width argument at the fixed input pointer),

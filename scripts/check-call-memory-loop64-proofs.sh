@@ -109,6 +109,7 @@ phase_pass inputs
 
 phase_begin build
 run lake build tests.fixtures.CallMemoryLoop64.Audit \
+    tests.fixtures.CallMemoryLoop64.ClosedForm.Audit tests.fixtures.CallMemoryLoop64ClosedFormExports \
     > "$output/build.log" 2>&1
 phase_pass build
 
@@ -118,6 +119,8 @@ cat > "$source_file" <<'LEAN'
 import tests.fixtures.CallMemoryLoop64.GCC
 import tests.fixtures.CallMemoryLoop64.Clang
 import tests.fixtures.CallMemoryLoop64.Audit
+import tests.fixtures.CallMemoryLoop64.ClosedForm.Audit
+import tests.fixtures.CallMemoryLoop64ClosedFormExports
 import EDSL.Audit
 set_option warningAsError true
 namespace EDSL.CallMemoryLoop64.Observed

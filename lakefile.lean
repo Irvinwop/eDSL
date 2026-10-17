@@ -43,6 +43,9 @@ lean_exe «edsl-grade-call-stack» where
 lean_exe «edsl-grade-call-memory64» where
   root := `CallMemory64GradeMain
 
+lean_exe «edsl-grade-call-memory-loop64» where
+  root := `CallMemoryLoop64GradeMain
+
 lean_exe «edsl-proof-export» where
   root := `ExportMain
 

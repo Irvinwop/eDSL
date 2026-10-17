@@ -93,13 +93,20 @@ theorem depth_nat {d : OS.CallMemory64.Descriptor} {w : Borrowing.State} {s : St
     exact below
   rw [BitVec.toNat_sub_of_le le, wordNat]
 
+private theorem sub_slot_gap {top a b : Nat} (below : b ≤ top) (gap : a + 8 ≤ b) :
+    top - b + 8 ≤ top - a :=
+  Nat.le_sub_of_add_le (calc
+    top - b + 8 + a = top - b + (a + 8) := by
+      rw [Nat.add_assoc, Nat.add_comm 8 a]
+    _ ≤ top - b + b := Nat.add_le_add_left gap _
+    _ = top := Nat.sub_add_cancel below)
+
 theorem slots_disjoint {d : OS.CallMemory64.Descriptor} {w : Borrowing.State} {s : State}
     (current : OS.CallMemory64.Current d w s) (capacity : 32 ≤ d.frame.capacity)
     {a b : Nat} (aBound : a ≤ 32) (bBound : b ≤ 32)
     (gap : a + 8 ≤ b ∨ b + 8 ≤ a) :
     Ownership.Disjoint (AddressSpace.qwordRegion (d.frame.top - BitVec.ofNat 64 a))
       (AddressSpace.qwordRegion (d.frame.top - BitVec.ofNat 64 b)) := by
-  have top := current.contract.stack.topBound
   have first := depth_nat current capacity aBound
   have last := depth_nat current capacity bBound
   change (d.frame.top - BitVec.ofNat 64 a).toNat + 8 ≤
@@ -107,7 +114,11 @@ theorem slots_disjoint {d : OS.CallMemory64.Descriptor} {w : Borrowing.State} {s
     (d.frame.top - BitVec.ofNat 64 b).toNat + 8 ≤
       (d.frame.top - BitVec.ofNat 64 a).toNat
   rw [first, last]
-  omega
+  cases gap with
+  | inl gap => exact Or.inr (sub_slot_gap
+      (Nat.le_trans bBound (Nat.le_trans capacity current.contract.stack.topBound)) gap)
+  | inr gap => exact Or.inl (sub_slot_gap
+      (Nat.le_trans aBound (Nat.le_trans capacity current.contract.stack.topBound)) gap)
 
 theorem slot {d : OS.CallMemory64.Descriptor} {w : Borrowing.State} {s : State}
     (current : OS.CallMemory64.Current d w s) (capacity : 32 ≤ d.frame.capacity)
@@ -133,10 +144,11 @@ theorem Saved.private {d : OS.CallMemory64.Descriptor} {w v : Borrowing.State}
   refine ⟨?_, ?_⟩
   · exact (OS.CallMemory64.store64_preserves_private first last effect
       (slot first capacity (by decide : 8 ≤ 8) (by decide))
-      (slots_disjoint first capacity upper (by decide : 8 ≤ 32) (by omega))).trans saved.high
+      (slots_disjoint first capacity upper (by decide : 8 ≤ 32)
+        (Or.inr (Nat.le_trans (by decide : 16 ≤ 24) lower)))).trans saved.high
   · exact (OS.CallMemory64.store64_preserves_private first last effect
       (slot first capacity (by decide : 8 ≤ 16) (by decide))
-      (slots_disjoint first capacity upper (by decide : 16 ≤ 32) (by omega))).trans saved.low
+      (slots_disjoint first capacity upper (by decide : 16 ≤ 32) (Or.inr lower))).trans saved.low
 
 theorem Saved.data {d : OS.CallMemory64.Descriptor} {w v : Borrowing.State}
     {s t : State} {a b value : Word} (saved : Saved d a b s)
@@ -168,7 +180,8 @@ theorem je_one {d : OS.CallMemory64.Descriptor} {w : Borrowing.State} {s : State
     (pc : s.rip = d.frame.call.code + 6) (zero : s.flags.getLsbD 6 = true) (af : Bool) :
     One d af w w s (jump s (d.frame.call.code + 44)) := by
   have target : s.rip + 2 + (0x24 : Byte).signExtend 64 = d.frame.call.code + 44 := by
-    simp [pc, BitVec.add_assoc]
+    simp only [pc, BitVec.add_assoc]
+    congr 1
   have canon : canonical (d.frame.call.code + 44) = true :=
     Sequential.code_canonical_offset (current_code current same) 44 (by decide)
   apply plain_one current same
@@ -197,20 +210,32 @@ theorem jnz_one {d : OS.CallMemory64.Descriptor} {w : Borrowing.State} {s : Stat
     (zero : s.flags.getLsbD 6 = (BitVec.ofNat 64 n == (0 : Word))) (af : Bool) :
     One d af w w s (jump s (d.frame.call.code + if n = 0 then 37 else 18)) := by
   have target : s.rip + 2 + (0xed : Byte).signExtend 64 = d.frame.call.code + 18 := by
-    simp [pc, BitVec.add_assoc]
+    simp only [pc, BitVec.add_assoc]
+    congr 1
+  have fallthrough : s.rip + 2 = d.frame.call.code + 37 := by
+    rw [pc, BitVec.add_assoc]
+    rfl
   have canon : canonical (d.frame.call.code + 18) = true :=
     Sequential.code_canonical_offset (current_code current same) 18 (by decide)
   apply plain_one current same
     (by decide : (35, .sequential (.legacy (.jnz 0xed))) ∈ Compiler.sites .clangSeparate) pc
-  · rw [CallReturn.execute_sequential, Sequential.execute_shortBranch_form s (.notEqual 0xed) af]
+  · rw [CallReturn.execute_sequential,
+      Sequential.execute_shortBranch_context s (.notEqual 0xed)
+        (fun _ => (congrArg canonical target).trans canon) af]
     by_cases empty : n = 0
-    · subst n
-      simp [Sequential.Condition.holds, -BitVec.getLsbD_eq_getElem, zero,
-        executeShortBranch, jump, pc, BitVec.add_assoc]
+    · have condition : Sequential.Condition.notEqual.holds s.flags = false := by
+        change (!s.flags.getLsbD 6) = false
+        rw [zero, (ofNat_zero_iff bound).mpr empty]
+        rfl
+      simp only [Sequential.shortBranchTarget, condition, Bool.false_eq_true, ↓reduceIte,
+        jump, ite_eq_left empty, fallthrough]
     · have nonzero : (BitVec.ofNat 64 n : Word) ≠ 0 := fun h => empty ((ofNat_zero_iff bound).mp h)
-      simp only [Sequential.Condition.holds, zero,
-        beq_eq_false_iff_ne.mpr nonzero, Bool.not_false, executeShortBranch, ↓reduceIte,
-        target, canon, ok_bind, pure_ok, jump, ite_eq_right empty]
+      have condition : Sequential.Condition.notEqual.holds s.flags = true := by
+        change (!s.flags.getLsbD 6) = true
+        rw [zero, beq_eq_false_iff_ne.mpr nonzero]
+        rfl
+      simp only [Sequential.shortBranchTarget, condition, ↓reduceIte,
+        target, jump, ite_eq_right empty]
   · rfl
   · rfl
 

@@ -131,22 +131,27 @@ theorem body {resource : Resources} {initial state : State} {shared : Shared} {r
         ((frame_load s6 _).trans ((frame_finish s7 _).trans ((frame_advance s8).trans (frame_pc s9 _))))))))))
   refine ⟨w6, s10, _, history, c10, ?_⟩
   refine ⟨rfl, ?_, ?_, ?_, ?_, ?_, ?_, saved10, frame⟩
-  · change (state.registers .rsp - 8) + 8 = resource.descriptor.frame.top - 24
+  · as_aux_lemma =>
+    change (state.registers .rsp - 8) + 8 = resource.descriptor.frame.top - 24
     simpa only [BitVec.sub_add_cancel] using inv.stack
   · exact inv.pointer
-  · change (state.registers .rbx - 1).toNat = remaining
+  · as_aux_lemma =>
+    change (state.registers .rbx - 1).toNat = remaining
     have enough : (1 : Word) ≤ state.registers .rbx := by
       change 1 ≤ (state.registers .rbx).toNat
       rw [inv.counter]
       omega
     rw [BitVec.toNat_sub_of_le enough, inv.counter]
     simp
-  · change (state.registers .rsi + 1) + BitVec.ofNat 64 remaining = resource.value + resource.count
+  · as_aux_lemma =>
+    change (state.registers .rsi + 1) + BitVec.ofNat 64 remaining = resource.value + resource.count
     rw [accumulator_step]
     exact inv.total
-  · have bound := inv.remaining_le
+  · as_aux_lemma =>
+    have bound := inv.remaining_le
     omega
-  · change readWord s6.memory resource.descriptor.target =
+  · as_aux_lemma =>
+    change readWord s6.memory resource.descriptor.target =
       if remaining = resource.count.toNat then readWord initial.memory resource.descriptor.target
       else .ok (state.registers .rsi + 1 - 1)
     have different : remaining ≠ resource.count.toNat := by have bound := inv.remaining_le; omega

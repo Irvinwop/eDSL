@@ -66,6 +66,7 @@ import EDSL.CallMemory64
 import EDSL.CallMemoryLoop64
 import EDSL.CallMemory64.Accounting
 import EDSL.Grading.CallMemory64.Artifact
+import EDSL.Grading.CallMemoryLoop64.Artifact
 import EDSL.OS.MutexReplay.Footprints
 import EDSL.Examples.StoreBuffer
 import EDSL.CounterCertificate

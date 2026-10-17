@@ -28,7 +28,7 @@ printf 'Counted DATA8 combined evidence: %s\n' "$output" >&2
 exec 3>"$output/commands.log" 4>"$output/command-status.tsv"
 sequence=0
 overall=FAIL
-phases=(syntax snapshot native formal source_stability)
+phases=(syntax snapshot native formal grading source_stability)
 declare -A phase_status
 for phase in "${phases[@]}"; do phase_status[$phase]=NOTRUN; done
 run() {
@@ -47,9 +47,9 @@ phase_begin() {
 phase_pass() { phase_status[$1]=PASS; }
 write_terminal() {
     local status=$1 phase
-    printf 'overall=%s native=%s formal=%s source_stability=%s native_only=%s\n' \
+    printf 'overall=%s native=%s formal=%s grading=%s source_stability=%s native_only=%s\n' \
         "$overall" "${phase_status[native]}" "${phase_status[formal]}" \
-        "${phase_status[source_stability]}" "$native_only" > "$output/result.txt"
+        "${phase_status[grading]}" "${phase_status[source_stability]}" "$native_only" > "$output/result.txt"
     printf 'phase\tstatus\n' > "$output/phase-status.tsv"
     for phase in "${phases[@]}"; do
         printf '%s\t%s\n' "$phase" "${phase_status[$phase]}" >> "$output/phase-status.tsv"
@@ -76,7 +76,7 @@ finish() {
     for phase in "${phases[@]}"; do
         if [[ ${phase_status[$phase]} == RUNNING ]]; then phase_status[$phase]=FAIL; fi
         if [[ ${phase_status[$phase]} != PASS ]]; then
-            if [[ $phase != formal || $native_only != true || ${phase_status[$phase]} != NOTRUN ]]; then
+            if [[ ($phase != formal && $phase != grading) || $native_only != true || ${phase_status[$phase]} != NOTRUN ]]; then
                 if [[ $status == 0 ]]; then status=1; fi
             fi
         fi
@@ -119,9 +119,9 @@ public_snapshot() {
 
 phase_begin syntax
 run bash -n scripts/verify-call-memory-loop64.sh scripts/verify-call-memory-loop64-native.sh \
-    scripts/check-call-memory-loop64-proofs.sh
+    scripts/check-call-memory-loop64-proofs.sh scripts/check-call-memory-loop64-grading.sh
 run shellcheck -s bash scripts/verify-call-memory-loop64.sh scripts/verify-call-memory-loop64-native.sh \
-    scripts/check-call-memory-loop64-proofs.sh > "$output/shellcheck.txt" 2>&1
+    scripts/check-call-memory-loop64-proofs.sh scripts/check-call-memory-loop64-grading.sh > "$output/shellcheck.txt" 2>&1
 phase_pass syntax
 
 phase_begin snapshot
@@ -135,16 +135,21 @@ native gate recompiles both separately linked owned GNU23 profiles, authenticate
 complete text before execution/output and retains bounded native observations.
 The formal phase independently binds the complete extracted raw bytes and entry
 zero to the universal callable contract, audits dependencies and replays in a
-fresh kernel. Native observation records are never proof premises. Full ELF is
-link/extraction provenance; no new ELF-loader or process-startup theorem is claimed.
-Default checking includes formal verification. Explicit --native-only reports
-formal=NOTRUN. Instruction costs are separate model results, without hardware
+fresh kernel. Native observation records are never proof premises. Grading
+checks nested and closed-form raw/full-ELF artifacts against the same fixed
+contract and kernel-checks the full literal file, span and entry selection.
+There is no process-startup or other-segment safety theorem. Default checking
+requires formal verification and grading. Explicit --native-only reports both
+formal=NOTRUN and grading=NOTRUN. Closed-form outputs receive proof grading;
+native observations remain limited to the nested profiles. Instruction costs
+are separate model results, without hardware
 cycle or micro-op claims. Ordinary sequential RAM, four-level canonical addresses,
 AC/CET-disabled execution and no asynchronous interference remain material
 physical correspondence assumptions. There is no source/IR or kernel refinement,
 concurrency, atomic, syscall, indirect-call or recursion claim from this slice.
 The final snapshot checks all public source bytes, paths, symlink targets and
-executable modes throughout this combined run. No new grader CLI is used.
+executable modes throughout this combined run. Each grade uses the fixed
+installed foundation and unchanged default limits in a new CLI process.
 SCOPE
 phase_pass snapshot
 
@@ -163,6 +168,13 @@ if ! $native_only; then
     run grep -Fx 'formal=PASS whole_texts=2 universal_closed_claims=true mixed_cpu_os_execution=true union_ram_frame=true fresh_kernel=true' \
         "$output/formal/result.txt" > "$output/formal-receipt.txt"
     phase_pass formal
+    phase_begin grading
+    # The grading helper relies on this caller-owned lock and never reacquires it.
+    run env LEAN_NUM_THREADS=1 flock /tmp/edsl-lean-build.lock \
+        bash scripts/check-call-memory-loop64-grading.sh "$output/grading" \
+        "$output/native/gcc13/separate-tu/text.bin" "$output/native/clang18/separate-tu/text.bin" \
+        > "$output/grading.log" 2>&1
+    phase_pass grading
 fi
 
 phase_begin source_stability

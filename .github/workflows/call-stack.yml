@@ -57,7 +57,7 @@ jobs:
           LEAN_NUM_THREADS: 1
           CALL_MEMORY64_EVIDENCE_ROOT: ${{ github.workspace }}/artifacts/call-memory64
         run: bash scripts/verify-call-memory64.sh
-      - name: Verify counted helper calls with current DATA8 and private-stack resources
+      - name: Verify and grade counted DATA8 compiler clients with current OS resources
         env:
           LEAN_NUM_THREADS: 1
           CALL_MEMORY_LOOP64_EVIDENCE_ROOT: ${{ github.workspace }}/artifacts/call-memory-loop64
@@ -99,6 +99,10 @@ jobs:
             artifacts/call-memory-loop64/**/formal/*.lean
             artifacts/call-memory-loop64/**/public-source.tar
             artifacts/call-memory-loop64/**/native-source.tar
+            artifacts/call-memory-loop64/**/grading/ledger-closure.txt
+            artifacts/call-memory-loop64/**/grading/cases/**/stdout.txt
+            artifacts/call-memory-loop64/**/grading/cases/**/stderr.txt
+            artifacts/call-memory-loop64/**/grading/cases/**/expected-diagnostic.txt
           if-no-files-found: warn
       - name: Preserve compact callable DATA8 receipts
         if: always()

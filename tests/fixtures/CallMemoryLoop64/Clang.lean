@@ -19,20 +19,26 @@ theorem Frame.abi {initial final : State} (frame : Frame initial final)
   by_cases low : r = .rbx
   · exact low ▸ rbx
   apply frame.registers r
-  cases r <;> simp_all [changed, CallStack.clobbers]
+  intro member
+  simp only [changed, List.mem_cons, List.not_mem_nil, or_false] at member
+  rcases member with h | h | h | h | h | h
+  · exact outside (h ▸ (by decide : .rax ∈ CallStack.clobbers))
+  · exact outside (h ▸ (by decide : .rsp ∈ CallStack.clobbers))
+  · exact outside (h ▸ (by decide : .rdi ∈ CallStack.clobbers))
+  · exact outside (h ▸ (by decide : .rsi ∈ CallStack.clobbers))
+  · exact low h
+  · exact high h
 
 theorem target_eq (value count : Word) (nonzero : count ≠ 0) :
     value + BitVec.ofNat 64 (count.toNat - 1) = targetWord value count := by
-  have positive : 0 < count.toNat := by
-    have notzero : count.toNat ≠ 0 := fun h => nonzero (BitVec.eq_of_toNat_eq h)
-    omega
+  have positive : 1 ≤ count.toNat :=
+    Nat.one_le_iff_ne_zero.mpr (fun h => nonzero (BitVec.eq_of_toNat_eq h))
   calc
     value + BitVec.ofNat 64 (count.toNat - 1) =
         BitVec.ofNat 64 (value.toNat + (count.toNat - 1)) := by
       rw [BitVec.ofNat_add, BitVec.ofNat_toNat, BitVec.setWidth_eq]
-    _ = targetWord value count := congrArg (BitVec.ofNat 64) (by
-      change value.toNat + (count.toNat - 1) = value.toNat + count.toNat - 1
-      omega)
+    _ = targetWord value count := congrArg (BitVec.ofNat 64)
+      (Nat.add_sub_assoc positive value.toNat).symm
 
 /-- The actual model instruction count is a conclusion of execution, entirely
 separate from resource admission and the independent arithmetic contract. -/
@@ -55,7 +61,8 @@ theorem zero_covered {resource initial}
   have current3 : OS.CallMemory64.Current d resource.shared s3 := one3.current current2
   have pc3 : s3.rip = d.frame.call.code + 44 := rfl
   have stack3 : s3.registers .rsp = d.frame.top := by
-    simp [s3, jump, s2, front, test, mov, State.writeRegister, pre.stack, d]
+    change initial.registers .rsp = d.frame.top
+    exact pre.stack
   let final := ret s3 d.frame.call.returnAddress
   have step4 := root_ret_step current3 pre.code pc3 stack3 (choices 3)
   have fetch4 := fetch current3 pre.code
@@ -70,20 +77,21 @@ theorem zero_covered {resource initial}
   rw [endpoint] at memory
   have frame : Frame initial final :=
     (front_frame initial _).trans ((frame_jump s2 _).trans (frame_ret s3 _))
-  refine ⟨result, execution, by omega, ?_⟩
+  refine ⟨result, execution, ?_, ?_⟩
+  · exact instructions
   rw [endpoint]
   refine ⟨?_, ?_, memory.1, memory.2.1, memory.2.2, rfl, ?_, frame.abi rfl rfl, frame.flags⟩
   · change (final.registers .rax).toNat = resultNat resource.value resource.count
-    have value : final.registers .rax = resource.value := by
-      simp [final, ret, s3, jump, s2, front, test, mov, State.writeRegister, pre.argument]
-    rw [value, zero]
+    change (initial.registers .rsi).toNat = resultNat resource.value resource.count
+    rw [pre.argument, zero]
     change resource.value.toNat = (resource.value.toNat + 0) % 2^64
     rw [Nat.add_zero, Nat.mod_eq_of_lt resource.value.isLt]
   · change readWord final.memory d.target =
       if resource.count = 0 then readWord initial.memory d.target else _
     rw [ite_eq_left zero]
     rfl
-  · simp [final, ret, State.writeRegister, stack3, pre.stack, d]
+  · change initial.registers .rsp + 8 = initial.registers .rsp + 8
+    rfl
 
 theorem positive_covered {resource initial}
     (pre : ResourcePre (Compiler.program .clangSeparate) resource initial)
@@ -101,7 +109,11 @@ theorem positive_covered {resource initial}
   rw [endpoint] at memory
   have allFrame : Frame initial result.state := frame.trans post.frame
   have positive : resource.count.toNat ≠ 0 := fun h => nonzero (BitVec.eq_of_toNat_eq h)
-  refine ⟨evolved, combined, covered, by omega, ?_⟩
+  refine ⟨evolved, combined, covered, ?_, ?_⟩
+  · calc
+      combined.instructions = 8 + result.instructions := instructions
+      _ = 8 + (4 + 9 * resource.count.toNat) := congrArg (8 + ·) cost
+      _ = 12 + 9 * resource.count.toNat := (Nat.add_assoc 8 4 _).symm
   rw [endpoint]
   refine ⟨?_, ?_, memory.1, memory.2.1, memory.2.2, post.pc, ?_,
     allFrame.abi post.r14 post.rbx, allFrame.flags⟩

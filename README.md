@@ -180,7 +180,16 @@ Implemented and checked:
   streams, with a 32-byte private-stack requirement and reusable DATA/stack
   ownership. The default gate binds fresh complete text to the universal
   proofs and requires native observations, dependency audits, fresh kernel
-  replay and source stability. Exact model instruction costs are separate.
+  replay, raw/full-ELF proof grading and source stability. Distinct 17-byte GCC
+  and 19-byte Clang closed-form clients prove the same all-input contract;
+  their zero/nonzero costs are four/six and five/seven modeled instructions.
+  Costs are separate results; native observations cover the nested clients only.
+- A standalone [counted DATA8 grader](docs/call-memory-loop64-grading.md)
+  checks that fixed full64 contract on literal raw/ELF files and selected
+  entries. The kernel binds whole-file selection to actual covered execution
+  and the current resource frame. Acceptance requires no loop, CALL, target
+  reload, intermediate DATA writes or cost bound. Existing task propositions
+  and budgets remain unchanged; client proofs stay outside the fixed imports.
 - All sixteen short conditional branches in the sequential backend, with
   signed displacements, taken-target checks, checked CFG edges and preservation
   of the same current OS resource world. See [branch scope](docs/sequential-short-jcc.md).
@@ -309,6 +318,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Callable DATA8 and private stack](docs/call-memory64.md) | How do actual helper stores/reloads compose with private CALL/PUSH writes and reusable current resources? |
 | [Callable DATA8 grading](docs/call-memory64-grading.md) | How do nested and inlined implementations prove one owned-memory result with separate minimum-instruction accounting? |
 | [Counted helper calls](docs/call-memory-loop64.md) | How do all-count helper loops preserve actual saved stack words, DATA and current resources? |
+| [Counted DATA8 grading](docs/call-memory-loop64-grading.md) | How do nested and closed-form clients prove one fixed all-input contract for exact raw/ELF artifacts? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |
@@ -472,9 +482,11 @@ The array-sum integration uses GCC 13/Clang 18 GNU23 `-Os` outputs and writes
 owned evidence to `artifacts/array-sum64/`. Its parallel workflow keeps a separate
 partial build cache. Default success requires every model/proof and native gate;
 `--native-only` explicitly leaves universal Lean validation `NOTRUN`.
-The counted-helper default gate requires both native and formal validation of
-the complete GCC/Clang texts; `--native-only` reports `formal=NOTRUN`. It retains
-source/provenance snapshots and fresh kernel replay; see the
+The counted DATA8 default gate requires native and formal validation of the
+complete nested GCC/Clang texts, plus nested and closed-form raw/full-ELF proof
+grading at default budgets. `--native-only` reports both `formal=NOTRUN` and
+`grading=NOTRUN`. It retains source/provenance snapshots and fresh kernel replay;
+native observations cover nested clients only. See the
 [proof scope and reproduction commands](docs/call-memory-loop64.md).
 
 The optional native compiler probes are separate from proofs:

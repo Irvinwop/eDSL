@@ -148,13 +148,29 @@ existing inline client. These compiler proofs instead construct covered
 histories by direct natural remaining-count induction, retaining actual current
 worlds, full fetches and a frozen original return boundary. Separate exact model
 costs are `12+10*n.toNat` for GCC and four/`12+9*n.toNat` for zero/nonzero Clang.
-No lower bound or hardware cost follows. The default combined gate requires
-native observations, dependency audits, fresh kernel replay and source stability.
-The new formal gate
-binds raw complete texts; full ELF is provenance, with no new full-ELF artifact
-claim or grader/CLI. Existing grading propositions, limits and foundation stay
-unchanged. Native-only observations use bounded counts and report formal
-validation `NOTRUN`.
+Distinct closed-form GCC 17-byte and Clang 19-byte clients, entry 0 with no
+helper, prove the same root claim for every full64 value/count and current
+admitted resource world. Their exact zero/nonzero costs are four/six and
+five/seven instructions. No lower bound, hardware cost or C/volatile source
+preservation follows. Closed-form clients receive proof grading; native
+observations cover only the nested profiles.
+
+The standalone [counted DATA8 grader](call-memory-loop64-grading.md) fixes that
+contract and binds successful pure selection of the complete literal raw/ELF
+file, span and entry to `CallMemoryLoop64.Claim selected.program`. It reuses
+the unchanged CallStack selector, with no first-RET scan. Acceptance requires
+no loop, intermediate DATA writes, CALL, reload, count restriction or cost
+bound. Existing task propositions and limits stay unchanged; driver and
+exporter share an extended generic foundation without compiler fixture imports.
+The theorem concerns callable execution on admitted worlds, without ELF startup,
+other-segment or whole-process safety.
+
+The default combined gate requires bounded nested native observations, complete
+raw-text binding, dependency audits, fresh kernel replay, nested and fresh
+closed-form raw/ELF proof grading, protocol/binding/isolation negatives, and
+source/input/installation stability. Native-only mode reports both
+`formal=NOTRUN` and `grading=NOTRUN`. Ordinary sequential RAM, AC/CET-disabled
+execution and no asynchronous interference remain assumptions.
 
 The standalone [GCC counted-store profile](counted-store64.md) and separate
 [Clang profile](counted-store64-clang.md) prove two exact 20-byte loops against
@@ -1115,10 +1131,11 @@ EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 Integration needs Linux/x86-64, Clang accepting the named modes, GCC, binutils
 and ordinary mmap/mprotect support. The sum32 fixture script selects GCC 13
 and Clang 18 with the scalar optimization profiles above and writes to
-`artifacts/sum32-fixtures/`. The counted-helper default requires native and
-formal phases; explicit `--native-only` reports `formal=NOTRUN`. The combined
-gate retains source/provenance snapshots; the separate proof-helper interface
-and bounded observer scope are in [counted helper calls](call-memory-loop64.md).
+`artifacts/sum32-fixtures/`. The counted DATA8 default requires native, formal
+and grading phases; explicit `--native-only` reports both `formal=NOTRUN` and
+`grading=NOTRUN`. The combined gate retains source/provenance snapshots;
+helper interfaces, lock ownership and the bounded nested observer scope are in
+[counted DATA8 verification](call-memory-loop64.md).
 To certify function files:
 
 ```sh

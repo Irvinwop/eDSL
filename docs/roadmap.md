@@ -266,12 +266,26 @@ Checked capacity allocation and initialization preserve old loans, and generic
 saved-word transport proves stability under whole-qword-disjoint private
 writes and separated DATA writes. A mixed cutpoint certificate is implemented
 and checked with the existing inline client; the new compiler clients use
-covered histories and direct remaining-count induction. The default gate
-requires combined extraction,
-native observations, complete source/provenance snapshot, dependency audit,
-fresh kernel replay and CI validation. Exact raw-text claims add no full-ELF
-artifact claim or grader task/CLI. Source/IR preservation, recursion, indirect
-calls and general interprocedural inference remain ahead.
+covered histories and direct remaining-count induction. Distinct closed-form
+GCC 17-byte and Clang 19-byte clients prove the same all-input root claim, with
+entry 0 and no helper. Their final-output/resource contract retains the 32-byte
+private admission without requiring a loop or intermediate DATA writes.
+
+The standalone [counted DATA8 grader](call-memory-loop64-grading.md) binds the
+unchanged claim to successful pure selection of a complete literal raw/ELF
+file, span and entry. Shared selector formats, older task propositions and
+budgets stay unchanged; matching driver/exporter imports extend the generic
+foundation without trusting compiler clients. CALL, reload, count restrictions
+and instruction costs remain outside acceptance. The default gate requires
+fresh extraction, bounded nested native observations, source/provenance
+snapshots, dependency audits, fresh kernel replay, both nested raw/ELF pairs
+and both freshly compiled closed-form raw/ELF pairs at default grading limits,
+negative/isolation checks and source/input/installation stability. Explicit
+`--native-only` leaves formal and grading phases `NOTRUN`; no closed-form native
+observations are claimed. Callable admission remains a caller obligation,
+without ELF startup, other-segment or whole-process safety. Source/IR
+preservation, physical CPU/kernel refinement, concurrency, atomics, syscalls,
+recursion, indirect calls and general interprocedural inference remain ahead.
 
 The counted-loop extension now proves modular increment for every 64-bit count
 with a decreasing natural variant and exact `2*count+3` cost, preserving flags
@@ -639,8 +653,10 @@ independent of task acceptance.
 The counted-helper compiler clients separately derive `12+10*n.toNat` modeled
 instructions for GCC and four/`12+9*n.toNat` for zero/nonzero Clang. These include
 every actual helper CALL, store, reload and RET, saved-register restoration and
-the original RET. They impose no admission or acceptance budget and prove no
-minimum operations, cycles or micro-ops; see [counted helper calls](call-memory-loop64.md).
+the original RET. Distinct closed-form clients derive four/six instructions for
+zero/nonzero GCC input and five/seven for Clang against the same contract.
+These costs impose no admission or acceptance budget and prove no global
+minimum, cycles or micro-ops; see [counted DATA8 clients](call-memory-loop64.md).
 
 Counted locked-add workers additionally have exact
 `3*count+3` own-instruction bounds and published-request event totals across
