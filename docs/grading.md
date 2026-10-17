@@ -20,10 +20,12 @@ with zero-count target retention and current evolving ownership),
 [`maximum64`, `minimum64`, `signedMaximum64`](comparison64.md) (mathematical
 full64 unsigned maximum/minimum and signed maximum with code/caller-slot resources),
 [`arrayMaximum64`](array-maximum64.md) (the full64 unsigned array maximum),
-and [`arraySum64`](array-sum64.md) (the natural unsigned sum modulo 2^64).
+[`arraySum64`](array-sum64.md) (the natural unsigned sum modulo 2^64),
+and [`intersection64`, `union64`, `symmetricDifference64`](logical64.md)
+(independent full64 bit-set results with code/caller-slot resources).
 Both array tasks return zero for empty input and retain current complete
 eight-byte input loans when nonempty.
-Pair, stride, comparison and both array tasks use `sequentialReadOnlyX86CallableV1`; the two low32 store tasks use
+Pair, stride, comparison, logical and both array tasks use `sequentialReadOnlyX86CallableV1`; the two low32 store tasks use
 `sequentialOwnedWord32X86CallableV1`, and both full64 store tasks use
 `sequentialOwnedWord64X86CallableV1`. The existing GCC implementations discharge
 these claims through `EDSL.Grading.Known.pair`, `.stride` and `.write`. A different

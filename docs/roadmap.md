@@ -104,6 +104,11 @@ native contracts check complete register snapshots and defined flags, then
 replay actual captured AF witnesses through Lean; see
 [logical operations](sequential-logical64.md). This instruction foundation
 does not itself certify whole compiler outputs or source/IR preservation.
+Three scalar logical compiler clients now prove independently defined full64
+bit-set results, all-AF return, complete frames and current code/caller resources.
+The fixed tasks accept untrusted serialized proofs bound to raw/full-ELF bytes;
+exact client accounting stays separate from admission and global optimality.
+See [logical compiler clients](logical64.md).
 Register-only CMOV64 now supplies all sixteen conditions, mathematical
 signed/unsigned CMP adequacy and same-world pure-call resource composition.
 Six final GCC/Clang comparison clients and three independent scalar comparison

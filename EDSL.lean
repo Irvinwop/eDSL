@@ -39,6 +39,7 @@ import EDSL.OS.ReadOnlyArithmetic64
 import EDSL.X86.Sequential.ConditionFlags
 import EDSL.Comparison64.Resources
 import EDSL.Comparison64.Domain
+import EDSL.Logical64.Accounting
 import EDSL.ArrayMaximum64.Domain
 import EDSL.ArraySum64.Domain
 import EDSL.X86.CallReturn

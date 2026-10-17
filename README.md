@@ -144,6 +144,11 @@ Implemented and checked:
   OS authority survive even when the destination is RSP; RET still requires
   its actual caller-slot binding. Independent native snapshots replay through
   Lean. See [logical operations](docs/sequential-logical64.md).
+- Full64 intersection/union/symmetric-difference compiler clients and fixed
+  grading tasks with independent per-bit contracts. Complete GCC/Clang windows
+  prove all-input/all-AF return, ABI and current OS resources; packet grading
+  binds raw/full-ELF bytes. Exact model accounting and finite native checks stay
+  separate. See [logical compiler clients](docs/logical64.md).
 - Memory-source ADD64 in the sequential backend reads a complete qword at the
   old full64 base/SIB address, defines all six arithmetic flags and retains
   the complete memory frame. Named current read loans and array resources
@@ -316,6 +321,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Ordinary sum32 loops](docs/sum32.md) | How do two compiler-produced loop shapes meet one sum, termination, memory, read-loan and cost contract? |
 | [Checked CFGs and local proofs](docs/cfg.md) | How can new control-flow patterns use local Lean obligations against an independent task contract? |
 | [Two-array sum proofs](docs/pair32.md) | How do two loops and two current input resources compose through that interface? |
+| [Full64 logical compiler clients](docs/logical64.md) | How do per-bit results, complete compiler bytes and current caller resources compose with proof grading? |
 | [Full64 array maximum](docs/array-maximum64.md) | How do different compiler loops meet one unsigned result and current array-resource contract? |
 | [Full64 modular array sum](docs/array-sum64.md) | How do different full64 loops meet one wrapping-sum contract with current resources and separate cost proofs? |
 | [Owned nested calls](docs/call-stack.md) | How do actual CALL/PUSH/POP/RET steps compose with current private-stack ownership and whole compiler text? |
@@ -448,6 +454,7 @@ EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-arithmetic64.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-logical64.sh
+EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-logical64.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-add-memory64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-array-sum64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-call-stack.sh

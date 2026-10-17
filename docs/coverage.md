@@ -25,6 +25,10 @@ full64 argument, and `countedStore64`, which adds a full64 count with zero-count
 target retention. The [comparison tasks](comparison64.md) add full64 unsigned
 maximum/minimum and signed maximum, with pure code/caller-slot resource
 admission and six independent compiler client proofs outside trusted imports.
+The [logical tasks](logical64.md) add full64 bit-set intersection, union and
+symmetric difference, current code/caller-slot authority and complete compiler
+client proofs outside trusted imports. Their three-instruction accounting is
+separate from task admission and generic conditional lower bounds.
 The [array maximum task](array-maximum64.md) specifies unsigned maximum of
 full64 words, zero for empty input, with current nonwrapping eight-byte array
 loans and compatible read-only aliases. Complete 26-byte GCC13 and 32-byte
@@ -280,6 +284,13 @@ complete RAM and nonarithmetic flags, with an independent undefined-AF
 choice. Current resources survive RSP changes without authorizing a new
 caller slot. Independent native contracts and actual-step replay use the
 captured AF witness; see [logical operations](sequential-logical64.md).
+Three scalar logical tasks now fix independent full64 per-bit intersection,
+union and symmetric-difference contracts with current code/caller loans. Complete
+GCC13/Clang18 seven-byte outputs prove all-AF return, full RAM/ABI frames, prefix
+read authority and reusable resources; raw/full-ELF proof grading imports no
+client theorem into the trusted registry. Exact three retirements for these
+clients and a conditional at-least-two generic bound are separate from task
+admission. See [logical compiler clients](logical64.md) for scope and native evidence.
 Memory-source ADD64 accepts `03 /r` through the same strict REX.W mod=00
 base/SIB profile, with all 16 destinations. It reads all eight bytes at the
 pre-state effective address, adds modulo 2^64 and defines the six arithmetic
@@ -1128,6 +1139,7 @@ EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-arithmetic64.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-logical64.sh
+EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-logical64.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-add-memory64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-array-sum64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-call-stack.sh

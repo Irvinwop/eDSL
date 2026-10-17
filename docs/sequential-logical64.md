@@ -90,3 +90,8 @@ and full-ELF form. It checks all six logical opcodes, exact instruction lengths,
 closed CFG edges and literal ELF entry binding. This static certificate leaves
 functional correctness, termination and current caller resources as separate
 proof obligations. That window is never executed by the import check.
+
+Complete GCC/Clang scalar clients, independent fixed tasks and raw/full-ELF
+proof grading build on this instruction foundation; see
+[logical compiler clients](logical64.md). Their model proofs and finite native
+whole-call observations retain separate scopes.

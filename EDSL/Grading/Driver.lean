@@ -27,6 +27,9 @@ def taskID : String → Option TaskID
   | "signedMaximum64" => some .signedMaximum64
   | "arrayMaximum64" => some .arrayMaximum64
   | "arraySum64" => some .arraySum64
+  | "intersection64" => some .intersection64
+  | "union64" => some .union64
+  | "symmetricDifference64" => some .symmetricDifference64
   | _ => none
 
 def taskExpr : TaskID → Expr
@@ -41,6 +44,9 @@ def taskExpr : TaskID → Expr
   | .signedMaximum64 => mkConst ``TaskID.signedMaximum64
   | .arrayMaximum64 => mkConst ``TaskID.arrayMaximum64
   | .arraySum64 => mkConst ``TaskID.arraySum64
+  | .intersection64 => mkConst ``TaskID.intersection64
+  | .union64 => mkConst ``TaskID.union64
+  | .symmetricDifference64 => mkConst ``TaskID.symmetricDifference64
 
 /-- Balanced quotation is a controller optimization, not a trusted conversion
 axiom. Its exact value is checked by the kernel in the expected statement. -/

@@ -4,6 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.Grading.Task
 import EDSL.Comparison64.Domain
+import EDSL.Logical64.Domain
 import EDSL.ArrayMaximum64.Domain
 import EDSL.ArraySum64.Domain
 import EDSL.Grading.Domain
@@ -82,6 +83,16 @@ theorem domain_nonvacuous (id : TaskID) (bytes : List Byte)
   | arraySum64 =>
     exact (old_nonvacuous_iff _ _).mpr
       (ArraySum64.Domain.nonvacuous bytes positive bound)
+
+  | intersection64 =>
+    exact (old_nonvacuous_iff _ _).mpr
+      (Logical64.Domain.nonvacuous .intersection bytes positive bound)
+  | union64 =>
+    exact (old_nonvacuous_iff _ _).mpr
+      (Logical64.Domain.nonvacuous .union bytes positive bound)
+  | symmetricDifference64 =>
+    exact (old_nonvacuous_iff _ _).mpr
+      (Logical64.Domain.nonvacuous .symmetricDifference bytes positive bound)
 
 /-- All admitted pair inputs and all AF streams satisfy the fixed semantic
 contract. Graph validity is separately proved evidence used by the adapters. -/

@@ -8,6 +8,7 @@ import EDSL.StoreReturn32.Contract
 import EDSL.Grading.StoreReturnValue64.Resources
 import EDSL.CountedStore64.Contract
 import EDSL.Comparison64.Resources
+import EDSL.Logical64.Resources
 import EDSL.ArrayMaximum64.Resources
 import EDSL.ArraySum64.Resources
 
@@ -99,6 +100,10 @@ and current executable-span/caller-slot authority. -/
 def Task.comparisonTask (operation : Comparison64.Operation) : Task :=
   ofReadOnly (Comparison64.readOnlyTask operation)
 
+/-- Independent finite-set logical results with current code/caller loans. -/
+def Task.logicalTask (operation : Logical64.Operation) : Task :=
+  ofReadOnly (Logical64.readOnlyTask operation)
+
 /-- Full64 unsigned array maximum with current input/code/caller-slot loans.
 The registered contract fixes no compiler shape, trace order or cost. -/
 def Task.arrayMaximumTask : Task := ofReadOnly ArrayMaximum64.readOnlyTask
@@ -172,6 +177,7 @@ def countedStore64Task : Task where
 inductive TaskID where
   | pair32 | stride32 | write32 | storeReturn32 | storeReturnValue64 | countedStore64
   | maximum64 | minimum64 | signedMaximum64 | arrayMaximum64 | arraySum64
+  | intersection64 | union64 | symmetricDifference64
   deriving DecidableEq, Repr
 
 def registered : TaskID → Task
@@ -186,6 +192,9 @@ def registered : TaskID → Task
   | .signedMaximum64 => Task.comparisonTask .signedMaximum
   | .arrayMaximum64 => Task.arrayMaximumTask
   | .arraySum64 => Task.arraySumTask
+  | .intersection64 => Task.logicalTask .intersection
+  | .union64 => Task.logicalTask .union
+  | .symmetricDifference64 => Task.logicalTask .symmetricDifference
 
 /-- The trusted task ID and literal artifact bytes determine this type. -/
 def Claim (id : TaskID) (bytes : List Byte) : Prop :=
