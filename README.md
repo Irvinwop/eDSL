@@ -128,6 +128,11 @@ Implemented and checked:
   noncanonical values; ADD defines all six arithmetic flags. Both retain
   complete RAM and current OS authority under register aliasing. See
   [arithmetic scope](docs/sequential-arithmetic64.md).
+- Register-only CMOV64 with all sixteen flag conditions and all 16 GPRs.
+  Signed/unsigned CMP conditions are proved against mathematical order.
+  A pure-call OS resource bridge retains the same code/caller-slot loans
+  and complete RAM, including conditional RSP changes and actual RET.
+  See [conditional moves](docs/sequential-cmov64.md).
 - Fresh proofs for complete 13-byte GCC and 15-byte Clang direct-add outputs
   against the same counted-store task, including all full64 counts, actual
   checked OS writes and reusable returned authority. Exact costs are 4/5 and

@@ -21,6 +21,17 @@ def address : Address → String
   | .base base => s!"(.base {register base})"
   | .indexed base index scale => s!"(.indexed {register base} {register index} {scale.val})"
 
+/-- Canonical constructor names for all architectural condition codes. -/
+def condition : Condition → String
+  | .overflow => ".overflow" | .notOverflow => ".notOverflow"
+  | .below => ".below" | .aboveEqual => ".aboveEqual"
+  | .equal => ".equal" | .notEqual => ".notEqual"
+  | .belowEqual => ".belowEqual" | .above => ".above"
+  | .sign => ".sign" | .notSign => ".notSign"
+  | .parity => ".parity" | .notParity => ".notParity"
+  | .less => ".less" | .greaterEqual => ".greaterEqual"
+  | .lessEqual => ".lessEqual" | .greater => ".greater"
+
 def legacy : X86.Instruction → String
   | .leaEaxRdiDisp8 value => s!"(.leaEaxRdiDisp8 {value.toNat})"
   | .leaEaxRaxDisp8 value => s!"(.leaEaxRaxDisp8 {value.toNat})"
@@ -43,6 +54,8 @@ def instruction : Instruction → String
   | .addMem32 destination operand => s!"(.addMem32 {register destination} {address operand})"
   | .movReg32 destination source => s!"(.movReg32 {register destination} {register source})"
   | .movReg64 destination source => s!"(.movReg64 {register destination} {register source})"
+  | .cmovReg64 predicate destination source =>
+    s!"(.cmovReg64 {condition predicate} {register destination} {register source})"
   | .lea64 destination operand => s!"(.lea64 {register destination} {address operand})"
   | .addReg64 destination source => s!"(.addReg64 {register destination} {register source})"
   | .xchgReg64 left right => s!"(.xchgReg64 {register left} {register right})"

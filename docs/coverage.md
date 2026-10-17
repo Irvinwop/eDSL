@@ -146,6 +146,13 @@ Register ADD64 accepts both `01` and `03` directions and updates CF/PF/AF/ZF/SF/
 other flags, RAM and nondestination registers survive. Both instructions can
 compose with the same current OS world, including RSP destinations, without
 granting a new caller-slot binding. See [arithmetic scope](sequential-arithmetic64.md).
+Register-only CMOV64 adds all sixteen condition codes and all 16 GPRs through
+one REX.W prefix, retaining full64 false destinations, all flags and memory.
+Signed/unsigned CMP conditions are proved against mathematical integer/natural
+order. A pure-call resource bridge requires only current code/caller-slot loans
+and derives actual CMOV and RET steps without unrelated target ownership.
+Memory CMOV, narrower forms and extra prefixes reject. See
+[conditional moves](sequential-cmov64.md) for scope and finite native evidence.
 The separate 64-bit store intent cannot be admitted as read-only or by the
 existing 32-bit effect policies; data read authority retains its actual width.
 OS cell projection, single-allocation ownership, whole-allocation read-loan

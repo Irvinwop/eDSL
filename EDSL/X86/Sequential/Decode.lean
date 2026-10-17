@@ -20,7 +20,7 @@ def Instruction.length : Instruction → Nat
   | .storeMem32 (.indexed _ _ _) _ => 3
   | .lea64 _ (.base _) | .loadMem64 _ (.base _) | .storeMem64 (.base _) _ => 3
   | .lea64 _ (.indexed _ _ _) | .loadMem64 _ (.indexed _ _ _) | .storeMem64 (.indexed _ _ _) _ => 4
-  | .addImm64 _ _ => 4
+  | .addImm64 _ _ | .cmovReg64 _ _ _ => 4
 
 def Instruction.isNew : Instruction → Bool
   | .legacy _ => false
@@ -90,10 +90,19 @@ def decodeQWordAddressAt (state : State) (rex modrm : Byte) : Except Error Addre
   else return .base (rexModRMRM rex modrm)
 
 /-- Continue after the enclosing decoder has recognized one REX.W prefix.
-All addressing restrictions and register-only ADD checks remain explicit. -/
+All addressing restrictions and register-only ADD/CMOV checks remain explicit. -/
 def decodeREXWAt (state : State) (opcode : Byte) : Except Error Instruction := do
   let operation ← fetchByte state.memory (state.rip + 1)
-  if operation = 0x87 then
+  if operation = 0x0f then
+    let conditionOpcode ← fetchByte state.memory (state.rip + 2)
+    if conditionOpcode.toNat < 0x40 ∨ 0x4f < conditionOpcode.toNat then
+      throw .unsupportedEncoding
+    let modrm ← fetchByte state.memory (state.rip + 3)
+    if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
+    return .cmovReg64
+      (Condition.ofNibble ⟨conditionOpcode.toNat % 16, Nat.mod_lt _ (by decide)⟩)
+      (rexModRMReg opcode modrm) (rexModRMRM opcode modrm)
+  else if operation = 0x87 then
     let modrm ← fetchByte state.memory (state.rip + 2)
     if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
     return .xchgReg64 (rexModRMRM opcode modrm) (rexModRMReg opcode modrm)
@@ -134,9 +143,12 @@ def decodeREXWAt (state : State) (opcode : Byte) : Except Error Instruction := d
     else throw .unsupportedEncoding
   else throw .unsupportedEncoding
 
-/-- NEW subset only. MOV64, LEA64, register ADD64 and register XCHG64 admit
+/-- NEW subset only. MOV64, LEA64, register ADD64/CMOV64 and register XCHG64 admit
 one REX.W prefix 48..4F, including R/B and the SIB index extension X. Register
-ADD ignores X and rejects memory forms. LEA uses the existing mod=00 address
+ADD and CMOV ignore X and reject memory forms. CMOV accepts the sixteen
+0F 40..4F condition codes, with R extending its destination and B its source.
+Memory CMOV needs an unconditional operand-read contract and is unsupported.
+LEA uses the existing mod=00 address
 subset to compute a value without a data access. XCHG's short form uses B to
 extend its opcode register; unused R/X bits are ignored. Other 64-bit families
 retain exact prefix 48.
@@ -198,7 +210,7 @@ theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.len
   | addMem32 destination address | loadMem32 destination address | storeMem32 address destination
   | lea64 destination address | loadMem64 destination address | storeMem64 address destination =>
     cases address <;> simp [Instruction.length]
-  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
+  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
   | test64 _ _ | cmp64 _ _ | addImm64 _ _
   | inc64 _ | dec64 _ | je _ | jmp _ => simp [Instruction.length]
 
@@ -208,7 +220,7 @@ theorem Instruction.length_le_five (instruction : Instruction) : instruction.len
   | addMem32 destination address | loadMem32 destination address | storeMem32 address destination
   | lea64 destination address | loadMem64 destination address | storeMem64 address destination =>
     cases address <;> simp [Instruction.length]
-  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
+  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
   | test64 _ _ | cmp64 _ _ | addImm64 _ _
   | inc64 _ | dec64 _ | je _ | jmp _ => simp [Instruction.length]
 

@@ -37,7 +37,7 @@ def readOnly : Instruction → Bool
   | .legacy (.loopRcx _) | .legacy (.jnz _) | .legacy .cmpEaxZero
   | .legacy .loadEaxRdi | .legacy .loadEaxRsi | .legacy (.mov32 _ _)
   | .legacy .ret | .xorSelf32 _ | .test64 _ _ | .cmp64 _ _
-  | .addMem32 _ _ | .movReg32 _ _ | .movReg64 _ _ | .lea64 _ _ | .addReg64 _ _
+  | .addMem32 _ _ | .movReg32 _ _ | .movReg64 _ _ | .cmovReg64 _ _ _ | .lea64 _ _ | .addReg64 _ _
   | .xchgReg64 _ _ | .xchgRax64 _ | .loadMem32 _ _ | .loadMem64 _ _ | .addImm64 _ _
   | .inc64 _ | .dec64 _ | .je _ | .jmp _ => true
 

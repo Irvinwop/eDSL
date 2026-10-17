@@ -5,6 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 import EDSL.Sum32.Correctness
 import EDSL.ELF.Loader
 import EDSL.OS.ArrayResources
+import EDSL.X86.Sequential.Literals
 
 namespace EDSL.Sum32.Artifact
 open X86
@@ -81,6 +82,9 @@ def instructionLiteral : Sequential.Instruction → String
     s!"(.movReg32 {registerLiteral destination} {registerLiteral source})"
   | .movReg64 destination source =>
     s!"(.movReg64 {registerLiteral destination} {registerLiteral source})"
+  | .cmovReg64 condition destination source =>
+    s!"(.cmovReg64 {Sequential.Literals.condition condition} " ++
+      s!"{registerLiteral destination} {registerLiteral source})"
   | .lea64 destination address =>
     s!"(.lea64 {registerLiteral destination} {addressLiteral address})"
   | .addReg64 destination source =>

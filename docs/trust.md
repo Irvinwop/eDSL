@@ -46,6 +46,13 @@ canonicality check on the result, preserving all flags. Register ADD64 uses
 the full64 six-flag arithmetic contract. Their
 [conformance evidence](sequential-arithmetic64.md) remains finite; it does not
 establish the physical adequacy of the ISA model.
+Register-only CMOV64 preserves full destination words on false, uses incoming
+flags and pre-source values, and preserves every flag and RAM field. Its
+sixteen conditions include proved signed/unsigned CMP order adequacy;
+[native CMOV checks](sequential-cmov64.md) remain finite conformance evidence.
+Memory-source CMOV stays unsupported because even a false condition performs
+the architectural source read. Pure-call resource contracts couple the same
+world and original caller slot; changed RSP does not grant a new binding.
 The [current-resource bridge](sequential-moves.md) derives actual stores and loads
 from present authority, retaining complete RAM coupling and original code/stack
 loans through the actual instruction length. The full-pointer-copy/store/RET integration uses

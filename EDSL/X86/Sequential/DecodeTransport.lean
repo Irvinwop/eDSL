@@ -95,7 +95,8 @@ private theorem decodeREXWAt_refines {source destination : State} (rex : Byte)
     | apply SuccessRefines.bind
     | intro value
 
-/-- New decoding, including LEA's SIB fetch and both register ADD directions,
+/-- New decoding, including LEA's SIB fetch, both register ADD directions,
+and CMOV's condition opcode and register operands,
 preserves success under the same fetch transport. A fixed fallback error
 cannot itself yield a successful instruction. -/
 theorem decodeNewAt_transport {source destination : State} {instruction : Instruction} (fault : Error)

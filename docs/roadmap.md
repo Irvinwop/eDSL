@@ -98,6 +98,10 @@ counts and returned authority. The same registered task accepts these clients
 without constraining source structure or intermediate store counts. See
 [direct-add scope](counted-store-direct64.md).
 See [arithmetic scope](sequential-arithmetic64.md).
+Register-only CMOV64 now supplies all sixteen conditions, mathematical
+signed/unsigned CMP adequacy and same-world pure-call resource composition.
+Memory CMOV and scalar comparison task registration remain future work;
+see [conditional move scope](sequential-cmov64.md).
 The direct StoreReturn32 certificate API now proves both selected compiler
 store/copy orderings and a copied-RAX variant against a stronger full-pointer
 return post, with checked OS evolution and exact accounting. The distinct

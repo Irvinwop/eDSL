@@ -4,6 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.X86.Machine
 import EDSL.X86.Memory64
+import EDSL.X86.Sequential.Condition
 
 namespace EDSL.X86.Sequential
 
@@ -31,6 +32,9 @@ inductive Instruction where
   | movReg32 (destination source : Register)
   /-- A full-width register copy, encoded with one REX.W prefix. -/
   | movReg64 (destination source : Register)
+  /-- Register-only conditional full-width copy. The false case retains the
+  complete destination; flags and operand memory are unchanged. -/
+  | cmovReg64 (condition : Condition) (destination source : Register)
   /-- Full-width effective-address arithmetic. It performs no data access and
   preserves every flag, including when the computed value is noncanonical. -/
   | lea64 (destination : Register) (address : Address)
