@@ -46,6 +46,9 @@ lean_exe «edsl-certify-store-load64» where
 lean_exe «edsl-certify-counted-store64» where
   root := `CountedStore64Main
 
+lean_exe «edsl-certify-counted-store64-clang» where
+  root := `CountedStore64ClangMain
+
 -- Client proof modules compile separately from the grader's trusted imports.
 lean_lib GradingFixtures where
   roots := #[`tests.fixtures]

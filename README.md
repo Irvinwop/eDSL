@@ -144,6 +144,10 @@ Implemented and checked:
   A separate three-instruction lower bound covers useful inputs requiring a
   changed RAX under the registered policy.
   See [pointer-returning stores](docs/store-return32.md) and [grading](docs/grading.md).
+- Separate GCC13 and Clang18 counted-store profiles prove the same independent
+  full64 result and complete frames for every full64 count, with actual evolving
+  OS ownership. Exact instruction costs are `6*N+4` and `4*N+4`, including RET.
+  See [counted stores](docs/counted-store64.md) and the [Clang profile](docs/counted-store64-clang.md).
 - A sequential OS address-space model with checked mapping, protection and
   unmapping, permission-revocation proofs and composition with a binary contract.
 - A checked OS word store whose cell update projects exactly to the machine
@@ -323,6 +327,7 @@ EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return-grading.sh
 EDSL_GCC=gcc-13 bash scripts/verify-store-return-xchg.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 EDSL_CLANGXX=clang++-18 bash scripts/verify-store-load64.sh
 EDSL_GCC=gcc-13 bash scripts/verify-counted-store64.sh
+EDSL_CLANG=clang-18 bash scripts/verify-counted-store64-clang.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 EDSL_CLANGXX=clang++-18 bash scripts/verify-store-return-value64-grading.sh
 EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 ```

@@ -29,6 +29,10 @@ The theorem verifies final bytes; it establishes no C/volatile/asm semantics
 or source-to-binary preservation. Other compiler configurations and instruction
 shapes remain unsupported by this convenience checker.
 
+A separate [Clang18 profile](counted-store64-clang.md) proves a STORE-before-DEC
+loop against these same independent contracts, with its own checker and exact
+instruction formula.
+
 `GCC.raw_semantics` proves all-input, all-AF termination and `Post`.
 `GCC.raw_policy` proves that actual prefixes fetch inside the admitted code,
 write only the eight-byte target and read only the original caller slot.

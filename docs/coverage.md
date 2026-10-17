@@ -41,15 +41,17 @@ Task preconditions are inhabited for arbitrary admitted byte lists independently
 of decoding; the write witness requires a real value change, and a RET-only
 candidate is proved insufficient. The registry exposes fixed sequential callable
 tasks with explicit profiles.
-The standalone [counted-store profile](counted-store64.md) proves an exact
-20-byte GCC loop for every full64 count. It composes actual checked owner
+The standalone [GCC counted-store profile](counted-store64.md) and separate
+[Clang profile](counted-store64-clang.md) prove two exact 20-byte loops against
+the same independent contract for every full64 count. They compose checked owner
 mutations through a reusable resource-aware cutpoint certificate, preserving
 one evolved world, original loans and usable returned authority. Zero-count
 retention, modular full64 result, complete byte/permission/ABI frames and a
 conservative instruction bound are proved. Separate accounting additionally
-proves exactly `6*count.toNat+4` retired model instructions, including RET,
-and the original STACK8 operand read. Raw/ELF certificates bind final
-artifacts; 504 native calls and six owned mutants provide separate finite
+proves exactly `6*count.toNat+4` (GCC) or `4*count.toNat+4` (Clang) retired
+model instructions, including RET, and the original STACK8 operand read.
+Separate raw/ELF checkers retain each profile's formula and bind final
+artifacts; 504 native calls per profile and six generic owned mutants provide finite
 evidence. This does not add a grader task or an operation-optimality theorem.
 Standalone ELF profiles reach exit 42 directly or across a bounded stream write
 and compose with explicit OS contracts. A separate locked-add-loop certificate

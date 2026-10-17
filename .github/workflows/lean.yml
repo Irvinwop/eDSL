@@ -49,7 +49,7 @@ jobs:
       # Always invoke Lake: its input traces invalidate changed modules. Cached
       # outputs never skip contract tests, axiom audits, or fresh kernel replay.
       - name: Build pinned Lean project
-        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32 edsl-cfg-import edsl-grade edsl-proof-export edsl-certify-store-return32 edsl-certify-store-load64 edsl-certify-counted-store64 GradingFixtures
+        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32 edsl-cfg-import edsl-grade edsl-proof-export edsl-certify-store-return32 edsl-certify-store-load64 edsl-certify-counted-store64 edsl-certify-counted-store64-clang GradingFixtures
       - name: ISA, ELF, OS contracts and rejection properties
         run: |
           lake env lean -DwarningAsError=true tests/X86.lean
@@ -104,6 +104,7 @@ jobs:
           lake env lean -DwarningAsError=true tests/StoreLoad64.lean
           lake env lean -DwarningAsError=true tests/CountedStore64.lean
           lake env lean -DwarningAsError=true tests/CountedStore64Accounting.lean
+          lake env lean -DwarningAsError=true tests/CountedStore64Clang.lean
           lake env lean -DwarningAsError=true tests/StoreReturn32Raw.lean
           lake env lean -DwarningAsError=true tests/StoreReturn32Resources.lean
           lake env lean -DwarningAsError=true tests/GradingStoreReturn.lean
@@ -240,6 +241,16 @@ jobs:
         with:
           name: counted-store64-evidence
           path: artifacts/counted-store64-native/
+          if-no-files-found: error
+      - name: Certify Clang full64 counted stores and execute native fixtures
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-counted-store64-clang.sh
+      - name: Preserve Clang counted-store certificates and native observations
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: counted-store64-clang-evidence
+          path: artifacts/counted-store64-clang-native/
           if-no-files-found: error
       - name: Preserve owned full64 memory certificates and observations
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
