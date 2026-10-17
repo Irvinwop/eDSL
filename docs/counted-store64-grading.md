@@ -31,8 +31,11 @@ They prove the same task for the two compiler windows documented in the
 The grader invokes no convenience shape checker. Instruction selection,
 loop layout, intermediate store count and exact instruction costs are absent
 from task acceptance. A new implementation must prove the same fixed claim.
-This integration demonstrates the two known windows; it does not yet provide
-a new client implementation outside them.
+This integration demonstrates the two known windows. A separate
+[final-store client](counted-store-final64.md) proves the same fixed claim for
+a different compiler loop, outside the trusted snapshot. Its register loop
+retains the old target until a single final positive-count store. Client export
+and snapshot isolation are checked independently of task acceptance.
 
 ```sh
 lake build edsl-grade edsl-proof-export

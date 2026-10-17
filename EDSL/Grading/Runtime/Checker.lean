@@ -8,7 +8,7 @@ import EDSL.Grading.Runtime.Audit
 /-! Proof-packet admission/checking, using only the options-independent checked
 kernel declaration API. Candidate code is never compiled or evaluated. Each call
 starts from its caller's immutable trusted snapshot; no candidate state is global.
-Heartbeat quotas are apportioned across all kernel additions in a packet. These
+Heartbeat ceilings accumulate across all kernel additions in a packet. These
 limits are admission policy, not a service sandbox or an allocation/latency proof.
 
 Safe opaque bodies are audited logically. Source `partial def` may lower to a safe
@@ -45,6 +45,17 @@ def forceDeclaration (env : Kernel.Environment) (heartbeats recDepth : USize)
     (decl : Declaration) : Except Failure Kernel.Environment := do
   if heartbeats == 0 || recDepth == 0 then return ← fail .resource "zero kernel budget"
   (Kernel.Environment.addDeclCore env heartbeats recDepth decl none).mapError kernelFailure
+
+/-- Absolute cumulative ceiling for a checked prefix. Clamping also prevents
+a controller indexing error from increasing the caller's total budget. -/
+def packetKernelCeiling (budget checks completed : Nat) : Nat :=
+  budget / checks * min completed checks
+
+theorem packetKernelCeiling_le (budget checks completed : Nat) :
+    packetKernelCeiling budget checks completed ≤ budget := by
+  unfold packetKernelCeiling
+  exact Nat.le_trans (Nat.mul_le_mul_left _ (Nat.min_le_right completed checks))
+    (Nat.div_mul_le_self budget checks)
 
 def checkFinal (env : Kernel.Environment) (lim : Limits) (heartbeats : USize)
     (state : AuditState) (expected value : Expr) (freshName : Name) :
@@ -96,18 +107,26 @@ def checkPacket (env : Kernel.Environment) (lim : Limits) (expected : Expr)
   let mut remaining := lim.maxNodes
   let mut names := 0
   let mut audit : AuditState := { remaining := lim.maxAuditSteps }
+  let mut kernelChecks := 0
   for entry in entries do
     let (decl, left) ← (Packet.declaration packet.dialect checkedEnv lim entry).run remaining
     remaining := left
     let declared := decl.getNames
     names := names + declared.length
     if names > lim.maxDeclarations then return ← fail .resource "declared constant names"
-    let next ← forceDeclaration checkedEnv (USize.ofNat quota) lim.kernelRecDepth decl
+    kernelChecks := kernelChecks + 1
+    -- The pinned kernel compares against a thread-local cumulative counter;
+    -- addDeclCore changes its ceiling without resetting that counter. Prefix
+    -- ceilings apportion one total cap rather than reusing its first slice.
+    let next ← forceDeclaration checkedEnv
+      (USize.ofNat (packetKernelCeiling lim.kernelHeartbeats.toNat checks kernelChecks))
+      lim.kernelRecDepth decl
     checkInductiveShape next decl
     audit ← auditNames next audit declared
     checkedEnv := next
   let (value, left) ← (Packet.expression packet.dialect checkedEnv lim [] [] packet.proof).run remaining
-  let finalAudit ← checkFinal checkedEnv lim (USize.ofNat quota) audit expected value
+  let finalAudit ← checkFinal checkedEnv lim
+    (USize.ofNat (packetKernelCeiling lim.kernelHeartbeats.toNat checks checks)) audit expected value
     (certificationPrefix.appendCore `proof)
   return {
     env := checkedEnv

@@ -15,7 +15,7 @@ structure Limits where
   maxInputBytes : Nat := 4194304
   maxJsonDepth : Nat := 192
   maxExprDepth : Nat := 128
-  maxNodes : Nat := 200000
+  maxNodes : Nat := 300000
   maxNameParts : Nat := 64
   maxStringBytes : Nat := 4096
   maxDecimalChars : Nat := 128

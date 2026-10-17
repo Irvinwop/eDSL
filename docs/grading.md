@@ -52,7 +52,7 @@ uses nine bytes: `MOV RCX,RDI; MOV [RCX],ESI; MOV RAX,RCX; RET`.
 actual checked OS mutation, retained full RAM coupling and caller loans.
 Its four-instruction accounting is separate from the registered contract.
 The direct pointer-store certifier's three shapes exclude this implementation;
-the general grader accepts its checked proof under unchanged default limits.
+the general grader accepts its checked proof under the bounded default policy.
 
 ## Required statement
 
@@ -202,7 +202,7 @@ mutants exercise missing/wide/shifted/wrong-source stores and register/DF damage
 The same oracle observes the separately assembled intermediate-store routine,
 including full-width argument wraparound. Its client-only reference/body
 packets, raw and complete ELF artifacts, changed-code and one-byte wrong-value
-mutation checks use unchanged service limits. Acceptance of both two- and
+mutation checks use the same service limits. Acceptance of both two- and
 five-instruction implementations demonstrates that cost proofs remain separate
 from functional/resource grading.
 The same pipeline checks the seven-byte MOV client in both packet modes and
@@ -294,7 +294,7 @@ and replays its umbrella module with a fresh kernel.
 Proof input is read with a 4 MiB cap while reading, followed by strict UTF-8
 validation and bounded JSON token/nesting preflight before recursive parsing.
 Defaults limit JSON depth to 192, expression depth to 128, aggregate decoder
-steps to 200000, explicit/generated auxiliary names to 256, decoded strings to
+steps to 300000, explicit/generated auxiliary names to 256, decoded strings to
 4096 bytes and dependency-audit queue pops to 100000. Decimal/name limits are
 also explicit in `Runtime.Limits`.
 
@@ -307,9 +307,19 @@ and visit caps per field and can conservatively reject source metadata nesting.
 Kernel heartbeats still bound checking work; syntax sharing does not establish
 a wall-clock or allocation bound for arbitrary proofs.
 
-The packet's 10000000 kernel heartbeat quota is divided among all auxiliary
-insertions and the final proof; it is not reset per helper. The artifact wrapper
-has a separate quota of the same size and recursion limit 32768; packet checks
+The packet's 10000000 kernel heartbeat cap is apportioned as ascending absolute
+prefix ceilings across auxiliary insertions and the final proof. The pinned
+kernel's checked declaration API changes the maximum without resetting its
+thread-local counter ([kernel entry point](https://github.com/leanprover/lean4/blob/v4.35.0/src/kernel/environment.cpp#L269),
+[counter implementation](https://github.com/leanprover/lean4/blob/v4.35.0/src/runtime/interrupt.cpp#L40)).
+Reusing the first prefix ceiling for every helper would reject valid larger
+packets after their cumulative work exhausted that first slice. The controller's
+`packetKernelCeiling_le` theorem bounds every ceiling by the configured cap,
+including excess prefix indices. No helper resets the counter. Earlier kernel
+work on the same thread can conservatively cause resource rejection; logical
+candidate environments remain isolated. The CLI handles one packet per process.
+The artifact wrapper uses the same absolute ceiling and recursion limit 32768;
+it does not reset the counter or add a heartbeat allowance. Packet checks
 use recursion limit 512. Limits are admission policy, not a proved runtime or
 memory bound. A service still needs external process time/memory isolation.
 

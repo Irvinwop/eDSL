@@ -3,6 +3,7 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.CountedStore64.GCC
+import EDSL.CountedStore64.Frame
 import EDSL.CountedStore64.Bridges
 
 set_option warningAsError true

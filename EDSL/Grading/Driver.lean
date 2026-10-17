@@ -114,7 +114,8 @@ def grade (env : Kernel.Environment) (limits : Limits) (id : TaskID)
     #[taskExpr id, artifactExpr artifact, code, selection, checked.value]
   let expected := mkApp2 (mkConst ``Artifact.Claim) (taskExpr id) (artifactExpr artifact)
   -- Full files can require more reduction depth than the packet's syntax.
-  -- This separate, bounded wrapper check consumes a second kernel quota.
+  -- The wrapper uses the same cumulative thread ceiling; it does not reset
+  -- the counter or provide another heartbeat allowance.
   let wrapperLimits := { limits with kernelRecDepth := 32768 }
   let wrapped ← checkExpr checked.env wrapperLimits expected value
     `EDSLGrader.Internal.artifact

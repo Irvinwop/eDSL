@@ -149,6 +149,9 @@ Implemented and checked:
   OS ownership. Exact instruction costs are `6*N+4` and `4*N+4`, including RET.
   The distinct [`countedStore64` grading task](docs/counted-store64-grading.md)
   accepts both proofs under one fixed contract, with accounting kept separate.
+  A [fresh final-store loop client](docs/counted-store-final64.md) proves the
+  same task outside the trusted registry, retaining old target contents through
+  the register loop before one checked positive-count store.
   See [counted stores](docs/counted-store64.md) and the [Clang profile](docs/counted-store64-clang.md).
 - A sequential OS address-space model with checked mapping, protection and
   unmapping, permission-revocation proofs and composition with a binary contract.
@@ -331,6 +334,7 @@ EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 EDSL_CLANGXX=clang++-18 bash scripts/verify-
 EDSL_GCC=gcc-13 bash scripts/verify-counted-store64.sh
 EDSL_CLANG=clang-18 bash scripts/verify-counted-store64-clang.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-counted-store64-grading.sh
+EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-counted-store-final64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 EDSL_CLANGXX=clang++-18 bash scripts/verify-store-return-value64-grading.sh
 EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 ```
