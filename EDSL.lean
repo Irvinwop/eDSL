@@ -26,6 +26,7 @@ import EDSL.Examples.FutexSafety
 import EDSL.FutexCertificate
 import EDSL.OS.Futex.ClientCoverage
 import EDSL.Examples.FutexClient
+import EDSL.Examples.FutexNotification
 import EDSL.FutexClientCertificate
 import EDSL.FutexNotificationCertificate
 import EDSL.X86.Sequential.Execution
