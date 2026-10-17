@@ -76,6 +76,11 @@ ordered reads are separate evidence, with no minimum-cost claim. Stable
 ordinary RAM and the sequential CPU/ABI assumptions remain explicit; neither
 these proofs nor native probes establish a Linux implementation or whole-OS
 safety theorem.
+The [modular array-sum task](array-sum64.md) uses the same current-array
+resource boundary, with an independent natural sum reduced modulo 2^64.
+Its complete GCC/Clang clients prove all-AF termination and prefix authority;
+exact costs and ordered reads remain separate from task acceptance. The
+native byte-column oracle and owned mutant checks supply finite evidence.
 The [current-resource bridge](sequential-moves.md) derives actual stores and loads
 from present authority, retaining complete RAM coupling and original code/stack
 loans through the actual instruction length. The full-pointer-copy/store/RET integration uses

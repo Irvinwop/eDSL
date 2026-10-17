@@ -108,6 +108,11 @@ loans, empty-input admission and compatible read-only aliases. Complete GCC13
 and Clang18 loop clients prove the same unsigned result and full frame;
 exact instruction/read accounting stays separate from registration. See
 [array maximum scope](array-maximum64.md).
+Memory-source ADD64 now has complete qword/flag/frame and current-loan
+contracts. Complete 22-byte GCC and 25-byte Clang array-sum clients prove an
+independent natural sum modulo 2^64, with all-AF termination, current-resource
+prefix policies, raw/ELF proof grading and separate exact accounting. See
+[array sum scope](array-sum64.md).
 Memory CMOV remains future work; see [conditional move scope](sequential-cmov64.md).
 All sixteen unprefixed short Jcc conditions now share the existing condition
 semantics, signed-rel8 execution, dynamic/static CFG edge proofs and same-world
@@ -568,6 +573,9 @@ input footprints and RET included. Full64 array maximum clients derive
 index-ordered DATA8 reads followed by the caller STACK8 slot. Those exact
 client costs impose no task acceptance requirement and establish no
 comparison lower bound or global instruction optimum.
+Full64 modular array sums additionally derive `5*n+6` for GCC and
+four/`4*n+5` for empty/nonempty Clang input, with the same ordered DATA8/STACK8
+footprint and no global optimality claim.
 The fixed mutex routine additionally has exact `13*n + 4*busy` architectural
 costs and a constructive zero-busy entry schedule attaining `13*n`. Arbitrary
 admitted intermediate states admit completion in their remaining potential,

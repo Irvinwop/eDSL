@@ -49,11 +49,14 @@ follows such an addition with an actual RET fault at the new unmapped slot.
 Contracts assume stable ordinary sequential RAM, the modeled canonical-address
 profile, alignment checking and CET disabled, and no asynchronous interference.
 They establish no concurrent visibility, atomicity or whole-kernel guarantee.
-This foundation supports the missing instruction family in the observed
-22-byte GCC and 25-byte Clang scalar array-sum outputs. No independent
-`ArraySum64` correctness theorem or registered array-sum task is implemented.
-Static CFG import alone does not prove functional correctness, and this
-extension proves no minimum operation count or timing bound.
+The [array-sum clients](array-sum64.md) now use this instruction family in
+complete 22-byte GCC and 25-byte Clang outputs. Their independent `ArraySum64`
+contract and registered `arraySum64` task cover full64 natural sums modulo 2^64,
+all-AF termination, actual caller RET and current array resources. Separate
+client proofs establish exact instruction costs and ordered operand reads.
+Static CFG import alone does not prove functional correctness; neither the
+instruction extension nor the array-sum clients prove a minimum operation
+count or timing bound.
 
 ## Independent native conformance
 

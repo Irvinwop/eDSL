@@ -33,6 +33,24 @@ frames outside trusted imports. Empty input needs no input authority or
 canonical base. Separate proofs give `7*n+5` instructions for GCC and four
 for empty Clang input or `6*n+5` otherwise; neither cost nor read order is a
 registration requirement or an optimality result.
+The [array sum task](array-sum64.md) independently specifies the natural sum
+of full64 words modulo 2^64, including empty, zero and wrapping results.
+Complete 22-byte GCC13 and 25-byte Clang18 clients prove all-AF termination,
+the original caller RET and full RAM/permission/register/nonarithmetic-flag
+frames. Current code/input/caller loans, compatible read-only aliases and the
+empty unused-input exception compose with the same contract. Admission has no
+execution or cost callback; the useful domain covers every nonempty candidate
+code span up to 4096 bytes independently of decoding. Client-only accounting
+proves `5*n+6` instructions for GCC and four/`4*n+5` for empty/nonempty Clang
+input, with ordered DATA8 reads followed by the original STACK8 slot. Cost
+and read order remain separate from task acceptance and imply no optimum.
+The default script requires audits, fresh kernel replay, isolation, eight
+positive and eight negative raw/ELF proof-packet grades and native checks.
+The inspected native-only run passed 387,328 positive calls, 23 safe owned
+mutants and eight pre-probe extraction rejections; universal integration is a
+separate required gate, not established by that finite run.
+A separate full-mode checkpoint passed the audits, fresh replay, isolation,
+four exports, eight positive grades and eight expected binding rejections.
 Fresh [direct-add clients](counted-store-direct64.md) prove
 complete GCC13 and Clang18 outputs for `countedStore64` with exact constant
 instruction counts and reusable current OS authority. All require all-input termination
@@ -168,9 +186,10 @@ named loan or complete array loan derives the actual step in the same OS world;
 RSP changes retain the original caller-slot binding. Memory-destination `01`,
 displacements, RIP-relative and absent-base/index forms remain unsupported.
 Owned native observations have an independent arithmetic/flag oracle and
-both-AF kernel replay. This is instruction/resource infrastructure, with no
-registered array-sum task or functional array-sum theorem. See
-[memory-source addition](sequential-add-memory64.md).
+both-AF kernel replay. Complete GCC/Clang clients now use this infrastructure
+to prove the independently registered full64 modular array-sum contract; static
+CFG import alone remains insufficient. See [memory-source addition](sequential-add-memory64.md)
+and [array sum](array-sum64.md).
 Register-only CMOV64 adds all sixteen condition codes and all 16 GPRs through
 one REX.W prefix, retaining full64 false destinations, all flags and memory.
 Signed/unsigned CMP conditions are proved against mathematical integer/natural
@@ -978,6 +997,7 @@ lake env lean -DwarningAsError=true tests/SequentialMoveResources.lean
 lake env lean -DwarningAsError=true tests/SequentialAddMemory64.lean
 lake env lean -DwarningAsError=true tests/SequentialAddMemory64Resources.lean
 lake env lean -DwarningAsError=true tests/ArrayResources.lean
+lake env lean -DwarningAsError=true tests/ArraySum64.lean
 lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
 lake env lean -DwarningAsError=true tests/Sum32Index.lean
 lake env lean -DwarningAsError=true tests/Sum32Artifact.lean
@@ -1000,6 +1020,7 @@ EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-arithmetic64.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-add-memory64.sh
+EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-array-sum64.sh
 EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 ```
 

@@ -14,9 +14,11 @@ The registry contains `pair32` (the modular sum of both mathematical lists),
 with zero-count target retention and current evolving ownership),
 [`maximum64`, `minimum64`, `signedMaximum64`](comparison64.md) (mathematical
 full64 unsigned maximum/minimum and signed maximum with code/caller-slot resources),
-and [`arrayMaximum64`](array-maximum64.md) (the full64 unsigned array maximum,
-zero for empty input, with current complete eight-byte input loans).
-Pair, stride, comparison and array maximum tasks use `sequentialReadOnlyX86CallableV1`; the two low32 store tasks use
+[`arrayMaximum64`](array-maximum64.md) (the full64 unsigned array maximum),
+and [`arraySum64`](array-sum64.md) (the natural unsigned sum modulo 2^64).
+Both array tasks return zero for empty input and retain current complete
+eight-byte input loans when nonempty.
+Pair, stride, comparison and both array tasks use `sequentialReadOnlyX86CallableV1`; the two low32 store tasks use
 `sequentialOwnedWord32X86CallableV1`, and both full64 store tasks use
 `sequentialOwnedWord64X86CallableV1`. The existing GCC implementations discharge
 these claims through `EDSL.Grading.Known.pair`, `.stride` and `.write`. A different
@@ -31,6 +33,10 @@ Its GCC/Clang client exports live outside trusted imports. Their exact costs
 and index-ordered DATA8/STACK8 reads are separate accounting theorems;
 registration fixes neither a compiler shape nor read order. See
 [the array contract and clients](array-maximum64.md).
+`arraySum64` retains the same callable and current-resource frame with its
+independent modular-sum result. Its separate GCC/Clang clients, instruction
+counts and ordered reads likewise stay outside task admission. See
+[the sum contract and clients](array-sum64.md).
 
 The client-only [MOV-initialized stride proof](../tests/fixtures/StrideMov.lean)
 demonstrates a different executed implementation of the same task. Its 22 bytes

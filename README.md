@@ -152,6 +152,13 @@ Implemented and checked:
   Complete 26-byte GCC and 32-byte Clang client proofs retain the full RAM,
   register and return frame. Separate costs are `7*n+5` and four/`6*n+5` for
   empty/nonempty Clang input. See [array maximum](docs/array-maximum64.md).
+- Full64 modular array sum against an independent natural-sum specification,
+  with current array/caller loans, empty-input exceptions and compatible
+  read-only aliases. Complete 22-byte GCC and 25-byte Clang client proofs cover
+  wrapping sums, all AF choices and the full memory/register/return frame.
+  Separate costs are `5*n+6` and four/`4*n+5` for empty/nonempty Clang input;
+  default integration requires model, proof-packet and finite native gates.
+  See [array sum](docs/array-sum64.md).
 - Fresh proofs for complete 13-byte GCC and 15-byte Clang direct-add outputs
   against the same counted-store task, including all full64 counts, actual
   checked OS writes and reusable returned authority. Exact costs are 4/5 and
@@ -252,6 +259,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Checked CFGs and local proofs](docs/cfg.md) | How can new control-flow patterns use local Lean obligations against an independent task contract? |
 | [Two-array sum proofs](docs/pair32.md) | How do two loops and two current input resources compose through that interface? |
 | [Full64 array maximum](docs/array-maximum64.md) | How do different compiler loops meet one unsigned result and current array-resource contract? |
+| [Full64 modular array sum](docs/array-sum64.md) | How do different full64 loops meet one wrapping-sum contract with current resources and separate cost proofs? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |
@@ -343,6 +351,7 @@ lake env lean -DwarningAsError=true tests/GradingStoreReturn.lean
 lake env lean -DwarningAsError=true tests/StoreReturnRcx.lean
 lake env lean -DwarningAsError=true tests/StoreReturnAccounting.lean
 lake env lean -DwarningAsError=true tests/ArrayResources.lean
+lake env lean -DwarningAsError=true tests/ArraySum64.lean
 lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
 lake env lean -DwarningAsError=true tests/Sum32Index.lean
 lake env lean -DwarningAsError=true tests/Sum32Artifact.lean
@@ -365,6 +374,7 @@ EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-arithmetic64.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-add-memory64.sh
+EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-array-sum64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-counted-store-direct64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return32.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return-grading.sh
@@ -397,6 +407,10 @@ certificates, native observations and provenance use `artifacts/sum32-fixtures/`
 The CFG integration uses GCC 13 and `flock`, checks complete raw/explicit-span
 ELF imports, and separately proves the stride function's independent contract.
 Its owned native observations and generated proofs use `artifacts/cfg-fixtures/`.
+The array-sum integration uses GCC 13/Clang 18 GNU23 `-Os` outputs and writes
+owned evidence to `artifacts/array-sum64/`. Its parallel workflow keeps a separate
+partial build cache. Default success requires every model/proof and native gate;
+`--native-only` explicitly leaves universal Lean validation `NOTRUN`.
 
 The optional native compiler probes are separate from proofs:
 
