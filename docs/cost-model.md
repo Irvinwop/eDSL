@@ -92,8 +92,16 @@ execution, kernel cleanup and waiting are outside these counts.
 | `Exit42.zero_register_lower_bound`: at least three instructions | Every supported first-syscall execution from initial RAX = RDI = 0 requesting raw exit60 with status42 |
 | `Process.viaWrite_results`: exactly eight user instructions | Every completed bounded stream-write/exit execution for its checked bytes, including partial/error returns; excludes kernel and waiting steps |
 | `IncrementLoop.actual_bytes_correct`: exactly `2*count+3` | Every 64-bit initial RCX count and modular input value, admitted executable bytes and return stack; induction proves termination, including zero count |
+| `ArrayMaximum64.GCC.execution_exact`: exactly `7*n+5`; `Clang.execution_accounting`: four for empty input, `6*n+5` otherwise | Complete final 26/32-byte compiler outputs, every admitted full64 array and AF stream, current input/code/caller-slot resources; includes RET and proves original ordered DATA8/STACK8 reads |
 | `CounterThreads.completed_selection_count`: exactly `3*count+3` own selections through completion | Every well-formed entry-phase counter worker with full 64-bit initial RCX, exact locked-add-loop code and retained handle/code/stack resources; successful supplied schedules may interleave peers |
 | `MutexReplay.machine_completed_observations`: exactly `13*n+4*busy` instructions | Every completed admitted architectural interleaving of the fixed 37-byte mutex worker, starting with `n` entry workers; a zero-busy schedule attains the `13*n` lower bound |
+
+The [array maximum clients](array-maximum64.md) prove their counts separately
+from the registered mathematical result and current-resource policy. Different
+loop shapes satisfy the same task with different counts. No lower bound on
+comparisons, input loads or arbitrary correct machine programs is established
+by those two exact executions; micro-ops and physical timing remain outside
+the count.
 
 The word-store bound quantifies over arbitrary candidate bytes and actual
 executions, without a CFG, read-only policy or fixed instruction-selection

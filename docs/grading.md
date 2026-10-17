@@ -11,15 +11,26 @@ The registry contains `pair32` (the modular sum of both mathematical lists),
 `storeReturn32` (the same store plus the complete target pointer in RAX),
 `storeReturnValue64` (the complete 64-bit argument stored and returned),
 [`countedStore64`](counted-store64-grading.md) (the full64 argument plus count,
-with zero-count target retention and current evolving ownership), and
+with zero-count target retention and current evolving ownership),
 [`maximum64`, `minimum64`, `signedMaximum64`](comparison64.md) (mathematical
-full64 unsigned maximum/minimum and signed maximum with code/caller-slot resources).
-Pair, stride and comparison tasks use `sequentialReadOnlyX86CallableV1`; the two low32 store tasks use
+full64 unsigned maximum/minimum and signed maximum with code/caller-slot resources),
+and [`arrayMaximum64`](array-maximum64.md) (the full64 unsigned array maximum,
+zero for empty input, with current complete eight-byte input loans).
+Pair, stride, comparison and array maximum tasks use `sequentialReadOnlyX86CallableV1`; the two low32 store tasks use
 `sequentialOwnedWord32X86CallableV1`, and both full64 store tasks use
 `sequentialOwnedWord64X86CallableV1`. The existing GCC implementations discharge
 these claims through `EDSL.Grading.Known.pair`, `.stride` and `.write`. A different
 implementation must prove the same `EDSL.Grading.Claim id bytes`; matching a
 published byte table, CFG, instruction count or read order is not required.
+
+`arrayMaximum64` preserves the complete memory record, actual return/RSP and
+every GPR outside RAX, RCX, RDX and RSP, plus nonarithmetic flags. Empty input
+requires no input loan or accessible/canonical base; current code and caller
+slot remain required. Compatible read-only aliases may share a loan ID.
+Its GCC/Clang client exports live outside trusted imports. Their exact costs
+and index-ordered DATA8/STACK8 reads are separate accounting theorems;
+registration fixes neither a compiler shape nor read order. See
+[the array contract and clients](array-maximum64.md).
 
 The client-only [MOV-initialized stride proof](../tests/fixtures/StrideMov.lean)
 demonstrates a different executed implementation of the same task. Its 22 bytes

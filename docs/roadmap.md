@@ -103,6 +103,11 @@ signed/unsigned CMP adequacy and same-world pure-call resource composition.
 Six final GCC/Clang comparison clients and three independent scalar comparison
 tasks now compose that foundation with current code/caller-slot resources and
 raw/ELF proof grading. See [comparison scope](comparison64.md).
+The full64 array maximum task extends this with independent current array
+loans, empty-input admission and compatible read-only aliases. Complete GCC13
+and Clang18 loop clients prove the same unsigned result and full frame;
+exact instruction/read accounting stays separate from registration. See
+[array maximum scope](array-maximum64.md).
 Memory CMOV remains future work; see [conditional move scope](sequential-cmov64.md).
 All sixteen unprefixed short Jcc conditions now share the existing condition
 semantics, signed-rel8 execution, dynamic/static CFG edge proofs and same-world
@@ -558,7 +563,11 @@ support exact instruction/read totals without changing the termination proof.
 The stride-two instance now derives `6*count+4` and the exact even-index operand
 sequence through this API, with RET included.
 The two-loop instance derives `6*(lengthA+lengthB)+6`, with separate ordered
-input footprints and RET included.
+input footprints and RET included. Full64 array maximum clients derive
+`7*n+5` for GCC and four/`6*n+5` for empty/nonempty Clang input, with original
+index-ordered DATA8 reads followed by the caller STACK8 slot. Those exact
+client costs impose no task acceptance requirement and establish no
+comparison lower bound or global instruction optimum.
 The fixed mutex routine additionally has exact `13*n + 4*busy` architectural
 costs and a constructive zero-busy entry schedule attaining `13*n`. Arbitrary
 admitted intermediate states admit completion in their remaining potential,

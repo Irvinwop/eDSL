@@ -25,8 +25,16 @@ full64 argument, and `countedStore64`, which adds a full64 count with zero-count
 target retention. The [comparison tasks](comparison64.md) add full64 unsigned
 maximum/minimum and signed maximum, with pure code/caller-slot resource
 admission and six independent compiler client proofs outside trusted imports.
+The [array maximum task](array-maximum64.md) specifies unsigned maximum of
+full64 words, zero for empty input, with current nonwrapping eight-byte array
+loans and compatible read-only aliases. Complete 26-byte GCC13 and 32-byte
+Clang18 clients prove all-input termination and full memory/register/return
+frames outside trusted imports. Empty input needs no input authority or
+canonical base. Separate proofs give `7*n+5` instructions for GCC and four
+for empty Clang input or `6*n+5` otherwise; neither cost nor read order is a
+registration requirement or an optimality result.
 Fresh [direct-add clients](counted-store-direct64.md) prove
-complete GCC13 and Clang18 outputs for that same task with exact constant
+complete GCC13 and Clang18 outputs for `countedStore64` with exact constant
 instruction counts and reusable current OS authority. All require all-input termination
 and current OS admission. Pair/stride require reachable read-only effects;
 write permits ordinary stores at its fixed target, with checked evolving

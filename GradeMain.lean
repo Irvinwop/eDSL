@@ -16,7 +16,7 @@ def main (args : List String) : IO UInt32 := do
       pure (id, input, proof, some span)
     | _ => none
   let some (id, input, proof, span) := selected | do
-    stderr.putStrLn "usage: edsl-grade [--elf SPAN_BYTES] {pair32|stride32|write32|storeReturn32|storeReturnValue64|countedStore64|maximum64|minimum64|signedMaximum64} INPUT PROOF.json"
+    stderr.putStrLn "usage: edsl-grade [--elf SPAN_BYTES] {pair32|stride32|write32|storeReturn32|storeReturnValue64|countedStore64|maximum64|minimum64|signedMaximum64|arrayMaximum64} INPUT PROOF.json"
     return 2
   try
     let limits : Limits := {}

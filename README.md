@@ -141,6 +141,11 @@ Implemented and checked:
   The three grading tasks retain current code/caller-slot authority and the
   full memory/ABI frame; separate proofs count four instructions including RET.
   See [comparison clients](docs/comparison64.md).
+- Full64 unsigned array maximum with zero for empty input, independent current
+  array loans, compatible read-only aliases and no unused-base requirement.
+  Complete 26-byte GCC and 32-byte Clang client proofs retain the full RAM,
+  register and return frame. Separate costs are `7*n+5` and four/`6*n+5` for
+  empty/nonempty Clang input. See [array maximum](docs/array-maximum64.md).
 - Fresh proofs for complete 13-byte GCC and 15-byte Clang direct-add outputs
   against the same counted-store task, including all full64 counts, actual
   checked OS writes and reusable returned authority. Exact costs are 4/5 and
@@ -240,6 +245,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Ordinary sum32 loops](docs/sum32.md) | How do two compiler-produced loop shapes meet one sum, termination, memory, read-loan and cost contract? |
 | [Checked CFGs and local proofs](docs/cfg.md) | How can new control-flow patterns use local Lean obligations against an independent task contract? |
 | [Two-array sum proofs](docs/pair32.md) | How do two loops and two current input resources compose through that interface? |
+| [Full64 array maximum](docs/array-maximum64.md) | How do different compiler loops meet one unsigned result and current array-resource contract? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |

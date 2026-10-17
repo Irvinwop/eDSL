@@ -126,6 +126,8 @@ jobs:
           lake env lean -DwarningAsError=true tests/StoreReturnXchg.lean
           lake env lean -DwarningAsError=true tests/StoreReturnAccounting.lean
           lake env lean -DwarningAsError=true tests/ArrayResources.lean
+          lake env lean -DwarningAsError=true tests/ArrayResources64.lean
+          lake env lean -DwarningAsError=true tests/ArrayMaximum64.lean
           lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
           lake env lean -DwarningAsError=true tests/Sum32Index.lean
           lake env lean -DwarningAsError=true tests/Sum32Artifact.lean

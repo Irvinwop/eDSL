@@ -66,6 +66,16 @@ overflow boundaries. Their code/caller-slot domain is independently inhabited
 and their implementations stay outside the trusted grader imports. Complete RAM
 equality transports the same current OS world; arithmetic flags remain outside
 the task's ABI frame. Exact four-instruction accounting is separate evidence.
+The [array maximum task](array-maximum64.md) adds full64 array contents and
+current complete input-loan authority, including empty arrays without an
+input resource and compatible read-only aliases. Its GCC/Clang clients prove
+termination, the independent unsigned result, complete RAM and register/return
+frames, and reachable read authority for every AF stream. Trusted independent
+domain imports exclude client implementations. Exact instruction counts and
+ordered reads are separate evidence, with no minimum-cost claim. Stable
+ordinary RAM and the sequential CPU/ABI assumptions remain explicit; neither
+these proofs nor native probes establish a Linux implementation or whole-OS
+safety theorem.
 The [current-resource bridge](sequential-moves.md) derives actual stores and loads
 from present authority, retaining complete RAM coupling and original code/stack
 loans through the actual instruction length. The full-pointer-copy/store/RET integration uses
