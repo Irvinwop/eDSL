@@ -224,7 +224,13 @@ all reachable code/runtime and external contracts accounted for.
 Implemented foundation: sequential four-byte ordinary-RAM reads/writes, explicit
 per-byte mappedness/write permissions, read-after-write, disjoint framing and
 nonvacuous compiler-profile witnesses. Language-object provenance, a runtime
-allocator, concurrent atomicity and calls beyond the modeled return remain ahead.
+allocator and concurrent atomicity remain ahead. An additive direct-call slice
+now covers four whole GCC/Clang nested-call outputs with current OS-owned stack
+frames, actual RAM-derived internal/original RET, independent full64 results,
+ABI/memory framing and exact five/seven-instruction counts. Checked CPU/OS
+histories retain dirty private bytes and reusable current resources. Broader
+calls and registration in the existing grader/concurrent profiles remain ahead;
+see [owned nested calls](call-stack.md).
 The counted-loop extension now proves modular increment for every 64-bit count
 with a decreasing natural variant and exact `2*count+3` cost, preserving flags
 and memory. Raw/full-ELF certificates cover the owned assembly from Clang/GCC;

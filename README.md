@@ -139,6 +139,11 @@ Implemented and checked:
   A pure-call OS resource bridge retains the same code/caller-slot loans
   and complete RAM, including conditional RSP changes and actual RET.
   See [conditional moves](docs/sequential-cmov64.md).
+- Direct nested CALL/RET with current OS-owned private stack frames, checked
+  full64 PUSH/POP and signed-displacement LEA. Four whole GCC/Clang outputs
+  prove the same modular `x + 2` result, ABI frame and reusable resources;
+  exact costs are five/seven instructions. A separate sibling engine retains
+  actual RAM-derived return targets. See [owned calls](docs/call-stack.md).
 - All sixteen short conditional branches in the sequential backend, with
   signed displacements, taken-target checks, checked CFG edges and preservation
   of the same current OS resource world. See [branch scope](docs/sequential-short-jcc.md).
@@ -260,6 +265,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Two-array sum proofs](docs/pair32.md) | How do two loops and two current input resources compose through that interface? |
 | [Full64 array maximum](docs/array-maximum64.md) | How do different compiler loops meet one unsigned result and current array-resource contract? |
 | [Full64 modular array sum](docs/array-sum64.md) | How do different full64 loops meet one wrapping-sum contract with current resources and separate cost proofs? |
+| [Owned nested calls](docs/call-stack.md) | How do actual CALL/PUSH/POP/RET steps compose with current private-stack ownership and whole compiler text? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |

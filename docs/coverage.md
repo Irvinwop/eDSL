@@ -76,6 +76,21 @@ Task preconditions are inhabited for arbitrary admitted byte lists independently
 of decoding; the write witness requires a real value change, and a RET-only
 candidate is proved insufficient. The registry exposes fixed sequential callable
 tasks with explicit profiles.
+The additive [owned nested-call slice](call-stack.md) uses a separate
+`X86.CallReturn` engine and checked `OS.StackFrame.CPU.Execution`. Four whole
+GCC13/Clang18 same/separate-unit texts prove full64 modular `x + 2` for all
+inputs and AF streams, including actual internal RET continuation and original
+caller RET, ABI/permission/outside-frame preservation and reusable private
+ownership. Present unborrowed allocation authority enables real CALL/PUSH
+stores; POP/private RET owner reads introduce no loan. Used private bytes may
+remain changed. A reachable allocation/loan witness admits a real compiler
+program and proves the wrapping answer one for the maximum input. Exact
+five/seven-instruction costs and stack-read traces describe these programs.
+The default native gate binds all extracted bytes and selected entries to
+universal Lean contracts, audits dependencies and performs fresh replay;
+finite independent native observations are separate. This sibling is not
+registered in existing graders, CFGs or concurrent worker profiles. It proves
+no source preservation, general calls, CPU cycles or whole-OS safety.
 The standalone [GCC counted-store profile](counted-store64.md) and separate
 [Clang profile](counted-store64-clang.md) prove two exact 20-byte loops against
 the same independent contract for every full64 count. They compose checked owner

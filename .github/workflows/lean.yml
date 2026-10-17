@@ -64,6 +64,12 @@ jobs:
           lake env lean -DwarningAsError=true tests/ControlFlow.lean
           lake env lean -DwarningAsError=true tests/Ownership.lean
           lake env lean -DwarningAsError=true tests/Ownership64.lean
+          lake env lean -DwarningAsError=true tests/OwnershipRead64.lean
+          lake env lean -DwarningAsError=true tests/StackFrameResources.lean
+          lake env lean -DwarningAsError=true tests/CallReturnRaw.lean
+          lake env lean -DwarningAsError=true tests/StackFrameCPU.lean
+          lake env lean -DwarningAsError=true tests/CallStack.lean
+          lake env lean -DwarningAsError=true tests/CallStackAdmission.lean
           lake env lean -DwarningAsError=true tests/Borrowing.lean
           lake env lean -DwarningAsError=true tests/Threads.lean
           lake env lean -DwarningAsError=true tests/AtomicExchange.lean
