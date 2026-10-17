@@ -49,7 +49,7 @@ jobs:
       # Always invoke Lake: its input traces invalidate changed modules. Cached
       # outputs never skip contract tests, axiom audits, or fresh kernel replay.
       - name: Build pinned Lean project
-        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32 edsl-cfg-import edsl-grade edsl-grade-call-stack edsl-grade-call-memory64 edsl-proof-export edsl-certify-store-return32 edsl-certify-store-load64 edsl-certify-counted-store64 edsl-certify-counted-store64-clang GradingFixtures
+        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-futex-predicate edsl-certify-sum32 edsl-cfg-import edsl-grade edsl-grade-call-stack edsl-grade-call-memory64 edsl-proof-export edsl-certify-store-return32 edsl-certify-store-load64 edsl-certify-counted-store64 edsl-certify-counted-store64-clang GradingFixtures
       - name: ISA, ELF, OS contracts and rejection properties
         run: |
           lake env lean -DwarningAsError=true tests/X86.lean
@@ -111,6 +111,8 @@ jobs:
           lake env lean -DwarningAsError=true tests/FutexClientCoverage.lean
           lake env lean -DwarningAsError=true tests/FutexNotification.lean
           lake env lean -DwarningAsError=true tests/FutexNotificationCertificate.lean
+          lake env lean -DwarningAsError=true tests/FutexPredicate.lean
+          lake env lean -DwarningAsError=true tests/FutexPredicateCertificate.lean
           lake env lean -DwarningAsError=true tests/SequentialISA.lean
           lake env lean -DwarningAsError=true tests/SequentialExecution.lean
           lake env lean -DwarningAsError=true tests/SequentialMoves.lean

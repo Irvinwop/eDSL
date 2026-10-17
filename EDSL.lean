@@ -29,6 +29,9 @@ import EDSL.Examples.FutexClient
 import EDSL.Examples.FutexNotification
 import EDSL.FutexClientCertificate
 import EDSL.FutexNotificationCertificate
+import EDSL.OS.Futex.Predicate
+import EDSL.Examples.FutexPredicate
+import EDSL.FutexPredicateCertificate
 import EDSL.X86.Sequential.Execution
 import EDSL.OS.ArrayResources
 import EDSL.OS.CallResources

@@ -545,8 +545,15 @@ WAIT stages have a continuation within six runtime transitions. The policy,
 current resources and service assumptions are explicit; no scheduler fairness
 or predicate acquisition follows. See [notification contracts](futex-notification.md).
 
-Next implement a predicate-rechecking client loop and a blocking-mutex
-acquisition contract, with explicit scheduler assumptions for eventual progress.
+The [predicate-rechecking client loop](futex-predicate.md) adds genuine current
+resource admission, repeated fresh invocation/pin lifetimes, mixed-trace
+notification safety and a constructive suffix of at most 14 runtime actions
+from every admitted postnotification cut. The independent return1/currentW1
+contract is conditional on the 0/1 signal protocol and retains full RAM/peer
+frames. Stale zero snapshots and already resumed/returned cuts remain covered.
+
+Next implement a blocking-mutex acquisition contract, with explicit scheduler
+assumptions for eventual progress, and extend beyond the sole-WAIT policy.
 Expand finite control and resource obligations only with corresponding
 preservation and coverage proofs. Native kernel/runtime correspondence and
 safety of a whole Linux kernel or distribution remain separate work. See

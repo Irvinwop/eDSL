@@ -103,6 +103,11 @@ Implemented and checked:
   that fact. Every supported WAIT stage has a bounded continuation through RET;
   scheduler fairness and predicate acquisition remain separate.
   See [notification contracts](docs/futex-notification.md).
+- A predicate-rechecking private WAIT loop with fresh invocation/pin lifetimes,
+  persistent notification safety and constructive completion within 14 modeled
+  runtime actions after notification. The independent contract requires actual
+  return1/current W1 and RAM/peer frames under a declared 0/1 signal protocol.
+  See [predicate-loop contracts](docs/futex-predicate.md).
 - A counted assembly loop with a proved invariant and termination for every
   64-bit count, modular arithmetic result and exact `2*count+3` user-instruction cost.
 - Ordinary C `sum32` pointer/count and indexed loops share an independent
@@ -289,6 +294,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Concurrent syscall boundaries](docs/concurrent-syscalls.md) | How do pending calls retain peer memory changes and consume invocation IDs once? |
 | [Private futex service](docs/futex.md) | How do actual requests, mutable-word lifetime, queue eligibility and current RAM compose? |
 | [Private-word notification](docs/futex-notification.md) | When do actual publication and wake prevent later queueing, and what completion is enabled? |
+| [Predicate-rechecking WAIT](docs/futex-predicate.md) | When does the actual loop return1, and which postnotification suffix is constructively enabled? |
 | [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
 | [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
 | [Stream output and exit](docs/process-write.md) | How do short writes and errors compose with the next userspace instructions? |
@@ -342,7 +348,7 @@ separate research work.
 Install [elan](https://github.com/leanprover/elan), then run:
 
 ```sh
-lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32 edsl-cfg-import
+lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-futex-predicate edsl-certify-sum32 edsl-cfg-import
 lake build edsl-grade-call-stack edsl-proof-export tests.fixtures.CallStack.CoveredAudit tests.fixtures.CallStack.FoundationAudit tests.fixtures.CallStack.Inline.Accounting
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
@@ -384,6 +390,8 @@ lake env lean -DwarningAsError=true tests/FutexClientCertificate.lean
 lake env lean -DwarningAsError=true tests/FutexClientCoverage.lean
 lake env lean -DwarningAsError=true tests/FutexNotification.lean
 lake env lean -DwarningAsError=true tests/FutexNotificationCertificate.lean
+lake env lean -DwarningAsError=true tests/FutexPredicate.lean
+lake env lean -DwarningAsError=true tests/FutexPredicateCertificate.lean
 lake env lean -DwarningAsError=true tests/SequentialISA.lean
 lake env lean -DwarningAsError=true tests/SequentialExecution.lean
 lake env lean -DwarningAsError=true tests/SequentialMoves.lean
@@ -419,6 +427,7 @@ bash scripts/verify-mutex.sh
 bash scripts/verify-mutex-workers.sh
 bash scripts/verify-futex.sh
 bash scripts/verify-futex-clients.sh
+bash scripts/verify-futex-predicate.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-arithmetic64.sh

@@ -25,6 +25,9 @@ lean_exe «edsl-certify-futex» where
 lean_exe «edsl-certify-futex-client» where
   root := `FutexClientMain
 
+lean_exe «edsl-certify-futex-predicate» where
+  root := `FutexPredicateMain
+
 lean_exe «edsl-certify-sum32» where
   root := `Sum32Main
 

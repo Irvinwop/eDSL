@@ -577,6 +577,16 @@ Full-ELF loading additionally requires agreement with the current loaded memory
 and entry. A CLI byte match does not construct that
 runtime admission or verify native mapping/resource enforcement.
 
+The separate [predicate loop](futex-predicate.md) returns a loaded nonzero word;
+its return1 theorem explicitly requires the admitted 0/1 signal protocol.
+Snapshot knowledge allows stale LOAD0 after publication, and current code/stack,
+canonical targets, mutable-word keeper and repeated invocation/pin lifetimes
+derive enabledness. Actual same-publisher XCHG/WAKE1 establishes notification;
+later accepted mixed traces retain no-queue safety and payload. Every admitted
+postnotification cut has an actual suffix within 14 modeled runtime actions
+with independent return1/currentW1, final admission, full RAM and peer frames.
+This enabled suffix does not imply fairness or a hardware operation minimum.
+
 A broad no-lost-wake or blocking-acquisition theorem, installed-kernel/runtime
 correspondence and safety of a whole Linux kernel or distribution remain outside
 the claim. Native fault cases and positive/inconclusive wake or publication
