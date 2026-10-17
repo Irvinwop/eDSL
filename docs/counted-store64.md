@@ -55,10 +55,20 @@ Ranks depending on ghost resources, atomic instructions and syscall outcomes
 are outside this interface. The read-only CFG discovery/checker remains
 unchanged and rejects stores; this instance supplies a direct layout.
 
-The conservative instruction bound is `7 * (count.toNat + 2)`, including RET.
-It is separate from the functional contract. Exact instruction/store counts,
-minimum operations, concurrent visibility, timing and source preservation are
-not established. Physical interpretation uses the existing ordinary-RAM
+`GCC.execution_exact` separately proves exactly `6 * count.toNat + 4` retired
+model instructions, including RET, and exactly one original STACK8 operand
+read. A local potential decreases by one at each actual instruction; its full64
+counter contribution is a natural number and does not wrap. Totality is proved
+before exact fuel is derived. The generated `exactCertified` and
+`resourceExactCertified` theorems expose this result, retaining the independent
+postcondition and coherent returned ownership. Existing bounded entrypoints
+retain their conservative `7 * (count.toNat + 2)` fuel bound.
+
+Accounting is separate from the functional contract and admission. Store
+counts, minimum operations among alternative programs, concurrent visibility,
+physical timing and source preservation are not established. In particular,
+the final-value contract alone does not require one store per source iteration.
+Physical interpretation uses the existing ordinary-RAM
 [machine assumptions](coverage.md#supported-machine-profile), including
 stable code/data, disabled alignment checking/CET and no asynchronous changes.
 This does not verify the implementation of Linux or another whole OS.
@@ -68,6 +78,7 @@ Run:
 ```sh
 lake build edsl-certify-counted-store64
 lake env lean -DwarningAsError=true tests/CountedStore64.lean
+lake env lean -DwarningAsError=true tests/CountedStore64Accounting.lean
 EDSL_GCC=gcc-13 bash scripts/verify-counted-store64.sh
 lake env .lake/build/bin/edsl-certify-counted-store64 INPUT.bin CERTIFICATE.lean
 lake env .lake/build/bin/edsl-certify-counted-store64 --elf INPUT.elf CERTIFICATE.lean
@@ -90,4 +101,7 @@ owned mutants test missing/narrow stores, incorrect iteration count/value,
 neighbor writes and ABI damage. Timeout and unsupported analysis establish
 no defect. Separate Lean regressions cover zero retention, high-half-only and
 maximum counts, arbitrary frames, returned authority, and an admitted real
-MOV EDX,EDX count-truncation counterexample.
+MOV EDX,EDX count-truncation counterexample. Accounting regressions additionally
+cover the four-instruction zero path, a nine-fuel single-iteration rejection,
+and symbolic high-half and maximum counts whose exact natural costs exceed
+the low32 and full64 machine ranges respectively.

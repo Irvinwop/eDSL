@@ -80,7 +80,7 @@ def main (arguments : List String) : IO UInt32 := do
       return 1
     let stdout ← IO.getStdout
     stdout.putStr checked.stdout
-    stdout.putStrLn s!"CERTIFIED: {raw.size} literal artifact bytes, {candidate.codeBytes} function bytes; full64 counted-store result and target/ABI/permission frames for all admitted inputs/AF choices, at most 7 * (count.toNat + 2) instructions; current OS resources and CPU/kernel conformance remain explicit; {absolute}"
+    stdout.putStrLn s!"CERTIFIED: {raw.size} literal artifact bytes, {candidate.codeBytes} function bytes; full64 counted-store result and target/ABI/permission frames for all admitted inputs/AF choices, exactly 6 * count.toNat + 4 model instructions and one STACK8 operand read; current OS resources and CPU/kernel conformance remain explicit; {absolute}"
     return 0
   catch error =>
     stderr.putStrLn s!"IO-FAILURE: {error}; no certification or defect conclusion"

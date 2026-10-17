@@ -42,8 +42,10 @@ termination, the independent modular result, zero-count target retention,
 outside8/permission/ABI/nonarithmetic-flag frames, actual RET, and current-world
 owner mutations with usable returned authority. The ELF file additionally binds
 the parsed restricted container, loaded entry code and explicit caller facts.
-Fuel is conservatively bounded by 7*(count.toNat+2), including RET. This is not
-an exact instruction count, store-count, source-preservation or optimality claim.
+Additional exact theorems prove 6*count.toNat+4 retired model instructions,
+including RET, and one original STACK8 operand read. The older entrypoints
+retain their conservative 7*(count.toNat+2) fuel bound. Store-count,
+source-preservation, physical timing and operation-optimality are separate claims.
 This one exact GCC profile is separate from the fixed-contract grader registry;
 different byte shapes remain unsupported. Native evidence has its own scope.txt.
 SCOPE

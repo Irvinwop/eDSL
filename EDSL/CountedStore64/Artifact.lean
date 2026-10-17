@@ -2,7 +2,7 @@
 Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
-import EDSL.CountedStore64.Proof
+import EDSL.CountedStore64.Accounting
 import EDSL.Sum32.Artifact
 
 set_option warningAsError true
@@ -52,6 +52,38 @@ theorem resource_run {candidate : List Byte} {resource initial}
   obtain ⟨result, actual, contract⟩ := (resource_sound accepted pre).1 choices
   exact ⟨result, run_complete actual contract.2.2, contract⟩
 
+/-- Accounting follows the same actual execution as the independent result.
+The complete count, RET and original caller operand are included. -/
+theorem exact_accounting {candidate : List Byte} {input initial choices result}
+    (accepted : check candidate = true) (pre : Pre candidate input initial)
+    (actual : Sequential.Executes choices initial result) :
+    result.instructions = 6 * input.count.toNat + 4 ∧
+      result.reads = [⟨.stack, initial.registers .rsp, 8⟩] := by
+  have same : candidate = GCC.bytes := of_decide_eq_true accepted
+  subst candidate
+  exact GCC.execution_exact pre actual
+
+/-- Exact fuel is derived after totality; it is never an admission premise. -/
+theorem raw_exact_run {candidate : List Byte} {input initial}
+    (accepted : check candidate = true) (pre : Pre candidate input initial) (choices : Choices) :
+    ∃ result, Sequential.run choices (6 * input.count.toNat + 4) initial = .ok result ∧
+      Post input initial result.state ∧ result.instructions = 6 * input.count.toNat + 4 ∧
+      result.reads = [⟨.stack, initial.registers .rsp, 8⟩] := by
+  obtain ⟨result, actual, post, _⟩ := raw_sound accepted pre choices
+  obtain ⟨cost, reads⟩ := exact_accounting accepted pre actual
+  exact ⟨result, run_complete actual (Nat.le_of_eq cost), post, cost, reads⟩
+
+/-- Exact cost retains the existing coherent returned authority and frames. -/
+theorem resource_exact_run {candidate : List Byte} {resource initial}
+    (accepted : check candidate = true) (pre : ResourcePre candidate resource initial) (choices : Choices) :
+    ∃ result, Sequential.run choices (6 * resource.count.toNat + 4) initial = .ok result ∧
+      Post (resourceInput resource) initial result.state ∧ ResourceReturn resource initial result ∧
+      result.instructions = 6 * resource.count.toNat + 4 ∧
+      result.reads = [⟨.stack, initial.registers .rsp, 8⟩] := by
+  obtain ⟨result, actual, post, returned, _⟩ := (resource_sound accepted pre).1 choices
+  obtain ⟨cost, reads⟩ := exact_accounting accepted pre.machine actual
+  exact ⟨result, run_complete actual (Nat.le_of_eq cost), post, returned, cost, reads⟩
+
 /-- Loaded literal code supplies the code premise. The complete RDX count and
 all other caller bindings, current RAM and permissions remain explicit. -/
 theorem pre_of_loaded {file candidate : List Byte} {image : ELF.Image} {input : Input} {initial : State}
@@ -81,7 +113,7 @@ private def header : String :=
   "set_option maxRecDepth 100000\nset_option maxHeartbeats 0\n\n" ++
   "/- Exact callable bytes: full64 counted-store result and complete target/ABI frames.\n" ++
   "Caller RAM, all-byte permissions and current OS authority remain explicit.\n" ++
-  "The instruction bound depends on the full64 count; it is not an optimality claim.\n" ++
+  "Exact retired instructions and STACK8 reads are separate from the result contract.\n" ++
   "No source/volatile preservation, concurrent atomicity or timing claim. -/\n\n"
 
 private def layoutSource (candidate : List Byte) : String :=
@@ -89,6 +121,21 @@ private def layoutSource (candidate : List Byte) : String :=
   "theorem accepted : CountedStore64.Artifact.check observedBytes = true := by decide\n\n"
 
 private def semanticSource : String :=
+  "theorem exactCertified (input : CountedStore64.Input) (initial : State)\n" ++
+  "    (admitted : CountedStore64.Pre observedBytes input initial) (choices : Choices) :\n" ++
+  "    ∃ result, Sequential.run choices (6 * input.count.toNat + 4) initial = .ok result ∧\n" ++
+  "      CountedStore64.Post input initial result.state ∧\n" ++
+  "      result.instructions = 6 * input.count.toNat + 4 ∧\n" ++
+  "      result.reads = [⟨.stack, initial.registers .rsp, 8⟩] :=\n" ++
+  "  CountedStore64.Artifact.raw_exact_run accepted admitted choices\n\n" ++
+  "theorem resourceExactCertified (resource : CountedStore64.Resources) (initial : State)\n" ++
+  "    (admitted : CountedStore64.ResourcePre observedBytes resource initial) (choices : Choices) :\n" ++
+  "    ∃ result, Sequential.run choices (6 * resource.count.toNat + 4) initial = .ok result ∧\n" ++
+  "      CountedStore64.Post (CountedStore64.resourceInput resource) initial result.state ∧\n" ++
+  "      CountedStore64.ResourceReturn resource initial result ∧\n" ++
+  "      result.instructions = 6 * resource.count.toNat + 4 ∧\n" ++
+  "      result.reads = [⟨.stack, initial.registers .rsp, 8⟩] :=\n" ++
+  "  CountedStore64.Artifact.resource_exact_run accepted admitted choices\n\n" ++
   "theorem certified (input : CountedStore64.Input) (initial : State)\n" ++
   "    (admitted : CountedStore64.Pre observedBytes input initial) (choices : Choices) :\n" ++
   "    ∃ result, Sequential.run choices (7 * (input.count.toNat + 2)) initial = .ok result ∧\n" ++

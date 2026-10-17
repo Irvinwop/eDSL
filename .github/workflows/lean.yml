@@ -38,9 +38,14 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .lake/build
-          key: lake-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.lean', 'lake-manifest.json') }}-${{ github.sha }}
+          key: lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean', 'lake-manifest.json') }}-${{ github.sha }}
           restore-keys: |
+            lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean', 'lake-manifest.json') }}-
+            lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-
             lake-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.lean', 'lake-manifest.json') }}-
+      # Reuse the same Lean version across target/dependency configuration
+      # changes. Lake invalidates affected inputs; the final v1 prefix permits
+      # migration from the previous cache format without a cold build.
       # Always invoke Lake: its input traces invalidate changed modules. Cached
       # outputs never skip contract tests, axiom audits, or fresh kernel replay.
       - name: Build pinned Lean project
@@ -98,6 +103,7 @@ jobs:
           lake env lean -DwarningAsError=true tests/SequentialMemory64Resources.lean
           lake env lean -DwarningAsError=true tests/StoreLoad64.lean
           lake env lean -DwarningAsError=true tests/CountedStore64.lean
+          lake env lean -DwarningAsError=true tests/CountedStore64Accounting.lean
           lake env lean -DwarningAsError=true tests/StoreReturn32Raw.lean
           lake env lean -DwarningAsError=true tests/StoreReturn32Resources.lean
           lake env lean -DwarningAsError=true tests/GradingStoreReturn.lean
