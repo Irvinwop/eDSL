@@ -3,6 +3,7 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.Grading.Artifact
+import EDSL.Grading.CallStack.Artifact
 import EDSL.Grading.Known
 import EDSL.Grading.Runtime.Checker
 import Lean
@@ -68,7 +69,8 @@ def trustedEnvironment : IO Environment := do
   let some build := bin.parent | throw (IO.userError "missing installation directory")
   let sysroot ← findSysroot
   searchPathRef.set [build / "lib" / "lean", sysroot / "lib" / "lean"]
-  importModules #[{ module := `EDSL.Grading.Known }, { module := `EDSL.Grading.Artifact }]
+  importModules #[{ module := `EDSL.Grading.Known }, { module := `EDSL.Grading.Artifact },
+    { module := `EDSL.Grading.CallStack.Artifact }]
     {} (trustLevel := 0) (plugins := #[]) (loadExts := false)
 
 /-- Read at most limit+1 bytes, including when a file grows while being read.

@@ -34,6 +34,9 @@ lean_exe «edsl-cfg-import» where
 lean_exe «edsl-grade» where
   root := `GradeMain
 
+lean_exe «edsl-grade-call-stack» where
+  root := `CallStackGradeMain
+
 lean_exe «edsl-proof-export» where
   root := `ExportMain
 

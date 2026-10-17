@@ -27,6 +27,10 @@ def increment (state : State) : State :=
 def popped (profile : Profile) (state : State) (value : Word) : State :=
   CallReturn.popState state (popDestination profile) false value
 
+theorem popped_stack (profile : Profile) (state : State) (value : Word) :
+    (popped profile state value).registers .rsp = state.registers .rsp + 8 := by
+  cases profile <;> simp [popped, popDestination, CallReturn.popState, State.writeRegister]
+
 /-- Register and flag portions of the independent ABI contract. Memory effects
 are supplied by the actual threaded CPU/OS history, separately. -/
 structure RegisterFrame (initial final : State) : Prop where

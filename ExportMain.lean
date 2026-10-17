@@ -34,7 +34,7 @@ def main (args : List String) : IO UInt32 := do
       return failureStatus failure.kind
     | .ok packet =>
       IO.FS.writeFile output packet.text
-      IO.println s!"EXPORTED: client packet; auxiliaryDeclarations={packet.declarations.length}, declaredNames={packet.declaredNames}, bytes={packet.text.utf8ByteSize}. Submit with edsl-grade for fixed task/artifact checking."
+      IO.println s!"EXPORTED: client packet; auxiliaryDeclarations={packet.declarations.length}, declaredNames={packet.declaredNames}, bytes={packet.text.utf8ByteSize}. Submit to the matching fixed-contract grader for artifact checking."
       return 0
   catch error =>
     stderr.putStrLn s!"internal: client module import or output IO failed: {error}"

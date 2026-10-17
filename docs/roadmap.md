@@ -229,8 +229,19 @@ now covers four whole GCC/Clang nested-call outputs with current OS-owned stack
 frames, actual RAM-derived internal/original RET, independent full64 results,
 ABI/memory framing and exact five/seven-instruction counts. Checked CPU/OS
 histories retain dirty private bytes and reusable current resources. Broader
-calls and registration in the existing grader/concurrent profiles remain ahead;
-see [owned nested calls](call-stack.md).
+calls, CFG integration and concurrent call profiles remain ahead; see
+[owned nested calls](call-stack.md).
+
+A separate [call-stack grader](call-stack-grading.md) now accepts fresh proofs
+against a fixed entry-aware resource contract for arbitrary admitted byte
+windows. It requires actual covered CPU/OS execution and the independent full64
+result, with useful admissions for unsupported code as well. All four nested
+compiler clients and a different inlined LEA/RET witness pass raw/full-ELF proof
+grading at unchanged default limits. Whole ELF windows include preceding
+helpers; the checked final wrapper binds the literal file, span and entry.
+The existing Sequential task propositions remain unchanged. Generic task
+registration and general interprocedural proof automation remain future work.
+
 The counted-loop extension now proves modular increment for every 64-bit count
 with a decreasing natural variant and exact `2*count+3` cost, preserving flags
 and memory. Raw/full-ELF certificates cover the owned assembly from Clang/GCC;
@@ -561,6 +572,14 @@ input requires at least two modeled instructions, and the checked store/RET
 attains it with the same returned OS history. The proof covers arbitrary actual
 candidates in the present sequential ISA; already-equal inputs admit a one-RET
 raw example, and CPU timing and complete-x86 optimality remain outside scope.
+
+The separate call-stack contract also proves that every accepted candidate
+needs at least two modeled instructions on admitted inputs requiring RAX to
+change. A five-byte inlined LEA/RET witness attains two, whereas the four nested
+compiler clients take five/seven. The bound quantifies over the present
+CallReturn execution relation; it is separate from acceptance and makes no
+hardware-cycle, micro-op or complete-x86 optimality claim.
+
 Counted locked-add workers additionally have exact
 `3*count+3` own-instruction bounds and published-request event totals across
 successful completing schedules; native lifecycle and waiting costs are excluded.
@@ -667,6 +686,16 @@ world, and actual RET with its preserved caller-slot binding. Its all-input
 proof derives four modeled instructions and target4/stack8 reads. Both raw
 packet modes and the complete restricted ELF reference packet pass the public
 grader with unchanged limits and trusted imports.
+
+The separate call-stack grader adds an entry-aware resource contract without
+changing those Sequential task propositions. Its actual covered execution
+retains the evolving private allocation and complete decoded instruction
+footprints. Fresh nested-compiler and inlined proofs meet the same task under
+unchanged packet budgets; instruction selection and accounting stay outside
+the acceptance policy. Its final artifact claim binds complete raw files or
+the whole selected ELF window and literal container metadata. Client modules
+are not part of the fixed trusted imports.
+
 Broader task IO, multiple-target effects, general task registration and concurrent grading are
 subsequent extensions; code validity is never an input assumption used to make
 a task's semantic domain empty.

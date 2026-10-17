@@ -144,6 +144,14 @@ Implemented and checked:
   prove the same modular `x + 2` result, ABI frame and reusable resources;
   exact costs are five/seven instructions. A separate sibling engine retains
   actual RAM-derived return targets. See [owned calls](docs/call-stack.md).
+- A separate [call-stack proof grader](docs/call-stack-grading.md) fixes that
+  full64 result and current-resource contract for arbitrary admitted code
+  windows and selected entries. Fresh proof packets certify all four nested
+  compiler outputs and a different LEA/RET implementation in raw and full-ELF
+  form, under the existing packet limits. Complete instruction encodings must
+  stay within the selected window. A separate lower-bound theorem requires two
+  modeled instructions when RAX must change; LEA/RET attains two. Acceptance
+  requires neither a CALL nor a particular count or compiler profile.
 - All sixteen short conditional branches in the sequential backend, with
   signed displacements, taken-target checks, checked CFG edges and preservation
   of the same current OS resource world. See [branch scope](docs/sequential-short-jcc.md).
@@ -266,6 +274,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Full64 array maximum](docs/array-maximum64.md) | How do different compiler loops meet one unsigned result and current array-resource contract? |
 | [Full64 modular array sum](docs/array-sum64.md) | How do different full64 loops meet one wrapping-sum contract with current resources and separate cost proofs? |
 | [Owned nested calls](docs/call-stack.md) | How do actual CALL/PUSH/POP/RET steps compose with current private-stack ownership and whole compiler text? |
+| [Call-stack proof grading](docs/call-stack-grading.md) | How can different implementations prove the same callable result and resource contract at a selected raw/ELF entry? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |
@@ -306,6 +315,7 @@ Install [elan](https://github.com/leanprover/elan), then run:
 
 ```sh
 lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32 edsl-cfg-import
+lake build edsl-grade-call-stack edsl-proof-export tests.fixtures.CallStack.CoveredAudit tests.fixtures.CallStack.FoundationAudit tests.fixtures.CallStack.Inline.Accounting
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
@@ -351,6 +361,9 @@ lake env lean -DwarningAsError=true tests/SequentialMoves64.lean
 lake env lean -DwarningAsError=true tests/SequentialMoveResources.lean
 lake env lean -DwarningAsError=true tests/SequentialAddMemory64.lean
 lake env lean -DwarningAsError=true tests/SequentialAddMemory64Resources.lean
+lake env lean -DwarningAsError=true tests/CallStackDomain.lean
+lake env lean -DwarningAsError=true tests/CallStackCoverage.lean
+lake env lean -DwarningAsError=true tests/GradingCallStackContract.lean
 lake env lean -DwarningAsError=true tests/StoreReturn32Raw.lean
 lake env lean -DwarningAsError=true tests/StoreReturn32Resources.lean
 lake env lean -DwarningAsError=true tests/GradingStoreReturn.lean
@@ -381,6 +394,7 @@ EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-arithmetic64.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-add-memory64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-array-sum64.sh
+EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-call-stack.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-counted-store-direct64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return32.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return-grading.sh

@@ -4,11 +4,35 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import tests.fixtures.CallStackPrograms
 import EDSL.CallStack.Geometry
+import EDSL.CallStack.Coverage
+import EDSL.CallStack.Certificates
 
 set_option warningAsError true
 
 namespace EDSL.CallStack.Compiler
 open X86 OS
+
+/-- Check the full encoding size at each literal compiler offset, including
+both RETs. This bound is separate from static or current-state decoding. -/
+theorem node_fetch_bound (profile : Profile) (node : Node)
+    (present : active profile node = true) :
+    offset profile node + (instruction profile node).length ≤ (bytes profile).length := by
+  cases profile <;> cases node <;> (first | decide | cases present)
+
+/-- The full current executable bytes, actual decode and actual PC bind the
+independently checked offset/encoding bound to the instruction being fetched. -/
+theorem node_fetchWithin {profile : Profile} {frame : StackFrame.Descriptor} {state : State}
+    (code : CodeAt state.memory frame.call.code (bytes profile))
+    (same : frame.call.bytes = bytes profile) (node : Node)
+    (present : active profile node = true)
+    (pc : state.rip = frame.call.code + BitVec.ofNat 64 (offset profile node)) :
+    FetchWithin frame state := by
+  apply Certificates.fetchWithin_of_code (by simpa only [same] using code)
+    (by rw [same]; cases profile <;> decide)
+    (by rw [same]; exact inside profile node) pc
+  · simpa only [same] using static_decode profile node present
+  · rw [same]
+    exact node_fetch_bound profile node present
 
 /-- The instruction immediately after the actual CALL. -/
 def continuation : Profile → Node

@@ -86,11 +86,33 @@ stores; POP/private RET owner reads introduce no loan. Used private bytes may
 remain changed. A reachable allocation/loan witness admits a real compiler
 program and proves the wrapping answer one for the maximum input. Exact
 five/seven-instruction costs and stack-read traces describe these programs.
-The default native gate binds all extracted bytes and selected entries to
-universal Lean contracts, audits dependencies and performs fresh replay;
-finite independent native observations are separate. This sibling is not
-registered in existing graders, CFGs or concurrent worker profiles. It proves
-no source preservation, general calls, CPU cycles or whole-OS safety.
+
+The separate [call-stack grader](call-stack-grading.md) checks the same
+independent result on every OS-admitted current-resource world and AF stream,
+requiring actual checked execution through the original caller-slot RET.
+Every actual decoded instruction's complete encoding must fit the selected
+code window. Useful admissions exist for every bounded nonempty byte window
+and in-bounds entry, including unsupported bytes; decoding and future success
+are proof obligations. Neither a compiler enum, CALL, count nor read order is
+an acceptance rule. Fresh packets for all four nested clients and a different
+two-instruction LEA/RET implementation pass raw/full-ELF grading at the default
+limits. ELF selection retains helpers before the entry and binds the complete
+literal file, span and entry metadata. Reusing a proof for another container
+with the same selected program requires a new checked artifact wrapper.
+
+A separate theorem proves a two-modeled-instruction lower bound when the
+incoming RAX must change; LEA/RET attains it. This does not bound hardware
+cycles, micro-ops or unrestricted x86 programs.
+
+The default integration gate binds all extracted bytes and selected entries to
+universal Lean contracts, audits dependencies, performs fresh replay and runs
+proof-packet binding/protocol checks. Finite independent native observations
+cover the four nested profiles; inlined compiler outputs receive proof grading,
+without a native-inline observation claim. The existing Sequential tasks,
+CFGs and concurrent worker profiles retain their original scope. Source
+preservation, general calls, CPU timing and whole-OS safety remain outside
+these results.
+
 The standalone [GCC counted-store profile](counted-store64.md) and separate
 [Clang profile](counted-store64-clang.md) prove two exact 20-byte loops against
 the same independent contract for every full64 count. They compose checked owner
@@ -966,6 +988,7 @@ paths and raw errors. See [the complete contract](process-write.md).
 
 ```sh
 lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-sum32 edsl-cfg-import
+lake build edsl-grade-call-stack edsl-proof-export tests.fixtures.CallStack.CoveredAudit tests.fixtures.CallStack.FoundationAudit tests.fixtures.CallStack.Inline.Accounting
 lake env lean -DwarningAsError=true tests/X86.lean
 lake env lean -DwarningAsError=true tests/Memory.lean
 lake env lean -DwarningAsError=true tests/AddressSpace.lean
@@ -1011,6 +1034,9 @@ lake env lean -DwarningAsError=true tests/SequentialMoves64.lean
 lake env lean -DwarningAsError=true tests/SequentialMoveResources.lean
 lake env lean -DwarningAsError=true tests/SequentialAddMemory64.lean
 lake env lean -DwarningAsError=true tests/SequentialAddMemory64Resources.lean
+lake env lean -DwarningAsError=true tests/CallStackDomain.lean
+lake env lean -DwarningAsError=true tests/CallStackCoverage.lean
+lake env lean -DwarningAsError=true tests/GradingCallStackContract.lean
 lake env lean -DwarningAsError=true tests/ArrayResources.lean
 lake env lean -DwarningAsError=true tests/ArraySum64.lean
 lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
@@ -1036,6 +1062,7 @@ EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-arithmetic64.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-add-memory64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-array-sum64.sh
+EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-call-stack.sh
 EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 ```
 

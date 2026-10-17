@@ -67,4 +67,8 @@ jobs:
             artifacts/call-stack/**/formal/*.lean
             artifacts/call-stack/**/formal/*SHA256SUMS
             artifacts/call-stack/**/formal/proof-sources.tar.gz
+            artifacts/call-stack/**/grading/*status*
+            artifacts/call-stack/**/grading/*SHA256SUMS
+            artifacts/call-stack/**/grading/*.log
+            artifacts/call-stack/**/grading/**/*.log
           if-no-files-found: warn

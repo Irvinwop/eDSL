@@ -16,14 +16,15 @@ def afterInnerRet (initial : State) : State := finish (afterHelper initial) (Cal
 def afterIncrement (initial : State) : State := increment (afterInnerRet initial)
 def final (initial : State) (target : Word) : State := finish (afterIncrement initial) target
 
-theorem correct {resource : Resources} {initial : State}
+theorem covered_correct {resource : Resources} {initial : State}
     (pre : ResourcePre (program .gccSame) resource initial) (choices : CallReturn.Choices) :
     ∃ evolved,
-      StackFrame.CPU.History resource.frame choices resource.shared initial evolved
+      CoveredHistory resource.frame choices resource.shared initial evolved
         (afterIncrement initial) 4 [⟨.stack, resource.frame.top - 8, 8⟩] ∧
       StackFrame.CPU.Step resource.frame evolved evolved (afterIncrement initial)
         (final initial resource.frame.call.returnAddress) ((choices.drop 4) 0)
         ⟨.returned (final initial resource.frame.call.returnAddress), [⟨.stack, resource.frame.top, 8⟩]⟩ ∧
+      FetchWithin resource.frame (afterIncrement initial) ∧
       Post (resourceInput resource) initial (final initial resource.frame.call.returnAddress) := by
   have current := pre.current
   have capacity := pre.capacity
@@ -66,18 +67,26 @@ theorem correct {resource : Resources} {initial : State}
     change (afterHelper initial).registers .rsp + 8 = resource.frame.top
     rw [stackHelper, BitVec.sub_add_cancel]
   have rootStep := root_ret_step (profile := .gccSame) currentIncrement same rootPC stackRoot ((choices.drop 4) 0)
-  have history : StackFrame.CPU.History resource.frame choices resource.shared initial evolved
+  have callFetch := node_fetchWithin (current_code current same) same .call rfl pc
+  have helperFetch := node_fetchWithin (current_code currentCall same) same .helper rfl (by
+    change (afterCall initial).rip = resource.frame.call.code + 0
+    exact helperPC.trans (BitVec.add_zero _).symm)
+  have innerFetch := node_fetchWithin (current_code currentHelper same) same .innerRet rfl innerPC
+  have incFetch := node_fetchWithin (current_code currentInner same) same .increment rfl incrementPC
+  have rootFetch := node_fetchWithin (current_code currentIncrement same) same .ret rfl rootPC
+  have history : CoveredHistory resource.frame choices resource.shared initial evolved
       (afterIncrement initial) 4 [⟨.stack, resource.frame.top - 8, 8⟩] := by
-    have trace : StackFrame.CPU.History resource.frame choices resource.shared initial evolved
+    have trace : CoveredHistory resource.frame choices resource.shared initial evolved
         (afterIncrement initial) 4 [⟨.stack, (afterHelper initial).registers .rsp, 8⟩] :=
-      StackFrame.CPU.History.next callStep (.next helperStep (.next innerStep (.next incStep .nil)))
+      .next callStep callFetch (.next helperStep helperFetch
+        (.next innerStep innerFetch (.next incStep incFetch .nil)))
     simpa only [stackHelper] using trace
   have endpoint := rootStep.current currentIncrement
   have memory := memory_frame current endpoint history.preserves
   have frame : RegisterFrame initial (final initial resource.frame.call.returnAddress) :=
     (frame_called .gccSame initial).trans ((frame_helper _).trans
       ((frame_finish _ _).trans ((frame_increment _).trans (frame_finish _ _))))
-  refine ⟨evolved, history, ?_, ?_⟩
+  refine ⟨evolved, history, ?_, rootFetch, ?_⟩
   · have last : StackFrame.CPU.Step resource.frame evolved evolved (afterIncrement initial)
         (final initial resource.frame.call.returnAddress) ((choices.drop 4) 0)
         ⟨.returned (final initial resource.frame.call.returnAddress),
@@ -88,5 +97,17 @@ theorem correct {resource : Resources} {initial : State}
       rw [pre.argument]
       exact two_additions resource.value
     · simp [final, finish, stackRoot, pre.stack, State.writeRegister]
+
+theorem correct {resource : Resources} {initial : State}
+    (pre : ResourcePre (program .gccSame) resource initial) (choices : CallReturn.Choices) :
+    ∃ evolved,
+      StackFrame.CPU.History resource.frame choices resource.shared initial evolved
+        (afterIncrement initial) 4 [⟨.stack, resource.frame.top - 8, 8⟩] ∧
+      StackFrame.CPU.Step resource.frame evolved evolved (afterIncrement initial)
+        (final initial resource.frame.call.returnAddress) ((choices.drop 4) 0)
+        ⟨.returned (final initial resource.frame.call.returnAddress), [⟨.stack, resource.frame.top, 8⟩]⟩ ∧
+      Post (resourceInput resource) initial (final initial resource.frame.call.returnAddress) := by
+  obtain ⟨evolved, history, last, _, post⟩ := covered_correct pre choices
+  exact ⟨evolved, history.history, last, post⟩
 
 end EDSL.CallStack.Compiler.GCCSame

@@ -16,32 +16,59 @@ def reads (profile : Profile) (top : Word) : List CallReturn.Read :=
   if padded profile then [⟨.stack, top - 16, 8⟩, ⟨.stack, top - 8, 8⟩, ⟨.stack, top, 8⟩]
   else [⟨.stack, top - 8, 8⟩, ⟨.stack, top, 8⟩]
 
+theorem gccSame_covered_checked {resource : Resources} {initial : State}
+    (pre : ResourcePre (program .gccSame) resource initial) (choices : CallReturn.Choices) :
+    ∃ evolved, ∃ result : CallReturn.Result,
+      CoveredExecution resource.frame choices resource.shared initial evolved result ∧
+      Post (resourceInput resource) initial result.state ∧
+      result.instructions = instructionCount .gccSame ∧ result.reads = reads .gccSame resource.frame.top := by
+  obtain ⟨evolved, preceding, last, fetch, post⟩ := GCCSame.covered_correct pre choices
+  have terminal : CoveredExecution resource.frame (choices.drop 4) evolved
+      (GCCSame.afterIncrement initial) evolved
+      ⟨GCCSame.final initial resource.frame.call.returnAddress, 1, [⟨.stack, resource.frame.top, 8⟩]⟩ := .ret last fetch
+  have actual := preceding.then_execution terminal
+  exact ⟨evolved, _, actual, post, rfl, rfl⟩
+
 /-- All four complete compiler windows meet one independent contract, for all
 64-bit inputs and all undefined-AF streams. Every store/read is tied to the
 same threaded CPU/OS execution; both internal and original RET are included. -/
+theorem covered_checked (profile : Profile) {resource : Resources} {initial : State}
+    (pre : ResourcePre (program profile) resource initial) (choices : CallReturn.Choices) :
+    ∃ evolved, ∃ result : CallReturn.Result,
+      CoveredExecution resource.frame choices resource.shared initial evolved result ∧
+      Post (resourceInput resource) initial result.state ∧
+      result.instructions = instructionCount profile ∧ result.reads = reads profile resource.frame.top := by
+  cases profile with
+  | gccSame => exact gccSame_covered_checked pre choices
+  | gccSeparate =>
+    obtain ⟨evolved, result, actual, cost, trace, post⟩ := Padded.gcc_covered pre choices
+    exact ⟨evolved, result, actual, post, cost, trace⟩
+  | clangSame =>
+    obtain ⟨evolved, result, actual, cost, trace, post⟩ := Padded.clang_covered (Or.inl rfl) pre choices
+    exact ⟨evolved, result, actual, post, cost, trace⟩
+  | clangSeparate =>
+    obtain ⟨evolved, result, actual, cost, trace, post⟩ := Padded.clang_covered (Or.inr rfl) pre choices
+    exact ⟨evolved, result, actual, post, cost, trace⟩
+
+/-- Each actual fetch, including internal and original RET, fits the exact
+whole compiler text fixed by `ResourcePre`. The result also meets the
+independent arithmetic, ABI, memory and resource contract. -/
+theorem covered (profile : Profile) {resource : Resources} {initial : State}
+    (pre : ResourcePre (program profile) resource initial) (choices : CallReturn.Choices) :
+    ∃ evolved, ∃ result : CallReturn.Result,
+      CoveredExecution resource.frame choices resource.shared initial evolved result ∧
+      Post (resourceInput resource) initial result.state := by
+  obtain ⟨evolved, result, actual, post, _, _⟩ := covered_checked profile pre choices
+  exact ⟨evolved, result, actual, post⟩
+
 theorem checked (profile : Profile) {resource : Resources} {initial : State}
     (pre : ResourcePre (program profile) resource initial) (choices : CallReturn.Choices) :
     ∃ evolved, ∃ result : CallReturn.Result,
       StackFrame.CPU.Execution resource.frame choices resource.shared initial evolved result ∧
       Post (resourceInput resource) initial result.state ∧
       result.instructions = instructionCount profile ∧ result.reads = reads profile resource.frame.top := by
-  cases profile with
-  | gccSame =>
-    obtain ⟨evolved, preceding, last, post⟩ := GCCSame.correct pre choices
-    have terminal : StackFrame.CPU.Execution resource.frame (choices.drop 4) evolved
-        (GCCSame.afterIncrement initial) evolved
-        ⟨GCCSame.final initial resource.frame.call.returnAddress, 1, [⟨.stack, resource.frame.top, 8⟩]⟩ := .ret last
-    have actual := preceding.then_execution terminal
-    exact ⟨evolved, _, actual, post, rfl, rfl⟩
-  | gccSeparate =>
-    obtain ⟨evolved, result, actual, cost, trace, post⟩ := Padded.gcc_correct pre choices
-    exact ⟨evolved, result, actual, post, cost, trace⟩
-  | clangSame =>
-    obtain ⟨evolved, result, actual, cost, trace, post⟩ := Padded.clang_correct (Or.inl rfl) pre choices
-    exact ⟨evolved, result, actual, post, cost, trace⟩
-  | clangSeparate =>
-    obtain ⟨evolved, result, actual, cost, trace, post⟩ := Padded.clang_correct (Or.inr rfl) pre choices
-    exact ⟨evolved, result, actual, post, cost, trace⟩
+  obtain ⟨evolved, result, actual, post, cost, trace⟩ := covered_checked profile pre choices
+  exact ⟨evolved, result, actual.execution, post, cost, trace⟩
 
 /-- The concrete public evaluator terminates with the contract and reusable
 current resources. Counts describe these exact programs, not hardware cycles

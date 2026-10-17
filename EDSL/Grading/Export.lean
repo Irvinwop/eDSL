@@ -212,7 +212,8 @@ This configured client snapshot does not replace the grader's pinned snapshot. -
 def loadEnvironments (moduleName : Name) : IO (Environment × Environment) := do
   initSearchPath (← findSysroot)
   let trusted ← importModules
-    #[{ module := `EDSL.Grading.Known }, { module := `EDSL.Grading.Artifact }]
+    #[{ module := `EDSL.Grading.Known }, { module := `EDSL.Grading.Artifact },
+      { module := `EDSL.Grading.CallStack.Artifact }]
     {} (trustLevel := 0) (plugins := #[]) (loadExts := false)
   let client ← importModules #[{ module := moduleName }]
     {} (trustLevel := 0) (plugins := #[]) (loadExts := false)

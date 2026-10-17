@@ -20,10 +20,13 @@ if [[ ${#lean_inputs[@]} == 0 ]]; then
     exit 1
 fi
 tar -czf "$output/proof-sources.tar.gz" -- "${lean_inputs[@]}" EDSL.lean lakefile.lean \
-    lake-manifest.json lean-toolchain scripts/check-call-stack-proofs.sh tests/CallStack.lean
+    lake-manifest.json lean-toolchain scripts/check-call-stack-proofs.sh \
+    scripts/check-call-stack-grading.sh CallStackGradeMain.lean GradeMain.lean ExportMain.lean tests/CallStack.lean
 sha256sum -- "${lean_inputs[@]}" EDSL.lean lakefile.lean lake-manifest.json lean-toolchain \
-    scripts/check-call-stack-proofs.sh tests/CallStack.lean > "$output/proof-input-SHA256SUMS"
-lake build tests.fixtures.CallStack.Correctness > "$output/build.log" 2>&1
+    scripts/check-call-stack-proofs.sh scripts/check-call-stack-grading.sh \
+    CallStackGradeMain.lean GradeMain.lean ExportMain.lean tests/CallStack.lean > "$output/proof-input-SHA256SUMS"
+lake build tests.fixtures.CallStack.CoveredAudit tests.fixtures.CallStack.FoundationAudit \
+    tests.fixtures.CallStack.Inline.Accounting > "$output/build.log" 2>&1
 lake env lean -DwarningAsError=true tests/CallStack.lean > "$output/audit.log" 2>&1
 names=(GccSame GccSeparate ClangSame ClangSeparate)
 profiles=(gccSame gccSeparate clangSame clangSeparate)
@@ -33,7 +36,9 @@ costs=(5 7 7 7)
 # These paths contain data read by od, never commands or generated tactic code.
 source_file="$output/CallStackObserved.lean"
 cat > "$source_file" <<'LEAN'
-import tests.fixtures.CallStack.Correctness
+import tests.fixtures.CallStack.CoveredAudit
+import tests.fixtures.CallStack.FoundationAudit
+import tests.fixtures.CallStack.Inline.Accounting
 import EDSL.Audit
 set_option warningAsError true
 namespace EDSL.CallStack.Observed
@@ -71,7 +76,8 @@ done
 printf 'end EDSL.CallStack.Observed\n#audit_edsl\n' >> "$source_file"
 lake env lean -R "$output" -DwarningAsError=true -o "$output/CallStackObserved.olean" "$source_file" \
     > "$output/observed-proof.log" 2>&1
-# Fresh replay checks the generated theorem and transitive imported proofs.
+# Fresh replay checks the generated theorem and all transitive imported proofs,
+# including admission, code coverage, the independent clients and cost bound.
 proof_path="$output:$(lake env printenv LEAN_PATH)"
 lake env env LEAN_PATH="$proof_path" leanchecker --fresh --verbose CallStackObserved > "$output/fresh-kernel.log" 2>&1
 printf 'formal=PASS whole_texts=4 universal_input=true typed_os_execution=true fresh_kernel=true\n' > "$output/result.txt"

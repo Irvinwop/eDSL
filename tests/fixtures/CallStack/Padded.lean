@@ -57,11 +57,11 @@ theorem pc_afterInnerRet {profile resource initial}
 
 /-- Both private writes arise from the actual decoded instructions, in order;
 RET consumes the second write's current RAM value. -/
-theorem prefix_checked {profile : Profile} {resource : Resources} {initial : State}
+theorem prefix_covered {profile : Profile} {resource : Resources} {initial : State}
     (pre : ResourcePre (program profile) resource initial) (pad : padded profile = true)
     (choices : CallReturn.Choices) :
     ∃ evolved,
-      StackFrame.CPU.History resource.frame choices resource.shared initial evolved
+      CoveredHistory resource.frame choices resource.shared initial evolved
         (afterInnerRet profile initial) 4 [⟨.stack, resource.frame.top - 16, 8⟩] ∧
       StackFrame.Current resource.frame evolved (afterInnerRet profile initial) := by
   have pushSlot : StackFrame.Slot resource.frame (CallReturn.stackDestination initial) := by
@@ -96,29 +96,73 @@ theorem prefix_checked {profile : Profile} {resource : Resources} {initial : Sta
   have innerStep := inner_ret_step helperCurrent pre.code (pc_afterHelper pre pad)
     innerSlot loaded (call_addresses (current_code pushCurrent pre.code) (pc_afterPush pre pad)).2
     ((((choices.drop 1).drop 1).drop 1) 0)
+  have pushFetch := node_fetchWithin (current_code pre.current pre.code) pre.code .push pad pushPC
+  have callFetch := node_fetchWithin (current_code pushCurrent pre.code) pre.code .call rfl
+    (pc_afterPush pre pad)
+  have helperFetch := node_fetchWithin (current_code callCurrent pre.code) pre.code .helper rfl helperPC
+  have innerFetch := node_fetchWithin (current_code helperCurrent pre.code) pre.code .innerRet rfl
+    (pc_afterHelper pre pad)
   refine ⟨calledWorld, ?_, innerStep.current helperCurrent⟩
-  have history : StackFrame.CPU.History resource.frame choices resource.shared initial calledWorld
+  have history : CoveredHistory resource.frame choices resource.shared initial calledWorld
       (afterInnerRet profile initial) 4 [⟨.stack, (afterHelper profile initial).registers .rsp, 8⟩] :=
-    .next pushStep (.next callStep (.next helperStep (.next innerStep .nil)))
+    .next pushStep pushFetch (.next callStep callFetch
+      (.next helperStep helperFetch (.next innerStep innerFetch .nil)))
   simpa only [stack_afterHelper pre] using history
 
+theorem prefix_checked {profile : Profile} {resource : Resources} {initial : State}
+    (pre : ResourcePre (program profile) resource initial) (pad : padded profile = true)
+    (choices : CallReturn.Choices) :
+    ∃ evolved,
+      StackFrame.CPU.History resource.frame choices resource.shared initial evolved
+        (afterInnerRet profile initial) 4 [⟨.stack, resource.frame.top - 16, 8⟩] ∧
+      StackFrame.Current resource.frame evolved (afterInnerRet profile initial) := by
+  obtain ⟨evolved, history, current⟩ := prefix_covered pre pad choices
+  exact ⟨evolved, history.history, current⟩
 
 theorem frame_prefix (profile : Profile) (initial : State) :
     RegisterFrame initial (afterInnerRet profile initial) :=
   (frame_pushed initial).trans ((frame_called profile _).trans
     ((frame_helper _).trans (frame_finish _ _)))
 
+theorem clang_pop_not_rax {profile : Profile}
+    (clang : profile = .clangSame ∨ profile = .clangSeparate) :
+    popDestination profile ≠ .rax := by
+  rcases clang with rfl | rfl <;> decide
+
+theorem clang_value {profile : Profile} {resource : Resources} {initial : State}
+    (clang : profile = .clangSame ∨ profile = .clangSeparate)
+    (pre : ResourcePre (program profile) resource initial) (value : Word) :
+    ((finish (popped profile (increment (afterInnerRet profile initial)) value)
+      resource.frame.call.returnAddress).registers .rax).toNat = resultNat resource.value := by
+  change (if Register.rax = popDestination profile then value else
+    (initial.registers .rdi + 1) + 1).toNat = resultNat resource.value
+  rw [ite_eq_right (Ne.symm (clang_pop_not_rax clang)), pre.argument]
+  exact two_additions resource.value
+
+theorem clang_pc_afterIncrement {profile : Profile} {base : Word} {state : State}
+    (clang : profile = .clangSame ∨ profile = .clangSeparate)
+    (pc : state.rip = base + BitVec.ofNat 64 (offset profile .increment)) :
+    (increment state).rip = base + BitVec.ofNat 64 (offset profile .pop) := by
+  rcases clang with rfl | rfl <;> simp [increment, pc, offset, BitVec.add_assoc]
+
+theorem clang_pc_afterPop {profile : Profile} {base : Word} {state : State}
+    (clang : profile = .clangSame ∨ profile = .clangSeparate)
+    (pc : state.rip = base + BitVec.ofNat 64 (offset profile .pop)) (value : Word) :
+    (popped profile state value).rip = base + BitVec.ofNat 64 (offset profile .ret) := by
+  rcases clang with rfl | rfl <;>
+    simp [popped, CallReturn.popState, CallReturn.stackLength, pc, offset, BitVec.add_assoc]
+
 /-- The separate-TU GCC program restores its padding slot before INC. This
 whole execution includes both checked owner mutations and the original RET. -/
-theorem gcc_correct {resource : Resources} {initial : State}
+theorem gcc_covered {resource : Resources} {initial : State}
     (pre : ResourcePre (program .gccSeparate) resource initial) (choices : CallReturn.Choices) :
     ∃ evolved, ∃ result : CallReturn.Result,
-      StackFrame.CPU.Execution resource.frame choices resource.shared initial evolved result ∧
+      CoveredExecution resource.frame choices resource.shared initial evolved result ∧
       result.instructions = 7 ∧
       result.reads = [⟨.stack, resource.frame.top - 16, 8⟩,
         ⟨.stack, resource.frame.top - 8, 8⟩, ⟨.stack, resource.frame.top, 8⟩] ∧
       Post (resourceInput resource) initial result.state := by
-  obtain ⟨evolved, history, current⟩ := prefix_checked pre rfl choices
+  obtain ⟨evolved, history, current⟩ := prefix_covered pre rfl choices
   have slot : StackFrame.Slot resource.frame ((afterInnerRet .gccSeparate initial).registers .rsp) := by
     rw [stack_afterInnerRet pre]
     exact private_slot_at_depth current.contract (by decide : 8 ≤ 8) (Nat.le_trans (by decide : 8 ≤ 16) pre.capacity)
@@ -140,14 +184,20 @@ theorem gcc_correct {resource : Resources} {initial : State}
     simp [increment, popped, popDestination, CallReturn.popState, State.writeRegister,
       stack_afterInnerRet pre, BitVec.sub_add_cancel]
   have rootStep := root_ret_step (profile := .gccSeparate) incCurrent pre.code rootPC stackRoot ((((choices.drop 4).drop 1).drop 1) 0)
+  have popFetch := node_fetchWithin (current_code (profile := .gccSeparate) current pre.code)
+    pre.code .pop rfl popPC
+  have incFetch := node_fetchWithin (current_code (profile := .gccSeparate) popCurrent pre.code)
+    pre.code .increment rfl incPC
+  have rootFetch := node_fetchWithin (current_code (profile := .gccSeparate) incCurrent pre.code)
+    pre.code .ret rfl rootPC
   let final := finish (increment (popped .gccSeparate (afterInnerRet .gccSeparate initial) value))
     resource.frame.call.returnAddress
-  have execution : StackFrame.CPU.Execution resource.frame choices resource.shared initial evolved
+  have execution : CoveredExecution resource.frame choices resource.shared initial evolved
       ⟨final, 7, [⟨.stack, resource.frame.top - 16, 8⟩,
         ⟨.stack, resource.frame.top - 8, 8⟩, ⟨.stack, resource.frame.top, 8⟩]⟩ := by
     simpa only [Sequential.Result.prepend, List.nil_append, List.append_nil,
       List.singleton_append, stack_afterInnerRet pre, stackRoot] using
-      history.then_execution (.next popStep (.next incStep (.ret rootStep)))
+      history.then_execution (.next popStep popFetch (.next incStep incFetch (.ret rootStep rootFetch)))
   have memory := memory_frame pre.current (execution.current pre.current) execution.preserves
   have frame : RegisterFrame initial final := (frame_prefix .gccSeparate initial).trans
     ((frame_popped .gccSeparate _ value).trans ((frame_increment _).trans (frame_finish _ _)))
@@ -160,26 +210,26 @@ theorem gcc_correct {resource : Resources} {initial : State}
 
 /-- Both Clang placements share the same stack and instruction order. Their
 actual displacements, complete code windows and entry offsets remain distinct. -/
-theorem clang_correct {profile : Profile} {resource : Resources} {initial : State}
+theorem clang_covered {profile : Profile} {resource : Resources} {initial : State}
     (clang : profile = .clangSame ∨ profile = .clangSeparate)
     (pre : ResourcePre (program profile) resource initial) (choices : CallReturn.Choices) :
     ∃ evolved, ∃ result : CallReturn.Result,
-      StackFrame.CPU.Execution resource.frame choices resource.shared initial evolved result ∧
+      CoveredExecution resource.frame choices resource.shared initial evolved result ∧
       result.instructions = 7 ∧
       result.reads = [⟨.stack, resource.frame.top - 16, 8⟩,
         ⟨.stack, resource.frame.top - 8, 8⟩, ⟨.stack, resource.frame.top, 8⟩] ∧
       Post (resourceInput resource) initial result.state := by
   have pad : padded profile = true := by rcases clang with rfl | rfl <;> rfl
   have continuationEq : continuation profile = .increment := by rcases clang with rfl | rfl <;> rfl
-  obtain ⟨evolved, history, current⟩ := prefix_checked pre pad choices
+  obtain ⟨evolved, history, current⟩ := prefix_covered pre pad choices
   have incPC : (afterInnerRet profile initial).rip =
       resource.frame.call.code + BitVec.ofNat 64 (offset profile .increment) := by
     simpa only [continuationEq] using pc_afterInnerRet pre pad
   have incStep := increment_step current pre.code incPC ((choices.drop 4) 0)
   have incCurrent := incStep.current current
   have popPC : (increment (afterInnerRet profile initial)).rip =
-      resource.frame.call.code + BitVec.ofNat 64 (offset profile .pop) := by
-    rcases clang with rfl | rfl <;> simp [increment, incPC, offset, BitVec.add_assoc]
+      resource.frame.call.code + BitVec.ofNat 64 (offset profile .pop) :=
+    clang_pc_afterIncrement clang incPC
   have stackInc : (increment (afterInnerRet profile initial)).registers .rsp = resource.frame.top - 8 := by
     simp [increment, State.writeRegister, stack_afterInnerRet pre]
   have slot : StackFrame.Slot resource.frame ((increment (afterInnerRet profile initial)).registers .rsp) := by
@@ -190,32 +240,52 @@ theorem clang_correct {profile : Profile} {resource : Resources} {initial : Stat
   have popStep := pop_step incCurrent pre.code present popPC slot loaded (((choices.drop 4).drop 1) 0)
   have popCurrent := popStep.current incCurrent
   have rootPC : (popped profile (increment (afterInnerRet profile initial)) value).rip =
-      resource.frame.call.code + BitVec.ofNat 64 (offset profile .ret) := by
-    rcases clang with rfl | rfl <;>
-      simp [popped, CallReturn.popState, CallReturn.stackLength, popPC, offset, BitVec.add_assoc]
+      resource.frame.call.code + BitVec.ofNat 64 (offset profile .ret) :=
+    clang_pc_afterPop clang popPC value
   have stackRoot : (popped profile (increment (afterInnerRet profile initial)) value).registers .rsp =
       resource.frame.top := by
-    rcases clang with rfl | rfl <;>
-      simp [popped, popDestination, CallReturn.popState, State.writeRegister, stackInc, BitVec.sub_add_cancel]
+    rw [popped_stack, stackInc, BitVec.sub_add_cancel]
   have rootStep := root_ret_step popCurrent pre.code rootPC stackRoot ((((choices.drop 4).drop 1).drop 1) 0)
+  have incFetch := node_fetchWithin (current_code current pre.code) pre.code .increment rfl incPC
+  have popFetch := node_fetchWithin (current_code incCurrent pre.code) pre.code .pop present popPC
+  have rootFetch := node_fetchWithin (current_code popCurrent pre.code) pre.code .ret rfl rootPC
   let final := finish (popped profile (increment (afterInnerRet profile initial)) value)
     resource.frame.call.returnAddress
-  have execution : StackFrame.CPU.Execution resource.frame choices resource.shared initial evolved
+  have execution : CoveredExecution resource.frame choices resource.shared initial evolved
       ⟨final, 7, [⟨.stack, resource.frame.top - 16, 8⟩,
         ⟨.stack, resource.frame.top - 8, 8⟩, ⟨.stack, resource.frame.top, 8⟩]⟩ := by
     simpa only [Sequential.Result.prepend, List.nil_append, List.append_nil,
       List.singleton_append, stackInc, stackRoot] using
-      history.then_execution (.next incStep (.next popStep (.ret rootStep)))
+      history.then_execution (.next incStep incFetch (.next popStep popFetch (.ret rootStep rootFetch)))
   have memory := memory_frame pre.current (execution.current pre.current) execution.preserves
   have frame : RegisterFrame initial final := (frame_prefix profile initial).trans
     ((frame_increment _).trans ((frame_popped profile _ value).trans (frame_finish _ _)))
   refine ⟨evolved, _, execution, rfl, rfl, ?_⟩
   refine ⟨?_, memory.1, memory.2.1, memory.2.2, rfl, ?_, frame.preserved, frame.flags⟩
-  · have different : popDestination profile ≠ .rax := by rcases clang with rfl | rfl <;> decide
-    change (if Register.rax = popDestination profile then value else
-      (initial.registers .rdi + 1) + 1).toNat = resultNat resource.value
-    rw [ite_eq_right (Ne.symm different), pre.argument]
-    exact two_additions resource.value
+  · exact clang_value clang pre value
   · simp [final, finish, stackRoot, pre.stack, State.writeRegister]
+
+theorem gcc_correct {resource : Resources} {initial : State}
+    (pre : ResourcePre (program .gccSeparate) resource initial) (choices : CallReturn.Choices) :
+    ∃ evolved, ∃ result : CallReturn.Result,
+      StackFrame.CPU.Execution resource.frame choices resource.shared initial evolved result ∧
+      result.instructions = 7 ∧
+      result.reads = [⟨.stack, resource.frame.top - 16, 8⟩,
+        ⟨.stack, resource.frame.top - 8, 8⟩, ⟨.stack, resource.frame.top, 8⟩] ∧
+      Post (resourceInput resource) initial result.state := by
+  obtain ⟨evolved, result, actual, count, trace, post⟩ := gcc_covered pre choices
+  exact ⟨evolved, result, actual.execution, count, trace, post⟩
+
+theorem clang_correct {profile : Profile} {resource : Resources} {initial : State}
+    (clang : profile = .clangSame ∨ profile = .clangSeparate)
+    (pre : ResourcePre (program profile) resource initial) (choices : CallReturn.Choices) :
+    ∃ evolved, ∃ result : CallReturn.Result,
+      StackFrame.CPU.Execution resource.frame choices resource.shared initial evolved result ∧
+      result.instructions = 7 ∧
+      result.reads = [⟨.stack, resource.frame.top - 16, 8⟩,
+        ⟨.stack, resource.frame.top - 8, 8⟩, ⟨.stack, resource.frame.top, 8⟩] ∧
+      Post (resourceInput resource) initial result.state := by
+  obtain ⟨evolved, result, actual, count, trace, post⟩ := clang_covered clang pre choices
+  exact ⟨evolved, result, actual.execution, count, trace, post⟩
 
 end EDSL.CallStack.Compiler.Padded

@@ -23,6 +23,12 @@ relocations are resolved in the final ELF before text extraction. A different
 compiler output fails this profile gate until it has a corresponding proof.
 This does not prove the compiler or preservation of C source semantics.
 
+The separate [call-stack grader](call-stack-grading.md) accepts new candidate
+proofs against the same independent result and current-resource contract.
+Its admission has no compiler whitelist, CALL requirement or instruction-count
+condition. All four nested clients and a different inlined LEA/RET witness pass
+its raw/full-ELF proof boundary under unchanged default limits.
+
 ## Current resource contract
 
 `CallStack.ResourcePre` requires current, complete executable code and original
@@ -51,8 +57,18 @@ compiler proofs establish the stack discipline needed by these four programs.
 The postcondition proves the full64 result, actual return target, RSP+8, all
 six callee-saved GPRs, nonarithmetic flags, unchanged permissions and every RAM
 byte outside the private frame. Used private bytes remain dirty after return.
-The exact instruction counts and stack-read traces describe these binaries;
-they are not minimum-operation, timing or cycle theorems.
+The exact instruction counts and stack-read traces describe these binaries.
+Separate grading accounting proves that any accepted candidate requires at
+least two modeled instructions when incoming RAX must change; the inlined
+LEA/RET witness attains two. That bound concerns the supported ISA and actual
+return boundary, with no timing, cycle or unrestricted-x86 claim.
+
+The grading contract additionally requires `CoveredExecution`: the complete
+encoding of every actual instruction, including internal and original RET,
+fits the selected whole code window. The final RET's target is not fetched by
+this callable boundary and may lie outside the window. Existing compiler
+execution theorems retain their published contracts; covered proofs add the
+whole-window guarantee for grading.
 
 ## Reproduce
 
@@ -67,6 +83,10 @@ The default gate builds the four outputs, authenticates entire extracted and
 embedded texts before any probe, checks independent native contracts, generates
 Lean theorem instances from the actual extraction bytes and selected entries,
 audits dependencies and replays the generated module through a fresh kernel.
+It also exports fresh nested/inlined proofs, grades complete raw and ELF
+artifacts, and checks owned binding and protocol negatives. The inlined
+compiler artifacts receive proof grading; the native observer below covers
+the four nested profiles.
 Any incomplete gate returns failure. `--native-only` explicitly skips formal
 checks and reports `formal=NOTRUN`. `CALL_STACK_EVIDENCE_ROOT` selects the
 archive directory (default `.cache/call-stack-native`); optional
@@ -93,7 +113,8 @@ POP RSP increments first and then writes the loaded value. LEA does modular
 address arithmetic without a memory read.
 
 Unsupported additions include indirect/far CALL, memory/16-bit PUSH/POP,
-RET-immediate and broader LEA displacement/prefix forms. This sibling engine
-is not registered in the existing sequential grader, CFG checker or concurrent
-profiles. General interprocedural verification, source/IR preservation, system
+RET-immediate and broader LEA displacement/prefix forms. The standalone
+call-stack grader uses this sibling engine; the existing Sequential grader
+tasks, CFG checker and concurrent profiles retain their original semantics.
+General interprocedural verification, source/IR preservation, system
 startup, Linux/kernel refinement and whole-OS safety remain future work.

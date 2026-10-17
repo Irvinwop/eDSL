@@ -55,7 +55,8 @@ trap finish EXIT
 
 owned=(fixtures/call-stack-helper.c fixtures/call-stack-caller.c
     fixtures/call-stack-same.c fixtures/call-stack-check.c
-    fixtures/call-stack-check.S scripts/verify-call-stack.sh scripts/check-call-stack-proofs.sh)
+    fixtures/call-stack-check.S fixtures/call-stack-inline.c scripts/verify-call-stack.sh
+    scripts/check-call-stack-proofs.sh scripts/check-call-stack-grading.sh)
 mkdir -p "$output/sources" "$output/metadata"
 for source in "${owned[@]}"; do run cp "$source" "$output/sources/$(basename "$source")"; done
 run sha256sum "${owned[@]}" > "$output/source-SHA256SUMS"
@@ -286,6 +287,8 @@ if $native_only; then
 else
     run env LEAN_NUM_THREADS=1 flock /tmp/edsl-lean-build.lock \
         bash scripts/check-call-stack-proofs.sh "$output/formal" "${texts[@]}"
-    printf 'native=PASS formal=PASS observers=2 compiler_profiles=4 extraction_rejections=32\n' > "$output/result.txt"
-    echo 'native=PASS formal=PASS (whole-text universal contracts, axiom audit and fresh kernel)' >&2
+    run env LEAN_NUM_THREADS=1 flock /tmp/edsl-lean-build.lock \
+        bash scripts/check-call-stack-grading.sh "$output/grading" "${texts[@]}"
+    printf 'native=PASS formal=PASS grading=PASS observers=2 compiler_profiles=4 extraction_rejections=32\n' > "$output/result.txt"
+    echo 'native=PASS formal=PASS grading=PASS (whole-text contracts, checked packets and fresh kernel)' >&2
 fi
