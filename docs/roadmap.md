@@ -98,6 +98,12 @@ counts and returned authority. The same registered task accepts these clients
 without constraining source structure or intermediate store counts. See
 [direct-add scope](counted-store-direct64.md).
 See [arithmetic scope](sequential-arithmetic64.md).
+Full64 register AND/OR/XOR now include both opcode directions, all 16 GPRs,
+undefined-AF choices and current-world resource preservation. Independent
+native contracts check complete register snapshots and defined flags, then
+replay actual captured AF witnesses through Lean; see
+[logical operations](sequential-logical64.md). This instruction foundation
+does not itself certify whole compiler outputs or source/IR preservation.
 Register-only CMOV64 now supplies all sixteen conditions, mathematical
 signed/unsigned CMP adequacy and same-world pure-call resource composition.
 Six final GCC/Clang comparison clients and three independent scalar comparison

@@ -274,6 +274,12 @@ Register ADD64 accepts both `01` and `03` directions and updates CF/PF/AF/ZF/SF/
 other flags, RAM and nondestination registers survive. Both instructions can
 compose with the same current OS world, including RSP destinations, without
 granting a new caller-slot binding. See [arithmetic scope](sequential-arithmetic64.md).
+Full64 register AND/OR/XOR accept both opcode directions with one REX.W
+prefix, all 16 GPRs and ignored X. They retain every nondestination register,
+complete RAM and nonarithmetic flags, with an independent undefined-AF
+choice. Current resources survive RSP changes without authorizing a new
+caller slot. Independent native contracts and actual-step replay use the
+captured AF witness; see [logical operations](sequential-logical64.md).
 Memory-source ADD64 accepts `03 /r` through the same strict REX.W mod=00
 base/SIB profile, with all 16 destinations. It reads all eight bytes at the
 pre-state effective address, adds modulo 2^64 and defines the six arithmetic
@@ -1121,6 +1127,7 @@ bash scripts/verify-futex-clients.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-arithmetic64.sh
+EDSL_CLANG=clang-18 bash scripts/verify-sequential-logical64.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-add-memory64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-array-sum64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-call-stack.sh

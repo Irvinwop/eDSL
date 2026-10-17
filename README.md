@@ -139,6 +139,11 @@ Implemented and checked:
   noncanonical values; ADD defines all six arithmetic flags. Both retain
   complete RAM and current OS authority under register aliasing. See
   [arithmetic scope](docs/sequential-arithmetic64.md).
+- Full64 register AND/OR/XOR in that sequential backend, with both opcode
+  directions, all 16 GPRs and explicit undefined-AF choices. Current RAM and
+  OS authority survive even when the destination is RSP; RET still requires
+  its actual caller-slot binding. Independent native snapshots replay through
+  Lean. See [logical operations](docs/sequential-logical64.md).
 - Memory-source ADD64 in the sequential backend reads a complete qword at the
   old full64 base/SIB address, defines all six arithmetic flags and retains
   the complete memory frame. Named current read loans and array resources
@@ -442,6 +447,7 @@ bash scripts/verify-futex-predicate.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-arithmetic64.sh
+EDSL_CLANG=clang-18 bash scripts/verify-sequential-logical64.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-add-memory64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-array-sum64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-call-stack.sh

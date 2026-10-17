@@ -13,7 +13,7 @@ def Instruction.length : Instruction → Nat
   | .legacy .ret => 1
   | .legacy _ => 2
   | .xorSelf32 _ | .movReg32 _ _ | .xchgRax64 _ | .je _ | .jcc _ _ | .jmp _ => 2
-  | .movReg64 _ _ | .addReg64 _ _ | .xchgReg64 _ _ | .test64 _ _ | .cmp64 _ _
+  | .movReg64 _ _ | .addReg64 _ _ | .logicalReg64 _ _ _ | .xchgReg64 _ _ | .test64 _ _ | .cmp64 _ _
   | .inc64 _ | .dec64 _ => 3
   | .addMem32 _ (.base _) | .loadMem32 _ (.base _) | .storeMem32 (.base _) _ => 2
   | .addMem32 _ (.indexed _ _ _) | .loadMem32 _ (.indexed _ _ _)
@@ -130,6 +130,15 @@ def decodeREXWAt (state : State) (opcode : Byte) : Except Error Instruction := d
     else if operation = 0x03 then
       return .addMem64 (rexModRMReg opcode modrm) (← decodeQWordAddressAt state opcode modrm)
     else throw .unsupportedEncoding
+  else if operation = 0x21 ∨ operation = 0x23 ∨ operation = 0x09 ∨
+      operation = 0x0b ∨ operation = 0x31 ∨ operation = 0x33 then
+    let modrm ← fetchByte state.memory (state.rip + 2)
+    if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
+    let logical := if operation = 0x21 ∨ operation = 0x23 then LogicalOp.band
+      else if operation = 0x09 ∨ operation = 0x0b then LogicalOp.bor else LogicalOp.bxor
+    return if operation = 0x21 ∨ operation = 0x09 ∨ operation = 0x31 then
+      .logicalReg64 logical (rexModRMRM opcode modrm) (rexModRMReg opcode modrm)
+      else .logicalReg64 logical (rexModRMReg opcode modrm) (rexModRMRM opcode modrm)
   else if opcode ≠ 0x48 then throw .unsupportedEncoding
   else if operation = 0x85 ∨ operation = 0x39 then
     let modrm ← fetchByte state.memory (state.rip + 2)
@@ -148,9 +157,11 @@ def decodeREXWAt (state : State) (opcode : Byte) : Except Error Instruction := d
     else throw .unsupportedEncoding
   else throw .unsupportedEncoding
 
-/-- NEW subset only. MOV64, LEA64, ADD64, register CMOV64 and register XCHG64 admit
+/-- NEW subset only. MOV64, LEA64, ADD64, register AND/OR/XOR64, register CMOV64 and register XCHG64 admit
 one REX.W prefix 48..4F, including R/B and the SIB index extension X. Register
-ADD and CMOV ignore X. Opcode 03 additionally admits a mod=00 memory source;
+ADD, AND/OR/XOR and CMOV ignore X. Logical instructions admit both opcode
+directions with mod=3 only; memory operands and immediate forms are unsupported.
+Opcode 03 additionally admits a mod=00 memory source;
 opcode 01 memory destinations remain unsupported. CMOV accepts the sixteen
 0F 40..4F condition codes, with R extending its destination and B its source.
 Memory CMOV needs an unconditional operand-read contract and is unsupported.
@@ -158,7 +169,7 @@ LEA uses the existing mod=00 address
 subset to compute a value without a data access. XCHG's short form uses B to
 extend its opcode register; unused R/X bits are ignored. Other 64-bit families
 retain exact prefix 48.
-Register ModRM for XOR/TEST/CMP/INC/DEC/ADD-immediate, unprefixed MOV32, and mod=00
+Register ModRM for legacy self-XOR32/TEST/CMP/INC/DEC/ADD-immediate, unprefixed MOV32, and mod=00
 ordinary ADD/MOV-memory addresses.
 Short conditional branches admit the unprefixed 70..7F rel8 forms. The
 legacy-first decoder retains 75 as JNZ, and 74 retains the existing JE API.
@@ -222,7 +233,7 @@ theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.len
   | lea64 destination address | loadMem64 destination address | addMem64 destination address
   | storeMem64 address destination =>
     cases address <;> simp [Instruction.length]
-  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
+  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | addReg64 _ _ | logicalReg64 _ _ _ | xchgReg64 _ _ | xchgRax64 _
   | test64 _ _ | cmp64 _ _ | addImm64 _ _
   | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ => simp [Instruction.length]
 
@@ -233,7 +244,7 @@ theorem Instruction.length_le_five (instruction : Instruction) : instruction.len
   | lea64 destination address | loadMem64 destination address | addMem64 destination address
   | storeMem64 address destination =>
     cases address <;> simp [Instruction.length]
-  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
+  | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | addReg64 _ _ | logicalReg64 _ _ _ | xchgReg64 _ _ | xchgRax64 _
   | test64 _ _ | cmp64 _ _ | addImm64 _ _
   | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ => simp [Instruction.length]
 

@@ -59,6 +59,10 @@ def instruction : Instruction → String
     s!"(.cmovReg64 {condition predicate} {register destination} {register source})"
   | .lea64 destination operand => s!"(.lea64 {register destination} {address operand})"
   | .addReg64 destination source => s!"(.addReg64 {register destination} {register source})"
+  | .logicalReg64 operation destination source =>
+    let logical := match operation with
+      | .band => ".band" | .bor => ".bor" | .bxor => ".bxor"
+    s!"(.logicalReg64 {logical} {register destination} {register source})"
   | .xchgReg64 left right => s!"(.xchgReg64 {register left} {register right})"
   | .xchgRax64 other => s!"(.xchgRax64 {register other})"
   | .loadMem32 destination operand => s!"(.loadMem32 {register destination} {address operand})"

@@ -91,6 +91,8 @@ def instructionLiteral : Sequential.Instruction → String
     s!"(.lea64 {registerLiteral destination} {addressLiteral address})"
   | .addReg64 destination source =>
     s!"(.addReg64 {registerLiteral destination} {registerLiteral source})"
+  | .logicalReg64 operation destination source =>
+    Sequential.Literals.instruction (.logicalReg64 operation destination source)
   | .xchgReg64 left right =>
     s!"(.xchgReg64 {registerLiteral left} {registerLiteral right})"
   | .xchgRax64 other => s!"(.xchgRax64 {registerLiteral other})"

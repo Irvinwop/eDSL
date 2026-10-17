@@ -41,7 +41,7 @@ def Instruction.isLocked : Instruction → Bool
   | _ => false
 
 def Instruction.choosesAF : Instruction → Bool
-  | .xorSelf32 _ | .test64 _ _ => true
+  | .xorSelf32 _ | .test64 _ _ | .logicalReg64 _ _ _ => true
   | _ => false
 
 /-- Read success is checked by the actual memory primitives, including their
@@ -53,7 +53,7 @@ def OperandReadSucceeds (state : State) (read : Read) : Prop :=
     | 8 => ∃ value, loadQWord state.memory read.address = .ok value
     | _ => read.bytes = 4 ∧ ∃ value, loadDWord state.memory read.address = .ok value
 
-/-- The explicit AF argument is used only by XOR/TEST. Legacy execution retains
+/-- The explicit AF argument is used only by self-XOR32, TEST and logical64. Legacy execution retains
 its complete old result, including concrete flags, stores, atomics and syscall
 contexts, for EVERY value of the new argument. -/
 def execute (state : State) (instruction : Instruction) (af : Bool) : Except Error Observation := do
@@ -78,6 +78,10 @@ def execute (state : State) (instruction : Instruction) (af : Bool) : Except Err
     let right := state.registers source
     return ⟨.next { state.writeRegister destination (left + right) with
       rip := state.rip + 3, flags := addFlags64 state.flags left right }, reads⟩
+  | .logicalReg64 operation destination source =>
+    let result := operation.eval (state.registers destination) (state.registers source)
+    return ⟨.next { state.writeRegister destination result with
+      rip := state.rip + 3, flags := logicalFlags64 state.flags result af }, reads⟩
   | .xchgReg64 left right =>
     return ⟨.next { (state.writeRegister left (state.registers right)).writeRegister
       right (state.registers left) with rip := state.rip + 3 }, reads⟩
@@ -492,7 +496,7 @@ theorem execute_storeIntent {state : State} {instruction : Instruction} {address
     simp only [Instruction.storeIntent, Option.some.injEq, Prod.mk.injEq] at intent
     rcases intent with ⟨rfl, rfl⟩
     exact execute_storeMem32 state operand source af
-  | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | loadMem64 _ _ | storeMem64 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addMem64 _ _
+  | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | logicalReg64 _ _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | loadMem64 _ _ | storeMem64 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addMem64 _ _
   | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ =>
     simp [Instruction.storeIntent] at intent
 
@@ -684,6 +688,33 @@ theorem execute_addReg64 (state : State) (destination source : Register) (af : B
         rip := state.rip + 3,
         flags := addFlags64 state.flags (state.registers destination) (state.registers source) }, []⟩ := rfl
 
+/-- All logical operands are read from the original register file. AF is an
+independent choice; CF/OF clear and SF/ZF/PF follow the full-width result. -/
+theorem execute_logicalReg64 (state : State) (operation : LogicalOp)
+    (destination source : Register) (af : Bool) :
+    execute state (.logicalReg64 operation destination source) af =
+      .ok ⟨.next { state.writeRegister destination
+        (operation.eval (state.registers destination) (state.registers source)) with
+        rip := state.rip + 3,
+        flags := logicalFlags64 state.flags
+          (operation.eval (state.registers destination) (state.registers source)) af }, []⟩ := rfl
+
+/-- Includes aliases and RSP. The complete RAM and permission maps and all
+non-destination registers survive, and there is no operand-memory access. -/
+theorem execute_logicalReg64_context (state : State) (operation : LogicalOp)
+    (destination source : Register) (af : Bool) :
+    ∃ final, execute state (.logicalReg64 operation destination source) af = .ok ⟨.next final, []⟩ ∧
+      final.registers destination = operation.eval (state.registers destination) (state.registers source) ∧
+      (∀ register, register ≠ destination → final.registers register = state.registers register) ∧
+      final.memory = state.memory ∧
+      final.flags = logicalFlags64 state.flags
+        (operation.eval (state.registers destination) (state.registers source)) af ∧
+      final.rip = state.rip + 3 := by
+  refine ⟨_, rfl, ?_, ?_, rfl, rfl, rfl⟩
+  · simp [State.writeRegister]
+  · intro register different
+    simp [State.writeRegister, different]
+
 /-- Effective-address arithmetic preserves the entire memory and every flag.
 The same pre-state supplies both address registers when either aliases the
 destination, including RSP; there are no operand-access premises. -/
@@ -778,7 +809,7 @@ theorem execute_reads {state : State} {instruction : Instruction} {af : Bool}
     cases success
     rfl
   | movReg32 destination source | movReg64 destination source | lea64 destination address
-  | cmovReg64 condition destination source | addReg64 destination source | xchgReg64 left right | xchgRax64 other
+  | cmovReg64 condition destination source | addReg64 destination source | logicalReg64 operation destination source | xchgReg64 left right | xchgRax64 other
   | xorSelf32 destination | test64 left right | cmp64 left right
   | addImm64 destination immediate | inc64 destination | dec64 destination =>
     cases success
@@ -861,7 +892,7 @@ theorem execute_reads_succeed {state : State} {instruction : Instruction} {af : 
       simp only [Instruction.operandReads, List.mem_singleton] at member
       subst read
       exact ⟨value, loaded⟩
-  | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | storeMem32 _ _ | storeMem64 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _
+  | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | logicalReg64 _ _ _ | xchgReg64 _ _ | xchgRax64 _ | storeMem32 _ _ | storeMem64 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _
   | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ =>
     simp [Instruction.operandReads]
 
@@ -876,7 +907,7 @@ theorem execute_new_memory {state final : State} {instruction : Instruction} {af
   cases instruction with
   | legacy old => simp [Instruction.isNew] at newInstruction
   | movReg32 destination source | movReg64 destination source | lea64 destination address
-  | cmovReg64 condition destination source | addReg64 destination source | xchgReg64 left right | xchgRax64 other
+  | cmovReg64 condition destination source | addReg64 destination source | logicalReg64 operation destination source | xchgReg64 left right | xchgRax64 other
   | xorSelf32 destination | test64 left right | cmp64 left right
   | addImm64 destination immediate | inc64 destination | dec64 destination =>
     cases success
@@ -952,7 +983,7 @@ theorem execute_new_next {state : State} {instruction : Instruction} {af : Bool}
   cases instruction with
   | legacy old => simp [Instruction.isNew] at newInstruction
   | movReg32 destination source | movReg64 destination source | lea64 destination address
-  | cmovReg64 condition destination source | addReg64 destination source | xchgReg64 left right | xchgRax64 other
+  | cmovReg64 condition destination source | addReg64 destination source | logicalReg64 operation destination source | xchgReg64 left right | xchgRax64 other
   | xorSelf32 destination | test64 left right | cmp64 left right
   | addImm64 destination immediate | inc64 destination | dec64 destination =>
     cases success
@@ -1051,6 +1082,9 @@ theorem execute_new_flags {state final : State} {instruction : Instruction} {af 
   | addReg64 destination source =>
     cases success; cases next
     exact addFlags64_preserves ..
+  | logicalReg64 operation destination source =>
+    cases success; cases next
+    exact logicalFlags64_preserves ..
   | addImm64 destination immediate =>
     cases success; cases next
     exact addFlags64_preserves ..

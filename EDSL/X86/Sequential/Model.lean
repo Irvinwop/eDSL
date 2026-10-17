@@ -20,6 +20,18 @@ def Address.eval (address : Address) (state : State) : Word :=
   | .base register => state.registers register
   | .indexed baseReg index scale => state.registers baseReg + (state.registers index <<< scale.val)
 
+/-- Full-width logical operations. The destination and source are both read
+before any register update, including when the registers alias. -/
+inductive LogicalOp where
+  | band | bor | bxor
+  deriving DecidableEq, Repr
+
+def LogicalOp.eval (operation : LogicalOp) (left right : Word) : Word :=
+  match operation with
+  | .band => left &&& right
+  | .bor => left ||| right
+  | .bxor => left ^^^ right
+
 /-- A separate sequential ISA extension. Existing deterministic and concurrent
 decoders keep their original supported subset. -/
 inductive Instruction where
@@ -43,6 +55,9 @@ inductive Instruction where
   | lea64 (destination : Register) (address : Address)
   /-- Register-register addition with full-width result and arithmetic flags. -/
   | addReg64 (destination source : Register)
+  /-- Register-only full-width AND/OR/XOR, with an independent undefined AF
+  choice. This is an ordinary instruction, not a locked operation. -/
+  | logicalReg64 (operation : LogicalOp) (destination source : Register)
   /-- Full-width register exchange using the ModRM encoding. -/
   | xchgReg64 (left right : Register)
   /-- Full-width exchange with RAX using the opcode-register encoding. -/
