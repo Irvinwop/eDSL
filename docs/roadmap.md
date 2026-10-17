@@ -536,8 +536,17 @@ The new raw/full-ELF publisher certificate retains explicit current
 admission/member/code-binding premises. Owned native observations use the same
 bytes after final linking and do not prove scheduling progress.
 
-Next prove a trace-wide no-lost-wake contract with its exact client predicate
-and service/scheduler assumptions, then a blocking-mutex acquisition contract.
+The notification layer now proves a trace-wide queue-safety contract for a sole
+WAIT client whose expected value differs from the published one. The actual
+publisher's XCHG and associated WAKE1 remove a queued waiter; arbitrary later
+admitted mixed traces cannot queue it again while W=1 persists. Current pending
+waiters have an enabled bounded compare/resume/RET continuation; all supported
+WAIT stages have a continuation within six runtime transitions. The policy,
+current resources and service assumptions are explicit; no scheduler fairness
+or predicate acquisition follows. See [notification contracts](futex-notification.md).
+
+Next implement a predicate-rechecking client loop and a blocking-mutex
+acquisition contract, with explicit scheduler assumptions for eventual progress.
 Expand finite control and resource obligations only with corresponding
 preservation and coverage proofs. Native kernel/runtime correspondence and
 safety of a whole Linux kernel or distribution remain separate work. See

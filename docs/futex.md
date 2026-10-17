@@ -74,8 +74,10 @@ those obligations and derives positive coverage for its fixed code profiles.
 
 `Publication` proves current-word mismatch, sole-waiter wake, absence of wake
 credits and spurious-word framing. The owned examples exhibit both comparison
-orders and retry across actual XCHG publication. A generalized no-lost-wakeup
-proof over all physical client schedules and a blocking-mutex/acquisition
+orders and retry across actual XCHG publication. The
+[notification layer](futex-notification.md) now proves queue safety across
+mixed client traces for one designated WAIT client expecting a value different
+from the published one. Broader waiter policies and a blocking-mutex/acquisition
 contract remain further work. A wake alone establishes neither publication nor
 an acquisition right.
 
@@ -121,8 +123,16 @@ from the explicit static contract, derived from checked distinct allocation
 tickets in the witness. `published_word_trace` retains W=1 across every later
 admitted mixed prefix: actual code writes only one atomically, all FIFO heads
 have grants disjoint from W, and service actions leave RAM unchanged. This
-includes preexisting FIFOs and returned producers. It is a safety and
-publication result, not a complete no-lost-wake or acquisition theorem.
+includes preexisting FIFOs and returned producers. The separate notification
+policy adds the associated publisher's actual WAKE1 and derives absence of a
+queued designated WAIT after that wake and every later admitted mixed suffix.
+A currently pending waiter has a constructed compare/resume/RET continuation
+of at most three runtime transitions. These safety and enabledness results
+require no fairness and establish no predicate acquisition.
+The all-stage continuation also covers unentered, resumed and returned WAIT
+clients, using at most six runtime transitions and retaining historical private
+contexts after resumption. These bounds count service actions as well as
+physical issue actions; they are not hardware instruction counts.
 
 ## Exact artifact and native evidence
 

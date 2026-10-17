@@ -97,6 +97,12 @@ Implemented and checked:
   authority. The new exact client artifact contract remains conditional on
   current cohort admission and code binding; it proves no scheduling progress
   or safety of a whole kernel or distribution. See [client coverage](docs/futex.md).
+- Private-word notification across mixed client traces: with one WAIT client
+  expecting a value different from one, the publisher's actual XCHG and
+  associated WAKE1 leave no queued WAIT, and later admitted execution preserves
+  that fact. Every supported WAIT stage has a bounded continuation through RET;
+  scheduler fairness and predicate acquisition remain separate.
+  See [notification contracts](docs/futex-notification.md).
 - A counted assembly loop with a proved invariant and termination for every
   64-bit count, modular arithmetic result and exact `2*count+3` user-instruction cost.
 - Ordinary C `sum32` pointer/count and indexed loops share an independent
@@ -282,6 +288,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Buffered x86 execution](docs/store-buffers.md) | How do delayed stores, forwarding and locked operations differ from immediate visibility? |
 | [Concurrent syscall boundaries](docs/concurrent-syscalls.md) | How do pending calls retain peer memory changes and consume invocation IDs once? |
 | [Private futex service](docs/futex.md) | How do actual requests, mutable-word lifetime, queue eligibility and current RAM compose? |
+| [Private-word notification](docs/futex-notification.md) | When do actual publication and wake prevent later queueing, and what completion is enabled? |
 | [ELF container verification](docs/elf.md) | How do complete ELF bytes establish the executable entry code? |
 | [Standalone exit contract](docs/process-exit.md) | What connects ELF entry execution to exit status, and what progress is assumed? |
 | [Stream output and exit](docs/process-write.md) | How do short writes and errors compose with the next userspace instructions? |
@@ -375,6 +382,8 @@ lake env lean -DwarningAsError=true tests/FutexClientControl.lean
 lake env lean -DwarningAsError=true tests/FutexClientPhysical.lean
 lake env lean -DwarningAsError=true tests/FutexClientCertificate.lean
 lake env lean -DwarningAsError=true tests/FutexClientCoverage.lean
+lake env lean -DwarningAsError=true tests/FutexNotification.lean
+lake env lean -DwarningAsError=true tests/FutexNotificationCertificate.lean
 lake env lean -DwarningAsError=true tests/SequentialISA.lean
 lake env lean -DwarningAsError=true tests/SequentialExecution.lean
 lake env lean -DwarningAsError=true tests/SequentialMoves.lean

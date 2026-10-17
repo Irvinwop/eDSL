@@ -109,6 +109,8 @@ jobs:
           lake env lean -DwarningAsError=true tests/FutexClientPhysical.lean
           lake env lean -DwarningAsError=true tests/FutexClientCertificate.lean
           lake env lean -DwarningAsError=true tests/FutexClientCoverage.lean
+          lake env lean -DwarningAsError=true tests/FutexNotification.lean
+          lake env lean -DwarningAsError=true tests/FutexNotificationCertificate.lean
           lake env lean -DwarningAsError=true tests/SequentialISA.lean
           lake env lean -DwarningAsError=true tests/SequentialExecution.lean
           lake env lean -DwarningAsError=true tests/SequentialMoves.lean

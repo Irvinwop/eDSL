@@ -1070,6 +1070,8 @@ lake env lean -DwarningAsError=true tests/FutexClientControl.lean
 lake env lean -DwarningAsError=true tests/FutexClientPhysical.lean
 lake env lean -DwarningAsError=true tests/FutexClientCertificate.lean
 lake env lean -DwarningAsError=true tests/FutexClientCoverage.lean
+lake env lean -DwarningAsError=true tests/FutexNotification.lean
+lake env lean -DwarningAsError=true tests/FutexNotificationCertificate.lean
 lake env lean -DwarningAsError=true tests/SequentialISA.lean
 lake env lean -DwarningAsError=true tests/SequentialExecution.lean
 lake env lean -DwarningAsError=true tests/SequentialMoves.lean
@@ -1191,8 +1193,22 @@ producer with buffered payload writes.
 The publisher's actual STORE/XCHG-one/WAKE1/RET code establishes current payload
 publication at XCHG. W=1 persists through later admitted mixed prefixes; current
 FIFO authority and keeper separation exclude buffered reset writes, including
-returned producers. This proves safety without claiming eventual readiness,
-no-lost-wake for all schedules, or payload acquisition.
+returned producers. The separate [notification policy](futex-notification.md)
+requires one designated WAIT client with expected32 different from one.
+The publisher's actual XCHG and associated captured WAKE1 derive absence of a
+queued designated WAIT after arbitrary mixed prefixes and preserve it over
+every later admitted mixed suffix. Current invocation families, pins and RAM
+derive the queue effects; admission assumes no future successful execution.
+The three-client witness checks comparisons before, between and after those
+actions, retries, spurious readiness, returned peer drains and full raw results.
+Multiple WAIT clients demonstrate why this policy is required. A current pending
+WAIT has an actual continuation through RET of at most three runtime transitions.
+The all-stage `worker_completes` theorem covers unentered, pending, resumed and
+returned waiters within six transitions, retaining historical private contexts
+which have already resumed. The additive exact-byte notification certificate
+retains its binding through both queue-safety and completion consequences.
+These results establish safety and enabledness; eventual scheduling and payload
+acquisition remain separate obligations.
 
 The new `edsl-certify-futex-client` recognizes exactly this publisher's 32-byte
 profile, separately from the invocation-only WAIT/WAKE1 certificates. Literal
