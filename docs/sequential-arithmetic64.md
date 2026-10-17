@@ -28,8 +28,9 @@ admitted world where LEA computes a noncanonical RSP and a subsequent RET
 faults while the original caller bytes and reusable store authority survive.
 
 These additions do not expand the legacy sequential/TSO instruction profile
-or the sum32 shape checker. Complete direct-add compiler client proofs are a
-subsequent milestone; native compiler probes do not establish those contracts.
+or the sum32 shape checker. Separate [direct-add compiler clients](counted-store-direct64.md)
+prove complete outputs against the existing independent full64 result and
+current-resource contract; native compiler observations remain distinct evidence.
 The architectural references are Intel's
 [ADD entry, volume 2A, pages 3-14–3-15](https://cdrdv2-public.intel.com/868140/253666-089-sdm-vol-2a.pdf#page=132)
 and [LEA entry, pages 3-539–3-540](https://cdrdv2-public.intel.com/868140/253666-089-sdm-vol-2a.pdf#page=657).

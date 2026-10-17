@@ -37,6 +37,7 @@ import EDSL.Stride32.Correctness
 import EDSL.Stride32.Accounting
 import EDSL.Pair32.Correctness
 import EDSL.Grading.Known
+import EDSL.Grading.StoreReturnValue64.StackOnly
 import EDSL.Grading.Write32.Accounting
 import EDSL.StoreReturn32
 import EDSL.StoreLoad64.Artifact

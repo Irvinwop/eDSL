@@ -128,6 +128,10 @@ Implemented and checked:
   noncanonical values; ADD defines all six arithmetic flags. Both retain
   complete RAM and current OS authority under register aliasing. See
   [arithmetic scope](docs/sequential-arithmetic64.md).
+- Fresh proofs for complete 13-byte GCC and 15-byte Clang direct-add outputs
+  against the same counted-store task, including all full64 counts, actual
+  checked OS writes and reusable returned authority. Exact costs are 4/5 and
+  5/6 for zero/positive count. See [direct-add clients](docs/counted-store-direct64.md).
 - Full 64-bit memory loads/stores with complete eight-byte checks and extended
   base/SIB addressing. Owner/epoch authority, read-only borrowing and checked
   histories retain outside cells, permissions and live loans. Direct raw/ELF
@@ -333,6 +337,7 @@ bash scripts/verify-futex-clients.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-arithmetic64.sh
+EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-counted-store-direct64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return32.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return-grading.sh
 EDSL_GCC=gcc-13 bash scripts/verify-store-return-xchg.sh

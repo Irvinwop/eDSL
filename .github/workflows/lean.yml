@@ -288,6 +288,17 @@ jobs:
           name: counted-store-final64-evidence
           path: artifacts/counted-store-final64/
           if-no-files-found: error
+      - name: Grade direct-add GCC and Clang clients outside the trusted registry
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-counted-store-direct64.sh
+      - name: Preserve owned direct-add client grading evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: counted-store-direct64-evidence
+          path: artifacts/counted-store-direct64/
+          if-no-files-found: error
       - name: Preserve owned full64 memory certificates and observations
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

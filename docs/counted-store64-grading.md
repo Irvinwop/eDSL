@@ -36,6 +36,10 @@ This integration demonstrates the two known windows. A separate
 a different compiler loop, outside the trusted snapshot. Its register loop
 retains the old target until a single final positive-count store. Client export
 and snapshot isolation are checked independently of task acceptance.
+Two further [direct-add clients](counted-store-direct64.md) prove complete
+13-byte GCC and 15-byte Clang outputs with one guarded positive-count store.
+They remain outside Known and use the same fixed task; neither an implemented
+loop nor intermediate volatile effects are required by that contract.
 
 ```sh
 lake build edsl-grade edsl-proof-export

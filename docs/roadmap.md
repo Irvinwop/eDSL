@@ -92,8 +92,11 @@ explicit; the concurrent backends retain their original instruction subset.
 LEA64 and register ADD64 now extend this sequential ISA with pre-state
 aliasing, full64 results and current-world resource frames. LEA is pure
 address arithmetic; register ADD defines the six arithmetic flags. These
-operations supply ISA coverage for direct-add compiler probes, whose complete
-independent result/resource proofs remain a subsequent client milestone.
+operations support separate fresh GCC/Clang direct-add client proofs with
+complete independent result/resource contracts, exact constant instruction
+counts and returned authority. The same registered task accepts these clients
+without constraining source structure or intermediate store counts. See
+[direct-add scope](counted-store-direct64.md).
 See [arithmetic scope](sequential-arithmetic64.md).
 The direct StoreReturn32 certificate API now proves both selected compiler
 store/copy orderings and a copied-RAX variant against a stronger full-pointer
