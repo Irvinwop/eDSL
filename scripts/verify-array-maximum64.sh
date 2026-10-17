@@ -273,9 +273,13 @@ proof_project="$source_root"
 proof_snapshot="$output/proof-source"
 mkdir -p "$proof_snapshot" "$output/proof-logs"
 proof_sources=(lean-toolchain lake-manifest.json ./*.lean)
+# Materialize the list in a checked pipeline: process substitution alone would
+# hide a failed enumerator and permit an incomplete source snapshot.
+find EDSL tests -type f -name '*.lean' -print0 | LC_ALL=C sort -z \
+    > "$output/proof-source-files.nul"
 while IFS= read -r -d '' file; do
     proof_sources+=("$file")
-done < <(rg --files --null -g '*.lean' EDSL tests)
+done < "$output/proof-source-files.nul"
 sha256sum "${proof_sources[@]}" > "$output/proof-source-SHA256SUMS"
 for file in "${proof_sources[@]}"; do
     install -D -m 0644 "$file" "$proof_snapshot/$file"

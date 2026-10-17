@@ -175,8 +175,8 @@ model_status=FAILED
     cd "$lean_root"
     run lean --version > "$output/lean.txt"
     run lake --version > "$output/lake.txt"
-    { printf '%s\n' lean-toolchain lakefile.lean; rg --files EDSL -g '*.lean'; } | \
-        LC_ALL=C sort | xargs sha256sum > "$output/model-source-SHA256SUMS"
+    { printf '%s\0' lean-toolchain lakefile.lean; find EDSL -type f -name '*.lean' -print0; } | \
+        LC_ALL=C sort -z | xargs -0 sha256sum > "$output/model-source-SHA256SUMS"
     exec 9>/tmp/edsl-lean-build.lock
     run flock 9
     run lake build EDSL.X86.Sequential.Machine EDSL.Audit > "$output/model-build.txt" 2>&1
