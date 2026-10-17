@@ -74,7 +74,9 @@ Raw inputs must match the complete seven-byte window. ELF selects the RET-termin
 entry window within 64 bytes/32 instructions, without skipping unsupported code.
 Literal parsing, executable file-backed bytes and loaded code are kernel checked.
 Fresh loader space, ABI, caller memory/permissions and current resources remain
-explicit. This convenience profile adds no new registered grader task.
+explicit. This convenience profile is separate from the registered
+[`storeReturnValue64` task](store-return-value64.md), which permits different
+proved implementations, contained32 accesses and arithmetic-flag changes.
 Exit 0 means the emitted certificate checked; exit 1 is certificate failure,
 exit 2 usage, exit 3 unsupported input, exit 4 malformed/empty input, and exit 5 IO
 failure. Nonempty truncated/trailing raw windows use exit 3. The CLI owns its

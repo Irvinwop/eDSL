@@ -8,9 +8,11 @@ effect policy. It cannot submit a replacement postcondition or extra premise.
 The registry contains `pair32` (the modular sum of both mathematical lists),
 `stride32` (the modular sum of the even-indexed input words), `write32`
 (store the low 32 bits of the full-width argument at the fixed input pointer),
-and `storeReturn32` (the same store plus the complete target pointer in RAX).
-Pair and stride use `sequentialReadOnlyX86CallableV1`; both store tasks use
-`sequentialOwnedWord32X86CallableV1`. The existing GCC implementations discharge
+`storeReturn32` (the same store plus the complete target pointer in RAX),
+and `storeReturnValue64` (the complete 64-bit argument stored and returned).
+Pair and stride use `sequentialReadOnlyX86CallableV1`; the two low32 store tasks use
+`sequentialOwnedWord32X86CallableV1`, and the full64 result uses
+`sequentialOwnedWord64X86CallableV1`. The existing GCC implementations discharge
 these claims through `EDSL.Grading.Known.pair`, `.stride` and `.write`. A different
 implementation must prove the same `EDSL.Grading.Claim id bytes`; matching a
 published byte table, CFG, instruction count or read order is not required.
@@ -86,6 +88,16 @@ return predicate. Its independent `StoreReturn32.Post` additionally requires
 contract. An actual admitted store/RET execution proves the reverse implication
 false: the unchanged `Known.write` implementation need not return the pointer.
 Neither task requires a known instruction sequence or exact instruction count.
+
+`storeReturnValue64` has its own independent full64 post and eight-byte current
+authority. Ordinary32 stores and DATA4 reads can use complete subspans of the
+owned target; ordinary64 effects retain their actual width. Current held loans
+also authorize supported DATA4/8 reads. Its useful domain compares the full64
+values, including upper-half-only changes. Two fresh clients prove the same
+task with mixed-width writes/no data load and an upper-half DATA4 read,
+respectively. Their actual resource histories and returned authority stay tied
+to the machine execution. See [full64 result grading](store-return-value64.md)
+for the APIs, proof clients and reproducible raw/ELF integration.
 
 The managed write policy uses current code and complete stack loans, a current
 owner/epoch ticket for the entire target word, and no live read loan for the
@@ -313,7 +325,7 @@ Failure, unsupported input and timeout establish no security defect. Real
 findings and their evidence remain outside Git and CI under the repository's
 [private findings policy](findings.md). Integration uses project-owned fixtures.
 
-The registry currently has four tasks. Expanding input and output contracts,
+The registry currently has five tasks. Expanding input and output contracts,
 multiple-target mutation policies, concurrent grading, task
 registration review and automated invariant generation remains future work.
 Instruction costs can be proved separately; acceptance here does not impose a

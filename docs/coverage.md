@@ -16,7 +16,9 @@ proves the sum of two lists, exact `6*(lengthA+lengthB)+6` instructions, ordered
 reads and retained current authority for both inputs, including compatible
 readonly aliases.
 The [fixed-contract grader](grading.md) registers these two mathematical tasks
-and `write32`, a fixed-pointer low32 store. All require all-input termination
+and `write32`, a fixed-pointer low32 store, `storeReturn32`, which additionally
+returns the full pointer, and `storeReturnValue64`, which stores and returns the
+full64 argument. All require all-input termination
 and current OS admission. Pair/stride require reachable read-only effects;
 write permits ordinary stores at its fixed target, with checked evolving
 ownership, actual prefix/return witnesses and retained allocation/loan,
@@ -37,8 +39,8 @@ world, retaining the original stack and outside frame. It proves the same
 task and exactly four modeled instructions with target4 then stack8 reads.
 Task preconditions are inhabited for arbitrary admitted byte lists independently
 of decoding; the write witness requires a real value change, and a RET-only
-candidate is proved insufficient. This is a three-task registry with an explicit sequential callable
-profile, rather than general competitive-programming or whole-OS grading.
+candidate is proved insufficient. The registry exposes fixed sequential callable
+tasks with explicit profiles.
 Standalone ELF profiles reach exit 42 directly or across a bounded stream write
 and compose with explicit OS contracts. A separate locked-add-loop certificate
 connects exact bytes to finite OS counter-worker workloads and checked
@@ -127,6 +129,17 @@ permissions and existing 32/64 loans. Current resource proofs compose actual
 store/load/RET with the same evolved world, owner/epoch/loan frame and original
 caller stack binding. A direct raw/ELF profile proves actual GNU23/GNU++26
 store/load output and observes full 64-bit values. See [eight-byte memory](memory64.md).
+The separate registered `storeReturnValue64` task requires the full64 result and
+eight-byte/ABI/current-resource frames, with nonarithmetic flags preserved.
+It permits contained ordinary32/64 effects with their real widths and histories,
+and target-subspan or current-loan DATA4/8 reads. Two fresh client proofs use
+mixed64/32 stores with no data load, and a DATA4 read at target+4 respectively.
+All-byte-span useful domains include unsupported code and upper-half-only value
+changes. Raw/ELF reference/body grading retains default budgets and trusted
+snapshot isolation. The same five final artifacts receive420 native calls;
+actual semantic narrow-store/truncated-result rejections supplement wrong-proof
+binding checks. Existing32 and strict64 policies are unchanged. See
+[full64 result grading](store-return-value64.md).
 Register XCHG64 swaps both original full-width operands, preserves every flag
 and memory field, and advances by three bytes for `REX.W 87 /r` or two for
 `REX.W 90+rd`. The short form uses B and ignores R/X. Both forms compose with

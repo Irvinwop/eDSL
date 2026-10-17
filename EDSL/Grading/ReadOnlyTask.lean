@@ -25,6 +25,7 @@ model the executor's AF nondeterminism, not arbitrary hardware scheduling. -/
 inductive Profile where
   | sequentialReadOnlyX86CallableV1
   | sequentialOwnedWord32X86CallableV1
+  | sequentialOwnedWord64X86CallableV1
   deriving DecidableEq, Repr
 
 structure PairInput where

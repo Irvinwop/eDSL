@@ -41,8 +41,8 @@ and remaining trust must appear in the result.
 Implemented and checked:
 
 - A pinned Lean 4 / Lake project, with warnings treated as errors.
-- A [fixed-contract proof grader](docs/grading.md) for pair/stride sums and an owned-word store
-  tasks, with data-only proof packets, fresh checked helper declarations,
+- A [fixed-contract proof grader](docs/grading.md) for pair/stride sums and owned-word
+  stores, with data-only proof packets, fresh checked helper declarations,
   exact-artifact binding, useful input witnesses and required current OS
   authority and registered effects. The store evolves checked OS resources
   along actual machine steps and retains all outside-target memory and loans.
@@ -129,6 +129,11 @@ Implemented and checked:
   certificates bind GNU23/GNU++26 store/load/RET output to a full 64-bit result
   and the same evolved current OS world. The existing 32-bit task effects keep
   their width. See [eight-byte memory contracts](docs/memory64.md).
+- A distinct [`storeReturnValue64` grading task](docs/store-return-value64.md)
+  requires full64 storage and return with current eight-byte ownership.
+  Fresh clients prove mixed32/64 writes without a data load and an upper-half
+  DATA4 read before the store, retaining actual effect widths, checked histories
+  and returned authority. Neither shape nor accounting constrains acceptance.
 - Direct raw/ELF certificates for GNU23 compiler outputs that store a low32
   argument and return the full target pointer. Both store/copy orderings carry
   the actual checked OS update, memory/ABI frames and exact three-instruction
@@ -317,6 +322,7 @@ EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return32.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return-grading.sh
 EDSL_GCC=gcc-13 bash scripts/verify-store-return-xchg.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 EDSL_CLANGXX=clang++-18 bash scripts/verify-store-load64.sh
+EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 EDSL_CLANGXX=clang++-18 bash scripts/verify-store-return-value64-grading.sh
 EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 ```
 

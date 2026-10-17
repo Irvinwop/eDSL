@@ -9,6 +9,8 @@ import EDSL.Grading.Write32.Correctness
 import EDSL.Pair32.Correctness
 import EDSL.Stride32.Correctness
 import EDSL.StoreReturn32.Resources
+import EDSL.Grading.StoreReturnValue64.Domain
+import EDSL.Grading.StoreReturnValue64.Correctness
 
 namespace EDSL.Grading
 open X86 X86.Sequential
@@ -49,6 +51,11 @@ theorem domain_nonvacuous (id : TaskID) (bytes : List Byte)
     have useful : writeTask.useful (writeTask.input resource) := witness.raw.useful
     exact ⟨⟨writeTask.input resource, witness.initial, useful, pre.machine⟩,
       ⟨resource, witness.initial, useful, pre⟩⟩
+  | storeReturnValue64 =>
+    let witness := StoreReturnValue64.Domain.candidate bytes positive bound
+    exact ⟨⟨StoreReturnValue64.resourceInput witness.resource, witness.initial,
+      witness.useful, witness.pre.machine⟩,
+      ⟨witness.resource, witness.initial, witness.useful, witness.pre⟩⟩
 
 /-- All admitted pair inputs and all AF streams satisfy the fixed semantic
 contract. Graph validity is separately proved evidence used by the adapters. -/
@@ -131,6 +138,13 @@ theorem storeReturn_semantics (shape : StoreReturn32.Shape) :
     obtain ⟨result, execution, contract, returned⟩ := semantics.1 choices
     exact ⟨result, execution, contract.1, returned⟩
 
+/-- The strict store/load program also satisfies the independent ordinary
+full64 task. Its exact accounting is not part of this registered claim. -/
+theorem storeReturnValue64_semantics :
+    SemanticClaim storeReturnValue64Task StoreLoad64.bytes :=
+  ⟨fun _ _ pre => StoreReturnValue64.raw_semantics pre,
+    fun _ _ pre => StoreReturnValue64.resource_semantics pre⟩
+
 namespace Known
 
 /-- Full claim for the published pair bytes, combining universal semantic
@@ -163,6 +177,12 @@ theorem storeReturnCopyStore : Claim .storeReturn32 StoreReturn32.Shape.copyStor
 /-- Closed export target for the copied-pointer assembly store. -/
 theorem storeReturnCopyStoreRax : Claim .storeReturn32 StoreReturn32.Shape.copyStoreRax.bytes :=
   storeReturn .copyStoreRax
+
+/-- Closed full64 value-return claim with independently constructed useful
+raw and current-resource inputs. -/
+theorem storeReturnValue64 : Claim .storeReturnValue64 StoreLoad64.bytes :=
+  ⟨storeReturnValue64_semantics,
+    domain_nonvacuous .storeReturnValue64 StoreLoad64.bytes (by decide) (by decide)⟩
 
 end Known
 

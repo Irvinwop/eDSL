@@ -101,6 +101,13 @@ Separate pointer-store accounting now derives a three-instruction lower bound
 from actual executions and the existing ordinary-store policy on useful inputs
 requiring a changed RAX. Direct shapes attain it with their current OS return;
 the independent grader still accepts slower proved implementations.
+The distinct `storeReturnValue64` task now fixes full64 stored/returned values,
+eight-byte/ABI/current-resource frames and nonarithmetic flags. Its span policy
+keeps actual32/64 checked mutations and current target/loan read authority.
+Independent mixed-store and upper-half-read clients demonstrate different
+instruction counts and read footprints without changing the domain or limits.
+Useful witnesses cover every nonempty admitted candidate, unsupported bytes
+and upper-half-only changes. See [full64 result grading](store-return-value64.md).
 Reusable cutpoint composition now derives those guarantees from local actual
 machine steps: static depth decreases inside a segment, and a natural rank
 decreases at cutpoint transfers. Independent contracts and entry admission

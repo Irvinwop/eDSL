@@ -35,6 +35,34 @@ def Policy (rules : Rules Ghost) (seed : Ghost) (initial : State) : Prop :=
           | .returned after => rules.Current evolved after
           | .atomic _ _ | .syscall _ => False
 
+/-- Broader registration rules retain the same invariant, actual steps and
+evolved worlds. This changes no admission or execution premise. -/
+theorem Policy.mono {Ghost : Type} {rules broader : Rules Ghost} {seed initial}
+    (policy : Policy rules seed initial)
+    (current : ∀ ghost before, rules.Current ghost before → broader.Current ghost before)
+    (permission : ∀ ghost before read,
+      rules.ReadAllowed ghost before read → broader.ReadAllowed ghost before read)
+    (effect : ∀ ghost before instruction observation evolved,
+      rules.Effect ghost before instruction observation evolved →
+        broader.Effect ghost before instruction observation evolved) :
+    Policy broader seed initial := by
+  obtain ⟨Inv, start, advance⟩ := policy
+  refine ⟨Inv, start, ?_⟩
+  intro ghost before inside
+  obtain ⟨present, instruction, decoded, enabled⟩ := advance ghost before inside
+  refine ⟨current ghost before present, instruction, decoded, ?_⟩
+  intro af
+  obtain ⟨observation, evolved, actual, reads, changed, progress⟩ := enabled af
+  refine ⟨observation, evolved, actual,
+    fun read member => ⟨permission ghost before read (reads read member).1, (reads read member).2⟩,
+    effect ghost before instruction observation evolved changed, ?_⟩
+  cases outcome : observation.result with
+  | next after => simpa only [outcome] using progress
+  | returned after =>
+    exact current evolved after (by simpa only [outcome] using progress)
+  | atomic event after => simp only [outcome] at progress
+  | syscall after => simp only [outcome] at progress
+
 /-- A ghost path indexed by the actual machine path, with no OS-only steps. -/
 inductive LiftedBlock (rules : Rules Ghost) :
     Choices → State → Ghost → State → Ghost → Nat → List Read → Prop where

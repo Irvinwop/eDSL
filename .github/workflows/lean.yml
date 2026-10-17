@@ -100,6 +100,10 @@ jobs:
           lake env lean -DwarningAsError=true tests/StoreReturn32Raw.lean
           lake env lean -DwarningAsError=true tests/StoreReturn32Resources.lean
           lake env lean -DwarningAsError=true tests/GradingStoreReturn.lean
+          lake env lean -DwarningAsError=true tests/GradingStoreReturnValue64.lean
+          lake env lean -DwarningAsError=true tests/GradingStoreReturnValue64Policy.lean
+          lake env lean -DwarningAsError=true tests/StoreReturnValue64Mixed.lean
+          lake env lean -DwarningAsError=true tests/StoreReturnValue64Upper.lean
           lake env lean -DwarningAsError=true tests/StoreReturnRcx.lean
           lake env lean -DwarningAsError=true tests/StoreReturnXchg.lean
           lake env lean -DwarningAsError=true tests/StoreReturnAccounting.lean
@@ -227,6 +231,18 @@ jobs:
         with:
           name: store-load64-evidence
           path: artifacts/store-load64/
+          if-no-files-found: error
+      - name: Grade full64 results with mixed-width effects and current OS authority
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+          EDSL_CLANGXX: clang++-18
+        run: bash scripts/verify-store-return-value64-grading.sh
+      - name: Preserve owned full64 result grading evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: store-return-value64-grading-evidence
+          path: artifacts/store-return-value64-grading/
           if-no-files-found: error
       - name: Preserve owned sum32 certificates and native observations
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

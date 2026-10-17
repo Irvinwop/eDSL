@@ -5,6 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 import EDSL.Grading.ReadOnlyTask
 import EDSL.Grading.Write32.Resources
 import EDSL.StoreReturn32.Contract
+import EDSL.Grading.StoreReturnValue64.Resources
 
 namespace EDSL.Grading
 open X86 X86.Sequential
@@ -120,8 +121,24 @@ def storeReturnTask : Task where
   resourcePolicy _ := Write32.ResourcePolicy
   resourceReturn _ := Write32.ResourceReturn
 
+/-- Full64 value store and return with the ordinary SysV frame. The owned
+eight-byte span admits actual contained ordinary accesses; neither admission
+nor the postcondition fixes instruction shape, accounting or read order. -/
+def storeReturnValue64Task : Task where
+  profile := .sequentialOwnedWord64X86CallableV1
+  Input := StoreReturnValue64.Input
+  pre := StoreReturnValue64.Pre
+  post := StoreReturnValue64.Post
+  useful := StoreReturnValue64.Useful
+  Resource := StoreReturnValue64.Resources
+  input := StoreReturnValue64.resourceInput
+  resourcePre := StoreReturnValue64.ResourcePre
+  machinePolicy := StoreReturnValue64.RawPolicy
+  resourcePolicy _ := StoreReturnValue64.ResourcePolicy
+  resourceReturn _ := StoreReturnValue64.ResourceReturn
+
 inductive TaskID where
-  | pair32 | stride32 | write32 | storeReturn32
+  | pair32 | stride32 | write32 | storeReturn32 | storeReturnValue64
   deriving DecidableEq, Repr
 
 def registered : TaskID → Task
@@ -129,6 +146,7 @@ def registered : TaskID → Task
   | .stride32 => strideTask
   | .write32 => writeTask
   | .storeReturn32 => storeReturnTask
+  | .storeReturnValue64 => storeReturnValue64Task
 
 /-- The trusted task ID and literal artifact bytes determine this type. -/
 def Claim (id : TaskID) (bytes : List Byte) : Prop :=
