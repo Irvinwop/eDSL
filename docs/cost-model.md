@@ -96,6 +96,16 @@ execution, kernel cleanup and waiting are outside these counts.
 | `ArraySum64.GCC.execution_exact`: exactly `5*n+6`; `Clang.execution_accounting`: four for empty input, `4*n+5` otherwise | Complete final 22/25-byte compiler outputs, every admitted full64 array and AF stream; independent sum modulo 2^64, current resources, actual RET and original ordered DATA8/STACK8 reads |
 | `CounterThreads.completed_selection_count`: exactly `3*count+3` own selections through completion | Every well-formed entry-phase counter worker with full 64-bit initial RCX, exact locked-add-loop code and retained handle/code/stack resources; successful supplied schedules may interleave peers |
 | `MutexReplay.machine_completed_observations`: exactly `13*n+4*busy` instructions | Every completed admitted architectural interleaving of the fixed 37-byte mutex worker, starting with `n` entry workers; a zero-busy schedule attains the `13*n` lower bound |
+| `Predicate.Accounting.load_to_returns_lower_bound` and `load_fastpath_attains`: minimum four selected user instructions | The exact 30-byte predicate loop, starting at an actual admitted LOAD with current W1; any accepted returning mixed trace costs at least four, and a constructed LOAD/CMP/JNZ/RET trace attains four with whole RAM/peer frames |
+
+The [predicate-loop bound](futex-predicate.md) counts actual selected retirement
+observations, including SYSCALL capture when it occurs. Parked/blocked selection,
+service, resume, propagation and peer retirements cost zero in this worker's
+user-instruction metric. The four-instruction minimum is specific to this
+program and starting cut, with arbitrary accepted peer/service interleavings.
+It establishes no minimum among alternative correct programs. The separate
+14-action completion theorem starts at any admitted postnotification cut and
+counts Runtime actions, including service; those two quantities differ.
 
 The [array maximum clients](array-maximum64.md) prove their counts separately
 from the registered mathematical result and current-resource policy. Different

@@ -4,6 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.OS.Futex.Predicate.Notification
 import EDSL.OS.Futex.Predicate.Completion
+import EDSL.OS.Futex.Predicate.Accounting
 import EDSL.ELF.Loader
 
 set_option warningAsError true
@@ -241,6 +242,41 @@ theorem loaded_sound (file candidate : List Byte) (image : ELF.Image)
   refine ⟨ELF.load_success file prior image parsed free, sound candidate accepted admitted member ?_⟩
   rw [memory, entry]
   exact ELF.checked_entry_code file image candidate prior checked
+
+/-- This exact artifact's current LOAD fast path cannot return using fewer
+than four selected modeled user instructions, even with accepted peer/service
+interleavings. The bound is specific to these bytes and this starting cut. -/
+theorem Specification.fastpath_lower_bound
+    {candidate : List Byte} {cohort : Predicate.Cohort} {before after : Futex.State}
+    {worker : Nat} {client : Predicate.Client} {actual : TSO.Worker}
+    {actions : List Runtime.Action} {observations : List Runtime.Observation}
+    (certificate : Specification candidate cohort before worker client)
+    (published : loadDWord before.suspended.machine.memory cohort.registration.address = .ok 1)
+    (current : Predicate.Completion.RunningAt client worker before.suspended .load)
+    (trace : Runtime.Trace cohort.profile before actions observations after)
+    (returned : Predicate.Returns client cohort.registration.address after.suspended worker actual) :
+    4 ≤ Predicate.Accounting.retiredInstructions worker observations :=
+  Predicate.Accounting.load_to_returns_lower_bound certificate.admitted
+    certificate.binding.member published current trace returned
+
+/-- Current admitted resources construct an attaining four-instruction trace
+and retain the literal artifact specification at its independent return. -/
+theorem Specification.fastpath_attains
+    {candidate : List Byte} {cohort : Predicate.Cohort} {before : Futex.State}
+    {worker : Nat} {client : Predicate.Client}
+    (certificate : Specification candidate cohort before worker client)
+    (published : loadDWord before.suspended.machine.memory cohort.registration.address = .ok 1)
+    (current : Predicate.Completion.RunningAt client worker before.suspended .load) :
+    ∃ after actual,
+      Runtime.Trace cohort.profile before (Predicate.Accounting.fastActions worker)
+        (Predicate.Accounting.fastObservations worker) after ∧
+      Predicate.Accounting.retiredInstructions worker (Predicate.Accounting.fastObservations worker) = 4 ∧
+      Predicate.Returns client cohort.registration.address after.suspended worker actual ∧
+      Specification candidate cohort after worker client ∧
+      Predicate.PrivateFrame worker before.suspended after.suspended := by
+  obtain ⟨after, actual, trace, count, returned, admitted, frame⟩ :=
+    Predicate.Accounting.load_fastpath_attains certificate.admitted certificate.binding.member published current
+  exact ⟨after, actual, trace, count, returned, certificate.of_admitted admitted, frame⟩
 
 end EDSL.FutexPredicateCertificate
 

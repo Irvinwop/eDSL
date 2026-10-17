@@ -85,6 +85,17 @@ for an enabled finite suffix, not minimum operation counts, hardware cycles or
 a guarantee that an arbitrary scheduler selects that suffix. Blocking-mutex
 acquisition, multiple waiters and whole-kernel refinement need separate proofs.
 
+`Predicate.Accounting.load_to_returns_lower_bound` proves a separate lower
+bound for the actual LOAD cut with current W1: every accepted returning mixed
+trace retires at least four of this worker's user instructions.
+`load_fastpath_attains` constructs LOAD/CMP/JNZ/RET with exactly four retirements,
+the independent return, current admission and whole RAM/peer frames. Thus four
+is the minimum for this program and starting state. It is not an optimum among
+other programs or algorithms. The metric includes an entered SYSCALL as one
+user instruction and excludes service, waiting, propagation and peer work.
+`Specification.fastpath_lower_bound` and `fastpath_attains` retain the literal
+artifact binding for both directions. See [cost definitions](cost-model.md).
+
 ## Validation and target boundaries
 
 Build and use the exact-profile certifier with:

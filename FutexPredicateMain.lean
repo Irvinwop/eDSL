@@ -145,5 +145,5 @@ def main (arguments : List String) : IO UInt32 := do
     return 1
   let stdout ← IO.getStdout
   stdout.putStr checked.stdout
-  stdout.putStrLn s!"CERTIFIED {raw.size} literal artifact bytes: exact 30-byte {profileName} code; signal 0/1 and WAIT0 model conditional on current admission, actual loop member, ABI, code and protected resources; universal mixed-trace safety and an enabled postnotification suffix of at most 14 Runtime actions; no fairness, timing, minimum-operation or kernel-refinement claim; {absolute}"
+  stdout.putStrLn s!"CERTIFIED {raw.size} literal artifact bytes: exact 30-byte {profileName} code; signal 0/1 and WAIT0 model conditional on current admission, actual loop member, ABI, code and protected resources; universal mixed-trace safety and an enabled postnotification suffix of at most 14 Runtime actions; conditional current-LOAD/W1 fastpath minimum of four user instructions; no fairness, timing, ISA-wide optimality or kernel-refinement claim; {absolute}"
   return 0

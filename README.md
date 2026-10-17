@@ -392,6 +392,7 @@ lake env lean -DwarningAsError=true tests/FutexNotification.lean
 lake env lean -DwarningAsError=true tests/FutexNotificationCertificate.lean
 lake env lean -DwarningAsError=true tests/FutexPredicate.lean
 lake env lean -DwarningAsError=true tests/FutexPredicateCertificate.lean
+lake env lean -DwarningAsError=true tests/FutexPredicateAccounting.lean
 lake env lean -DwarningAsError=true tests/SequentialISA.lean
 lake env lean -DwarningAsError=true tests/SequentialExecution.lean
 lake env lean -DwarningAsError=true tests/SequentialMoves.lean
