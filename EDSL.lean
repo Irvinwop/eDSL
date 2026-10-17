@@ -40,6 +40,8 @@ import EDSL.Grading.Known
 import EDSL.Grading.Write32.Accounting
 import EDSL.StoreReturn32
 import EDSL.StoreLoad64.Artifact
+import EDSL.CountedStore64.Artifact
+import EDSL.CountedStore64.Domain
 import EDSL.Grading.Artifact
 import EDSL.OS.MutexReplay.Footprints
 import EDSL.Examples.StoreBuffer

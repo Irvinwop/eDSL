@@ -322,6 +322,7 @@ EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return32.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return-grading.sh
 EDSL_GCC=gcc-13 bash scripts/verify-store-return-xchg.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 EDSL_CLANGXX=clang++-18 bash scripts/verify-store-load64.sh
+EDSL_GCC=gcc-13 bash scripts/verify-counted-store64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 EDSL_CLANGXX=clang++-18 bash scripts/verify-store-return-value64-grading.sh
 EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 ```
