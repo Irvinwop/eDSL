@@ -139,7 +139,7 @@ and alignment checking in the architecture/system reference. Their adequacy to
 physical execution remains a model/physical-conformance boundary.
 
 The separate `X86.Sequential` decoder embeds legacy instructions and adds
-parameterized XOR-self32, TEST64, CMP64, ADD-memory32, ADD-register64, LEA64,
+parameterized XOR-self32, TEST64, CMP64, ADD-memory32/64, ADD-register64, LEA64,
 MOV-register32/64, XCHG-register64,
 MOV-load32/64, MOV-store32/64, ADD-immediate64, INC64, DEC64, short Jcc and JMP families.
 Register-only MOV64, ADD64 and ModRM XCHG64 cover all 16 GPRs with REX.W/R/B and ignored X.
@@ -160,6 +160,17 @@ Register ADD64 accepts both `01` and `03` directions and updates CF/PF/AF/ZF/SF/
 other flags, RAM and nondestination registers survive. Both instructions can
 compose with the same current OS world, including RSP destinations, without
 granting a new caller-slot binding. See [arithmetic scope](sequential-arithmetic64.md).
+Memory-source ADD64 accepts `03 /r` through the same strict REX.W mod=00
+base/SIB profile, with all 16 destinations. It reads all eight bytes at the
+pre-state effective address, adds modulo 2^64 and defines the six arithmetic
+flags, retaining all other registers, flags, RAM and permissions. A current
+named loan or complete array loan derives the actual step in the same OS world;
+RSP changes retain the original caller-slot binding. Memory-destination `01`,
+displacements, RIP-relative and absent-base/index forms remain unsupported.
+Owned native observations have an independent arithmetic/flag oracle and
+both-AF kernel replay. This is instruction/resource infrastructure, with no
+registered array-sum task or functional array-sum theorem. See
+[memory-source addition](sequential-add-memory64.md).
 Register-only CMOV64 adds all sixteen condition codes and all 16 GPRs through
 one REX.W prefix, retaining full64 false destinations, all flags and memory.
 Signed/unsigned CMP conditions are proved against mathematical integer/natural
@@ -964,6 +975,8 @@ lake env lean -DwarningAsError=true tests/SequentialExecution.lean
 lake env lean -DwarningAsError=true tests/SequentialMoves.lean
 lake env lean -DwarningAsError=true tests/SequentialMoves64.lean
 lake env lean -DwarningAsError=true tests/SequentialMoveResources.lean
+lake env lean -DwarningAsError=true tests/SequentialAddMemory64.lean
+lake env lean -DwarningAsError=true tests/SequentialAddMemory64Resources.lean
 lake env lean -DwarningAsError=true tests/ArrayResources.lean
 lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
 lake env lean -DwarningAsError=true tests/Sum32Index.lean
@@ -986,6 +999,7 @@ bash scripts/verify-futex-clients.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-arithmetic64.sh
+EDSL_CLANG=clang-18 bash scripts/verify-sequential-add-memory64.sh
 EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 ```
 

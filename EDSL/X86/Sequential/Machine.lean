@@ -16,7 +16,7 @@ def Instruction.operandReads (instruction : Instruction) (state : State) : List 
     [⟨.data, state.registers .rdi, 4⟩]
   | .legacy .loadEaxRsi => [⟨.data, state.registers .rsi, 4⟩]
   | .loadMem32 _ address | .addMem32 _ address => [⟨.data, address.eval state, 4⟩]
-  | .loadMem64 _ address => [⟨.data, address.eval state, 8⟩]
+  | .loadMem64 _ address | .addMem64 _ address => [⟨.data, address.eval state, 8⟩]
   | _ => []
 
 /-- Ordinary store intent uses the PRE-instruction address and low 32 source
@@ -119,6 +119,12 @@ def execute (state : State) (instruction : Instruction) (af : Bool) : Except Err
     return ⟨.next { state.writeRegister destination ((left + value).setWidth 64) with
       rip := state.rip + BitVec.ofNat 64 instruction.length,
       flags := addFlags32 state.flags left value }, reads⟩
+  | .addMem64 destination address =>
+    let value ← loadQWord state.memory (address.eval state)
+    let left := state.registers destination
+    return ⟨.next { state.writeRegister destination (left + value) with
+      rip := state.rip + BitVec.ofNat 64 instruction.length,
+      flags := addFlags64 state.flags left value }, reads⟩
   | .addImm64 destination immediate =>
     let left := state.registers destination
     let right := immediate.signExtend 64
@@ -253,6 +259,15 @@ theorem execute_loadMem64 (state : State) (destination : Register) (address : Ad
         rip := state.rip + BitVec.ofNat 64 (Instruction.loadMem64 destination address).length },
         [⟨.data, address.eval state, 8⟩]⟩ := rfl
 
+/-- One checked eight-byte DATA read precedes the full-width addition. -/
+theorem execute_addMem64 (state : State) (destination : Register) (address : Address) (af : Bool) :
+    execute state (.addMem64 destination address) af = do
+      let value ← loadQWord state.memory (address.eval state)
+      return ⟨.next { state.writeRegister destination (state.registers destination + value) with
+        rip := state.rip + BitVec.ofNat 64 (Instruction.addMem64 destination address).length,
+        flags := addFlags64 state.flags (state.registers destination) value },
+        [⟨.data, address.eval state, 8⟩]⟩ := rfl
+
 theorem execute_storeMem64 (state : State) (address : Address) (source : Register) (af : Bool) :
     execute state (.storeMem64 address source) af = do
       let memory ← storeQWord state.memory (address.eval state) (state.registers source)
@@ -373,6 +388,85 @@ theorem execute_loadMem64_success_iff {state : State} {destination : Register} {
   rw [execute_loadMem64]
   cases loaded : loadQWord state.memory (address.eval state) <;> simp [eq_comm]
 
+/-- The checked load and old destination use the PRE-instruction state, even
+when the destination aliases the base or index, including RSP. No register
+distinctness or address-preservation premise is required. -/
+theorem execute_addMem64_context {state : State} {destination : Register} {address : Address}
+    {value : Word} (af : Bool)
+    (loaded : loadQWord state.memory (address.eval state) = .ok value) :
+    ∃ final, execute state (.addMem64 destination address) af =
+        .ok ⟨.next final, [⟨.data, address.eval state, 8⟩]⟩ ∧
+      final.registers destination = state.registers destination + value ∧
+      (∀ register, register ≠ destination → final.registers register = state.registers register) ∧
+      final.memory = state.memory ∧
+      final.flags = addFlags64 state.flags (state.registers destination) value ∧
+      final.rip = state.rip + BitVec.ofNat 64 (Instruction.addMem64 destination address).length := by
+  refine ⟨{ state.writeRegister destination (state.registers destination + value) with
+    rip := state.rip + BitVec.ofNat 64 (Instruction.addMem64 destination address).length,
+    flags := addFlags64 state.flags (state.registers destination) value },
+    ?_, ?_, ?_, rfl, rfl, rfl⟩
+  · simp only [execute_addMem64, loaded, ok_bind, pure_ok]
+  · simp [State.writeRegister]
+  · intro register different
+    simp [State.writeRegister, different]
+
+/-- Independent natural/integer sum, carry and overflow specifications, plus
+the remaining four arithmetic flags and the complete nonarithmetic frame.
+The same pre-state supplies the address and the old destination under aliasing. -/
+theorem execute_addMem64_arithmetic {state : State} {destination : Register} {address : Address}
+    {value : Word} (af : Bool)
+    (loaded : loadQWord state.memory (address.eval state) = .ok value) :
+    ∃ final, execute state (.addMem64 destination address) af =
+        .ok ⟨.next final, [⟨.data, address.eval state, 8⟩]⟩ ∧
+      (final.registers destination).toNat = ((state.registers destination).toNat + value.toNat) % 2^64 ∧
+      (final.flags.getLsbD 0 = true ↔ 2^64 ≤ (state.registers destination).toNat + value.toNat) ∧
+      (final.flags.getLsbD 11 = true ↔
+        (state.registers destination).toInt + value.toInt < -(2^63 : Int) ∨
+          2^63 ≤ (state.registers destination).toInt + value.toInt) ∧
+      final.flags.getLsbD 2 = evenParity ((state.registers destination + value).setWidth 8) ∧
+      final.flags.getLsbD 4 =
+        ((state.registers destination).setWidth 4).uaddOverflow (value.setWidth 4) ∧
+      final.flags.getLsbD 6 = (state.registers destination + value == 0) ∧
+      final.flags.getLsbD 7 = (state.registers destination + value).msb ∧
+      final.flags &&& ~~~arithmeticFlagMask = state.flags &&& ~~~arithmeticFlagMask := by
+  obtain ⟨final, executed, assigned, _, _, flags, _⟩ := execute_addMem64_context af loaded
+  refine ⟨final, executed, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  · rw [assigned, BitVec.toNat_add]
+  · rw [flags]
+    exact addFlags64_carry ..
+  · rw [flags]
+    exact addFlags64_overflow ..
+  · rw [flags]
+    exact (addFlags64_bits ..).2.1
+  · rw [flags]
+    exact (addFlags64_bits ..).2.2.1
+  · rw [flags]
+    exact (addFlags64_bits ..).2.2.2.1
+  · rw [flags]
+    exact (addFlags64_bits ..).2.2.2.2.1
+  · rw [flags]
+    exact addFlags64_preserves ..
+
+/-- Every success exposes the actual complete qword load. Failed reads cannot
+produce an observation or a continuation. -/
+theorem execute_addMem64_success_iff {state : State} {destination : Register} {address : Address}
+    {af : Bool} {observation : Observation} :
+    execute state (.addMem64 destination address) af = .ok observation ↔
+      ∃ value, loadQWord state.memory (address.eval state) = .ok value ∧
+        observation = ⟨.next { state.writeRegister destination (state.registers destination + value) with
+          rip := state.rip + BitVec.ofNat 64 (Instruction.addMem64 destination address).length,
+          flags := addFlags64 state.flags (state.registers destination) value },
+          [⟨.data, address.eval state, 8⟩]⟩ := by
+  rw [execute_addMem64]
+  cases loaded : loadQWord state.memory (address.eval state) <;> simp [eq_comm]
+
+/-- Preserve the primitive's exact error without fabricating a read event. -/
+theorem execute_addMem64_fault {state : State} {destination : Register} {address : Address}
+    {fault : Error} (af : Bool)
+    (failed : loadQWord state.memory (address.eval state) = .error fault) :
+    execute state (.addMem64 destination address) af = .error fault := by
+  simp only [execute_addMem64, failed, error_bind]
+
 /-- Every classified ordinary store executes the same checked store primitive.
 This also covers the embedded legacy ordinary stores without changing them. -/
 theorem execute_storeIntent {state : State} {instruction : Instruction} {address : Word}
@@ -398,7 +492,7 @@ theorem execute_storeIntent {state : State} {instruction : Instruction} {address
     simp only [Instruction.storeIntent, Option.some.injEq, Prod.mk.injEq] at intent
     rcases intent with ⟨rfl, rfl⟩
     exact execute_storeMem32 state operand source af
-  | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | loadMem64 _ _ | storeMem64 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _ | addMem32 _ _
+  | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | loadMem64 _ _ | storeMem64 _ _ | xorSelf32 _ | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addMem64 _ _
   | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ =>
     simp [Instruction.storeIntent] at intent
 
@@ -655,7 +749,7 @@ theorem execute_reads {state : State} {instruction : Instruction} {af : Bool}
     cases loaded : loadDWord state.memory (address.eval state) <;> simp [execute, loaded] at success
     cases success
     rfl
-  | loadMem64 destination address =>
+  | loadMem64 destination address | addMem64 destination address =>
     cases loaded : loadQWord state.memory (address.eval state) <;> simp [execute, loaded] at success
     cases success
     rfl
@@ -759,7 +853,7 @@ theorem execute_reads_succeed {state : State} {instruction : Instruction} {af : 
       simp only [Instruction.operandReads, List.mem_singleton] at member
       subst read
       exact ⟨rfl, value, loaded⟩
-  | loadMem64 destination address =>
+  | loadMem64 destination address | addMem64 destination address =>
     cases loaded : loadQWord state.memory (address.eval state) with
     | error fault => simp [execute, loaded] at success
     | ok value =>
@@ -793,7 +887,7 @@ theorem execute_new_memory {state final : State} {instruction : Instruction} {af
     cases success
     cases next
     rfl
-  | loadMem64 destination address =>
+  | loadMem64 destination address | addMem64 destination address =>
     cases loaded : loadQWord state.memory (address.eval state) <;> simp [execute, loaded] at success
     cases success
     cases next
@@ -867,7 +961,7 @@ theorem execute_new_next {state : State} {instruction : Instruction} {af : Bool}
     cases loaded : loadDWord state.memory (address.eval state) <;> simp [execute, loaded] at success
     cases success
     exact ⟨_, rfl⟩
-  | loadMem64 destination address =>
+  | loadMem64 destination address | addMem64 destination address =>
     cases loaded : loadQWord state.memory (address.eval state) <;> simp [execute, loaded] at success
     cases success
     exact ⟨_, rfl⟩
@@ -970,6 +1064,10 @@ theorem execute_new_flags {state final : State} {instruction : Instruction} {af 
     cases loaded : loadDWord state.memory (address.eval state) <;> simp [execute, loaded] at success
     cases success; cases next
     exact addFlags32_preserves ..
+  | addMem64 destination address =>
+    cases loaded : loadQWord state.memory (address.eval state) <;> simp [execute, loaded] at success
+    cases success; cases next
+    exact addFlags64_preserves ..
   | je displacement =>
     cases branched : executeShortBranch state (state.flags.getLsbD 6) displacement with
     | error fault => simp only [execute, branched, error_bind, reduceCtorEq] at success

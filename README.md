@@ -128,6 +128,12 @@ Implemented and checked:
   noncanonical values; ADD defines all six arithmetic flags. Both retain
   complete RAM and current OS authority under register aliasing. See
   [arithmetic scope](docs/sequential-arithmetic64.md).
+- Memory-source ADD64 in the sequential backend reads a complete qword at the
+  old full64 base/SIB address, defines all six arithmetic flags and retains
+  the complete memory frame. Named current read loans and array resources
+  enable actual steps, including destination/address aliases and RSP changes
+  with the original caller slot retained. See
+  [memory-source addition](docs/sequential-add-memory64.md).
 - Register-only CMOV64 with all sixteen flag conditions and all 16 GPRs.
   Signed/unsigned CMP conditions are proved against mathematical order.
   A pure-call OS resource bridge retains the same code/caller-slot loans
@@ -329,6 +335,8 @@ lake env lean -DwarningAsError=true tests/SequentialExecution.lean
 lake env lean -DwarningAsError=true tests/SequentialMoves.lean
 lake env lean -DwarningAsError=true tests/SequentialMoves64.lean
 lake env lean -DwarningAsError=true tests/SequentialMoveResources.lean
+lake env lean -DwarningAsError=true tests/SequentialAddMemory64.lean
+lake env lean -DwarningAsError=true tests/SequentialAddMemory64Resources.lean
 lake env lean -DwarningAsError=true tests/StoreReturn32Raw.lean
 lake env lean -DwarningAsError=true tests/StoreReturn32Resources.lean
 lake env lean -DwarningAsError=true tests/GradingStoreReturn.lean
@@ -356,6 +364,7 @@ bash scripts/verify-futex-clients.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-sum32.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-moves.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-arithmetic64.sh
+EDSL_CLANG=clang-18 bash scripts/verify-sequential-add-memory64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-counted-store-direct64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return32.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return-grading.sh

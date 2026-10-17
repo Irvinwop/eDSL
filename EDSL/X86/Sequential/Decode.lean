@@ -18,8 +18,9 @@ def Instruction.length : Instruction → Nat
   | .addMem32 _ (.base _) | .loadMem32 _ (.base _) | .storeMem32 (.base _) _ => 2
   | .addMem32 _ (.indexed _ _ _) | .loadMem32 _ (.indexed _ _ _)
   | .storeMem32 (.indexed _ _ _) _ => 3
-  | .lea64 _ (.base _) | .loadMem64 _ (.base _) | .storeMem64 (.base _) _ => 3
-  | .lea64 _ (.indexed _ _ _) | .loadMem64 _ (.indexed _ _ _) | .storeMem64 (.indexed _ _ _) _ => 4
+  | .lea64 _ (.base _) | .loadMem64 _ (.base _) | .addMem64 _ (.base _) | .storeMem64 (.base _) _ => 3
+  | .lea64 _ (.indexed _ _ _) | .loadMem64 _ (.indexed _ _ _)
+  | .addMem64 _ (.indexed _ _ _) | .storeMem64 (.indexed _ _ _) _ => 4
   | .addImm64 _ _ | .cmovReg64 _ _ _ => 4
 
 def Instruction.isNew : Instruction → Bool
@@ -90,7 +91,8 @@ def decodeQWordAddressAt (state : State) (rex modrm : Byte) : Except Error Addre
   else return .base (rexModRMRM rex modrm)
 
 /-- Continue after the enclosing decoder has recognized one REX.W prefix.
-All addressing restrictions and register-only ADD/CMOV checks remain explicit. -/
+All addressing restrictions, ADD operand direction and register-only CMOV
+checks remain explicit. -/
 def decodeREXWAt (state : State) (opcode : Byte) : Except Error Instruction := do
   let operation ← fetchByte state.memory (state.rip + 1)
   if operation = 0x0f then
@@ -122,9 +124,12 @@ def decodeREXWAt (state : State) (opcode : Byte) : Except Error Instruction := d
     return .lea64 (rexModRMReg opcode modrm) (← decodeQWordAddressAt state opcode modrm)
   else if operation = 0x01 ∨ operation = 0x03 then
     let modrm ← fetchByte state.memory (state.rip + 2)
-    if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
-    return if operation = 0x01 then .addReg64 (rexModRMRM opcode modrm) (rexModRMReg opcode modrm)
-      else .addReg64 (rexModRMReg opcode modrm) (rexModRMRM opcode modrm)
+    if modrm.toNat / 64 = 3 then
+      return if operation = 0x01 then .addReg64 (rexModRMRM opcode modrm) (rexModRMReg opcode modrm)
+        else .addReg64 (rexModRMReg opcode modrm) (rexModRMRM opcode modrm)
+    else if operation = 0x03 then
+      return .addMem64 (rexModRMReg opcode modrm) (← decodeQWordAddressAt state opcode modrm)
+    else throw .unsupportedEncoding
   else if opcode ≠ 0x48 then throw .unsupportedEncoding
   else if operation = 0x85 ∨ operation = 0x39 then
     let modrm ← fetchByte state.memory (state.rip + 2)
@@ -143,9 +148,10 @@ def decodeREXWAt (state : State) (opcode : Byte) : Except Error Instruction := d
     else throw .unsupportedEncoding
   else throw .unsupportedEncoding
 
-/-- NEW subset only. MOV64, LEA64, register ADD64/CMOV64 and register XCHG64 admit
+/-- NEW subset only. MOV64, LEA64, ADD64, register CMOV64 and register XCHG64 admit
 one REX.W prefix 48..4F, including R/B and the SIB index extension X. Register
-ADD and CMOV ignore X and reject memory forms. CMOV accepts the sixteen
+ADD and CMOV ignore X. Opcode 03 additionally admits a mod=00 memory source;
+opcode 01 memory destinations remain unsupported. CMOV accepts the sixteen
 0F 40..4F condition codes, with R extending its destination and B its source.
 Memory CMOV needs an unconditional operand-read contract and is unsupported.
 LEA uses the existing mod=00 address
@@ -213,7 +219,8 @@ theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.len
   cases instruction with
   | legacy old => cases old <;> simp [Instruction.length]
   | addMem32 destination address | loadMem32 destination address | storeMem32 address destination
-  | lea64 destination address | loadMem64 destination address | storeMem64 address destination =>
+  | lea64 destination address | loadMem64 destination address | addMem64 destination address
+  | storeMem64 address destination =>
     cases address <;> simp [Instruction.length]
   | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
   | test64 _ _ | cmp64 _ _ | addImm64 _ _
@@ -223,7 +230,8 @@ theorem Instruction.length_le_five (instruction : Instruction) : instruction.len
   cases instruction with
   | legacy old => cases old <;> simp [Instruction.length]
   | addMem32 destination address | loadMem32 destination address | storeMem32 address destination
-  | lea64 destination address | loadMem64 destination address | storeMem64 address destination =>
+  | lea64 destination address | loadMem64 destination address | addMem64 destination address
+  | storeMem64 address destination =>
     cases address <;> simp [Instruction.length]
   | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | addReg64 _ _ | xchgReg64 _ _ | xchgRax64 _
   | test64 _ _ | cmp64 _ _ | addImm64 _ _

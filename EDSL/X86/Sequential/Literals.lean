@@ -52,6 +52,7 @@ def instruction : Instruction → String
   | .test64 left right => s!"(.test64 {register left} {register right})"
   | .cmp64 left right => s!"(.cmp64 {register left} {register right})"
   | .addMem32 destination operand => s!"(.addMem32 {register destination} {address operand})"
+  | .addMem64 destination operand => s!"(.addMem64 {register destination} {address operand})"
   | .movReg32 destination source => s!"(.movReg32 {register destination} {register source})"
   | .movReg64 destination source => s!"(.movReg64 {register destination} {register source})"
   | .cmovReg64 predicate destination source =>

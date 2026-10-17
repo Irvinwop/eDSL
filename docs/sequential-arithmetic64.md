@@ -16,7 +16,8 @@ X is ignored. Both operands come from the pre-state, including self-add and
 RSP aliases. The modular full64 result sets CF/PF/AF/ZF/SF/OF according to
 `addFlags64`, preserving every other bit. The existing arithmetic theorems
 relate carry to the natural sum and overflow to the signed mathematical sum.
-Memory ADD, W=0, LOCK and extra/repeated prefixes remain unsupported.
+Memory-source ADD64 has a separate [qword-read extension](sequential-add-memory64.md).
+Memory-destination ADD, W=0, LOCK and extra/repeated prefixes remain unsupported.
 
 `execute_lea64_context` and `execute_addReg64_context` retain complete memory
 and every nondestination register. Both have empty operand reads, no store

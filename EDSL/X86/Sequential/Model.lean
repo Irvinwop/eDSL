@@ -28,6 +28,9 @@ inductive Instruction where
   | test64 (left right : Register)
   | cmp64 (left right : Register)
   | addMem32 (destination : Register) (address : Address)
+  /-- Full-width ordinary DATA-source addition. Both the old destination and
+  effective address are captured before writing, including register aliases. -/
+  | addMem64 (destination : Register) (address : Address)
   /-- A 32-bit register copy; the destination is zero-extended to 64 bits. -/
   | movReg32 (destination source : Register)
   /-- A full-width register copy, encoded with one REX.W prefix. -/
