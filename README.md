@@ -162,6 +162,14 @@ Implemented and checked:
   compiler clients and a three-instruction store/LEA/RET client pass the same
   task under existing proof budgets. A separate theorem proves a minimum of
   three modeled instructions when both incoming outputs need to change.
+- [Counted helper calls](docs/call-memory-loop64.md) with complete 45-byte GCC
+  and 52-byte Clang texts prove `RAX = x+n mod 2^64`, old DATA retention at zero
+  and `DATA = x+n-1 mod 2^64` otherwise. Both universal claims cover arbitrary
+  current admitted resources, old DATA words, all full64 values/counts and AF
+  streams, with a 32-byte private-stack requirement and reusable DATA/stack
+  ownership. The default gate binds fresh complete text to the universal
+  proofs and requires native observations, dependency audits, fresh kernel
+  replay and source stability. Exact model instruction costs are separate.
 - All sixteen short conditional branches in the sequential backend, with
   signed displacements, taken-target checks, checked CFG edges and preservation
   of the same current OS resource world. See [branch scope](docs/sequential-short-jcc.md).
@@ -287,6 +295,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Call-stack proof grading](docs/call-stack-grading.md) | How can different implementations prove the same callable result and resource contract at a selected raw/ELF entry? |
 | [Callable DATA8 and private stack](docs/call-memory64.md) | How do actual helper stores/reloads compose with private CALL/PUSH writes and reusable current resources? |
 | [Callable DATA8 grading](docs/call-memory64-grading.md) | How do nested and inlined implementations prove one owned-memory result with separate minimum-instruction accounting? |
+| [Counted helper calls](docs/call-memory-loop64.md) | How do all-count helper loops preserve actual saved stack words, DATA and current resources? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |
@@ -407,6 +416,7 @@ EDSL_CLANG=clang-18 bash scripts/verify-sequential-arithmetic64.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-add-memory64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-array-sum64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-call-stack.sh
+bash scripts/verify-call-memory-loop64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-counted-store-direct64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return32.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-store-return-grading.sh
@@ -443,6 +453,10 @@ The array-sum integration uses GCC 13/Clang 18 GNU23 `-Os` outputs and writes
 owned evidence to `artifacts/array-sum64/`. Its parallel workflow keeps a separate
 partial build cache. Default success requires every model/proof and native gate;
 `--native-only` explicitly leaves universal Lean validation `NOTRUN`.
+The counted-helper default gate requires both native and formal validation of
+the complete GCC/Clang texts; `--native-only` reports `formal=NOTRUN`. It retains
+source/provenance snapshots and fresh kernel replay; see the
+[proof scope and reproduction commands](docs/call-memory-loop64.md).
 
 The optional native compiler probes are separate from proofs:
 

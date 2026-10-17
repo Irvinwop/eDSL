@@ -127,6 +127,35 @@ inputs where both RAX and target must change; that client attains the bound.
 This is a bound for the accepted mixed policy, without a hardware-cycle or
 unrestricted-ISA claim. Existing fixed grader task propositions remain unchanged.
 
+The [counted-helper DATA8/private-stack library](call-memory-loop64.md) adds
+complete separate-unit GCC 45-byte and Clang 52-byte proofs, entry 0 and helper
+offsets 38/45. Both quantify over arbitrary current admitted resources and CPU
+states, every full64 value/count including zero and maximum, arbitrary old
+DATA and every AF stream. The independent post requires `RAX = x+n mod 2^64`,
+the actual old DATA word at zero and `x+n-1 mod 2^64` otherwise, original RET
+and RSP+8, ABI/nonarithmetic flags, exact permissions and metadata, and all RAM
+outside the union of the provided private allocation and DATA8. Both current
+capabilities survive. Present admission requires at least 32 private bytes,
+without future execution, decoded-shape, count/fuel, CALL or read-order premises.
+
+The generic checked capacity domain supports positive capacities through 4096;
+the old DATA resource admission requires 16 bytes and the counted domain uses
+32. Actual private/DATA allocations issue tickets 4 then 5 and preserve all old
+loans through initialization. Saved-word transport requires whole-qword
+disjointness for other private writes; DATA separation follows from current
+allocation authority. The new generic mixed cutpoint certificate has a checked
+existing inline client. These compiler proofs instead construct covered
+histories by direct natural remaining-count induction, retaining actual current
+worlds, full fetches and a frozen original return boundary. Separate exact model
+costs are `12+10*n.toNat` for GCC and four/`12+9*n.toNat` for zero/nonzero Clang.
+No lower bound or hardware cost follows. The default combined gate requires
+native observations, dependency audits, fresh kernel replay and source stability.
+The new formal gate
+binds raw complete texts; full ELF is provenance, with no new full-ELF artifact
+claim or grader/CLI. Existing grading propositions, limits and foundation stay
+unchanged. Native-only observations use bounded counts and report formal
+validation `NOTRUN`.
+
 The standalone [GCC counted-store profile](counted-store64.md) and separate
 [Clang profile](counted-store64-clang.md) prove two exact 20-byte loops against
 the same independent contract for every full64 count. They compose checked owner
@@ -1077,13 +1106,18 @@ EDSL_CLANG=clang-18 bash scripts/verify-sequential-arithmetic64.sh
 EDSL_CLANG=clang-18 bash scripts/verify-sequential-add-memory64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-array-sum64.sh
 EDSL_GCC=gcc-13 EDSL_CLANG=clang-18 bash scripts/verify-call-stack.sh
+bash scripts/verify-call-memory-loop64.sh
 EDSL_GCC=gcc-13 bash scripts/verify-cfg.sh
 ```
 
 Integration needs Linux/x86-64, Clang accepting the named modes, GCC, binutils
 and ordinary mmap/mprotect support. The sum32 fixture script selects GCC 13
 and Clang 18 with the scalar optimization profiles above and writes to
-`artifacts/sum32-fixtures/`. To certify function files:
+`artifacts/sum32-fixtures/`. The counted-helper default requires native and
+formal phases; explicit `--native-only` reports `formal=NOTRUN`. The combined
+gate retains source/provenance snapshots; the separate proof-helper interface
+and bounded observer scope are in [counted helper calls](call-memory-loop64.md).
+To certify function files:
 
 ```sh
 lake exe edsl-certify increment FUNCTION.bin artifacts/Increment.lean

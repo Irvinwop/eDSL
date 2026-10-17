@@ -46,7 +46,7 @@ jobs:
       - name: Install native integration tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 gcc-13 binutils shellcheck libssl-dev file
+          sudo apt-get install -y clang-18 gcc-13 binutils shellcheck libssl-dev file jq
       - name: Verify actual compiler text, native contracts and universal Lean proofs
         env:
           LEAN_NUM_THREADS: 1
@@ -57,6 +57,11 @@ jobs:
           LEAN_NUM_THREADS: 1
           CALL_MEMORY64_EVIDENCE_ROOT: ${{ github.workspace }}/artifacts/call-memory64
         run: bash scripts/verify-call-memory64.sh
+      - name: Verify counted helper calls with current DATA8 and private-stack resources
+        env:
+          LEAN_NUM_THREADS: 1
+          CALL_MEMORY_LOOP64_EVIDENCE_ROOT: ${{ github.workspace }}/artifacts/call-memory-loop64
+        run: bash scripts/verify-call-memory-loop64.sh
       - name: Preserve compact synthetic verification receipts
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -76,6 +81,24 @@ jobs:
             artifacts/call-stack/**/grading/*SHA256SUMS
             artifacts/call-stack/**/grading/*.log
             artifacts/call-stack/**/grading/**/*.log
+          if-no-files-found: warn
+      - name: Preserve compact counted-helper verification receipts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: call-memory-loop64-receipts
+          path: |
+            artifacts/call-memory-loop64/**/result.txt
+            artifacts/call-memory-loop64/**/scope.txt
+            artifacts/call-memory-loop64/**/*status*
+            artifacts/call-memory-loop64/**/*SHA256SUMS
+            artifacts/call-memory-loop64/**/MANIFEST-SHA256.txt
+            artifacts/call-memory-loop64/**/entry-binding.txt
+            artifacts/call-memory-loop64/**/metadata/flags.txt
+            artifacts/call-memory-loop64/**/*.log
+            artifacts/call-memory-loop64/**/formal/*.lean
+            artifacts/call-memory-loop64/**/public-source.tar
+            artifacts/call-memory-loop64/**/native-source.tar
           if-no-files-found: warn
       - name: Preserve compact callable DATA8 receipts
         if: always()

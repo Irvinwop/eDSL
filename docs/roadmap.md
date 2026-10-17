@@ -229,7 +229,7 @@ now covers four whole GCC/Clang nested-call outputs with current OS-owned stack
 frames, actual RAM-derived internal/original RET, independent full64 results,
 ABI/memory framing and exact five/seven-instruction counts. Checked CPU/OS
 histories retain dirty private bytes and reusable current resources. Broader
-calls, CFG integration and concurrent call profiles remain ahead; see
+interprocedural automation and concurrent call profiles remain ahead; see
 [owned nested calls](call-stack.md).
 
 A separate [call-stack grader](call-stack-grading.md) now accepts fresh proofs
@@ -251,6 +251,27 @@ now accepts fresh nested and inlined proofs against the same independent
 contract, binding literal raw/ELF files and entry metadata at existing budgets.
 Existing fixed grader tasks stay unchanged; unified task registration,
 concurrent calls and broader DATA effects remain ahead.
+
+The [counted-helper milestone](call-memory-loop64.md) now has universal proofs
+for complete separate-unit GCC 45-byte and Clang 52-byte texts. They construct
+actual covered mixed executions for arbitrary current admitted resources,
+all full64 values/counts including zero and maximum, arbitrary old DATA and
+every AF stream. The independent result is `RAX=x+n mod 2^64`; DATA retains its
+actual old word at zero and holds `x+n-1 mod 2^64` otherwise. ABI, original RET,
+RSP+8, exact metadata/permissions and RAM outside the provided private/DATA
+union are retained with both current capabilities. The 32-byte present capacity
+requirement covers three saved/padding words and the CALL word at S-32.
+
+Checked capacity allocation and initialization preserve old loans, and generic
+saved-word transport proves stability under whole-qword-disjoint private
+writes and separated DATA writes. A mixed cutpoint certificate is implemented
+and checked with the existing inline client; the new compiler clients use
+covered histories and direct remaining-count induction. The default gate
+requires combined extraction,
+native observations, complete source/provenance snapshot, dependency audit,
+fresh kernel replay and CI validation. Exact raw-text claims add no full-ELF
+artifact claim or grader task/CLI. Source/IR preservation, recursion, indirect
+calls and general interprocedural inference remain ahead.
 
 The counted-loop extension now proves modular increment for every 64-bit count
 with a decreasing natural variant and exact `2*count+3` cost, preserving flags
@@ -289,8 +310,10 @@ input/stack/code authority. The [35-byte two-loop GCC instance](pair32.md) now
 proves an independent two-list sum, exact cost/read trace and retained current
 admissions for both inputs, including compatible aliases and empty phases.
 Next bind a fixed task specification, admissible input domain and required
-theorem type for objective grading. Calls and writable/concurrent CFG effects need additional
-effect obligations and semantics before broader programs can be accepted.
+theorem type for objective grading. The separate mixed DATA8/private-stack
+cutpoint API supports local actual-step proofs; extending the read-only CFG
+importer or grading broader writable/concurrent effects still needs explicit
+effect obligations.
 
 The OS/machine memory bridge now proves that checked word stores update natural-
 address OS cells exactly as the machine store updates projected memory. Actual
@@ -326,8 +349,9 @@ join. A separate mutex profile below now adds protected payload invariants;
 concrete thread/runtime refinement remains ahead.
 Region splitting, mutable borrowing, broader
 stack/heap object lifetimes, language provenance, allocator search/failure/cleanup,
-calls and richer memory-loop invariants remain required. Concurrent safety needs
-an interference model that enforces or accounts for resource transitions.
+general calls and richer memory-loop invariants remain required. Concurrent
+safety needs an interference model that enforces or accounts for resource
+transitions.
 
 Exit: a buffer/loop binary has target memory safety, functional correctness and
 explicit termination/resource bounds. Add source definedness/preservation only
@@ -595,6 +619,12 @@ permitted actual step retains RAX or the full memory, while original RET retains
 both. A store/LEA/RET client attains three; its two nested compiler counterparts
 take eight. The claim is scoped to the accepted mixed effect relation and is
 independent of task acceptance.
+
+The counted-helper compiler clients separately derive `12+10*n.toNat` modeled
+instructions for GCC and four/`12+9*n.toNat` for zero/nonzero Clang. These include
+every actual helper CALL, store, reload and RET, saved-register restoration and
+the original RET. They impose no admission or acceptance budget and prove no
+minimum operations, cycles or micro-ops; see [counted helper calls](call-memory-loop64.md).
 
 Counted locked-add workers additionally have exact
 `3*count+3` own-instruction bounds and published-request event totals across
