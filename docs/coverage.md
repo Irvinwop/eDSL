@@ -19,7 +19,10 @@ The [fixed-contract grader](grading.md) registers these two mathematical tasks
 and `write32`, a fixed-pointer low32 store, `storeReturn32`, which additionally
 returns the full pointer, and `storeReturnValue64`, which stores and returns the
 full64 argument, and `countedStore64`, which adds a full64 count with zero-count
-target retention. Fresh [direct-add clients](counted-store-direct64.md) prove
+target retention. The [comparison tasks](comparison64.md) add full64 unsigned
+maximum/minimum and signed maximum, with pure code/caller-slot resource
+admission and six independent compiler client proofs outside trusted imports.
+Fresh [direct-add clients](counted-store-direct64.md) prove
 complete GCC13 and Clang18 outputs for that same task with exact constant
 instruction counts and reusable current OS authority. All require all-input termination
 and current OS admission. Pair/stride require reachable read-only effects;

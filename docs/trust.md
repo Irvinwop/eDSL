@@ -53,6 +53,12 @@ sixteen conditions include proved signed/unsigned CMP order adequacy;
 Memory-source CMOV stays unsupported because even a false condition performs
 the architectural source read. Pure-call resource contracts couple the same
 world and original caller slot; changed RSP does not grant a new binding.
+Separate [comparison client proofs](comparison64.md) connect six final GCC/Clang
+windows to mathematical unsigned max/min and signed max, including full64 signed
+overflow boundaries. Their code/caller-slot domain is independently inhabited
+and their implementations stay outside the trusted grader imports. Complete RAM
+equality transports the same current OS world; arithmetic flags remain outside
+the task's ABI frame. Exact four-instruction accounting is separate evidence.
 The [current-resource bridge](sequential-moves.md) derives actual stores and loads
 from present authority, retaining complete RAM coupling and original code/stack
 loans through the actual instruction length. The full-pointer-copy/store/RET integration uses

@@ -31,6 +31,8 @@ import EDSL.X86.Sequential.Execution
 import EDSL.OS.ArrayResources
 import EDSL.OS.CallResources
 import EDSL.X86.Sequential.ConditionFlags
+import EDSL.Comparison64.Resources
+import EDSL.Comparison64.Domain
 import EDSL.Sum32.Correctness
 import EDSL.Sum32.Artifact
 import EDSL.X86.Sequential.CFGArtifact

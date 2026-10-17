@@ -133,6 +133,11 @@ Implemented and checked:
   A pure-call OS resource bridge retains the same code/caller-slot loans
   and complete RAM, including conditional RSP changes and actual RET.
   See [conditional moves](docs/sequential-cmov64.md).
+- Six complete GCC/Clang comparison outputs prove full64 unsigned maximum,
+  unsigned minimum and signed maximum against independent mathematical order.
+  The three grading tasks retain current code/caller-slot authority and the
+  full memory/ABI frame; separate proofs count four instructions including RET.
+  See [comparison clients](docs/comparison64.md).
 - Fresh proofs for complete 13-byte GCC and 15-byte Clang direct-add outputs
   against the same counted-store task, including all full64 counts, actual
   checked OS writes and reusable returned authority. Exact costs are 4/5 and

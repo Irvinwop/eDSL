@@ -45,10 +45,11 @@ success and read authority through `current_ret_step` requires the machine's
 present RSP to bind to the original slot; it performs the original STACK8 read. Resource regressions
 exercise both a taken RSP replacement and an untaken CMOV followed by RET.
 
-These are reusable instruction and resource foundations. They do not add
-a scalar comparison task to the fixed-contract grader, a general program
-certifier, source/IR preservation, a Linux implementation proof, hardware
-timing or a global operation minimum. Target interpretation assumes CMOV
+These reusable instruction and resource foundations support separate
+[full64 comparison clients and grading tasks](comparison64.md). They do not
+establish a general program certifier, source/IR preservation, a Linux
+implementation proof, hardware timing or a global operation minimum.
+Target interpretation assumes CMOV
 support, the existing ordinary RAM and System V profile, ordinary RET
 without CET, and no asynchronous interference during the modeled call.
 

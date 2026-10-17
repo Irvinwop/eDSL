@@ -100,8 +100,10 @@ without constraining source structure or intermediate store counts. See
 See [arithmetic scope](sequential-arithmetic64.md).
 Register-only CMOV64 now supplies all sixteen conditions, mathematical
 signed/unsigned CMP adequacy and same-world pure-call resource composition.
-Memory CMOV and scalar comparison task registration remain future work;
-see [conditional move scope](sequential-cmov64.md).
+Six final GCC/Clang comparison clients and three independent scalar comparison
+tasks now compose that foundation with current code/caller-slot resources and
+raw/ELF proof grading. See [comparison scope](comparison64.md).
+Memory CMOV remains future work; see [conditional move scope](sequential-cmov64.md).
 The direct StoreReturn32 certificate API now proves both selected compiler
 store/copy orderings and a copied-RAX variant against a stronger full-pointer
 return post, with checked OS evolution and exact accounting. The distinct

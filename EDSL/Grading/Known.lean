@@ -3,6 +3,7 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.Grading.Task
+import EDSL.Comparison64.Domain
 import EDSL.Grading.Domain
 import EDSL.Grading.Write32.Domain
 import EDSL.Grading.Write32.Correctness
@@ -64,6 +65,15 @@ theorem domain_nonvacuous (id : TaskID) (bytes : List Byte)
     exact ⟨⟨CountedStore64.resourceInput witness.resource, witness.initial,
       witness.useful, witness.pre.machine⟩,
       ⟨witness.resource, witness.initial, witness.useful, witness.pre⟩⟩
+  | maximum64 =>
+    exact (old_nonvacuous_iff _ _).mpr
+      (Comparison64.Domain.nonvacuous .unsignedMaximum bytes positive bound)
+  | minimum64 =>
+    exact (old_nonvacuous_iff _ _).mpr
+      (Comparison64.Domain.nonvacuous .unsignedMinimum bytes positive bound)
+  | signedMaximum64 =>
+    exact (old_nonvacuous_iff _ _).mpr
+      (Comparison64.Domain.nonvacuous .signedMaximum bytes positive bound)
 
 /-- All admitted pair inputs and all AF streams satisfy the fixed semantic
 contract. Graph validity is separately proved evidence used by the adapters. -/
