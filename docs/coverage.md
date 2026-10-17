@@ -119,8 +119,13 @@ RAX=input+1, with RAM framing outside target union private stack, all metadata
 and permissions retained, original return and ABI preservation. Two complete
 18-byte GCC/Clang texts have actual covered eight-instruction proofs. A reachable
 domain allocates a distinct DATA ticket after the private stack and supports
-arbitrary old target contents. This is a library extension; existing fixed
-grader task propositions remain unchanged.
+arbitrary old target contents. The separate [callable DATA8 grader](call-memory64-grading.md)
+checks exact raw/ELF windows against that same claim, including a different
+three-instruction store/LEA/RET implementation with no CALL or target reload.
+A separate theorem requires at least three modeled instructions on useful
+inputs where both RAX and target must change; that client attains the bound.
+This is a bound for the accepted mixed policy, without a hardware-cycle or
+unrestricted-ISA claim. Existing fixed grader task propositions remain unchanged.
 
 The standalone [GCC counted-store profile](counted-store64.md) and separate
 [Clang profile](counted-store64-clang.md) prove two exact 20-byte loops against

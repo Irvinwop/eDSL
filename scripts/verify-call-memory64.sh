@@ -31,7 +31,7 @@ output=$(mktemp -d "$evidence_root/run-$(date -u +%Y%m%dT%H%M%S)-XXXXXX")
 printf 'Callable DATA8 evidence: %s\n' "$output" >&2
 exec 3>"$output/commands.log" 4>"$output/command-status.tsv"
 sequence=0
-phases=(syntax snapshot toolchain compilation authentication rejections native formal source_stability)
+phases=(syntax snapshot toolchain compilation authentication rejections native formal grading source_stability)
 declare -A phase_status
 for phase in "${phases[@]}"; do phase_status[$phase]=NOTRUN; done
 rejection_count=0
@@ -59,8 +59,8 @@ write_terminal() {
     local status=$1 native=NOTRUN
     if [[ ${phase_status[native]} == PASS ]]; then native=PASS;
     elif [[ ${phase_status[native]} == FAIL ]]; then native=FAIL; fi
-    printf 'overall=%s native=%s formal=%s source_stability=%s native_only=%s observers=%d compiler_profiles=%d extraction_rejections=%d positive=%d negative=%d flag_profiles_per_observer=%d\n' \
-        "$overall" "$native" "${phase_status[formal]}" "${phase_status[source_stability]}" \
+    printf 'overall=%s native=%s formal=%s grading=%s source_stability=%s native_only=%s observers=%d compiler_profiles=%d extraction_rejections=%d positive=%d negative=%d flag_profiles_per_observer=%d\n' \
+        "$overall" "$native" "${phase_status[formal]}" "${phase_status[grading]}" "${phase_status[source_stability]}" \
         "$native_only" "$observer_count" "${#texts[@]}" "$rejection_count" \
         "$positive_count" "$negative_count" "$flag_profile_count" > "$output/result.txt"
     printf 'phase\tstatus\n' > "$output/phase-status.tsv"
@@ -88,7 +88,7 @@ finish() {
     for phase in "${phases[@]}"; do
         if [[ ${phase_status[$phase]} == RUNNING ]]; then phase_status[$phase]=FAIL; fi
         if [[ ${phase_status[$phase]} != PASS ]]; then
-            if [[ $phase != formal || $native_only != true || ${phase_status[$phase]} != NOTRUN ]]; then
+            if [[ ($phase != formal && $phase != grading) || $native_only != true || ${phase_status[$phase]} != NOTRUN ]]; then
                 if [[ $status == 0 ]]; then status=1; fi
             fi
         fi
@@ -113,9 +113,10 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 phase_begin syntax
-run bash -n scripts/verify-call-memory64.sh scripts/check-call-memory64-proofs.sh
+run bash -n scripts/verify-call-memory64.sh scripts/check-call-memory64-proofs.sh \
+    scripts/check-call-memory64-grading.sh
 run /usr/bin/shellcheck -s bash scripts/verify-call-memory64.sh \
-    scripts/check-call-memory64-proofs.sh > "$output/shellcheck.txt" 2>&1
+    scripts/check-call-memory64-proofs.sh scripts/check-call-memory64-grading.sh > "$output/shellcheck.txt" 2>&1
 phase_pass syntax
 
 # git supplies tracked AND public untracked inputs. Ignored data and the selected
@@ -208,9 +209,13 @@ Native register/flag/page records are separate from the formal eight-instruction
 execution and read trace. Default formal checking imports the client Covered
 and Audit modules, instantiates both universal closed Claims on freshly
 extracted byte list literals, audits dependencies, and replays the generated
-module and transitive proofs in a fresh kernel. Explicit --native-only leaves
-formal=NOTRUN. No C source-preservation theorem, Linux kernel theorem, new
-grader/task/CLI or proof packet serialization is claimed or used.
+module and transitive proofs in a fresh kernel. Default grading checks the
+fixed callable DATA8 contract on nested and inline raw/full-ELF artifacts,
+including proof packets, exact artifact binding and import isolation. The
+three-instruction inline client receives proof grading; native observations
+remain limited to the two nested profiles. Explicit --native-only leaves
+formal=NOTRUN and grading=NOTRUN. No C source-preservation theorem or Linux
+kernel theorem is claimed.
 SCOPE
 
 # Exactly the old runner's compiler/linker options. No tuning for this target.
@@ -426,6 +431,10 @@ if ! $native_only; then
     run grep -Fx 'formal=PASS whole_texts=2 universal_closed_claims=true mixed_cpu_os_execution=true union_ram_frame=true fresh_kernel=true' \
         "$output/formal/result.txt" > "$output/formal-receipt-check.txt"
     phase_pass formal
+    phase_begin grading
+    run env LEAN_NUM_THREADS=1 flock /tmp/edsl-lean-build.lock \
+        bash scripts/check-call-memory64-grading.sh "$output/grading" "${texts[@]}"
+    phase_pass grading
 fi
 
 phase_begin source_stability

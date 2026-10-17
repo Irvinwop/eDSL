@@ -157,6 +157,11 @@ Implemented and checked:
   independent target/result contract through current DATA and stack ownership,
   complete fetch coverage and a union RAM frame. Both complete 18-byte texts
   take eight modeled instructions. Existing fixed grader tasks retain their scope.
+- A separate [callable DATA8 grader](docs/call-memory64-grading.md) checks that
+  independent contract on exact raw/ELF windows and selected entries. Nested
+  compiler clients and a three-instruction store/LEA/RET client pass the same
+  task under existing proof budgets. A separate theorem proves a minimum of
+  three modeled instructions when both incoming outputs need to change.
 - All sixteen short conditional branches in the sequential backend, with
   signed displacements, taken-target checks, checked CFG edges and preservation
   of the same current OS resource world. See [branch scope](docs/sequential-short-jcc.md).
@@ -281,6 +286,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Owned nested calls](docs/call-stack.md) | How do actual CALL/PUSH/POP/RET steps compose with current private-stack ownership and whole compiler text? |
 | [Call-stack proof grading](docs/call-stack-grading.md) | How can different implementations prove the same callable result and resource contract at a selected raw/ELF entry? |
 | [Callable DATA8 and private stack](docs/call-memory64.md) | How do actual helper stores/reloads compose with private CALL/PUSH writes and reusable current resources? |
+| [Callable DATA8 grading](docs/call-memory64-grading.md) | How do nested and inlined implementations prove one owned-memory result with separate minimum-instruction accounting? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |

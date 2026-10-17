@@ -107,7 +107,8 @@ run sha256sum -- "${lean_tools[@]}" > "$output/lean-tool-SHA256SUMS"
 phase_pass inputs
 
 phase_begin build
-run lake build tests.fixtures.CallMemory64.Audit > "$output/build.log" 2>&1
+run lake build tests.fixtures.CallMemory64.Audit tests.fixtures.CallMemory64.Inline.Accounting \
+    > "$output/build.log" 2>&1
 phase_pass build
 
 phase_begin elaboration
@@ -115,6 +116,7 @@ source_file="$output/CallMemory64Observed.lean"
 cat > "$source_file" <<'LEAN'
 import tests.fixtures.CallMemory64.Covered
 import tests.fixtures.CallMemory64.Audit
+import tests.fixtures.CallMemory64.Inline.Accounting
 import EDSL.Audit
 set_option warningAsError true
 namespace EDSL.CallMemory64.Observed

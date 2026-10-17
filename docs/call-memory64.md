@@ -7,9 +7,9 @@ The independent contract requires `*pointer = input`, full64
 callee-saved registers and nonarithmetic flags. Every byte outside the union
 of those two regions and every memory permission remains unchanged.
 
-This is a verification library with concrete compiler clients. The existing
+The library has a separate [callable DATA8 grader](call-memory64-grading.md),
+`edsl-grade-call-memory64`, for raw and restricted ELF artifacts. The existing
 `edsl-grade` and `edsl-grade-call-stack` task propositions retain their scope.
-This extension does not add a DATA8 task to either executable.
 
 ## Current resources and actual execution
 
@@ -69,6 +69,7 @@ Two separate-translation-unit GNU23 compiler outputs meet the same task:
 | --- | ---: | ---: | ---: | ---: |
 | GCC 13 | 18 | 0 | 11 | 8 |
 | Clang 18 | 18 | 0 | 11 | 8 |
+| Inlined GCC/Clang | 8 | 0 | none | 3 |
 
 The helper stores RSI through RDI, reloads the target into RAX and returns.
 The caller increments that result and returns. GCC POPs old RAX into RDX before
@@ -80,8 +81,11 @@ The public client namespace is `EDSL.CallMemory64.Client`, with closed
 `tests.fixtures.CallMemory64.Covered`. The shared prefix proves the actual
 PUSH, CALL, DATA store, current reload and internal RET. Compiler accounting
 separately proves eight instructions and the exact DATA/stack read list.
-Those descriptions do not constrain task acceptance and are not minimum-cost
-or timing results.
+Those descriptions do not constrain task acceptance. A separate theorem proves
+at least three modeled instructions for accepted candidates on useful inputs
+requiring both target and RAX to change. The inlined store/LEA/RET witness attains
+three. This is a bound for the current mixed policy, without a hardware-timing
+or unrestricted-x86 claim.
 
 Direct proof checks use the pinned Lean installation:
 
@@ -104,13 +108,16 @@ and absence of final relocations, then runs two independently compiled native
 observers. Every-byte mutations, truncation, extension and cross-profile inputs
 must reject before observation. The formal phase instantiates both closed
 claims on decimal literals extracted from those fresh files, audits theorem
-dependencies and replays the generated module and its imports in a fresh kernel.
+dependencies and replays the generated module and its imports in a fresh kernel,
+including the inline client and cost proof. The grading phase checks fresh
+nested/inline packets in raw and ELF form and exercises binding/protocol
+rejections and fixed-import isolation.
 It does not translate finite native observations into universal proofs.
 
 `CALL_MEMORY64_EVIDENCE_ROOT` selects the archive directory; the default is
 `.cache/call-memory64-native`. Complete pages and observations stay in that
 archive. CI retains compact receipts and source provenance. Explicit
-`--native-only` skips formal checks and reports `formal=NOTRUN`. Failed,
+`--native-only` skips formal and grading checks and reports both as `NOTRUN`. Failed,
 unsupported or incomplete gates establish no security defect.
 
 ## Native boundary and target limits
@@ -136,4 +143,5 @@ The library covers ordinary DATA8 at its owned target and private stack effects.
 DATA4, atomics, MMIO, syscalls, concurrent call profiles, general interprocedural
 automation and kernel/source refinement remain outside this slice. The formal
 compiler claims bind whole extracted machine-code windows and selected entries;
-ELF containers remain build provenance rather than a new fixed-task ELF grader.
+the standalone grader additionally binds literal raw files or selected restricted
+ELF artifacts. It proves no process-startup or other-entry/segment safety.

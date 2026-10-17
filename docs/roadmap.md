@@ -246,8 +246,11 @@ and ordinary target mutations in one evolving borrowing world. Generic
 stack-contract transport retains both capabilities through mixed writes,
 with a union RAM frame. Reachable allocation/initialization, actual covered
 GCC/Clang helper-store/reload executions and the independent target/result
-contract are proved. Existing fixed grader tasks stay unchanged; registering
-this richer task, concurrent calls and broader DATA effects remain ahead.
+contract are proved. A separate [callable DATA8 grader](call-memory64-grading.md)
+now accepts fresh nested and inlined proofs against the same independent
+contract, binding literal raw/ELF files and entry metadata at existing budgets.
+Existing fixed grader tasks stay unchanged; unified task registration,
+concurrent calls and broader DATA effects remain ahead.
 
 The counted-loop extension now proves modular increment for every 64-bit count
 with a decreasing natural variant and exact `2*count+3` cost, preserving flags
@@ -586,6 +589,12 @@ change. A five-byte inlined LEA/RET witness attains two, whereas the four nested
 compiler clients take five/seven. The bound quantifies over the present
 CallReturn execution relation; it is separate from acceptance and makes no
 hardware-cycle, micro-op or complete-x86 optimality claim.
+The callable DATA8 contract additionally proves a three-modeled-instruction
+minimum on admitted inputs requiring changes to both target and RAX. Each
+permitted actual step retains RAX or the full memory, while original RET retains
+both. A store/LEA/RET client attains three; its two nested compiler counterparts
+take eight. The claim is scoped to the accepted mixed effect relation and is
+independent of task acceptance.
 
 Counted locked-add workers additionally have exact
 `3*count+3` own-instruction bounds and published-request event totals across
