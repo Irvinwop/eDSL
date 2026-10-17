@@ -73,6 +73,10 @@ jobs:
           lake env lean -DwarningAsError=true tests/CallStackDomain.lean
           lake env lean -DwarningAsError=true tests/CallStackCoverage.lean
           lake env lean -DwarningAsError=true tests/GradingCallStackContract.lean
+          lake env lean -DwarningAsError=true tests/CallMemory64Resources.lean
+          lake env lean -DwarningAsError=true tests/CallMemory64Domain.lean
+          lake env lean -DwarningAsError=true tests/CallMemory64CPU.lean
+          lake env lean -DwarningAsError=true tests/CallMemory64Contract.lean
           lake env lean -DwarningAsError=true tests/Borrowing.lean
           lake env lean -DwarningAsError=true tests/Threads.lean
           lake env lean -DwarningAsError=true tests/AtomicExchange.lean

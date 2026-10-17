@@ -112,6 +112,15 @@ without a native-inline observation claim. The existing Sequential tasks,
 CFGs and concurrent worker profiles retain their original scope. Source
 preservation, general calls, CPU timing and whole-OS safety remain outside
 these results.
+The sibling [callable DATA8 library](call-memory64.md) now composes actual
+ordinary target stores/reloads with private CALL/PUSH writes in one current
+resource world. Its independent contract requires target=input and full64
+RAX=input+1, with RAM framing outside target union private stack, all metadata
+and permissions retained, original return and ABI preservation. Two complete
+18-byte GCC/Clang texts have actual covered eight-instruction proofs. A reachable
+domain allocates a distinct DATA ticket after the private stack and supports
+arbitrary old target contents. This is a library extension; existing fixed
+grader task propositions remain unchanged.
 
 The standalone [GCC counted-store profile](counted-store64.md) and separate
 [Clang profile](counted-store64-clang.md) prove two exact 20-byte loops against

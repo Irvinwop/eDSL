@@ -241,6 +241,13 @@ grading at unchanged default limits. Whole ELF windows include preceding
 helpers; the checked final wrapper binds the literal file, span and entry.
 The existing Sequential task propositions remain unchanged. Generic task
 registration and general interprocedural proof automation remain future work.
+A sibling [callable DATA8 library](call-memory64.md) now checks private-stack
+and ordinary target mutations in one evolving borrowing world. Generic
+stack-contract transport retains both capabilities through mixed writes,
+with a union RAM frame. Reachable allocation/initialization, actual covered
+GCC/Clang helper-store/reload executions and the independent target/result
+contract are proved. Existing fixed grader tasks stay unchanged; registering
+this richer task, concurrent calls and broader DATA effects remain ahead.
 
 The counted-loop extension now proves modular increment for every 64-bit count
 with a decreasing natural variant and exact `2*count+3` cost, preserving flags

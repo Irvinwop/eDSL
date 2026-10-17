@@ -152,6 +152,11 @@ Implemented and checked:
   stay within the selected window. A separate lower-bound theorem requires two
   modeled instructions when RAX must change; LEA/RET attains two. Acceptance
   requires neither a CALL nor a particular count or compiler profile.
+- [Callable DATA8 and private-stack composition](docs/call-memory64.md) in a
+  sibling verification library. Actual GCC/Clang store/reload helpers meet one
+  independent target/result contract through current DATA and stack ownership,
+  complete fetch coverage and a union RAM frame. Both complete 18-byte texts
+  take eight modeled instructions. Existing fixed grader tasks retain their scope.
 - All sixteen short conditional branches in the sequential backend, with
   signed displacements, taken-target checks, checked CFG edges and preservation
   of the same current OS resource world. See [branch scope](docs/sequential-short-jcc.md).
@@ -275,6 +280,7 @@ the precise [implemented coverage and trust boundary](docs/coverage.md).
 | [Full64 modular array sum](docs/array-sum64.md) | How do different full64 loops meet one wrapping-sum contract with current resources and separate cost proofs? |
 | [Owned nested calls](docs/call-stack.md) | How do actual CALL/PUSH/POP/RET steps compose with current private-stack ownership and whole compiler text? |
 | [Call-stack proof grading](docs/call-stack-grading.md) | How can different implementations prove the same callable result and resource contract at a selected raw/ELF entry? |
+| [Callable DATA8 and private stack](docs/call-memory64.md) | How do actual helper stores/reloads compose with private CALL/PUSH writes and reusable current resources? |
 | [Roadmap and acceptance gates](docs/roadmap.md) | What must be built, in what order, and how will completion be established? |
 | [Architecture](docs/architecture.md) | How do Lean models, compilers, certificates, and platform contracts fit together? |
 | [Binary-first verification](docs/binary-first.md) | How can one machine-code target reduce source-language proof work? |
