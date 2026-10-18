@@ -10,6 +10,8 @@ import EDSL.OS.Threads
 import EDSL.OS.AtomicExchange
 import EDSL.OS.Atomics
 import EDSL.OS.Atomics64
+import EDSL.OS.AtomicThreads64
+import EDSL.AtomicLogical64
 import EDSL.OS.AtomicThreads
 import EDSL.OS.CounterThreads
 import EDSL.OS.Mutex

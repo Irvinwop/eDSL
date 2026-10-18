@@ -55,6 +55,9 @@ lean_exe «edsl-certify-store-return32» where
 lean_exe «edsl-certify-store-load64» where
   root := `StoreLoad64Main
 
+lean_exe «edsl-certify-atomic-logical64» where
+  root := `AtomicLogical64Main
+
 lean_exe «edsl-certify-counted-store64» where
   root := `CountedStore64Main
 

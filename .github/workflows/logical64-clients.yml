@@ -60,4 +60,5 @@ jobs:
         with:
           name: logical64-client-evidence
           path: artifacts/logical64/
+          include-hidden-files: true
           if-no-files-found: error

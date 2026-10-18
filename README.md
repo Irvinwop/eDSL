@@ -149,11 +149,13 @@ Implemented and checked:
   prove all-input/all-AF return, ABI and current OS resources; packet grading
   binds raw/full-ELF bytes. Exact model accounting and finite native checks stay
   separate. See [logical compiler clients](docs/logical64.md).
-- A separate full64 locked-OR foundation with exact instruction decoding,
-  ordered events, current actor authority and persistent allocation-wide
-  cell registration. Checked finite OR histories prove independent per-bit
-  union results. Managed full64 threads, native refinement and atomic grading
-  remain later work. See [locked logical resources](docs/atomic-logical64.md).
+- A separate full64 locked-OR profile with exact raw/full-ELF callable
+  certificates, current actor authority and persistent cell registration.
+  Managed spawn/dispatch/join pins handles and loans through join, retaining
+  peer-current RAM and independent union results across finite schedules.
+  Native observations remain separate; general atomic grading, TSO/source
+  memory orders and physical refinement remain later work. See
+  [locked logical resources](docs/atomic-logical64.md).
 - Memory-source ADD64 in the sequential backend reads a complete qword at the
   old full64 base/SIB address, defines all six arithmetic flags and retains
   the complete memory frame. Named current read loans and array resources

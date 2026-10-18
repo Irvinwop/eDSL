@@ -390,10 +390,14 @@ exact OR/RET decoding, a separate event-retaining engine, persistent typed
 cell registration, current actor authority, both-direction legacy32/loan
 conflict guards, an actual CPU/OS bridge and independent finite-history union
 proofs. A callable all-AF theorem proves the exact two-instruction routine.
-This foundation does not enroll managed full64 threads, atomic grading or
-TSO/C memory orders. Next: retain handles and loans through managed join, prove
-actual interleaved dispatch chains, then bind complete compiler ELF artifacts
-and native observations before widening the supported profile.
+The separate managed full64 worker layer now retains handles/loans through
+join, proves actual interleaved dispatch chains and current-peer-memory
+preservation, and derives independent union results for finite legal schedules.
+Standalone raw/full-ELF certificates bind the complete OR/RET callable bytes
+to current resources; native observations remain separate evidence. Next:
+general atomic proof grading, AND/XOR counterparts, explicit store-buffer and
+mixed-width integration, then source memory-order preservation. Physical and
+native OS/thread refinement remain separate obligations.
 
 Implemented prerequisite: a root-managed read-worker lifecycle with three
 internal loans, actual load/RET instruction scheduling against current shared

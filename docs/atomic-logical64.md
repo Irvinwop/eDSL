@@ -1,10 +1,11 @@
 # Full64 locked OR and resource foundation
 
-This is an additive abstract-machine and current-resource foundation. The
+This is an additive abstract-machine and current-resource profile. The
 strict decoder recognizes `f0 48 09 37` (`LOCK OR qword [RDI], RSI`) and `c3`
 (`RET`). It has its own event-retaining engine. It is not enrolled in the
-existing scalar grader, legacy32 executor, managed-thread executor or TSO
-backend. The reusable memory primitive also defines AND/XOR; their instruction
+existing scalar grader, legacy32 executor or TSO backend. A separate managed
+worker layer and standalone callable certifier use these exact bytes. The
+reusable memory primitive also defines AND/XOR; their instruction
 encodings and OS operations are not admitted by this profile.
 
 ## Checked behavior
@@ -84,6 +85,73 @@ trace from any finite list of currently authorized requests without a
 future-success hypothesis. This is a modification order for those operations,
 not a C memory-order or liveness/fairness theorem.
 
+## Managed creation, dispatch and join
+
+`OS.AtomicThreads64.Start` references an already registered cell and the code
+and caller-slot allocation tickets. Successful spawn acquires one distinct
+actor handle and two read loans. Creation failure exposes no partial state.
+The applying, returning and completed phases all retain those resources.
+Completion does not release the handle: only successful join revokes that
+worker's handle and both loans. The cell remains registered after join until
+explicit owner retirement. A completed unjoined worker prevents retirement.
+
+Each selection executes one actual OR or RET against a fresh projection of
+current shared RAM. The private context has only registers, RIP and flags;
+there is no earlier RAM snapshot to restore. Actual event identity, operands,
+current-before/readback and CPU/OS memory equality are proved. RET and join
+retain peer updates, and join returns the private context with unchanged RAX.
+All other worker contexts and resources are framed.
+
+The managed history admits only checked spawn/dispatch/join/mutate/retire and
+idle operations. Raw lower-layer close/loan-finish/history operations cannot
+enter it. Every finite legal supplied schedule, including arbitrary AF choices,
+is constructively enabled from current worker/resource validity and remaining
+selection counts. Two selections complete an initially applying worker and
+emit exactly one RMW. Extra selection of a completed worker fails.
+Dispatch-only schedules on one persistent cell project to `OrTrace`; RET
+stutters on current RAM, and the independent union theorem includes duplicate,
+overlapping and zero masks. This is safety and finite enabledness, without an
+unconditional scheduling/fairness or native pthread theorem.
+
+## Exact raw and full-ELF callable certificates
+
+`AtomicLogical64.Resources` requires current actor authority and named code
+and caller-slot loans. Their allocation identities derive complete target
+disjointness; no future successful execution is an admission premise.
+`ResultContract` specifies the natural-number bit-set union, actual event and
+current OS transition, full64 RAM/register frames, exact count and every
+surviving loan's actual cells. The caller supplies canonical/nonwrapping ABI
+facts and the locked profile's physical interpretation assumptions.
+
+From the repository, build and invoke:
+
+```sh
+lake build edsl-certify-atomic-logical64
+lake env .lake/build/bin/edsl-certify-atomic-logical64 function.bin certificate.lean
+lake env .lake/build/bin/edsl-certify-atomic-logical64 --elf function.elf certificate.lean
+```
+
+The raw checker accepts the entire five-byte input. The ELF checker parses
+the literal full file with the restricted ELF64LE ET_EXEC loader and requires
+exactly one executable segment, beginning at entry, with five file and memory
+bytes. Executable prefixes, suffixes and BSS fail. Other nonexecutable segments
+remain loader data. Full file bytes, parsed metadata, installed code and
+fresh-load behavior are bound to the callable theorem. This verifies a callable
+entry under the stated current resources, not Linux process startup.
+
+Section/symbol tables do not override program-header byte claims. A changed
+symbol size or an unused static relocation section can therefore leave the
+formal callable certificate valid. Runtime relocation/dynamic program headers
+are outside the loader. The separate native provenance extractor additionally
+requires matching complete `.text`/FUNC spans and no relocation records.
+
+The certifier emits typed literal Lean data and checks its universal claims
+with the kernel and axiom audit before reporting `CERTIFIED`. Large full files
+use small byte chunks and balanced concatenation at the existing Lean limits.
+Its failure statuses are 2 for usage, 3 for unsupported input, 4 for malformed
+input, 1 for certificate-check failure and 5 for IO failure; none establishes
+a program defect. General serialized atomic proof grading remains future work.
+
 ## Validation and remaining boundaries
 
 The Lean tests execute the actual decoder, primitives and OS wrappers. They
@@ -91,14 +159,30 @@ cover all eight permission bytes, bit63 and literal endian results, both AF
 choices, current memory across actors, zero-handle registration, both conflict
 orders, stale identities, independent allocations and code/stack loan frames.
 Symbolic tests establish live well-formed authority for arbitrary old64/mask64
-and independent membership results. CI builds with warnings as errors, audits
-transitive theorem dependencies and replays the stored EDSL proofs in a fresh
-kernel. The cache never skips these checks.
+and independent membership results. Managed tests cover all six two-worker
+interleavings and every AF choice, literal event chains, private registers,
+peer-current RAM at RET/join, creation/join failures and lifetime gates.
+Artifact tests cover raw/container mutations and current-resource admission.
 
-This foundation does not yet provide managed full64 spawn/dispatch/join,
-standalone raw/full-ELF atomic certificates, native observation/replay,
-mixed-width atomic dispatch, store-buffer integration or C memory-order
-preservation. The existing scalar/legacy32 tools keep their original scope.
+`scripts/verify-atomic-logical64.sh` freshly compiles GCC13/Clang18 GNU23
+fixtures, validates complete final ELF/raw identity, obtains callable kernel
+certificates, independently recovers every emitted literal byte for comparison
+with the original file, and replays all certificate terms plus both production
+graphs in one fresh kernel. It builds with warnings as errors, audits transitive
+dependencies and retains sources/statuses/manifests on incomplete runs.
+The dedicated cached CI always runs these checks.
+
+The native harness executes the exact fresh extracted bytes, independently
+checks bit membership, endian bytes, guards, all GPRs and defined/preserved
+flags, and checks owned threaded workloads after successful joins. Forced AF
+controls pass; 33 owned semantic mutants fail their appropriate oracles. An
+unlocked single-thread control deliberately passes, illustrating why these
+finite observations do not establish LOCK indivisibility. Native observations
+are separate from, and never premises of, the universal Lean theorems.
+
+This profile does not yet provide a general atomic proof grader, mixed-width
+atomic dispatch, store-buffer integration or C memory-order preservation.
+The existing scalar/legacy32 tools keep their original scope.
 The two-instruction count is exact for this routine. In the restricted OR/RET
 instruction language, `Executes.changed_byte_lower_bound` proves that any
 returning execution which changes an observed byte needs at least two retired
