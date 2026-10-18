@@ -187,6 +187,50 @@ jobs:
         run: bash scripts/check-audit.sh
       - name: Replay stored proofs through a fresh kernel environment
         run: lake env leanchecker --fresh EDSL
+
+  # Keep the existing native/grading checks in parallel with contracts and
+  # fresh proof replay. Both jobs always rebuild against restored input traces.
+  native-and-grading:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned elan
+        shell: bash
+        run: |
+          curl --fail --location --silent --show-error \
+            https://github.com/leanprover/elan/releases/download/v4.2.4/elan-x86_64-unknown-linux-gnu.tar.gz \
+            --output "$RUNNER_TEMP/elan.tar.gz"
+          printf '%s  %s\n' \
+            42b94d4244e8353142c456ec0e4ca6528fd898a6c604d4059f494e706e431f63 \
+            "$RUNNER_TEMP/elan.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/elan-installer"
+          tar -xzf "$RUNNER_TEMP/elan.tar.gz" -C "$RUNNER_TEMP/elan-installer"
+          "$RUNNER_TEMP/elan-installer/elan-init" -y --no-modify-path --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Cache pinned Lean toolchain
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.elan/toolchains
+          key: lean-toolchain-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}
+      - name: Cache Lake build outputs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .lake/build
+          key: lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean', 'lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: |
+            lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean', 'lake-manifest.json') }}-
+            lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-
+            lake-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.lean', 'lake-manifest.json') }}-
+      # Reuse the same Lean version across target/dependency configuration
+      # changes. Lake invalidates affected inputs; the final v1 prefix permits
+      # migration from the previous cache format without a cold build.
+      # Always invoke Lake: its input traces invalidate changed modules. Cached
+      # outputs never skip contract tests, axiom audits, or fresh kernel replay.
+      - name: Build pinned Lean project
+        run: lake build EDSL edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-futex-predicate edsl-certify-sum32 edsl-cfg-import edsl-grade edsl-grade-call-stack edsl-grade-call-memory64 edsl-grade-call-memory-loop64 edsl-proof-export edsl-certify-store-return32 edsl-certify-store-load64 edsl-certify-counted-store64 edsl-certify-counted-store64-clang GradingFixtures
       - name: Install native integration tools
         run: |
           sudo apt-get update
