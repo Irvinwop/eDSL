@@ -153,9 +153,13 @@ Implemented and checked:
   certificates, current actor authority and persistent cell registration.
   Managed spawn/dispatch/join pins handles and loans through join, retaining
   peer-current RAM and independent union results across finite schedules.
-  Native observations remain separate; general atomic grading, TSO/source
+  Native observations remain separate; wider atomic ISA, TSO/source
   memory orders and physical refinement remain later work. See
   [locked logical resources](docs/atomic-logical64.md).
+- Data-only raw/full-ELF proof grading for an independent atomic union task.
+  One- and two-RMW implementations prove the same current-resource contract;
+  actual events and separate model cost bounds remain visible. See
+  [atomic union grading](docs/atomic-logical64-grading.md).
 - Memory-source ADD64 in the sequential backend reads a complete qword at the
   old full64 base/SIB address, defines all six arithmetic flags and retains
   the complete memory frame. Named current read loans and array resources

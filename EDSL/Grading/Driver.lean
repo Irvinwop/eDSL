@@ -6,6 +6,7 @@ import EDSL.Grading.Artifact
 import EDSL.Grading.CallStack.Artifact
 import EDSL.Grading.CallMemory64.Artifact
 import EDSL.Grading.CallMemoryLoop64.Artifact
+import EDSL.Grading.AtomicLogical64.Artifact
 import EDSL.Grading.Known
 import EDSL.Grading.Runtime.Checker
 import Lean
@@ -80,7 +81,8 @@ def trustedEnvironment : IO Environment := do
   importModules #[{ module := `EDSL.Grading.Known }, { module := `EDSL.Grading.Artifact },
     { module := `EDSL.Grading.CallStack.Artifact },
     { module := `EDSL.Grading.CallMemory64.Artifact },
-    { module := `EDSL.Grading.CallMemoryLoop64.Artifact }]
+    { module := `EDSL.Grading.CallMemoryLoop64.Artifact },
+    { module := `EDSL.Grading.AtomicLogical64.Artifact }]
     {} (trustLevel := 0) (plugins := #[]) (loadExts := false)
 
 /-- Read at most limit+1 bytes, including when a file grows while being read.

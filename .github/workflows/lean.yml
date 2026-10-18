@@ -94,6 +94,8 @@ jobs:
           lake env lean -DwarningAsError=true tests/Atomics64Machine.lean
           lake env lean -DwarningAsError=true tests/AtomicThreads64.lean
           lake env lean -DwarningAsError=true tests/AtomicLogical64Artifact.lean
+          lake env lean -DwarningAsError=true tests/AtomicLogical64Domain.lean
+          lake env lean -DwarningAsError=true tests/AtomicLogical64Grading.lean
           lake env lean -DwarningAsError=true tests/AtomicThreads.lean
           lake env lean -DwarningAsError=true tests/FetchAdd.lean
           lake env lean -DwarningAsError=true tests/CounterThreads.lean

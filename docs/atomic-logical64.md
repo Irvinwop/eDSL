@@ -150,7 +150,9 @@ with the kernel and axiom audit before reporting `CERTIFIED`. Large full files
 use small byte chunks and balanced concatenation at the existing Lean limits.
 Its failure statuses are 2 for usage, 3 for unsupported input, 4 for malformed
 input, 1 for certificate-check failure and 5 for IO failure; none establishes
-a program defect. General serialized atomic proof grading remains future work.
+a program defect. The separate [atomic union proof grader](atomic-logical64-grading.md)
+accepts serialized proofs for selected windows under a fixed current-resource
+contract. This convenience certifier keeps its complete-segment requirement.
 
 ## Validation and remaining boundaries
 
@@ -180,8 +182,9 @@ unlocked single-thread control deliberately passes, illustrating why these
 finite observations do not establish LOCK indivisibility. Native observations
 are separate from, and never premises of, the universal Lean theorems.
 
-This profile does not yet provide a general atomic proof grader, mixed-width
-atomic dispatch, store-buffer integration or C memory-order preservation.
+The separate atomic union grader accepts arbitrary proof submissions for the
+strict OR/RET machine. Mixed-width atomic dispatch, wider atomic instructions,
+store-buffer integration and C memory-order preservation remain future work.
 The existing scalar/legacy32 tools keep their original scope.
 The two-instruction count is exact for this routine. In the restricted OR/RET
 instruction language, `Executes.changed_byte_lower_bound` proves that any

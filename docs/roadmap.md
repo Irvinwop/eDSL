@@ -394,8 +394,11 @@ The separate managed full64 worker layer now retains handles/loans through
 join, proves actual interleaved dispatch chains and current-peer-memory
 preservation, and derives independent union results for finite legal schedules.
 Standalone raw/full-ELF certificates bind the complete OR/RET callable bytes
-to current resources; native observations remain separate evidence. Next:
-general atomic proof grading, AND/XOR counterparts, explicit store-buffer and
+to current resources; native observations remain separate evidence. A separate
+fixed union task now admits data-only raw/full-ELF proofs for one- and two-RMW
+implementations, with actual current CPU/OS traces and independent useful-input
+cost bounds. It keeps the strict OR/RET ISA; see [atomic proof grading](atomic-logical64-grading.md).
+Next: wider atomic proof tasks/ISA, AND/XOR counterparts, explicit store-buffer and
 mixed-width integration, then source memory-order preservation. Physical and
 native OS/thread refinement remain separate obligations.
 
