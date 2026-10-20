@@ -51,11 +51,17 @@ issued entry remains pending at the end or occurs in a real drain observation.
 final queues are empty. A returned worker can still have pending stores, so
 return alone is insufficient.
 
-The current forward theorem establishes that a publication exists. A theorem
-that drain positions are unique, an executable source-graph extractor and
-source modification-order correspondence remain separate work. Source acquire
-and release annotations must come from an explicit verified interface: MOV
-bytes alone do not distinguish relaxed accesses from acquire/release accesses.
+With an initially sequenced FIFO, `IssuedAt.managed_drain_exists_unique` proves
+that an actual managed issue has exactly one later drain position when the
+final queues are empty. Two drains at the same worker/occurrence must also
+retain the same descriptor and value. This is a contract for an already
+successful finite run, without a fairness or eventual-completion claim.
+
+The [executable store scanner](managed-store-trace.md) derives issue histories
+and publication correspondence from actual scheduler execution. Source-graph
+construction and source modification-order correspondence remain separate
+work. Acquire and release annotations must come from an explicit verified
+interface: MOV bytes alone do not distinguish their source memory orders.
 
 ## Validation and scope
 
@@ -69,5 +75,5 @@ and schedules rather than only this fixture.
 These are execution-origin facts for the existing fixed-world profiles and
 their explicit authority and architectural assumptions. They do not establish
 C23 legality, source/compiler preservation, physical CPU or Linux behavior,
-publication exactly once, fairness or liveness. They add no frozen compiler
+fairness or liveness. They add no frozen compiler
 function certification.
