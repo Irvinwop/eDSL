@@ -211,6 +211,7 @@ import tests.ELFCertificate
 import tests.ELFFunctionSymbol
 import tests.ELFFunctionCandidate
 import tests.ELFStackCaller
+import tests.ELFFunctionBounds
 import tests.SequentialUnary
 import tests.UnaryBodies
 import tests.CorpusUnaryResources
@@ -239,6 +240,9 @@ import tests.RotationResources
 import tests.GradingRotation
 import tests.SequentialLow8
 import tests.Low8Audit
+import tests.ByteEquality
+import tests.SequentialByteComparePadding
+import tests.ByteComparePaddingAudit
 import tests.CFGProfiles
 import tests.VCGenScratchFrame
 LEAN
@@ -812,7 +816,7 @@ certificate_targets=(EDSL.Corpus.V1.Comparisons EDSL.Corpus.V1.Arithmetic EDSL.C
     EDSL.Corpus.V1.AverageCertificates EDSL.Corpus.V1.ParityCertificates
     EDSL.Corpus.V1.RotationCertificates)
 if [[ $full_project == true ]]; then
-    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests ParityTests RotationTests Low8Tests CFGProfileTests \
+    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests ParityTests RotationTests Low8Tests ByteEqualityTests CFGProfileTests \
         edsl-proof-export edsl-grade "${certificate_targets[@]}"
 else
     record build "${lean_lock[@]}" lake build "${certificate_targets[@]}"

@@ -108,7 +108,7 @@ lean_lib ByteComparisonTests where
 lean_lib VerificationTests where
   roots := #[`tests.VerificationImports, `tests.VerifyFunction, `tests.ELFCertificate,
     `tests.ELFFunctionSymbol, `tests.ELFFunctionCandidate, `tests.ELFStackCaller,
-    `tests.VCGenScratchFrame]
+    `tests.ELFFunctionWindow, `tests.ELFFunctionBounds, `tests.VCGenScratchFrame]
   moreLeanArgs := #["-DautoImplicit=false"]
 
 -- Shared unary ISA rules, generated scalar clients and exact loaded resources.
@@ -147,6 +147,12 @@ lean_lib RotationTests where
 -- Partial-byte results through the shared machine, VCG and current resources.
 lean_lib Low8Tests where
   roots := #[`tests.SequentialLow8, `tests.Low8Audit]
+  moreLeanArgs := #["-DautoImplicit=false"]
+
+-- Paired-buffer Boolean contracts and real DATA1 comparison/padding rules.
+lean_lib ByteEqualityTests where
+  roots := #[`tests.ByteEquality, `tests.SequentialByteComparePadding,
+    `tests.ByteComparePaddingAudit]
   moreLeanArgs := #["-DautoImplicit=false"]
 
 -- Explicit larger bounds and preservation of the original default profile.

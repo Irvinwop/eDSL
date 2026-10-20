@@ -58,8 +58,9 @@ and rejects a denied read policy even when the stack remains readable. These
 checks establish no source-compiler or native-CPU correspondence.
 
 CLI flags, corpus and caller-resource interfaces, and certificate propagation are
-not extended here. The standalone regression is not registered as a CI or Lake
-test target by this change. Existing installed proof-packet, kernel, decoder and runtime
+not extended here. `VerificationTests` builds the standalone regression; the
+full-project gate also imports it for audit and fresh replay.
+Existing installed proof-packet, kernel, decoder and runtime
 budgets remain unchanged. A larger model profile is not authority to increase
 those budgets or a claim that a larger client packet is accepted. No new opcode,
 backend, frozen-corpus acceptance or native proof is established by this API.
