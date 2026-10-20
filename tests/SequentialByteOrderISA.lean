@@ -209,8 +209,20 @@ theorem unsupported_forms :
       [0x0f,0xb6,0x40,0], [0x44,0x0f,0xb6,0x84,0,0,0,0,0],
       [0x0f,0xb6,5,0,0,0,0], [0x41,0x0f,0xb6,5,0,0,0,0],
       [0x0f,0xb6,4,0x20], [0x41,0x0f,0xb6,4,5],
-      [0x29,7], [0x2b,7], [0x44,0x29,7], [0x44,0x38,7], [0x3a,7]] : List (List Byte)).all
+      [0x29,7], [0x2b,7], [0x44,0x29,7], [0x44,0x38,7], [0x66,0x3a,7]] : List (List Byte)).all
       (fun bytes => (Sequential.decodeAt (entry bytes)).isOk = false) = true := by rfl
+
+/-- The shared byte-memory extension admits CMP AL,[RDI]. Its original
+negative encoding now has a positive behavior check: low8 subtraction in the
+correct direction, an actual DATA1 read at the last canonical byte, unchanged
+registers and complete architectural flags, independent of the AF choice. -/
+theorem memory_right_cmp (af : Bool) :
+    Sequential.decodeAt (entry [0x3a,7]) = .ok (.cmpRegMem8 .rax (.base .rdi) false) ∧
+    observe (entry [0x3a,7] (fun register => match register with
+      | .rax => 0xfedcba9876543280 | .rdi => 0x7fffffffffff | _ => 0xdeadbeef)
+      (oneByte 0x7fffffffffff 1)) [.rax,.rdi] af =
+      .ok ([0xfedcba9876543280,0x7fffffffffff],0xe12,4098,
+        [⟨.data,0x7fffffffffff,1⟩]) := by exact ⟨rfl,rfl⟩
 
 theorem same_constructor_encodings :
     ([.movzxMem8 .rcx (.indexed .rdi .rax 0) false,

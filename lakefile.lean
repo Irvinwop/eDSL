@@ -87,6 +87,10 @@ lean_lib ManagedFetchAdd64Tests where
     `tests.FetchAddCalls64, `tests.FetchAddABI64, `tests.AtomicMethods,
     `tests.CorpusFetchAdd64, `tests.ManagedFetchAdd64Audit]
 
+-- Checked shared-cell accesses, separate from scheduler and source ordering.
+lean_lib AtomicAccess64Tests where
+  roots := #[`tests.AtomicAccess64]
+
 -- Cache input-traced byte-scan regressions alongside production proofs.
 lean_lib BoundedScanTests where
   roots := #[`tests.SequentialByteComparison, `tests.BufferCallResources,

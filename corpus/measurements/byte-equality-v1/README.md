@@ -92,14 +92,24 @@ limits. There is no equality buffer packet API or equality packet result;
 `.equalBytes` is registered through the typed buffer-certificate API. The Clang
 code-size profile does not change packet limits.
 
-[publication-sources.sha256](publication-sources.sha256) identifies only the
-corrected existing one-byte RET transport regression in
-[`tests/SequentialISA.lean`](../../../tests/SequentialISA.lean), checked
-separately from the source-383 certificate gate. Its statement, API, no-padding
-condition and 15-byte requirement are unchanged. Scoped compilation, an
-allowed-only axiom audit of **2,113 declarations**, and actual external fresh
-replay of `tests.SequentialISA` passed with closing source/object checks.
-Production semantics and certificates are unchanged.
+[publication-sources.sha256](publication-sources.sha256) records two regressions
+checked separately from the certificate gate above. The one-byte RET
+transport regression in
+[`tests/SequentialISA.lean`](../../../tests/SequentialISA.lean) retains its
+original statement, API, no-padding condition and 15-byte requirement. It
+passed scoped compilation, an audit of **2,113 declarations** permitting only
+the approved axioms, and actual external fresh
+replay of `tests.SequentialISA` with closing source/object checks. This regression
+fix changes no production semantics or certificates.
+
+[`tests/SequentialByteOrderISA.lean`](../../../tests/SequentialByteOrderISA.lean)
+checks the supported `CMP AL, [RDI]` encoding (`3a 07`) with independent flags,
+unchanged operand registers and an actual DATA1 read at the last low canonical
+byte. Its rejection cases include the unsupported `66`-prefixed form. Scoped
+compilation, an audit of **2,859 declarations** permitting only the approved
+axioms, and actual external
+fresh replay of `tests.SequentialByteOrderISA` passed, with unchanged source,
+object and frozen-input hashes. These regression checks add no corpus credit.
 
 See [commit-specific CI results in GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
 

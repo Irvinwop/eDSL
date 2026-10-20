@@ -175,6 +175,11 @@ Same-cell chains require the stated exchange-only history or continuous
 reservation; arbitrary ordinary stores across reservation gaps are excluded.
 See [handles](atomic-handles.md) and [exchange](atomic-exchange.md).
 
+[Managed full64 loads and publication](managed-atomic-access64.md) recheck
+current handle/cell authority and retain reservation, metadata, permissions,
+unrelated bytes and live loans. This resource API does not yet extend the
+buffered scheduler or certify source acquire/release operations.
+
 ## Mutable atomic-worker lifecycle
 
 Managed [exchange workers](atomic-workers.md) retain actual old values through
