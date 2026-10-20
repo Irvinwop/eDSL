@@ -3,6 +3,7 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.Grading.Driver
+import EDSL.Grading.Export
 import EDSL.Corpus.V1.ParityBodies
 import EDSL.Audit
 
@@ -42,6 +43,7 @@ open Lean EDSLGrader EDSLGrader.Runtime
 
 run_cmd do
   let environment := (← getEnv).toKernelEnv
+  let (trusted, _) ← EDSLGrader.Export.loadEnvironments `EDSL.Grading.Driver
   let some id := taskID "parity64" | throwError "Parity task name rejected"
   for (bytes, proof) in #[
       (Corpus.V1.ParityCode.bytes .defaultGCC, ``raw_gcc),
@@ -64,6 +66,24 @@ run_cmd do
         unless failure.kind == .rejected && failure.message == "kernel declTypeMismatch" do
           throwError "Parity {label} failed for an unexpected reason: {failure}"
         logInfo m!"Parity {proof}: {label} rejected with kernel declTypeMismatch"
+    -- A theorem reference alone never exercises serialization of its fresh
+    -- dependency closure. Both forms must fit the unchanged encoding limits.
+    -- Full admission also runs through the installed grader in fresh processes.
+    for mode in [EDSLGrader.Export.Mode.body, .reference] do
+      let packet ← match EDSLGrader.Export.exportTheorem trusted.toKernelEnv environment proof mode with
+        | .ok packet => pure packet
+        | .error failure => throwError "Parity {proof} {repr mode} export failed: {failure}"
+      let forbidden := if proof == ``raw_gcc then
+        [``Corpus.V1.ParityBodies.clangAnnotations, ``Corpus.V1.ParityBodies.clang_generated,
+          ``Corpus.V1.ParityBodies.clang_semantics]
+        else
+          [``Corpus.V1.ParityBodies.gccAnnotations, ``Corpus.V1.ParityBodies.gcc_generated,
+            ``Corpus.V1.ParityBodies.gcc_semantics]
+      for declaration in packet.declarations do
+        for name in declaration.getNames do
+          if forbidden.contains name then
+            throwError "Parity {proof} {repr mode} exports the other compiler's annotation: {name}"
+      logInfo m!"Parity {proof} {repr mode}: exported independent closure; declarations={packet.declarations.length}"
 
 #print axioms raw_gcc
 #print axioms raw_clang

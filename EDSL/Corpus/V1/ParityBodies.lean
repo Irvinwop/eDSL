@@ -91,7 +91,9 @@ private theorem saved_protected :
     ∀ register ∈ PureCall.calleeSaved, register ≠ .rsp ∧ register ∉ scratch := by
   decide +kernel
 
-local macro "parity_frame" old:ident : tactic => `(tactic| (
+-- Keep the frame proof out of the enclosing sequence of WP continuations.
+-- Its register equalities otherwise extend the expanded packet syntax path.
+local macro "parity_frame" old:ident : tactic => `(tactic| (vcgen_factor =>
   constructor
   · simp only [State.writeRegister, ($old).memory]
   · simpa only [logicalFlags32_preserves, logicalFlags64_preserves,
@@ -269,23 +271,27 @@ def clangAnnotations (input : PureCall.Invocation spec) (initial : State)
       have decreases := WordMath.shiftRight_one_toNat_lt (state.registers .rdi) invariant.2.1
       by_cases finished : state.registers .rdi >>> 1 = 0#64
       · have correct := WordMath.parityInvariant_finish advanced finished
-        change Cutpoints.wp clangGraph initial.rip (PureCall.Post spec input initial)
-          (fun _ read => PureCall.RawRead initial read) (clangInv input initial)
-          (clangRank input) (clangRank input clangLoop state) 9 clangLoop state
-        vcgen_block clangGraph clangLoop simp [-BitVec.getLsbD_eq_getElem, pc, memory, rsp,
-          pre.stack, pre.returnCanonical, allowed, finished, sameRemainder,
-          above_one, LogicalOp.eval, BitVec.add_assoc]
-        parity_return framed correct
-      · change Cutpoints.wp clangGraph initial.rip (PureCall.Post spec input initial)
-          (fun _ read => PureCall.RawRead initial read) (clangInv input initial)
-          (clangRank input) (clangRank input clangLoop state) 9 clangLoop state
-        vcgen_block clangGraph clangLoop simp [-BitVec.getLsbD_eq_getElem, pc, memory, finished,
-          sameRemainder, above_one, LogicalOp.eval, canonicalLoop, BitVec.add_assoc]
-        dsimp only [clangInv, clangRank]
-        refine ⟨⟨?_, ?_, finished, rfl⟩, ?_⟩
-        · parity_frame framed
-        · simpa [low32_extend] using advanced
-        · exact decreases
+        -- The eight-instruction return path must also stay separate from the
+        -- cutpoint case analysis in the enclosing annotation proof.
+        vcgen_factor =>
+          change Cutpoints.wp clangGraph initial.rip (PureCall.Post spec input initial)
+            (fun _ read => PureCall.RawRead initial read) (clangInv input initial)
+            (clangRank input) (clangRank input clangLoop state) 9 clangLoop state
+          vcgen_block clangGraph clangLoop simp [-BitVec.getLsbD_eq_getElem, pc, memory, rsp,
+            pre.stack, pre.returnCanonical, allowed, finished, sameRemainder,
+            above_one, LogicalOp.eval, BitVec.add_assoc]
+          parity_return framed correct
+      · vcgen_factor =>
+          change Cutpoints.wp clangGraph initial.rip (PureCall.Post spec input initial)
+            (fun _ read => PureCall.RawRead initial read) (clangInv input initial)
+            (clangRank input) (clangRank input clangLoop state) 9 clangLoop state
+          vcgen_block clangGraph clangLoop simp [-BitVec.getLsbD_eq_getElem, pc, memory, finished,
+            sameRemainder, above_one, LogicalOp.eval, canonicalLoop, BitVec.add_assoc]
+          dsimp only [clangInv, clangRank]
+          refine ⟨⟨?_, ?_, finished, rfl⟩, ?_⟩
+          · parity_frame framed
+          · simpa [low32_extend] using advanced
+          · exact decreases
 
 def graph : Compiler → CFG.Graph
   | .defaultGCC => gccGraph
