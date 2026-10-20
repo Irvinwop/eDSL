@@ -155,10 +155,30 @@ remain attached to their original entries.
 | Forwarded source and actual issue history after a prefix | `schedule_loadMem64_history` |
 
 These theorems annotate the existing executor; they introduce no alternative
-execution engine or postcondition checks in instruction admission. Published
-memory's last writer, RMW occurrence identities and a complete shared event
-history remain separate obligations. In particular, identifying current RAM
-does not yet identify the publication that supplied it.
+execution engine or postcondition checks in instruction admission.
+
+[`PublishedHistory`](../EDSL/OS/TSO64/PublishedHistory.lean) records each managed
+cell's newest actual publication or RMW. A stamp includes its global scheduler
+position and thread. Buffered publications also retain the original complete
+reference and per-worker occurrence; RMWs retain the full checked event. Every
+write updates the stamp, including equal-value stores and zero-delta RMWs.
+Silent actions still consume schedule positions, so equal event payloads do
+not merge distinct RMW occurrences. RET preserves the map and does not publish.
+
+The writer map is an observation annotation, not an alternative executor.
+`schedule_read` proves agreement with actual published whole-word memory.
+`newest_write_at` exposes the real prefix and successful step for the stamp,
+and proves that no later observation writes that cell. A buffered stamp's
+`WriteAt.buffered_origin` recovers its initial-queue or actual instruction-issue
+origin. `loadMem64_origin` combines this history with an actual MOV64 effect:
+the load forwards its newest own entry, reads the initial RAM boundary, or
+reads the newest actual publication/RMW, and installs that exact word.
+
+An empty initial writer map does not invent a pre-run writer for RAM. Arbitrary
+initial maps and nonempty queues remain explicit boundaries. Current resource
+validity and the original cell descriptor are separate premises; the ghost map
+grants no authority and performs no memory mutation. Source-language memory
+orders, synchronization and physical x86-TSO/Linux refinement remain separate.
 
 The [instruction regressions](../tests/TSO64SharedCells.lean) execute real MOV,
 LOCK XADD and RET bytes in two checked actor contexts. They cover repeated equal
@@ -173,7 +193,7 @@ the checked access and publication rules above.
 
 The typed events retain checked actor, handle, cell, address and value. A value
 alone cannot identify the write a load observed: separate writes can store
-the same value. Published reads-from identities, source acquire/release synchronization,
+the same value. Source acquire/release synchronization,
 source-to-machine preservation, and physical x86-TSO/Linux correspondence
 remain separate proof obligations. See the [platform model](platform-model.md)
 and [trust ledger](trust.md).

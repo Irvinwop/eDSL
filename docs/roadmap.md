@@ -77,6 +77,8 @@ language-object/provenance relations. Native allocator failure/cleanup and
 thread creation, publication, context switching and join remain external
 contracts. Proof-level IDs do not authenticate native actors or enforce access.
 
+Shared qword histories identify actual store issues and the newest publication
+or RMW supplying a managed load, with explicit initial RAM/queue boundaries.
 Grow beyond finite complete-call histories and the managed closed cohort:
 pending calls, richer peers, other-cell event projection and mixed effects need
 separate composition proofs. Compound uninterrupted equivalence does not prove
