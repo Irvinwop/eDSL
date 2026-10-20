@@ -16,7 +16,9 @@ def codeState (bytes : List Byte) (offset : Nat) : State :=
   ⟨fun _ => 0, BitVec.ofNat 64 offset, 0, codeMemory bytes⟩
 
 /-- A successful finite-code fetch transfers to current executable RAM. Failed
-source fetches impose no premise, including bytes following a final RET. -/
+source fetches impose no premise, including bytes following a final RET/NOP15.
+The +15 static slack covers every required offset 0..14 without modular wrap;
+it does not require a successful source fetch at any extra offset. -/
 theorem code_fetch_transport_of_bound {bytes : List Byte} {memory : Memory} {base : Word}
     (code : CodeAt memory base bytes) (size : bytes.length + 15 ≤ 2^64) (offset : Nat)
     (inside : offset < bytes.length) (state : State)

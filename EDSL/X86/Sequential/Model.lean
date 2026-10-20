@@ -53,12 +53,14 @@ def LogicalOp.eval (operation : LogicalOp) {width : Nat}
   | .bor => left ||| right
   | .bxor => left ^^^ right
 
-/-- Exact supported alignment encodings from Intel SDM NOP, lengths 1..6 and 9
+/-- Exact supported alignment encodings, lengths 1..6, 9 and 15
 bytes. These are instruction encodings, not a general prefix grammar. The
-multi-byte forms require a processor supporting 0F 1F /0. Their apparent
+multi-byte forms require a processor supporting 0F 1F /0; `fifteen` additionally
+assumes support of the exact repeated-prefix assembler form documented in
+docs/byte-compare-padding.md. Decoding does not establish that hardware fact. Their apparent
 address operands are never evaluated and cause no operand memory access. -/
 inductive NopEncoding where
-  | one | two | three | four | five | six | nine
+  | one | two | three | four | five | six | nine | fifteen
   deriving DecidableEq, Repr
 
 /-- Environmental contract of the selected sequential target, outside the
@@ -126,6 +128,10 @@ inductive Instruction where
   /-- Unprefixed 38 /r, memory left minus LOW8 source. The decoder admits
   AL/CL/DL/BL only; high-byte registers and all prefixes are unsupported. -/
   | cmpMemReg8 (address : Address) (source : Register)
+  /-- 3A /r, LOW8 register left minus a checked DATA1 memory byte. Both the
+  register and full64 effective address use the prestate, including aliases.
+  Prefix presence records one non-W REX; no high-byte register is modeled. -/
+  | cmpRegMem8 (left : Register) (address : Address) (prefixed : Bool)
   /-- Unprefixed 39 /r, memory left minus LOW32 source, with one DATA4 read. -/
   | cmpMemReg32 (address : Address) (source : Register)
   /-- Exactly F3 0F 1E FA. Its no-op interpretation is restricted to

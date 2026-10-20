@@ -78,12 +78,14 @@ def instruction : Instruction → String
     s!"(.movzxMem8 {register destination} {address operand} {prefixed})"
   | .cmpMemImm8 operand immediate => s!"(.cmpMemImm8 {address operand} {immediate.toNat})"
   | .cmpMemReg8 operand source => s!"(.cmpMemReg8 {address operand} {register source})"
+  | .cmpRegMem8 left operand prefixed =>
+    s!"(.cmpRegMem8 {register left} {address operand} {prefixed})"
   | .cmpMemReg32 operand source => s!"(.cmpMemReg32 {address operand} {register source})"
   | .endbr64IbtDisabled => ".endbr64IbtDisabled"
   | .nop encoding =>
     let name := match encoding with
       | .one => ".one" | .two => ".two" | .three => ".three" | .four => ".four" | .five => ".five"
-      | .six => ".six" | .nine => ".nine"
+      | .six => ".six" | .nine => ".nine" | .fifteen => ".fifteen"
     s!"(.nop {name})"
   | .xorSelf32 destination => s!"(.xorSelf32 {register destination})"
   | .test64 left right => s!"(.test64 {register left} {register right})"

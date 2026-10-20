@@ -65,7 +65,7 @@ theorem execute_returned_only_ret {initial final : State}
   | negReg32 _ _ | bswapReg64 _ | shrOne64 _ | rolCL64 _
   | movzxMem8 _ _ _ | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _
   | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | setcc _ _ _ | movImm8 _ _ _ | movSignImm32 _ _ | cmovReg32 _ _ _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | logicalReg64 _ _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | storeMem32 _ _ | loadMem64 _ _ | storeMem64 _ _
-  | test32 _ _ _ | cmp32 _ _ _ | cmpMemImm8 _ _ | cmpMemReg8 _ _ | cmpMemReg32 _ _ | endbr64IbtDisabled | nop _ | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addMem64 _ _ | addImm64 _ _
+  | test32 _ _ _ | cmp32 _ _ _ | cmpMemImm8 _ _ | cmpRegMem8 _ _ _ | cmpMemReg8 _ _ | cmpMemReg32 _ _ | endbr64IbtDisabled | nop _ | test64 _ _ | cmp64 _ _ | addMem32 _ _ | addMem64 _ _ | addImm64 _ _
   | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ =>
     obtain ⟨middle, next⟩ := execute_new_next rfl actual
     rw [returned] at next

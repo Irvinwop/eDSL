@@ -70,9 +70,9 @@ theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.len
       Sequential.Instruction.length, Sequential.Address.suffixBytes]
   | callRelative32 _ => simp [Instruction.length]
 
-theorem Instruction.length_le_nine (instruction : Instruction) : instruction.length ≤ 9 := by
+theorem Instruction.length_le_fifteen (instruction : Instruction) : instruction.length ≤ 15 := by
   cases instruction with
-  | sequential old => exact old.length_le_nine
+  | sequential old => exact old.length_le_fifteen
   | push64 _ p | pop64 _ p => cases p <;> simp [Instruction.length, stackLength]
   | leaDisp8 _ a _ => cases a <;> simp [Instruction.length, Address.displaced,
       Sequential.Instruction.length, Sequential.Address.suffixBytes]

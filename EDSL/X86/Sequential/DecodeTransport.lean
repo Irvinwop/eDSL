@@ -32,8 +32,8 @@ private theorem SuccessRefines.ite (condition : Prop) [Decidable condition]
 
 /-- Local transport of the unmodified legacy decoder. Only successful fetches
 are transported; an inaccessible byte after the decoded instruction is irrelevant. -/
-theorem legacy_decodeAt_transport {source destination : State} {instruction : X86.Instruction}
-    (transport : SuccessfulFetchTransport source destination)
+theorem legacy_decodeAt_transport_short {source destination : State} {instruction : X86.Instruction}
+    (transport : SuccessfulFetchTransportWithin 9 source destination)
     (decoded : X86.decodeAt source = .ok instruction) :
     X86.decodeAt destination = .ok instruction := by
   have t0 := transport 0 (by decide)
@@ -55,6 +55,12 @@ theorem legacy_decodeAt_transport {source destination : State} {instruction : X8
       | apply SuccessRefines.bind
       | intro value
   exact refinement instruction decoded
+
+theorem legacy_decodeAt_transport {source destination : State} {instruction : X86.Instruction}
+    (transport : SuccessfulFetchTransport source destination)
+    (decoded : X86.decodeAt source = .ok instruction) :
+    X86.decodeAt destination = .ok instruction :=
+  legacy_decodeAt_transport_short (transport.restrict (by decide : 9 ≤ 15)) decoded
 
 private theorem decodeAddressAt_refines {source destination : State} (modrm : Byte)
     (transport : SuccessfulFetchTransport source destination) :
@@ -97,6 +103,40 @@ private theorem decodeCmpMemImm8At_refines {source destination : State}
     cases address <;> simp only [Address.suffixBytes] <;>
       apply SuccessRefines.bind (by assumption) <;>
       intro immediate <;> exact SuccessRefines.refl _
+
+private theorem decodeCmpRegMem8At_refines {source destination : State} (rex : Byte)
+    (prefixed : Bool) (transport : SuccessfulFetchTransport source destination) :
+    SuccessRefines (decodeCmpRegMem8At source rex prefixed)
+      (decodeCmpRegMem8At destination rex prefixed) := by
+  have t1 := transport 1 (by decide)
+  have t2 := transport 2 (by decide)
+  cases prefixed <;> unfold decodeCmpRegMem8At <;>
+    repeat first
+      | with_reducible exact SuccessRefines.refl _
+      | exact t1
+      | exact t2
+      | with_reducible exact decodeAddressAt_refines _ transport
+      | with_reducible exact decodeQWordAddressAt_refines _ _ transport
+      | apply SuccessRefines.ite
+      | apply SuccessRefines.bind
+      | intro value
+
+private theorem decodeMovImm32At_refines {source destination : State} (opcode : Byte)
+    (transport : SuccessfulFetchTransport source destination) :
+    SuccessRefines (decodeMovImm32At source opcode) (decodeMovImm32At destination opcode) := by
+  have t1 := transport 1 (by decide)
+  have t2 := transport 2 (by decide)
+  have t3 := transport 3 (by decide)
+  have t4 := transport 4 (by decide)
+  unfold decodeMovImm32At
+  repeat first
+    | with_reducible exact SuccessRefines.refl _
+    | exact t1
+    | exact t2
+    | exact t3
+    | exact t4
+    | apply SuccessRefines.bind
+    | intro value
 
 private theorem decodeCmpMemRegAt_refines {source destination : State} (byteWidth : Bool)
     (transport : SuccessfulFetchTransport source destination) :
@@ -352,7 +392,7 @@ private theorem decode0FREX32At_refines {source destination : State} (rex : Byte
 
 private theorem fetchExactAt_refines {source destination : State} (bytes : List Byte)
     (transport : SuccessfulFetchTransport source destination) (offset : Nat)
-    (bound : offset + bytes.length ≤ 9) :
+    (bound : offset + bytes.length ≤ 15) :
     SuccessRefines (fetchExactAt source offset bytes) (fetchExactAt destination offset bytes) := by
   induction bytes generalizing offset with
   | nil => exact SuccessRefines.refl _
@@ -373,18 +413,37 @@ private theorem decodePaddingAt_refines {source destination : State} (opcode : B
   have t4 := transport 4 (by decide)
   have exactSix := fetchExactAt_refines [0, 0] transport 4 (by decide)
   have exactNine := fetchExactAt_refines [0, 0, 0, 0, 0] transport 4 (by decide)
+  have exactFifteen := fetchExactAt_refines
+    [0x66, 0x66, 0x66, 0x66, 0x2e, 0x0f, 0x1f, 0x84, 0, 0, 0, 0, 0] transport 2 (by decide)
   unfold decodePaddingAt
-  repeat first
-    | with_reducible exact SuccessRefines.refl _
-    | exact t1
-    | exact t2
-    | exact t3
-    | exact t4
-    | exact exactSix
-    | exact exactNine
-    | apply SuccessRefines.ite
-    | apply SuccessRefines.bind
-    | intro value
+  apply SuccessRefines.ite
+  · exact SuccessRefines.refl _
+  · apply SuccessRefines.bind t1
+    intro second
+    apply SuccessRefines.ite
+    · apply SuccessRefines.ite
+      · exact SuccessRefines.refl _
+      · apply SuccessRefines.ite
+        · apply SuccessRefines.bind exactFifteen
+          intro completed
+          exact SuccessRefines.refl _
+        · repeat first
+            | exact t2
+            | exact t3
+            | exact exactSix
+            | exact exactNine
+            | with_reducible exact SuccessRefines.refl _
+            | apply SuccessRefines.ite
+            | apply SuccessRefines.bind
+            | intro value
+    · repeat first
+        | exact t2
+        | exact t3
+        | exact t4
+        | with_reducible exact SuccessRefines.refl _
+        | apply SuccessRefines.ite
+        | apply SuccessRefines.bind
+        | intro value
 
 private theorem decode0F32At_refines {source destination : State}
     (transport : SuccessfulFetchTransport source destination) :
@@ -426,10 +485,12 @@ theorem decodeNewAt_transport {source destination : State} {instruction : Instru
       | with_reducible exact decodeAddressAt_refines _ transport
       | with_reducible exact decodeCmpMemImm8At_refines transport
       | with_reducible exact decodeCmpMemRegAt_refines _ transport
+      | with_reducible exact decodeCmpRegMem8At_refines _ _ transport
       | with_reducible exact decodeREXWAt_refines _ transport
       | with_reducible exact decodeCompare32At_refines _ _ _ transport
       | with_reducible exact decodeCmov32At_refines _ _ transport
       | with_reducible exact decodeMovImm8At_refines _ _ _ transport
+      | with_reducible exact decodeMovImm32At_refines _ transport
       | with_reducible exact decode0FREX32At_refines _ transport
       | with_reducible exact decodeCmpReg8At_refines _ _ _ transport
       | with_reducible exact decodeSubReg32At_refines _ _ _ transport
@@ -483,8 +544,11 @@ private theorem batchOpcode_cases (opcode : Byte) : BatchOpcode opcode ↔
     omega
   simp only [BatchOpcode, byteCases, rex32Prefix_eq_true, or_assoc, BitVec.ofNat_eq_ofNat]
 
+private def MissingMovImm32Opcode (opcode : Byte) : Prop :=
+  opcode = 0xb9#8 ∨ opcode = 0xbb#8 ∨ opcode = 0xbc#8 ∨ opcode = 0xbd#8
+
 private def NewOpcode (opcode : Byte) : Prop :=
-  opcode = 0x31#8 ∨ opcode = 0x03#8 ∨ opcode = 0x74#8 ∨ opcode = 0xeb#8 ∨
+  MissingMovImm32Opcode opcode ∨ opcode = 0x31#8 ∨ opcode = 0x03#8 ∨ opcode = 0x74#8 ∨ opcode = 0xeb#8 ∨
     rexWPrefix opcode = true ∨ NewJccOpcode opcode ∨ BatchOpcode opcode
 
 private def SharedOpcode (opcode : Byte) : Prop := opcode = 0x89#8 ∨ opcode = 0x8b#8 ∨ opcode = 0x0f#8 ∨ opcode = 0x83#8
@@ -500,19 +564,22 @@ private theorem decodeNewAt_opcode {state : State} {instruction : Instruction} {
     by_cases supported : NewOpcode opcode ∨ SharedOpcode opcode
     · exact supported
     · simp only [NewOpcode, SharedOpcode, not_or] at supported
-      rcases supported with ⟨⟨h31, h03, h74, heb, hrex, hjcc, hbatch⟩, h89, h8b, h0f, h83⟩
+      rcases supported with ⟨⟨hMissing, h31, h03, h74, heb, hrex, hjcc, hbatch⟩, h89, h8b, h0f, h83⟩
+      simp only [MissingMovImm32Opcode, not_or] at hMissing
+      rcases hMissing with ⟨hb9,hbb,hbc,hbd⟩
       rw [rexWPrefix_eq_true] at hrex
       simp only [BatchOpcode, not_or] at hbatch
       rcases hbatch with ⟨himm8, h33, h80, h38, h3a, h29, h2b, hf7, hff, ⟨h39, h3b, h85⟩, h32, h90, h66, hf3⟩
       rw [rex32Prefix_eq_true] at h32
       change ¬(0x70 ≤ opcode.toNat ∧ opcode.toNat ≤ 0x7f ∧ opcode ≠ 0x75#8) at hjcc
       simp [decodeNewAt, fetched, himm8, h33, h80, h38, h3a, h29, h2b, hf7, hff, h39, h3b, h85, h32, h90, h66, hf3, h0f, h83,
-        h31, h03, h74, heb, hrex, h89, h8b, hjcc] at decoded
+        hb9, hbb, hbc, hbd, h31, h03, h74, heb, hrex, h89, h8b, hjcc] at decoded
 
 private theorem old_rejects_new_opcode {state : State} {opcode : Byte}
     (fetched : fetchByte state.memory state.rip = .ok opcode) (newOpcode : NewOpcode opcode) :
     X86.decodeAt state = .error (.unsupportedOpcode opcode) := by
-  rcases newOpcode with rfl | rfl | rfl | rfl | rex | jcc | batch
+  rcases newOpcode with missing | rfl | rfl | rfl | rfl | rex | jcc | batch
+  · rcases missing with rfl | rfl | rfl | rfl <;> simp [X86.decodeAt, fetched]
   · simp [X86.decodeAt, fetched]
   · simp [X86.decodeAt, fetched]
   · simp [X86.decodeAt, fetched]
@@ -530,21 +597,20 @@ private theorem decodeNewAt_fallback_irrelevant {state : State} {opcode : Byte}
     (fetched : fetchByte state.memory state.rip = .ok opcode)
     (newOpcode : NewOpcode opcode ∨ SharedOpcode opcode)
     (left right : Error) : decodeNewAt state left = decodeNewAt state right := by
+  simp only [decodeNewAt, fetched, ok_bind]
   rcases newOpcode with old | mov
-  · rcases old with rfl | rfl | rfl | rfl | rex | jcc | batch
-    · simp [decodeNewAt, fetched]
-    · simp [decodeNewAt, fetched]
-    · simp [decodeNewAt, fetched]
-    · simp [decodeNewAt, fetched]
-    · rcases (rexWPrefix_eq_true _).mp rex with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
-        simp [decodeNewAt, fetched]
+  · rcases old with missing | rfl | rfl | rfl | rfl | rex | jcc | batch
+    · rcases missing with rfl | rfl | rfl | rfl <;> rfl
+    · rfl
+    · rfl
+    · rfl
+    · rfl
+    · rcases (rexWPrefix_eq_true _).mp rex with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
     · rcases (newJccOpcode_cases opcode).mp jcc with
-        rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
-          simp [decodeNewAt, fetched]
+        rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
     · rcases (batchOpcode_cases opcode).mp batch with
-        rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
-          simp [decodeNewAt, fetched]
-  · rcases mov with rfl | rfl | rfl | rfl <;> simp [decodeNewAt, fetched]
+        rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+  · rcases mov with rfl | rfl | rfl | rfl <;> rfl
 
 /-- MOV overlaps the legacy ModRM cases, and 0F overlaps SYSCALL. Their
 second byte, supplied by successful new decoding, selects the legacy result. -/
@@ -582,7 +648,7 @@ private theorem legacy_shared_decode_congr {source destination : State} {opcode 
   · simp [X86.decodeAt, sourceOpcode, destinationOpcode, sourceModrm, destinationModrm, notCmp rfl]
 
 /-- Transfer ANY successful decode to any memory/base preserving its successful
-fetches at offsets below nine. The legacy-first selection remains unchanged,
+fetches at offsets below fifteen. The legacy-first selection remains unchanged,
 including legacy LEA successes. No equality, readability, or permission premise
 is imposed on unsuccessful source fetches, including bytes beyond a final RET. -/
 theorem decodeAt_transport {source destination : State} {instruction : Instruction}

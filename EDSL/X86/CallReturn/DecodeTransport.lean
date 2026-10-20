@@ -9,6 +9,8 @@ namespace EDSL.X86.CallReturn
 
 variable {α β : Type}
 
+/-- Shared success-only extent includes every NOP15 byte, never a following
+byte. Sequential.Code supplies it using the explicit profile's no-wrap proof. -/
 abbrev SuccessfulFetchTransport := Sequential.SuccessfulFetchTransport
 
 private abbrev SuccessRefines (source destination : Except Error α) : Prop :=
@@ -119,6 +121,10 @@ private theorem sequential_rex_stack {state : State} {opcode : Byte}
   have notImm8 : ¬(0xb0 ≤ opcode.toNat ∧ opcode.toNat ≤ 0xb7) := by omega
   rw [Sequential.decodeAt, legacy_rejects_rex_stack fetched lower upper]
   simp [Sequential.decodeNewAt, fetched, notImm8, notJcc, no32,
+    outside (by decide : 0xb9 < 256) (by decide),
+    outside (by decide : 0xbb < 256) (by decide),
+    outside (by decide : 0xbc < 256) (by decide),
+    outside (by decide : 0xbd < 256) (by decide),
     outside (by decide : 0xf7 < 256) (by decide),
     outside (by decide : 0xff < 256) (by decide),
     outside (by decide : 0x83 < 256) (by decide),
@@ -274,7 +280,7 @@ theorem decodeNewAt_admitted {state : State} {fallback : Error} {instruction : I
   · rw [decodeAt, rejected]
     exact decodeNewAt_transport _ _ (fun _ _ _ h => h) decoded
 
-/-- Any successful decode transfers on its actual successful fetches below nine;
+/-- Any successful decode transfers on its actual successful fetches below fifteen;
 bytes after a final RET impose no premise. Sequential successes pass through the
 same compatibility mapping at the destination. -/
 theorem decodeAt_transport {source destination : State} {instruction : Instruction}

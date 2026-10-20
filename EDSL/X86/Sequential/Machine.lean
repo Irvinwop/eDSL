@@ -17,7 +17,7 @@ def Instruction.operandReads (instruction : Instruction) (state : State) : List 
     [⟨.data, state.registers .rdi, 4⟩]
   | .legacy .loadEaxRsi => [⟨.data, state.registers .rsi, 4⟩]
   | .loadMem32 _ address | .addMem32 _ address | .cmpMemReg32 address _ => [⟨.data, address.eval state, 4⟩]
-  | .cmpMemImm8 address _ | .cmpMemReg8 address _ | .movzxMem8 _ address _ =>
+  | .cmpMemImm8 address _ | .cmpMemReg8 address _ | .cmpRegMem8 _ address _ | .movzxMem8 _ address _ =>
     [⟨.data, address.eval state, 1⟩]
   | .loadMem64 _ address | .addMem64 _ address => [⟨.data, address.eval state, 8⟩]
   | _ => []
@@ -156,6 +156,11 @@ def execute (state : State) (instruction : Instruction) (af : Bool) : Except Err
     return ⟨.next { state with
       rip := state.rip + BitVec.ofNat 64 instruction.length
       flags := cmpFlags8 state.flags value ((state.registers source).setWidth 8) }, reads⟩
+  | .cmpRegMem8 left address _ =>
+    let value ← readDataByte state.memory (address.eval state)
+    return ⟨.next { state with
+      rip := state.rip + BitVec.ofNat 64 instruction.length
+      flags := cmpFlags8 state.flags ((state.registers left).setWidth 8) value }, reads⟩
   | .cmpMemReg32 address source =>
     let value ← loadDWord state.memory (address.eval state)
     return ⟨.next { state with
@@ -446,6 +451,41 @@ theorem execute_cmpMemReg8_context {state final : State} {address : Address} {so
       observation.reads = [⟨.data, address.eval state, 1⟩] ∧
       final.rip = state.rip + BitVec.ofNat 64 (Instruction.cmpMemReg8 address source).length := by
   obtain ⟨value, _, rfl⟩ := execute_cmpMemReg8_success_iff.mp success
+  cases next
+  exact ⟨rfl, rfl, cmpFlags8_preserves .., rfl, rfl⟩
+
+/-- Register-left LOW8 comparison with precisely one checked DATA1 access.
+No destination write occurs; even the address and left-register aliases refer
+to the original state. Prefix metadata affects only instruction length. -/
+theorem execute_cmpRegMem8 (state : State) (left : Register) (address : Address)
+    (prefixed af : Bool) :
+    execute state (.cmpRegMem8 left address prefixed) af = do
+      let value ← readDataByte state.memory (address.eval state)
+      return ⟨.next { state with
+        rip := state.rip + BitVec.ofNat 64 (Instruction.cmpRegMem8 left address prefixed).length
+        flags := cmpFlags8 state.flags ((state.registers left).setWidth 8) value },
+        [⟨.data, address.eval state, 1⟩]⟩ := rfl
+
+theorem execute_cmpRegMem8_success_iff {state : State} {left : Register} {address : Address}
+    {prefixed af : Bool} {observation : Observation} :
+    execute state (.cmpRegMem8 left address prefixed) af = .ok observation ↔
+      ∃ value, readDataByte state.memory (address.eval state) = .ok value ∧
+        observation = ⟨.next { state with
+          rip := state.rip + BitVec.ofNat 64 (Instruction.cmpRegMem8 left address prefixed).length
+          flags := cmpFlags8 state.flags ((state.registers left).setWidth 8) value },
+          [⟨.data, address.eval state, 1⟩]⟩ := by
+  rw [execute_cmpRegMem8]
+  cases loaded : readDataByte state.memory (address.eval state) <;> simp [eq_comm]
+
+theorem execute_cmpRegMem8_context {state final : State} {left : Register} {address : Address}
+    {prefixed af : Bool} {observation : Observation}
+    (success : execute state (.cmpRegMem8 left address prefixed) af = .ok observation)
+    (next : observation.result = .next final) :
+    final.registers = state.registers ∧ final.memory = state.memory ∧
+      final.flags &&& ~~~arithmeticFlagMask = state.flags &&& ~~~arithmeticFlagMask ∧
+      observation.reads = [⟨.data, address.eval state, 1⟩] ∧
+      final.rip = state.rip + BitVec.ofNat 64 (Instruction.cmpRegMem8 left address prefixed).length := by
+  obtain ⟨value, _, rfl⟩ := execute_cmpRegMem8_success_iff.mp success
   cases next
   exact ⟨rfl, rfl, cmpFlags8_preserves .., rfl, rfl⟩
 
@@ -932,7 +972,7 @@ theorem execute_storeIntent {state : State} {instruction : Instruction} {address
   | addImm32 _ _ _ | inc32 _ _
   | negReg32 _ _ | bswapReg64 _ | shrOne64 _ | rolCL64 _
   | movzxMem8 _ _ _ | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _
-  | movReg32 _ _ | movReg64 _ _ | setcc _ _ _ | movImm8 _ _ _ | movSignImm32 _ _ | cmovReg32 _ _ _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | logicalReg64 _ _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | loadMem64 _ _ | storeMem64 _ _ | xorSelf32 _ | test32 _ _ _ | cmp32 _ _ _ | endbr64IbtDisabled | nop _ | test64 _ _ | cmp64 _ _ | cmpMemImm8 _ _ | cmpMemReg8 _ _ | cmpMemReg32 _ _ | addMem32 _ _ | addMem64 _ _
+  | movReg32 _ _ | movReg64 _ _ | setcc _ _ _ | movImm8 _ _ _ | movSignImm32 _ _ | cmovReg32 _ _ _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | logicalReg64 _ _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | loadMem64 _ _ | storeMem64 _ _ | xorSelf32 _ | test32 _ _ _ | cmp32 _ _ _ | endbr64IbtDisabled | nop _ | test64 _ _ | cmp64 _ _ | cmpMemImm8 _ _ | cmpRegMem8 _ _ _ | cmpMemReg8 _ _ | cmpMemReg32 _ _ | addMem32 _ _ | addMem64 _ _
   | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ =>
     simp [Instruction.storeIntent] at intent
 
@@ -1219,6 +1259,9 @@ theorem execute_reads {state : State} {instruction : Instruction} {af : Bool}
     cases loaded : readDataByte state.memory (address.eval state) <;> simp [execute, loaded] at success
     cases success
     rfl
+  | cmpRegMem8 left address prefixed =>
+    obtain ⟨value, _, rfl⟩ := execute_cmpRegMem8_success_iff.mp success
+    rfl
   | cmpMemReg8 address source =>
     obtain ⟨value, _, rfl⟩ := execute_cmpMemReg8_success_iff.mp success
     rfl
@@ -1345,6 +1388,12 @@ theorem execute_reads_succeed {state : State} {instruction : Instruction} {af : 
       simp only [Instruction.operandReads, List.mem_singleton] at member
       subst read
       exact ⟨value, loaded⟩
+  | cmpRegMem8 left address prefixed =>
+    obtain ⟨value, loaded, _⟩ := execute_cmpRegMem8_success_iff.mp success
+    intro read member
+    simp only [Instruction.operandReads, List.mem_singleton] at member
+    subst read
+    exact ⟨value, loaded⟩
   | cmpMemReg8 address source =>
     obtain ⟨value, loaded, _⟩ := execute_cmpMemReg8_success_iff.mp success
     intro read member
@@ -1397,6 +1446,8 @@ theorem execute_new_memory {state final : State} {instruction : Instruction} {af
   | legacy old => simp [Instruction.isNew] at newInstruction
   | cmpMemImm8 address immediate =>
     exact (execute_cmpMemImm8_context success next).2.1
+  | cmpRegMem8 left address prefixed =>
+    exact (execute_cmpRegMem8_context success next).2.1
   | cmpMemReg8 address source =>
     exact (execute_cmpMemReg8_context success next).2.1
   | cmpMemReg32 address source =>
@@ -1497,6 +1548,9 @@ theorem execute_new_next {state : State} {instruction : Instruction} {af : Bool}
   | legacy old => simp [Instruction.isNew] at newInstruction
   | cmpMemImm8 address immediate =>
     obtain ⟨value, _, rfl⟩ := execute_cmpMemImm8_success_iff.mp success
+    exact ⟨_, rfl⟩
+  | cmpRegMem8 left address prefixed =>
+    obtain ⟨value, _, rfl⟩ := execute_cmpRegMem8_success_iff.mp success
     exact ⟨_, rfl⟩
   | cmpMemReg8 address source =>
     obtain ⟨value, _, rfl⟩ := execute_cmpMemReg8_success_iff.mp success
@@ -1604,6 +1658,8 @@ theorem execute_new_flags {state final : State} {instruction : Instruction} {af 
   | legacy old => simp [Instruction.isNew] at newInstruction
   | cmpMemImm8 address immediate =>
     exact (execute_cmpMemImm8_context success next).2.2.1
+  | cmpRegMem8 left address prefixed =>
+    exact (execute_cmpRegMem8_context success next).2.2.1
   | cmpMemReg8 address source =>
     exact (execute_cmpMemReg8_context success next).2.2.1
   | cmpMemReg32 address source =>
