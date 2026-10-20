@@ -44,34 +44,34 @@ def initial (file : List Byte) (input : FunctionInput) (caller : Caller) :
   returnAddress := caller.returnAddress
 
 /-- This helper only packages the existing named-file and freshness checks. -/
-theorem admitted {file name : List Byte} {input : FunctionInput} {caller : Caller}
-    (checked : input.check file name = true)
+theorem admittedWith {maxBytes : Nat} {file name : List Byte} {input : FunctionInput} {caller : Caller}
+    (checked : input.checkWith maxBytes file name = true)
     (fresh : ELF.fresh input.table.image caller.prior = true) :
-    input.admit file name caller.prior = .ok (loaded file input caller) := by
-  have named : ELF.FunctionSymbol.check file input.table input.metadata name
+    input.admitWith maxBytes file name caller.prior = .ok (loaded file input caller) := by
+  have named : ELF.FunctionSymbol.checkWith maxBytes file input.table input.metadata name
       input.function input.bytes = true := checked
-  have window : ELF.FunctionWindow.check file input.table input.function.window input.bytes = true := by
+  have window : ELF.FunctionWindow.checkWith maxBytes file input.table input.function.window input.bytes = true := by
     have parts := named
-    simp only [ELF.FunctionSymbol.check, Bool.and_eq_true] at parts
+    simp only [ELF.FunctionSymbol.checkWith, Bool.and_eq_true] at parts
     exact parts.2
-  simp only [FunctionInput.admit, ELF.FunctionSymbol.admit, named, ELF.FunctionWindow.admit,
+  simp only [FunctionInput.admitWith, ELF.FunctionSymbol.admitWith, named, ELF.FunctionWindow.admitWith,
     window, fresh, loaded, ↓reduceIte]
 
 /-- Every readable prior stack cell survives fresh installation, including its
 permissions. This theorem transports present data rather than reevaluating a
 large literal image at each stack byte. -/
-theorem stack_cells {file name : List Byte} {input : FunctionInput} {caller : Caller}
-    (checked : input.check file name = true)
+theorem stack_cellsWith {maxBytes : Nat} {file name : List Byte} {input : FunctionInput} {caller : Caller}
+    (checked : input.checkWith maxBytes file name = true)
     (fresh : ELF.fresh input.table.image caller.prior = true)
     (facts : caller.Facts) (address : Word) (inside : caller.region.Contains address) :
     ∃ cell, (loaded file input caller).space.cells address = some cell ∧
       caller.prior.cells address = some cell ∧ cell.permissions.readable = true := by
   obtain ⟨cell, found, readable⟩ := Borrowing.allReadable_inside _ _ facts.readable address inside
-  have keep := (ELF.FunctionSymbol.admitted_sound (admitted checked fresh)).2.2.2.2.2
+  have keep := (ELF.FunctionSymbol.admitted_soundWith (admittedWith checked fresh)).2.2.2.2.2
   exact ⟨cell, keep address cell found, found, readable⟩
 
-theorem stack_agrees {file name : List Byte} {input : FunctionInput} {caller : Caller}
-    (checked : input.check file name = true)
+theorem stack_agreesWith {maxBytes : Nat} {file name : List Byte} {input : FunctionInput} {caller : Caller}
+    (checked : input.checkWith maxBytes file name = true)
     (fresh : ELF.fresh input.table.image caller.prior = true) (facts : caller.Facts) :
     MemoryAgreesOn (toMemory (loaded file input caller).space) (toMemory caller.prior)
       caller.stack 8 := by
@@ -83,18 +83,18 @@ theorem stack_agrees {file name : List Byte} {input : FunctionInput} {caller : C
     simp only [Caller.region, Region.Contains, BitVec.toNat_add, BitVec.toNat_ofNat,
       Nat.mod_eq_of_lt small, Nat.mod_eq_of_lt total]
     omega
-  obtain ⟨cell, now, prior, _⟩ := stack_cells checked fresh facts _ inside
+  obtain ⟨cell, now, prior, _⟩ := stack_cellsWith checked fresh facts _ inside
   simp only [toMemory, now, prior]
 
 /-- Generic actual-address resource witness. The caller/code interval separation
 is explicit. Authority is the existing NEW modeled initial registry, with no
 preexisting/native loans inferred or transported. -/
-theorem initial_facts {file name : List Byte} {input : FunctionInput} {caller : Caller}
-    (checked : input.check file name = true)
+theorem initial_factsWith {maxBytes : Nat} {file name : List Byte} {input : FunctionInput} {caller : Caller}
+    (checked : input.checkWith maxBytes file name = true)
     (fresh : ELF.fresh input.table.image caller.prior = true) (facts : caller.Facts)
     (separate : Ownership.Disjoint ⟨input.function.window.base, input.bytes.length⟩ caller.region) :
     CallResources.Domain.Facts (initial file input caller) := by
-  have sound := ELF.FunctionSymbol.admitted_sound (admitted checked fresh)
+  have sound := ELF.FunctionSymbol.admitted_soundWith (admittedWith checked fresh)
   have bounds := sound.2.2.2.1.bounds
   have code := sound.2.2.2.2.1
   have addressBound : input.function.window.address < 2^64 := by
@@ -108,8 +108,36 @@ theorem initial_facts {file name : List Byte} {input : FunctionInput} {caller : 
     ?_, code, ?_, facts.returnCanonical, facts.stackBound, facts.postStackCanonical⟩
   · apply CallResources.Domain.allReadable_of_cells _ _ facts.valid
     intro address inside
-    obtain ⟨cell, now, _, readable⟩ := stack_cells checked fresh facts address inside
+    obtain ⟨cell, now, _, readable⟩ := stack_cellsWith checked fresh facts address inside
     exact ⟨cell, now, readable⟩
-  · exact (readWord_congr _ _ _ (stack_agrees checked fresh facts)).trans facts.stack
+  · exact (readWord_congr _ _ _ (stack_agreesWith checked fresh facts)).trans facts.stack
+
+theorem admitted {file name : List Byte} {input : FunctionInput} {caller : Caller}
+    (checked : input.check file name = true)
+    (fresh : ELF.fresh input.table.image caller.prior = true) :
+    input.admit file name caller.prior = .ok (loaded file input caller) :=
+  admittedWith checked fresh
+
+theorem stack_cells {file name : List Byte} {input : FunctionInput} {caller : Caller}
+    (checked : input.check file name = true)
+    (fresh : ELF.fresh input.table.image caller.prior = true)
+    (facts : caller.Facts) (address : Word) (inside : caller.region.Contains address) :
+    ∃ cell, (loaded file input caller).space.cells address = some cell ∧
+      caller.prior.cells address = some cell ∧ cell.permissions.readable = true :=
+  stack_cellsWith checked fresh facts address inside
+
+theorem stack_agrees {file name : List Byte} {input : FunctionInput} {caller : Caller}
+    (checked : input.check file name = true)
+    (fresh : ELF.fresh input.table.image caller.prior = true) (facts : caller.Facts) :
+    MemoryAgreesOn (toMemory (loaded file input caller).space) (toMemory caller.prior)
+      caller.stack 8 :=
+  stack_agreesWith checked fresh facts
+
+theorem initial_facts {file name : List Byte} {input : FunctionInput} {caller : Caller}
+    (checked : input.check file name = true)
+    (fresh : ELF.fresh input.table.image caller.prior = true) (facts : caller.Facts)
+    (separate : Ownership.Disjoint ⟨input.function.window.base, input.bytes.length⟩ caller.region) :
+    CallResources.Domain.Facts (initial file input caller) :=
+  initial_factsWith checked fresh facts separate
 
 end EDSL.ELF.CallerResources

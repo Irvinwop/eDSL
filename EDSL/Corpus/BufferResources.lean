@@ -30,16 +30,16 @@ elab "buffer_resource_kernel_rfl" : tactic => do
 def installed (file : List Byte) (input : FunctionInput) : ELF.Loaded :=
   ELFResources.loaded file input ⟨empty, 0, 0, 0, 0, 0⟩
 
-theorem admitted {file name : List Byte} {input : FunctionInput}
-    (checked : input.check file name = true) :
-    input.admit file name empty = .ok (installed file input) := by
+theorem admittedWith {maxBytes : Nat} {file name : List Byte} {input : FunctionInput}
+    (checked : input.checkWith maxBytes file name = true) :
+    input.admitWith maxBytes file name empty = .ok (installed file input) := by
   have fresh : ELF.fresh input.table.image empty = true := by
     apply List.all_eq_true.mpr
     intro segment _
     apply List.all_eq_true.mpr
     intro address _
     rfl
-  exact ELFResources.admitted (caller := ⟨empty, 0, 0, 0, 0, 0⟩) checked fresh
+  exact ELFResources.admittedWith (caller := ⟨empty, 0, 0, 0, 0, 0⟩) checked fresh
 
 private theorem segmentCell_permissions (file : List Byte) (segment : ELF.Segment)
     (address : Nat) (cell : AddressSpace.Cell)
@@ -56,14 +56,14 @@ private theorem segmentCell_permissions (file : List Byte) (segment : ELF.Segmen
   · cases Option.some.inj found
     rfl
 
-theorem installed_cell {file name : List Byte} {input : FunctionInput}
-    (checked : input.check file name = true)
+theorem installed_cellWith {maxBytes : Nat} {file name : List Byte} {input : FunctionInput}
+    (checked : input.checkWith maxBytes file name = true)
     (permissions : ∀ segment ∈ input.table.image.segments,
       segment.permissions.executable = true → segment.permissions = readExecute)
     (index : Nat) (bound : index < input.bytes.length) :
     (installed file input).space.cells (input.function.window.base + BitVec.ofNat 64 index) =
       some ⟨input.bytes[index], readExecute⟩ := by
-  have code := (ELF.FunctionSymbol.admitted_sound (admitted checked)).2.2.2.2.1
+  have code := (ELF.FunctionSymbol.admitted_soundWith (admittedWith checked)).2.2.2.2.1
   have fetched := code.2 index input.bytes[index] (List.getElem?_eq_getElem bound)
   let address := input.function.window.base + BitVec.ofNat 64 index
   change fetchByte (toMemory (installed file input).space) address = .ok _ at fetched
@@ -98,8 +98,8 @@ def programSpace (file : List Byte) (input : FunctionInput) : Space where
       some ⟨(input.bytes[address.toNat - input.function.window.base.toNat]?).getD 0, readExecute⟩
     else (installed file input).space.cells address
 
-theorem programSpace_eq {file name : List Byte} {input : FunctionInput}
-    (checked : input.check file name = true)
+theorem programSpace_eqWith {maxBytes : Nat} {file name : List Byte} {input : FunctionInput}
+    (checked : input.checkWith maxBytes file name = true)
     (permissions : ∀ segment ∈ input.table.image.segments,
       segment.permissions.executable = true → segment.permissions = readExecute) :
     programSpace file input = (installed file input).space := by
@@ -119,7 +119,7 @@ theorem programSpace_eq {file name : List Byte} {input : FunctionInput}
       apply BitVec.eq_of_toNat_eq
       simp only [BitVec.toNat_add, BitVec.toNat_ofNat, Nat.mod_eq_of_lt small, sum,
         Nat.mod_eq_of_lt address.isLt]
-    have original := installed_cell checked permissions offset bound
+    have original := installed_cellWith checked permissions offset bound
     rw [same] at original
     change (if _ then some (⟨_, readExecute⟩ : AddressSpace.Cell) else _) = _
     change (if (input.function.window.base.toNat ≤ address.toNat ∧
@@ -130,6 +130,27 @@ theorem programSpace_eq {file name : List Byte} {input : FunctionInput}
     rw [List.getElem?_eq_getElem bound, Option.getD_some]
   · change (if _ then some (⟨_, readExecute⟩ : AddressSpace.Cell) else _) = _
     rw [ite_eq_right inside]
+
+theorem admitted {file name : List Byte} {input : FunctionInput}
+    (checked : input.check file name = true) :
+    input.admit file name empty = .ok (installed file input) :=
+  admittedWith checked
+
+theorem installed_cell {file name : List Byte} {input : FunctionInput}
+    (checked : input.check file name = true)
+    (permissions : ∀ segment ∈ input.table.image.segments,
+      segment.permissions.executable = true → segment.permissions = readExecute)
+    (index : Nat) (bound : index < input.bytes.length) :
+    (installed file input).space.cells (input.function.window.base + BitVec.ofNat 64 index) =
+      some ⟨input.bytes[index], readExecute⟩ :=
+  installed_cellWith checked permissions index bound
+
+theorem programSpace_eq {file name : List Byte} {input : FunctionInput}
+    (checked : input.check file name = true)
+    (permissions : ∀ segment ∈ input.table.image.segments,
+      segment.permissions.executable = true → segment.permissions = readExecute) :
+    programSpace file input = (installed file input).space :=
+  programSpace_eqWith checked permissions
 
 structure Managed where
   shared : Borrowing.State

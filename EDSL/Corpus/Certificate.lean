@@ -17,11 +17,16 @@ abbrev FunctionInput.table (input : FunctionInput) := ELF.FunctionInput.table in
 abbrev FunctionInput.metadata (input : FunctionInput) := ELF.FunctionInput.metadata input
 abbrev FunctionInput.function (input : FunctionInput) := ELF.FunctionInput.function input
 abbrev FunctionInput.bytes (input : FunctionInput) := ELF.FunctionInput.bytes input
+abbrev FunctionInput.checkWith (maxBytes : Nat) (input : FunctionInput) (file name : List Byte) : Bool :=
+  ELF.FunctionInput.checkWith maxBytes input file name
+abbrev FunctionInput.admitWith (maxBytes : Nat) (input : FunctionInput) (file name : List Byte)
+    (prior : Space) : Except ELF.Error ELF.Loaded :=
+  ELF.FunctionInput.admitWith maxBytes input file name prior
 abbrev FunctionInput.check (input : FunctionInput) (file name : List Byte) : Bool :=
   ELF.FunctionInput.check input file name
 abbrev FunctionInput.admit (input : FunctionInput) (file name : List Byte) (prior : Space) :
     Except ELF.Error ELF.Loaded :=
-  ELF.FunctionInput.admit input file name prior
+  FunctionInput.admitWith 64 input file name prior
 
 namespace FunctionInput
 export ELF.FunctionInput (rec recOn casesOn noConfusionType noConfusion ctorIdx)
