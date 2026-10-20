@@ -5,6 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 import EDSL.Grading.ByteScan
 import EDSL.Grading.IndexSearch
 import EDSL.Grading.ByteComparison
+import EDSL.Grading.ByteEquality
 
 set_option autoImplicit false
 set_option warningAsError true
@@ -28,6 +29,8 @@ inductive TaskID where
   | memchrIndex
   | linearSearchU32
   | lexicographicBytes
+  /-- Exact list equality as canonical low8 zero/one; upper56 RAX is free. -/
+  | equalBytes
   deriving DecidableEq, Repr
 
 /-- A generic BufferCall.Spec record cannot enforce independence of its fields.
@@ -39,6 +42,7 @@ def registeredSpec : TaskID → BufferCall.Spec
   | .memchrIndex => IndexSearch.byteSpec
   | .linearSearchU32 => IndexSearch.u32Spec
   | .lexicographicBytes => ByteComparison.spec
+  | .equalBytes => ByteEquality.spec
 
 /-- Reuse the exact current-resource adapter and its versioned
 sequentialReadOnlyX86CallableV1 profile, including original caller authority,
