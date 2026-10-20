@@ -312,7 +312,7 @@ private theorem issue_labels {target cell} {before : FetchAddCalls64.CheckedStat
     subst final
     simp [FetchAddCalls64.targetEvent, FetchAddCalls64.returnValue,
       ownEvent, forId, pointEvents, returnedEvents, running]
-  | @rmw tid af issuing instruction identifier output machine originLive running code caller fetched bounds empty grant effect =>
+  | @rmw tid af issuing instruction identifier output machine _ originLive running code caller fetched bounds empty grant effect =>
     have finalEq := installed_worker originLive finalLive
     subst final
     have targetEq := selected output.2 (by simp [ownEvent])
@@ -336,7 +336,7 @@ private theorem peer_labels {target cell} {before : FetchAddCalls64.CheckedState
         simp [FetchAddCalls64.targetEvent, FetchAddCalls64.returnValue, TSO64.install,
           (List.getElem_of_getElem? live).1, forId, Linearizability.Event.id, Ne.symm different]
   | blocked => rfl
-  | @rmw thread af worker instruction identifier output machine live running code caller fetched bounds empty grant effect =>
+  | @rmw thread af worker instruction identifier output machine _ live running code caller fetched bounds empty grant effect =>
     by_cases selected : output.2.cell = target
     · simp [FetchAddCalls64.targetEvent, selected, forId, FetchAddCalls64.call,
         Linearizability.Event.id, Ne.symm different]
@@ -487,7 +487,7 @@ private theorem label_closed {target cell} {before after : FetchAddCalls64.Check
         subst event
         exact (List.getElem_of_getElem? live).1
   | blocked => cases member
-  | @rmw thread af worker instruction identifier output machine live running code caller fetched bounds empty grant effect =>
+  | @rmw thread af worker instruction identifier output machine _ live running code caller fetched bounds empty grant effect =>
     by_cases selected : output.2.cell = target
     · simp only [FetchAddCalls64.targetEvent, selected, ite_true] at member
       have same := List.mem_singleton.mp member

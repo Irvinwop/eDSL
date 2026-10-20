@@ -2,95 +2,15 @@
 Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
-import EDSL.OS.AtomicFetchAddMachine64
-import EDSL.X86.StoreBuffer.Mixed
-import EDSL.X86.Sequential.Return
+import EDSL.OS.TSO64.Queue.Entry
 
 namespace EDSL.OS.TSO64
 open X86 AddressSpace
 
-abbrev World := Atomics64.State
-abbrev Buffer := StoreBuffer.Mixed.Buffer
-abbrev Store := StoreBuffer.Mixed.Store
+abbrev Profile := Queue.Profile
+abbrev Pending := Queue.Entry
 
-/-- A loan identity and its ORIGINAL descriptor. It never follows a changed RSP. -/
-structure Lease where
-  identifier : Nat
-  loan : Borrowing.Loan
-  deriving DecidableEq, Repr
-
-/-- Finite lookup makes this a check of present authority, including epoch. -/
-def OwnsRegion (world : World) (actor : Nat) (ticket : Ownership.Ticket)
-    (region : Region) : Prop :=
-  match world.legacy.shared.resources.allocations ticket.identifier with
-  | none => False
-  | some allocation => allocation.owner = actor ∧ allocation.epoch = ticket.epoch ∧
-      Borrowing.Subregion region allocation.region
-
-instance (world : World) (actor : Nat) (ticket : Ownership.Ticket) (region : Region) :
-    Decidable (OwnsRegion world actor ticket region) := by
-  unfold OwnsRegion
-  split <;> infer_instance
-
-def TicketCurrent (world : World) (actor : Nat) (ticket : Ownership.Ticket) : Bool :=
-  (Ownership.authorize world.legacy.shared.resources actor ticket).isOk
-
-def LeaseCurrent (world : World) (actor : Nat) (lease : Lease) : Prop :=
-  world.legacy.shared.loans lease.identifier = some lease.loan ∧
-  lease.loan.borrower = actor ∧
-  OwnsRegion world lease.loan.lender lease.loan.ticket lease.loan.region ∧
-  lease.loan.region.valid = true ∧
-  Borrowing.allReadable world.legacy.shared.resources.space lease.loan.region = true
-
-instance (world : World) (actor : Nat) (lease : Lease) : Decidable (LeaseCurrent world actor lease) :=
-  inferInstanceAs (Decidable (_ ∧ _ ∧ _ ∧ _ ∧ _))
-
-def published (world : World) : Memory := toMemory world.legacy.shared.resources.space
-
-def operation (actor : Nat) (ticket : Ownership.Ticket) (store : Store) : Ownership.Mutation :=
-  match store.value with
-  | .dword value => .store actor ticket store.address value
-  | .qword value => .store64 actor ticket store.address value
-
-/-- Naturally aligned, non-crossing scalar RAM only. No tearing guarantee is
-silently extended to an unaligned, MMIO, or unsupported address. -/
-def scalar (memory : Memory) (store : Store) : Bool :=
-  match store.value with
-  | .dword _ => atomicAddressable store.address && canStoreDWord memory store.address
-  | .qword _ => atomicAddressable64 store.address && canStoreQWord memory store.address
-
-def dataOnly (memory : Memory) (store : Store) : Bool :=
-  (List.range store.width).all fun offset =>
-    !(memory.executable (store.address + BitVec.ofNat 64 offset))
-
-/-- A Mixed overlay is NOT access authority. The whole allocation must be in
-ordinary mode, without a read loan, and every operand byte must be current RW
-data. The same conservative gate is used for ordinary loads in this profile. -/
-def StoreGate (world : World) (actor : Nat) (ticket : Ownership.Ticket) (store : Store) : Prop :=
-  OwnsRegion world actor ticket ⟨store.address, store.width⟩ ∧
-  scalar (published world) store = true ∧ dataOnly (published world) store = true ∧
-  Atomics64.reserved world ticket.identifier = false ∧
-  Atomics.reserved world.legacy ticket.identifier = false ∧
-  Borrowing.allowed world.legacy.shared (operation actor ticket store) = true
-
-instance (world : World) (actor : Nat) (ticket : Ownership.Ticket) (store : Store) :
-    Decidable (StoreGate world actor ticket store) :=
-  inferInstanceAs (Decidable (_ ∧ _ ∧ _ ∧ _ ∧ _ ∧ _))
-
-structure Resources where
-  actor : Nat
-  code : Lease
-  caller : Lease
-  callerAddress : Word
-  grants : List Ownership.Ticket
-  atomics : List Atomics64.HandleId64
-
-structure Pending where
-  ticket : Ownership.Ticket
-  store : Store
-  deriving DecidableEq, Repr
-
-def payload (pending : List Pending) : Buffer := pending.map Pending.store
+def payload (pending : List Pending) : Buffer := Queue.payload pending
 
 def ResourcesValid (world : World) (resources : Resources) : Prop :=
   LeaseCurrent world resources.actor resources.code ∧
@@ -99,11 +19,12 @@ def ResourcesValid (world : World) (resources : Resources) : Prop :=
   (∀ ticket ∈ resources.grants, TicketCurrent world resources.actor ticket = true) ∧
   (∀ identifier ∈ resources.atomics, (Atomics64.authorize world resources.actor identifier).isOk = true)
 
-def PendingValid (world : World) (resources : Resources) (pending : Pending) : Prop :=
-  pending.ticket ∈ resources.grants ∧ StoreGate world resources.actor pending.ticket pending.store
+def PendingValid (world : World) (resources : Resources) (pending : Pending)
+    (profile : Profile := .ownedOnly) : Prop := Queue.Valid world resources pending profile
 
-instance (world : World) (resources : Resources) (pending : Pending) :
-    Decidable (PendingValid world resources pending) := inferInstanceAs (Decidable (_ ∧ _))
+instance (world : World) (resources : Resources) (pending : Pending) (profile : Profile) :
+    Decidable (PendingValid world resources pending profile) :=
+  inferInstanceAs (Decidable (Queue.Valid world resources pending profile))
 
 /-- Metadata and permissions fixed by this scheduler. No release, protect,
 transfer, enrollment, revocation, loan finishing, or external write action is
@@ -188,8 +109,15 @@ theorem Stable.resources {before after : World} (frame : Stable before after)
     fun identifier member => by rw [frame.authorize]; exact valid.2.2.2.2 identifier member⟩
 
 theorem Stable.pending {before after : World} (frame : Stable before after)
-    {resources : Resources} {pending : Pending} (valid : PendingValid before resources pending) :
-    PendingValid after resources pending := ⟨valid.1, (frame.storeGate _ _ _).mpr valid.2⟩
+    {resources : Resources} {pending : Pending} {profile : Profile}
+    (valid : PendingValid before resources pending profile) :
+    PendingValid after resources pending profile := by
+  cases pending with
+  | ordinary ticket store => exact ⟨valid.1, (frame.storeGate _ _ _).mpr valid.2⟩
+  | managed reference value occurrence =>
+      refine ⟨valid.1, valid.2.1, ?_⟩
+      rw [frame.authorize]
+      exact valid.2.2
 
 theorem fetchAdd_stable {world : World} {actor : Nat} {identifier : Atomics64.HandleId64}
     {delta : Word} {result : World × Atomics64.FetchAddEvent}

@@ -19,7 +19,7 @@ def makeWorker (world : World) (actor : Nat) (entry : Context) (codeId callerId 
   let caller ← (Borrowing.authorize world.legacy.shared actor callerId).mapError Fault.loan
   let resources : Resources := ⟨actor, ⟨codeId, code⟩, ⟨callerId, caller⟩,
     entry.registers .rsp, grants, atomics⟩
-  if ResourcesValid world resources then return ⟨entry, resources, .running, []⟩
+  if ResourcesValid world resources then return ⟨entry, resources, .running, [], 0⟩
   else throw .resource
 
 def attach (state : State) (actor : Nat) (entry : Context) (codeId callerId : Nat)
@@ -30,16 +30,18 @@ def attach (state : State) (actor : Nat) (entry : Context) (codeId callerId : Na
 /-- Resource validity does not promise that the next instruction or RET will
 succeed. In particular, it permits changed RSP and returned RIP; their actual
 access checks occur at issue, against the original retained resources. -/
-def WorkerValid (world : World) (worker : Worker) : Prop :=
-  ResourcesValid world worker.resources ∧ ∀ pending ∈ worker.pending, PendingValid world worker.resources pending
+def WorkerValid (world : World) (worker : Worker) (profile : Profile := .ownedOnly) : Prop :=
+  ResourcesValid world worker.resources ∧
+    ∀ pending ∈ worker.pending, PendingValid world worker.resources pending profile
 
-def WellFormed (state : State) : Prop :=
-  Atomics64.WellFormed state.world ∧ ∀ worker ∈ state.workers, WorkerValid state.world worker
+def WellFormed (state : State) (profile : Profile := .ownedOnly) : Prop :=
+  Atomics64.WellFormed state.world ∧
+    ∀ worker ∈ state.workers, WorkerValid state.world worker profile
 
-theorem makeWorker_valid {world : World} {actor : Nat} {entry : Context} {codeId callerId : Nat}
+private theorem makeWorker_resources {world : World} {actor : Nat} {entry : Context} {codeId callerId : Nat}
     {grants : List Ownership.Ticket} {atomics : List Atomics64.HandleId64} {worker : Worker}
     (success : makeWorker world actor entry codeId callerId grants atomics = .ok worker) :
-    WorkerValid world worker ∧ worker.phase = .running ∧ worker.pending = [] ∧ worker.context = entry := by
+    ∃ resources, ResourcesValid world resources ∧ worker = ⟨entry, resources, .running, [], 0⟩ := by
   cases code : Borrowing.authorize world.legacy.shared actor codeId with
   | error fault => simp [makeWorker, code, Except.mapError] at success
   | ok codeLoan =>
@@ -52,13 +54,40 @@ theorem makeWorker_valid {world : World} {actor : Nat} {entry : Context} {codeId
       next valid =>
         simp only [pure_ok, Except.ok.injEq] at success
         subst worker
-        exact ⟨⟨valid, by simp⟩, rfl, rfl, rfl⟩
+        exact ⟨_, valid, rfl⟩
       next => cases success
 
-theorem attach_valid {state : State} {actor : Nat} {entry : Context} {codeId callerId : Nat}
+/-- Empty queues have current authority under either explicit profile. This
+does not strengthen the legacy authority invariant with occurrence history. -/
+theorem makeWorker_valid_for {world : World} {actor : Nat} {entry : Context} {codeId callerId : Nat}
+    {grants : List Ownership.Ticket} {atomics : List Atomics64.HandleId64} {worker : Worker}
+    (profile : Profile)
+    (success : makeWorker world actor entry codeId callerId grants atomics = .ok worker) :
+    WorkerValid world worker profile ∧ worker.phase = .running ∧
+      worker.pending = [] ∧ worker.context = entry := by
+  obtain ⟨resources, valid, rfl⟩ := makeWorker_resources success
+  exact ⟨⟨valid, by simp⟩, rfl, rfl, rfl⟩
+
+theorem makeWorker_valid {world : World} {actor : Nat} {entry : Context} {codeId callerId : Nat}
+    {grants : List Ownership.Ticket} {atomics : List Atomics64.HandleId64} {worker : Worker}
+    (success : makeWorker world actor entry codeId callerId grants atomics = .ok worker) :
+    WorkerValid world worker ∧ worker.phase = .running ∧ worker.pending = [] ∧ worker.context = entry :=
+  makeWorker_valid_for .ownedOnly success
+
+/-- The issue sequence starts at zero independently of the authority-only
+four-component makeWorker_valid interface. -/
+theorem makeWorker_nextStore {world : World} {actor : Nat} {entry : Context} {codeId callerId : Nat}
+    {grants : List Ownership.Ticket} {atomics : List Atomics64.HandleId64} {worker : Worker}
+    (success : makeWorker world actor entry codeId callerId grants atomics = .ok worker) :
+    worker.nextStore = 0 := by
+  obtain ⟨resources, valid, rfl⟩ := makeWorker_resources success
+  rfl
+
+theorem attach_valid_for {state : State} {actor : Nat} {entry : Context} {codeId callerId : Nat}
     {grants : List Ownership.Ticket} {atomics : List Atomics64.HandleId64} {after : State}
-    (valid : WellFormed state)
-    (success : attach state actor entry codeId callerId grants atomics = .ok after) : WellFormed after := by
+    (profile : Profile) (valid : WellFormed state profile)
+    (success : attach state actor entry codeId callerId grants atomics = .ok after) :
+    WellFormed after profile := by
   cases made : makeWorker state.world actor entry codeId callerId grants atomics with
   | error fault => simp [attach, made] at success
   | ok worker =>
@@ -70,7 +99,13 @@ theorem attach_valid {state : State} {actor : Nat} {entry : Context} {codeId cal
     · exact valid.2 other old
     · have same := List.mem_singleton.mp fresh
       subst other
-      exact (makeWorker_valid made).1
+      exact (makeWorker_valid_for profile made).1
+
+theorem attach_valid {state : State} {actor : Nat} {entry : Context} {codeId callerId : Nat}
+    {grants : List Ownership.Ticket} {atomics : List Atomics64.HandleId64} {after : State}
+    (valid : WellFormed state)
+    (success : attach state actor entry codeId callerId grants atomics = .ok after) : WellFormed after :=
+  attach_valid_for .ownedOnly valid success
 
 /-- Collection is a read-only observation. No loans/tickets are released by
 this fixed-world API. Both RET and own publication are required. -/

@@ -36,7 +36,7 @@ theorem step_event_origin {before after : TSO64.State} {action : TSO64.Action}
   | rmw live running code caller fetched bounds empty grant effect =>
     exact ⟨_, _, _, _, _, rfl, live, running, empty, fetched, effect, rfl⟩
 
-/-- Every successful scheduler action projects to a real checked OS operation
+/-- Every successful default-policy scheduler action projects to a real checked OS operation
 or an unchanged world. No desired value, future success, or arithmetic checker
 is a premise. Machine origins remain in TSO64's separate effect theorems. -/
 theorem step_history {before : TSO64.State} {action : TSO64.Action}
@@ -56,7 +56,7 @@ theorem step_history {before : TSO64.State} {action : TSO64.Action}
       | blocked => exact .idle
       | rmw bounds empty decoded selected changed executed => exact .fetchAdd changed
   | drain tid =>
-    obtain ⟨_, _, _, _, _, _, _, changed, same⟩ := TSO64.drain_effect success
+    obtain ⟨_, _, _, _, _, _, _, _, changed, same⟩ := TSO64.drain_effect_owned success
     rw [same]
     exact .mutate changed
 

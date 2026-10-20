@@ -2,7 +2,7 @@
 Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
-import EDSL.OS.TSO64.Resources
+import EDSL.OS.TSO64.Queue.Sequence
 
 namespace EDSL.OS.TSO64
 open X86 AddressSpace
@@ -23,6 +23,7 @@ structure Worker where
   resources : Resources
   phase : Phase
   pending : List Pending
+  nextStore : Nat := 0
 
 structure State where
   world : World
@@ -44,16 +45,6 @@ inductive Observation where
 def Observation.retired : Observation → Nat
   | .ordinary _ | .returned _ | .rmw _ _ => 1
   | .blocked _ | .drained _ _ => 0
-
-inductive Fault where
-  | missingWorker | alreadyReturned | emptyBuffer | resource | codeBounds
-  | unsupported | noGrant | noAtomicGrant | callerSlot | unexpected
-  | machine (fault : X86.Error)
-  | os (fault : Atomics64.Fault)
-  | loan (fault : Borrowing.Fault)
-  deriving DecidableEq, Repr
-
-@[simp] theorem throw_error (fault : Fault) : (throw fault : Except Fault α) = .error fault := rfl
 
 def cpu (worker : Worker) (memory : Memory) : X86.State :=
   ⟨worker.context.registers, worker.context.rip, worker.context.flags, memory⟩
@@ -96,16 +87,6 @@ def storeIntent (instruction : Sequential.Instruction) (initial : X86.State) : O
   | some (address, value) => some ⟨address, .qword value⟩
   | none => instruction.storeIntent initial |>.map fun (address, value) => ⟨address, .dword value⟩
 
-def grantFor (world : World) (resources : Resources) (store : Store) : Option Ownership.Ticket :=
-  resources.grants.find? fun ticket => decide (StoreGate world resources.actor ticket store)
-
-def atomicFor (world : World) (resources : Resources) (address : Word) :
-    Option (Atomics64.HandleId64 × Atomics64.Handle × Atomics64.Cell) :=
-  resources.atomics.findSome? fun identifier =>
-    match Atomics64.authorize world resources.actor identifier with
-    | .error _ => none
-    | .ok (handle, cell) => if cell.address = address then some (identifier, handle, cell) else none
-
 def codeFits (worker : Worker) (length : Nat) : Prop :=
   Borrowing.Subregion ⟨worker.context.rip, length⟩ worker.resources.code.loan.region
 
@@ -114,7 +95,8 @@ instance (worker : Worker) (length : Nat) : Decidable (codeFits worker length) :
 
 /-- All operand admissions precede execution. Stack access requires the
 original slot, even if some other address has a valid readable mapping. -/
-def checkRead (state : State) (worker : Worker) (read : Sequential.Read) : Except Fault Unit := do
+def checkRead (state : State) (worker : Worker) (read : Sequential.Read)
+    (profile : Profile := .ownedOnly) : Except Fault Unit := do
   match read.kind with
   | .stack =>
     if read.address ≠ worker.resources.callerAddress ∨ read.bytes ≠ 8 then throw .callerSlot
@@ -126,40 +108,47 @@ def checkRead (state : State) (worker : Worker) (read : Sequential.Read) : Excep
       | 4 => pure (StoreBuffer.Mixed.Value.dword 0)
       | 8 => pure (.qword 0)
       | _ => throw .unsupported
-    let some _ := grantFor state.world worker.resources ⟨read.address, value⟩ | throw .noGrant
-    return ()
+    match grantFor state.world worker.resources ⟨read.address, value⟩ with
+    | some _ => return ()
+    | none =>
+      match profile, read.bytes with
+      | .sharedCell, 8 =>
+        let some _ := atomicFor state.world worker.resources read.address | throw .noAtomicGrant
+        return ()
+      | _, _ => throw .noGrant
 
 def install (state : State) (tid : Nat) (world : World) (worker : Worker) : State :=
   ⟨world, state.workers.set tid worker⟩
 
 def finishOrdinary (state : State) (tid : Nat) (worker : Worker)
-    (pending : List Pending) (observation : Sequential.Observation) : Except Fault (State × Observation) := do
+    (pending : List Pending) (observation : Sequential.Observation)
+    (nextStore : Nat := worker.nextStore) : Except Fault (State × Observation) := do
   match observation.result with
   | .next output => return (install state tid state.world
-      { worker with context := .ofCPU output, pending := pending }, .ordinary tid)
+      { worker with context := .ofCPU output, pending := pending, nextStore := nextStore }, .ordinary tid)
   | .returned output => return (install state tid state.world
-      { worker with context := .ofCPU output, phase := .returned, pending := pending }, .returned tid)
+      { worker with context := .ofCPU output, phase := .returned, pending := pending, nextStore := nextStore }, .returned tid)
   | _ => throw .unexpected
 
-def prepareQueue (state : State) (worker : Worker) (instruction : Sequential.Instruction) :
-    Except Fault (List Pending) := do
+def prepareQueue (state : State) (worker : Worker) (instruction : Sequential.Instruction)
+    (profile : Profile := .ownedOnly) : Except Fault Queue.Cursor := do
+  let cursor : Queue.Cursor := ⟨worker.pending, worker.nextStore⟩
   match storeIntent instruction (localCPU state worker) with
-  | none => pure worker.pending
-  | some store =>
-    let some ticket := grantFor state.world worker.resources store | throw .noGrant
-    pure (worker.pending ++ [⟨ticket, store⟩])
+  | none => pure cursor
+  | some store => cursor.enqueue state.world worker.resources store profile
 
 def ordinary (state : State) (tid : Nat) (worker : Worker)
-    (instruction : Sequential.Instruction) (af : Bool) : Except Fault (State × Observation) := do
+    (instruction : Sequential.Instruction) (af : Bool)
+    (profile : Profile := .ownedOnly) : Except Fault (State × Observation) := do
   if !supported instruction then throw .unsupported
   if ¬codeFits worker instruction.length then throw .codeBounds
   let initial := localCPU state worker
   let actual ← (Sequential.decodeAt initial).mapError Fault.machine
   if actual ≠ instruction then throw .unexpected
-  let _ ← (instruction.operandReads initial).mapM (checkRead state worker)
-  let pending ← prepareQueue state worker instruction
+  let _ ← (instruction.operandReads initial).mapM (fun read => checkRead state worker read profile)
+  let update ← prepareQueue state worker instruction profile
   let observation ← (Sequential.execute initial instruction af).mapError Fault.machine
-  finishOrdinary state tid worker pending observation
+  finishOrdinary state tid worker update.pending observation update.nextStore
 
 /-- Only the issuing FIFO blocks. Blocking neither drains nor executes the
 primitive. Peer FIFOs are irrelevant to enabledness of this indivisible RMW8. -/
@@ -177,36 +166,40 @@ def locked (state : State) (tid : Nat) (worker : Worker)
   let machine ← (LockedAdd64.step initial).mapError Fault.machine
   return (install state tid result.1 { worker with context := .ofCPU machine.state }, .rmw tid result.2)
 
-def issue (state : State) (tid : Nat) (af : Bool) : Except Fault (State × Observation) := do
+def issue (state : State) (tid : Nat) (af : Bool)
+    (profile : Profile := .ownedOnly) : Except Fault (State × Observation) := do
   let some worker := state.workers[tid]? | throw .missingWorker
   if worker.phase = .returned then throw .alreadyReturned
   if ¬LeaseCurrent state.world worker.resources.actor worker.resources.code ∨
       ¬LeaseCurrent state.world worker.resources.actor worker.resources.caller then throw .resource
   let instruction ← decode (fetchCPU state worker)
   match instruction with
-  | .ordinary instruction => ordinary state tid worker instruction af
+  | .ordinary instruction => ordinary state tid worker instruction af profile
   | .locked instruction => locked state tid worker instruction
 
-/-- Recheck the FIFO head's ORIGINAL owner/ticket at the CURRENT world, then
-publish exactly its tagged width through the existing checked OS mutation.
-CPU RAM is never copied back into the world, even for stores or RET. -/
-def drain (state : State) (tid : Nat) : Except Fault (State × Observation) := do
+/-- Recheck the FIFO head's complete original authority at the current world,
+then publish exactly that head. CPU RAM is never copied into the world. The
+default profile rejects a managed head even for arbitrary initial states. -/
+def drain (state : State) (tid : Nat) (profile : Profile := .ownedOnly) :
+    Except Fault (State × Observation) := do
   let some worker := state.workers[tid]? | throw .missingWorker
   let head :: tail := worker.pending | throw .emptyBuffer
-  if ¬PendingValid state.world worker.resources head then throw .resource
-  let result ← (Atomics64.mutate state.world
-    (operation worker.resources.actor head.ticket head.store)).mapError Fault.os
+  let result ← Queue.publish state.world worker.resources head profile
   return (install state tid result.1 { worker with pending := tail }, .drained tid head)
 
-def step (state : State) : Action → Except Fault (State × Observation)
-  | .issue tid af => issue state tid af
-  | .drain tid => drain state tid
+def step (state : State) (action : Action) (profile : Profile := .ownedOnly) :
+    Except Fault (State × Observation) :=
+  match action with
+  | .issue tid af => issue state tid af profile
+  | .drain tid => drain state tid profile
 
-def schedule (state : State) : List Action → Except Fault (State × List Observation)
+def schedule (state : State) (actions : List Action) (profile : Profile := .ownedOnly) :
+    Except Fault (State × List Observation) :=
+  match actions with
   | [] => .ok (state, [])
   | action :: rest => do
-    let head ← step state action
-    let tail ← schedule head.1 rest
+    let head ← step state action profile
+    let tail ← schedule head.1 rest profile
     return (tail.1, head.2 :: tail.2)
 
 def Returned (state : State) : Prop := ∀ worker ∈ state.workers, worker.phase = .returned

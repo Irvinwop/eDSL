@@ -424,6 +424,7 @@ def workerView (compiler : Compiler) (deltaA deltaB : Word) (tid : Fin 2) : Work
     atomics := [⟨tid.val⟩] }
   phase := .running
   pending := []
+  nextStore := 0
 
 theorem worker_view (compiler : Compiler) (old deltaA deltaB : Word) (tid : Fin 2) :
     worker compiler old deltaA deltaB tid = workerView compiler deltaA deltaB tid := by

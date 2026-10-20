@@ -2,8 +2,9 @@
 
 [`EDSL.OS.AtomicAccess64`](../EDSL/OS/AtomicAccess64.lean) provides reusable
 full64 load and publication operations for the existing managed-cell resource
-model. It is a foundation for shared-memory execution contracts. It does not
-add a compiler-corpus certificate or extend the buffered scheduler.
+model. The buffered scheduler's explicit `sharedCell` profile uses these
+operations for managed qword MOV access. These interfaces add no compiler-corpus
+certificate or source-language synchronization guarantee.
 
 ```lean
 import EDSL.OS.AtomicAccess64
@@ -77,7 +78,7 @@ contract: stable resource metadata and exactly the production qword update.
 It derives enabledness from current authorization and world invariants.
 
 [`TSO64.Queue`](../EDSL/OS/TSO64/Queue.lean) provides the checked FIFO policy
-needed for integration with that instruction engine:
+used by that instruction engine:
 
 - `admit` prefers the existing ordinary `StoreGate`. The explicit `sharedCell`
   profile permits an exact-address managed qword fallback. DWORDs and neighboring
@@ -102,19 +103,44 @@ equal values, descriptor replacement, policy denials and current permissions.
 The lower-level `enqueueOrdinary`, `enqueueManaged` and `dropHead` operations
 only update bookkeeping; they do not grant authority or perform publication.
 
-This is a reusable policy library, not yet the scheduler's managed MOV API.
-The instruction engine still needs profile threading, mixed-entry invariants,
-derived whole-qword compatibility and a shared history. A per-worker sequence
-number must be paired with the scheduler thread identifier; neither an arbitrary
-nonempty initial queue nor its ordering invariant establishes prior issue events
-or a global reads-from relation.
+## Buffered instruction execution
+
+Import [`EDSL.OS.TSO64`](../EDSL/OS/TSO64.lean) and select `sharedCell` explicitly
+on `issue`, `drain`, `step` or `schedule`. The same instruction engine, decoder
+and Mixed byte semantics serve both profiles. Every recursive schedule call
+retains the selected profile. `ownedOnly` remains the default; its existing
+fetch-add history and method/ABI adapters keep their original scope.
+
+Plain accesses prefer ordinary authority. Only an exact-address full64 MOV load
+or store may use the managed fallback. A store enters the one mixed FIFO and
+advances its worker counter only when real instruction execution succeeds.
+Loads use the actual newest matching own qword or current published memory.
+Whole-qword compatibility follows from current allocation/handle invariants;
+neither a pending overlay nor a caller-supplied compatibility premise grants
+access. Original code and caller-loan bytes remain protected.
+
+LOCK waits for the entire issuing FIFO to empty, including either entry tag.
+Peer FIFOs do not block it. RET can complete with stores still pending;
+collection requires the returned worker to be quiescent. Finite publication
+derives enabledness from present authority and world invariants.
+
+[`Occurrences`](../EDSL/OS/TSO64/Occurrences.lean) proves numerical queue integrity
+from empty setup through actual steps and schedules, separately from resource
+validity. A per-worker sequence number must be paired with the scheduler thread
+identifier. An arbitrary nonempty initial queue or its ordering invariant
+establishes no prior issue events or global reads-from relation. A complete
+shared issue/publication/read history remains a separate obligation.
+
+The [instruction regressions](../tests/TSO64SharedCells.lean) execute real MOV,
+LOCK XADD and RET bytes in two checked actor contexts. They cover repeated equal
+stores, publication after return, mixed FIFO blocking, peer visibility and current
+RAM fallback through a nonempty own buffer.
 
 `publishStore` is a shared-memory publication operation. A buffered instruction
-may issue a store and return before that store publishes. The existing
-[managed scheduler](managed-fetch-add64.md) still excludes ordinary access to
-registered atomic allocations; integrating these new operations requires
-checked FIFO entries, reauthorization at drain, whole-word load provenance and
-an extended history projection.
+may issue a store and return before that store publishes. The default
+[managed scheduler](managed-fetch-add64.md) profile continues to exclude plain
+access to registered atomic allocations; the explicit shared-cell profile uses
+the checked access and publication rules above.
 
 The typed events retain checked actor, handle, cell, address and value. A value
 alone cannot identify the write a load observed: separate writes can store

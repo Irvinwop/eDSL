@@ -102,7 +102,7 @@ def wrongHandle (identifier : OS.Atomics64.HandleId64) := do
   let some worker := state.workers[0]? | throw OS.TSO64.Fault.missingWorker
   let resources : OS.TSO64.Resources := ⟨worker.resources.actor, worker.resources.code,
     worker.resources.caller, worker.resources.callerAddress, worker.resources.grants, [identifier]⟩
-  let replacement : OS.TSO64.Worker := ⟨worker.context, resources, worker.phase, worker.pending⟩
+  let replacement : OS.TSO64.Worker := { worker with resources := resources }
   let state := OS.TSO64.install state 0 state.world replacement
   let result ← schedule state [.issue 0 false, .issue 0 false]
   pure (events result.2)
@@ -159,7 +159,7 @@ def unaligned := do
   let registers (register : Register) : Word :=
     if register = X86.Register.rdx then 131073 else worker.context.registers register
   let context : OS.TSO64.Context := ⟨registers, worker.context.rip, worker.context.flags⟩
-  let replacement : OS.TSO64.Worker := ⟨context, worker.resources, worker.phase, worker.pending⟩
+  let replacement : OS.TSO64.Worker := { worker with context := context }
   let result ← issue (install state 0 state.world replacement) 0 false
   pure result.2.retired
 

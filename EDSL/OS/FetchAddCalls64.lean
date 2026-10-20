@@ -131,13 +131,13 @@ theorem returned_origin {before : TSO64.State} {action : TSO64.Action}
     ∃ value, returnValue (after, .returned tid) = some (tid, value) ∧
       ReturnOrigin before action (after, .returned tid) tid value := by
   cases TSO64.step_origin success with
-  | @ordinary tid af worker instruction result live running code caller fetched effect =>
+  | @ordinary tid af worker instruction result _ live running code caller fetched effect =>
     have workerValid := valid.2 _ (List.mem_of_getElem? live)
     have accesses := effect.accesses
     cases effect with
     | @intro pending observation supported bounds decoded reads queue actual finish =>
       cases finish with
-      | @returned output outcome =>
+      | @returned output _ outcome =>
         have executed := actual
         rw [Sequential.step_eq_execute _ decoded] at executed
         have onlyRet := Sequential.execute_returned_only_ret executed outcome

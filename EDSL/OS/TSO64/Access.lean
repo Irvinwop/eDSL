@@ -35,24 +35,38 @@ theorem fetchCPU_fetch {state : State} {worker : Worker} {address : Word} {byte 
   have stored : (published state.world).read address = some byte := fetched.2.2
   exact ⟨of_decide_eq_true gates.2, by simp [fetchByte, fetched.1, gates.1, stored]⟩
 
-def ReadCurrent (state : State) (worker : Worker) (read : Sequential.Read) : Prop :=
+def ReadCurrent (state : State) (worker : Worker) (read : Sequential.Read)
+    (profile : Profile := .ownedOnly) : Prop :=
   match read.kind with
   | .stack => read.address = worker.resources.callerAddress ∧ read.bytes = 8 ∧
       ∃ value, Borrowing.loadWord64 state.world.legacy.shared worker.resources.actor
         worker.resources.caller.identifier read.address = .ok value
   | .data =>
+    let ordinary :=
       (read.bytes = 4 ∧ ∃ ticket, ticket ∈ worker.resources.grants ∧
         StoreGate state.world worker.resources.actor ticket ⟨read.address, .dword 0⟩) ∨
       (read.bytes = 8 ∧ ∃ ticket, ticket ∈ worker.resources.grants ∧
         StoreGate state.world worker.resources.actor ticket ⟨read.address, .qword 0⟩)
+    match profile with
+    | .ownedOnly => ordinary
+    | .sharedCell => ordinary ∨
+        (read.bytes = 8 ∧ ∃ reference : Queue.ManagedRef,
+          Queue.Current state.world worker.resources reference ∧ reference.cell.address = read.address)
 
 theorem checkRead_current {state : State} {worker : Worker} {read : Sequential.Read}
-    (success : checkRead state worker read = .ok ()) : ReadCurrent state worker read := by
+    {profile : Profile} (success : checkRead state worker read profile = .ok ()) :
+    ReadCurrent state worker read profile := by
   cases read with
   | mk kind address width =>
     cases kind with
-    | stack => exact checkRead_stack success
-    | data => exact checkRead_data success
+    | stack => exact checkRead_stack (profile := profile) success
+    | data =>
+      cases profile with
+      | ownedOnly => exact checkRead_data success
+      | sharedCell =>
+        rcases checkRead_data_for success with ordinary | ⟨_, width, reference, current, address⟩
+        · exact .inl ordinary
+        · exact .inr ⟨width, reference, current, address⟩
 
 private theorem mapM_member {α β ε : Type} {f : α → Except ε β} {inputs : List α} {outputs : List β}
     (success : inputs.mapM f = .ok outputs) {input : α} (member : input ∈ inputs) :
@@ -74,9 +88,9 @@ private theorem mapM_member {α β ε : Type} {f : α → Except ε β} {inputs 
 derived from retiring execution. The Mixed overlay supplies only data bytes. -/
 theorem OrdinaryEffect.accesses {state : State} {tid : Nat} {worker : Worker}
     {instruction : Sequential.Instruction} {af : Bool} {result : State × Observation}
-    (effect : OrdinaryEffect state tid worker instruction af result) :
+    {profile : Profile} (effect : OrdinaryEffect state tid worker instruction af result profile) :
     ∃ observation, Sequential.step af (localCPU state worker) = .ok observation ∧
-      ∀ read ∈ observation.reads, ReadCurrent state worker read ∧
+      ∀ read ∈ observation.reads, ReadCurrent state worker read profile ∧
         Sequential.OperandReadSucceeds (localCPU state worker) read := by
   cases effect with
   | intro supported bounds decoded reads queue step finish =>
@@ -89,7 +103,74 @@ theorem OrdinaryEffect.accesses {state : State} {tid : Nat} {worker : Worker}
     obtain ⟨units, checked⟩ := reads
     obtain ⟨checkedUnit, current⟩ := mapM_member checked listed
     cases checkedUnit
-    exact ⟨checkRead_current current, Sequential.observed_reads_succeed step read member⟩
+    exact ⟨checkRead_current (profile := profile) current,
+      Sequential.observed_reads_succeed step read member⟩
+
+/-- Actual MOV64 execution exposes the local load and the exact installed
+destination, including when it aliases an address register or RSP. Queue and
+counter remain unchanged because this instruction has no store intent. -/
+theorem OrdinaryEffect.loadMem64 {state : State} {tid : Nat} {worker : Worker}
+    {destination : Register} {address : Sequential.Address} {af : Bool}
+    {result : State × Observation} {profile : Profile}
+    (effect : OrdinaryEffect state tid worker (.loadMem64 destination address) af result profile) :
+    ∃ value, loadQWord (localCPU state worker).memory (address.eval (localCPU state worker)) = .ok value ∧
+      ReadCurrent state worker ⟨.data, address.eval (localCPU state worker), 8⟩ profile ∧
+      result = (install state tid state.world
+        { worker with context := .ofCPU (
+          { (localCPU state worker).writeRegister destination value with
+            rip := (localCPU state worker).rip +
+              BitVec.ofNat 64 (Sequential.Instruction.loadMem64 destination address).length }) },
+        .ordinary tid) := by
+  cases effect with
+  | intro supported bounds decoded reads queue actual finish =>
+    have executed := actual
+    rw [Sequential.step_eq_execute af decoded] at executed
+    obtain ⟨value, loaded, observationEq⟩ := Sequential.execute_loadMem64_success_iff.mp executed
+    obtain ⟨units, checked⟩ := reads
+    obtain ⟨checkedUnit, current⟩ := mapM_member checked
+      (input := ⟨.data, address.eval (localCPU state worker), 8⟩)
+      (by simp [Sequential.Instruction.operandReads])
+    cases checkedUnit
+    have authority := checkRead_current (profile := profile) current
+    cases queue with
+    | enqueued intent admission =>
+      simp [storeIntent, Sequential.Instruction.storeIntent64,
+        Sequential.Instruction.storeIntent] at intent
+    | unchanged intent =>
+      cases finish with
+      | next outcome =>
+        rw [observationEq] at outcome
+        cases outcome
+        exact ⟨value, loaded, authority, rfl⟩
+      | returned outcome =>
+        rw [observationEq] at outcome
+        cases outcome
+
+/-- A whole-word source result for a currently authorized managed MOV. The
+machine reads its actual local overlay; this does not invent an Atomics64.load
+event for an own-buffer forwarded value. Occurrence provenance is separate. -/
+theorem OrdinaryEffect.managed_loadMem64 {state : State} {tid : Nat} {worker : Worker}
+    {destination : Register} {address : Sequential.Address} {af : Bool}
+    {result : State × Observation} {profile : Profile} {reference : Queue.ManagedRef}
+    (effect : OrdinaryEffect state tid worker (.loadMem64 destination address) af result profile)
+    (valid : WellFormed state profile) (live : state.workers[tid]? = some worker)
+    (current : Queue.Current state.world worker.resources reference)
+    (operand : reference.cell.address = address.eval (localCPU state worker)) :
+    ∃ value, loadQWord (localCPU state worker).memory reference.cell.address = .ok value ∧
+      (match StoreBuffer.Mixed.newestQWord (payload worker.pending) reference.cell.address with
+      | some origin => Except.ok origin.value
+      | none => loadQWord (published state.world) reference.cell.address) = .ok value ∧
+      result = (install state tid state.world
+        { worker with context := .ofCPU (
+          { (localCPU state worker).writeRegister destination value with
+            rip := (localCPU state worker).rip +
+              BitVec.ofNat 64 (Sequential.Instruction.loadMem64 destination address).length }) },
+        .ordinary tid) := by
+  obtain ⟨value, loaded, _, installed⟩ := effect.loadMem64
+  rw [← operand] at loaded
+  have source := local_managed_load (profile := profile) valid
+    (valid.2 worker (List.mem_of_getElem? live)) current
+  exact ⟨value, loaded, source.symm.trans loaded, installed⟩
 
 /-- A successful production intent has EXACTLY one of the original width
 classifications, with the address/value taken from the actual prestate. -/
@@ -112,12 +193,13 @@ theorem storeIntent_origin {instruction : Sequential.Instruction} {initial : X86
 
 theorem payload_enqueue (pending : List Pending) (entry : Pending) :
     payload (pending ++ [entry]) = StoreBuffer.Mixed.enqueue (payload pending) entry.store := by
-  simp [payload, StoreBuffer.Mixed.enqueue]
+  simp [payload, Queue.payload, StoreBuffer.Mixed.enqueue]
 
 /-- Even an RSP-changing instruction grants no replacement caller slot. -/
 theorem changed_rsp_ret_denied (state : State) (worker : Worker)
-    (different : worker.context.registers .rsp ≠ worker.resources.callerAddress) :
-    checkRead state worker ⟨.stack, worker.context.registers .rsp, 8⟩ = .error .callerSlot := by
+    (different : worker.context.registers .rsp ≠ worker.resources.callerAddress)
+    (profile : Profile := .ownedOnly) :
+    checkRead state worker ⟨.stack, worker.context.registers .rsp, 8⟩ profile = .error .callerSlot := by
   simp [checkRead, different]
 
 end EDSL.OS.TSO64

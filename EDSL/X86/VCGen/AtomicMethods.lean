@@ -906,7 +906,7 @@ theorem rmw_origin {method : Method} {state after : OS.TSO64.State} {tid : Nat} 
   | ordinary originLive running code caller fetched effect =>
     cases effect with
     | intro supported bounds decoded reads queue step finish => cases finish
-  | @rmw tid af issuing instruction identifier output machine originLive running code caller fetched bounds empty grant effect =>
+  | @rmw tid af issuing instruction identifier output machine _ originLive running code caller fetched bounds empty grant effect =>
     have same := Option.some.inj (originLive.symm.trans live)
     subst worker
     obtain ⟨offset, pointEq, instructionEq⟩ := locked_location current located running fetched

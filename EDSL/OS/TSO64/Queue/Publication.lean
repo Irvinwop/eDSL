@@ -8,20 +8,6 @@ import EDSL.OS.TSO64.ManagedPublication
 namespace EDSL.OS.TSO64.Queue
 open X86 AddressSpace
 
-/-- Recheck the retained authority at the current world before publication.
-The default policy rejects a managed entry even in an arbitrary initial queue.
-This policy operation performs no instruction execution or implicit drain. -/
-def publish (world : World) (resources : Resources) (entry : Entry)
-    (profile : Profile := .ownedOnly) : Except Fault (World × Option Atomics64.StoreEvent64) := do
-  if ¬Valid world resources entry profile then throw .resource
-  match entry with
-  | .ordinary ticket store =>
-      let result ← (Atomics64.mutate world (operation resources.actor ticket store)).mapError Fault.os
-      return (result.1, none)
-  | .managed reference value _ =>
-      let result ← (Atomics64.publishStore world resources.actor reference.identifier value).mapError Fault.os
-      return (result.1, some result.2)
-
 /-- The checked OS operation underlying an actual tagged publication. A managed
 store always has its store event, including when the value does not change. -/
 inductive Effect (world : World) (resources : Resources) :
@@ -118,15 +104,6 @@ theorem publish_ownedOnly {world : World} {resources : Resources} {entry : Entry
   cases effect with
   | ordinary changed => exact ⟨_, _, _, rfl, changed, rfl⟩
   | managed current changed => exact False.elim (not_valid_managed_ownedOnly _ _ _ _ _ valid)
-
-/-- Publish exactly the oldest retained entry. The returned tail is literal;
-no peer queue, return instruction or partial overlay causes publication. -/
-def publishHead (world : World) (resources : Resources) (entries : List Entry)
-    (profile : Profile := .ownedOnly) :
-    Except Fault (World × List Entry × Option Atomics64.StoreEvent64) := do
-  let head :: tail := entries | throw .emptyBuffer
-  let result ← publish world resources head profile
-  return (result.1, tail, result.2)
 
 theorem publishHead_effect {world : World} {resources : Resources} {entries : List Entry}
     {profile : Profile} {result : World × List Entry × Option Atomics64.StoreEvent64}

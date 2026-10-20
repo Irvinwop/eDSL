@@ -8,13 +8,14 @@ namespace EDSL.OS.TSO64
 open X86 AddressSpace
 
 theorem WorkerValid.stable {before after : World} (frame : Stable before after)
-    {worker : Worker} (valid : WorkerValid before worker) : WorkerValid after worker :=
+    {worker : Worker} {profile : Profile}
+    (valid : WorkerValid before worker profile) : WorkerValid after worker profile :=
   ⟨frame.resources valid.1, fun pending member => frame.pending (valid.2 pending member)⟩
 
-theorem install_valid {state : State} {tid : Nat} {world : World} {worker : Worker}
-    (valid : WellFormed state) (frame : Stable state.world world)
-    (worldValid : Atomics64.WellFormed world) (workerValid : WorkerValid world worker) :
-    WellFormed (install state tid world worker) := by
+theorem install_valid {state : State} {tid : Nat} {world : World} {worker : Worker} {profile : Profile}
+    (valid : WellFormed state profile) (frame : Stable state.world world)
+    (worldValid : Atomics64.WellFormed world) (workerValid : WorkerValid world worker profile) :
+    WellFormed (install state tid world worker) profile := by
   refine ⟨worldValid, ?_⟩
   intro other member
   rcases List.mem_or_eq_of_mem_set member with old | rfl
@@ -22,23 +23,38 @@ theorem install_valid {state : State} {tid : Nat} {world : World} {worker : Work
   · exact workerValid
 
 theorem QueueEffect.valid {state : State} {worker : Worker} {instruction : Sequential.Instruction}
-    {pending : List Pending} (effect : QueueEffect state worker instruction pending)
-    (valid : WorkerValid state.world worker) :
-    ∀ entry ∈ pending, PendingValid state.world worker.resources entry := by
+    {update : Queue.Cursor} {profile : Profile} (effect : QueueEffect state worker instruction update profile)
+    (valid : WorkerValid state.world worker profile) :
+    ∀ entry ∈ update.pending, PendingValid state.world worker.resources entry profile := by
   cases effect with
   | unchanged => exact valid.2
-  | enqueued intent grant =>
+  | enqueued intent admission =>
     intro entry member
     rcases List.mem_append.mp member with old | newest
     · exact valid.2 entry old
     · have same := List.mem_singleton.mp newest
       subst entry
-      exact grantFor_sound grant
+      exact admission.valid
+
+/-- Numerical occurrence integrity is preserved separately from current
+authority. It does not assert that an arbitrary initial entry has a prior issue
+in a supplied scheduler history. -/
+theorem QueueEffect.ordered {state : State} {worker : Worker} {instruction : Sequential.Instruction}
+    {update : Queue.Cursor} {profile : Profile} (effect : QueueEffect state worker instruction update profile)
+    (ordered : (Queue.Cursor.mk worker.pending worker.nextStore).Ordered) : update.Ordered := by
+  cases effect with
+  | unchanged => exact ordered
+  | enqueued intent admission =>
+    cases admission with
+    | ordinary ticket selected => exact Queue.Cursor.enqueueOrdinary_ordered _ ticket _ ordered
+    | managed reference value ordinaryAbsent shared qword selected =>
+      exact Queue.Cursor.enqueueManaged_ordered _ reference value ordered
 
 theorem OrdinaryEffect.wellFormed {state : State} {tid : Nat} {worker : Worker}
-    {instruction : Sequential.Instruction} {af : Bool} {result : State × Observation}
-    (effect : OrdinaryEffect state tid worker instruction af result)
-    (valid : WellFormed state) (live : state.workers[tid]? = some worker) : WellFormed result.1 := by
+    {instruction : Sequential.Instruction} {af : Bool} {result : State × Observation} {profile : Profile}
+    (effect : OrdinaryEffect state tid worker instruction af result profile)
+    (valid : WellFormed state profile) (live : state.workers[tid]? = some worker) :
+    WellFormed result.1 profile := by
   have workerValid := valid.2 worker (List.mem_of_getElem? live)
   cases effect with
   | intro supported bounds decoded reads queue step finish =>
@@ -48,9 +64,10 @@ theorem OrdinaryEffect.wellFormed {state : State} {tid : Nat} {worker : Worker}
     | returned outcome => exact install_valid valid (Stable.refl _) valid.1 ⟨workerValid.1, pending⟩
 
 theorem LockedEffect.wellFormed {state : State} {tid : Nat} {worker : Worker}
-    {instruction : LockedAdd64.Instruction} {result : State × Observation}
+    {instruction : LockedAdd64.Instruction} {result : State × Observation} {profile : Profile}
     (effect : LockedEffect state tid worker instruction result)
-    (valid : WellFormed state) (live : state.workers[tid]? = some worker) : WellFormed result.1 := by
+    (valid : WellFormed state profile) (live : state.workers[tid]? = some worker) :
+    WellFormed result.1 profile := by
   have workerValid := valid.2 worker (List.mem_of_getElem? live)
   cases effect with
   | blocked => exact valid
@@ -59,34 +76,37 @@ theorem LockedEffect.wellFormed {state : State} {tid : Nat} {worker : Worker}
     exact install_valid valid frame (Atomics64.fetchAdd_wellFormed _ _ _ _ _ valid.1 changed)
       ⟨frame.resources workerValid.1, fun pending member => frame.pending (workerValid.2 pending member)⟩
 
-theorem issue_wellFormed {state : State} {tid : Nat} {af : Bool} {result : State × Observation}
-    (valid : WellFormed state) (success : issue state tid af = .ok result) : WellFormed result.1 := by
+theorem issue_wellFormed {state : State} {tid : Nat} {af : Bool} {result : State × Observation} {profile : Profile}
+    (valid : WellFormed state profile) (success : issue state tid af profile = .ok result) :
+    WellFormed result.1 profile := by
   obtain ⟨worker, live, _, _, _, instruction, _, effect⟩ := issue_effect success
   cases instruction with
   | ordinary instruction => exact effect.wellFormed valid live
   | locked instruction => exact effect.wellFormed valid live
 
-theorem drain_wellFormed {state : State} {tid : Nat} {result : State × Observation}
-    (valid : WellFormed state) (success : drain state tid = .ok result) : WellFormed result.1 := by
+theorem drain_wellFormed {state : State} {tid : Nat} {result : State × Observation} {profile : Profile}
+    (valid : WellFormed state profile) (success : drain state tid profile = .ok result) :
+    WellFormed result.1 profile := by
   obtain ⟨worker, head, tail, output, live, pending, _, changed, same⟩ := drain_effect success
   have workerValid := valid.2 worker (List.mem_of_getElem? live)
-  have frame := (publication changed).stable
+  have frame := changed.publication.stable
   rw [same]
-  apply install_valid valid frame (Atomics64.mutate_wellFormed _ _ _ valid.1 changed)
+  apply install_valid valid frame (changed.wellFormed valid.1)
   refine ⟨frame.resources workerValid.1, ?_⟩
   intro entry member
   exact frame.pending (workerValid.2 entry (by rw [pending]; exact List.mem_cons_of_mem head member))
 
 /-- Resource/lifetime and OS invariants are consequences of actual gates and
 checked effects. No successor-WF test appears in the executable scheduler. -/
-theorem step_wellFormed {state : State} {action : Action} {result : State × Observation}
-    (valid : WellFormed state) (success : step state action = .ok result) : WellFormed result.1 := by
+theorem step_wellFormed {state : State} {action : Action} {result : State × Observation} {profile : Profile}
+    (valid : WellFormed state profile) (success : step state action profile = .ok result) :
+    WellFormed result.1 profile := by
   cases action with
   | issue tid af => exact issue_wellFormed valid success
   | drain tid => exact drain_wellFormed valid success
 
-theorem step_stable {state : State} {action : Action} {result : State × Observation}
-    (success : step state action = .ok result) : Stable state.world result.1.world := by
+theorem step_stable {state : State} {action : Action} {result : State × Observation} {profile : Profile}
+    (success : step state action profile = .ok result) : Stable state.world result.1.world := by
   cases action with
   | issue tid af =>
     obtain ⟨_, _, _, _, _, instruction, _, effect⟩ := issue_effect success
@@ -101,7 +121,7 @@ theorem step_stable {state : State} {action : Action} {result : State × Observa
   | drain tid =>
     obtain ⟨_, _, _, _, _, _, _, changed, same⟩ := drain_effect success
     rw [same]
-    exact (publication changed).stable
+    exact changed.publication.stable
 
 theorem install_peer {state : State} {tid peer : Nat} {world : World} {worker : Worker}
     (different : peer ≠ tid) : (install state tid world worker).workers[peer]? = state.workers[peer]? :=
@@ -109,8 +129,8 @@ theorem install_peer {state : State} {tid peer : Nat} {world : World} {worker : 
 
 /-- Peer RF/RIP/flags/phase, original resources, and pending grants survive
 every successful issue/drain literally, without stale RAM in the context. -/
-theorem step_peer {state : State} {action : Action} {result : State × Observation} {peer : Nat}
-    (success : step state action = .ok result)
+theorem step_peer {state : State} {action : Action} {result : State × Observation} {peer : Nat} {profile : Profile}
+    (success : step state action profile = .ok result)
     (different : peer ≠ (match action with | .issue tid _ | .drain tid => tid)) :
     result.1.workers[peer]? = state.workers[peer]? := by
   cases action with
@@ -130,26 +150,28 @@ theorem step_peer {state : State} {action : Action} {result : State × Observati
     exact install_peer different
 
 theorem schedule_cons_ok {state : State} {action : Action} {rest : List Action}
-    {result : State × List Observation} (success : schedule state (action :: rest) = .ok result) :
-    ∃ head tail, step state action = .ok head ∧ schedule head.1 rest = .ok tail ∧
+    {result : State × List Observation} {profile : Profile}
+    (success : schedule state (action :: rest) profile = .ok result) :
+    ∃ head tail, step state action profile = .ok head ∧ schedule head.1 rest profile = .ok tail ∧
       result = (tail.1, head.2 :: tail.2) := by
-  cases first : step state action with
+  cases first : step state action profile with
   | error fault => simp [schedule, first] at success
   | ok head =>
-    cases following : schedule head.1 rest with
+    cases following : schedule head.1 rest profile with
     | error fault => simp [schedule, first, following] at success
     | ok tail =>
       simp [schedule, first, following] at success
       exact ⟨head, tail, rfl, following, success.symm⟩
 
 theorem schedule_wellFormed {state : State} {actions : List Action} {result : State × List Observation}
-    (valid : WellFormed state) (success : schedule state actions = .ok result) : WellFormed result.1 := by
+    {profile : Profile} (valid : WellFormed state profile)
+    (success : schedule state actions profile = .ok result) : WellFormed result.1 profile := by
   induction actions generalizing state result with
   | nil => simp only [schedule, Except.ok.injEq] at success; subst result; exact valid
   | cons action rest ih =>
-    obtain ⟨head, tail, first, following, same⟩ := schedule_cons_ok success
+    obtain ⟨head, tail, first, following, same⟩ := schedule_cons_ok (profile := profile) success
     rw [same]
-    exact ih (result := tail) (step_wellFormed valid first) following
+    exact ih (result := tail) (step_wellFormed (profile := profile) valid first) following
 
 /-- The local view is always synthesized from CURRENT published RAM; its byte
 origin is the newest matching own pending byte, or the current shared byte. -/
@@ -158,8 +180,8 @@ theorem local_read (state : State) (worker : Worker) (query : Word) :
       (StoreBuffer.Mixed.forward (payload worker.pending) query).or ((published state.world).read query) :=
   StoreBuffer.Mixed.view_read _ _ _
 
-theorem drain_fifo {state : State} {tid : Nat} {result : State × Observation}
-    (success : drain state tid = .ok result) :
+theorem drain_fifo {state : State} {tid : Nat} {result : State × Observation} {profile : Profile}
+    (success : drain state tid profile = .ok result) :
     ∃ worker head tail world,
       state.workers[tid]? = some worker ∧ worker.pending = head :: tail ∧
       result = (install state tid world { worker with pending := tail }, .drained tid head) ∧
@@ -167,7 +189,7 @@ theorem drain_fifo {state : State} {tid : Nat} {result : State × Observation}
       StoreBuffer.Mixed.view (published world) (payload tail) = (localCPU state worker).memory ∧
       result.2.retired = 0 := by
   obtain ⟨worker, head, tail, output, live, pending, _, changed, same⟩ := drain_effect success
-  have effect := publication changed
+  have effect := changed.publication
   refine ⟨worker, head, tail, output.1, live, pending, same, effect.projection, ?_, ?_⟩
   · rw [effect.projection]
     change StoreBuffer.Mixed.view _ _ = StoreBuffer.Mixed.view _ (payload worker.pending)
@@ -175,15 +197,15 @@ theorem drain_fifo {state : State} {tid : Nat} {result : State × Observation}
     rfl
   · rw [same]; rfl
 
-/-- A reachable queue always has a publication step; RET does not remove it.
+/-- A queue with current authority always has a publication step; RET does not remove it.
 This derives enabledness from the CURRENT invariant, without a future-success
 or fairness hypothesis. -/
 theorem drain_enabled {state : State} {tid : Nat} {worker : Worker} {head : Pending} {tail : List Pending}
-    (valid : WellFormed state) (live : state.workers[tid]? = some worker)
-    (pending : worker.pending = head :: tail) : ∃ result, drain state tid = .ok result := by
+    {profile : Profile} (valid : WellFormed state profile) (live : state.workers[tid]? = some worker)
+    (pending : worker.pending = head :: tail) : ∃ result, drain state tid profile = .ok result := by
   have gate := (valid.2 worker (List.mem_of_getElem? live)).2 head (by rw [pending]; exact List.mem_cons_self)
-  obtain ⟨world, changed⟩ := gate.2.enabled
-  exact ⟨(install state tid world { worker with pending := tail }, .drained tid head),
-    by simp [drain, live, pending, gate, changed, Except.mapError]⟩
+  obtain ⟨output, changed⟩ := Queue.publish_enabled valid.1 gate
+  exact ⟨(install state tid output.1 { worker with pending := tail }, .drained tid head),
+    by simp [drain, live, pending, changed]⟩
 
 end EDSL.OS.TSO64

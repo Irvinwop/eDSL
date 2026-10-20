@@ -2,92 +2,89 @@
 Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
-import EDSL.OS.TSO64.Publication
+import EDSL.OS.TSO64.Queue.Publication
 import EDSL.OS.TSO64.Setup
 
 namespace EDSL.OS.TSO64
 open X86 AddressSpace
 
-theorem grantFor_sound {world : World} {resources : Resources} {store : Store} {ticket : Ownership.Ticket}
-    (selected : grantFor world resources store = some ticket) :
-    ticket ∈ resources.grants ∧ StoreGate world resources.actor ticket store :=
-  ⟨List.mem_of_find?_eq_some selected,
-    of_decide_eq_true (List.find?_some (p := fun candidate => decide (StoreGate world resources.actor candidate store)) selected)⟩
-
-theorem atomicFor_sound {world : World} {resources : Resources} {address : Word}
-    {identifier : Atomics64.HandleId64} {handle : Atomics64.Handle} {cell : Atomics64.Cell}
-    (selected : atomicFor world resources address = some (identifier, handle, cell)) :
-    identifier ∈ resources.atomics ∧ Atomics64.authorize world resources.actor identifier = .ok (handle, cell) ∧
-      cell.address = address := by
-  obtain ⟨id, member, selected⟩ := List.exists_of_findSome?_eq_some selected
-  cases authorized : Atomics64.authorize world resources.actor id with
-  | error fault => simp [authorized] at selected
-  | ok pair =>
-    by_cases same : pair.2.address = address
-    · simp [authorized, same] at selected
-      rcases selected with ⟨rfl, rfl, rfl⟩
-      exact ⟨member, authorized, same⟩
-    · simp [authorized, same] at selected
-
 inductive QueueEffect (state : State) (worker : Worker) (instruction : Sequential.Instruction) :
-    List Pending → Prop where
-  | unchanged (intent : storeIntent instruction (localCPU state worker) = none) :
-      QueueEffect state worker instruction worker.pending
-  | enqueued {store ticket} (intent : storeIntent instruction (localCPU state worker) = some store)
-      (grant : grantFor state.world worker.resources store = some ticket) :
-      QueueEffect state worker instruction (worker.pending ++ [⟨ticket, store⟩])
+    Queue.Cursor → (profile : Profile := .ownedOnly) → Prop where
+  | unchanged {profile : Profile}
+      (intent : storeIntent instruction (localCPU state worker) = none) :
+      QueueEffect state worker instruction ⟨worker.pending, worker.nextStore⟩ profile
+  | enqueued {store : Store} {entry : Pending} {profile : Profile}
+      (intent : storeIntent instruction (localCPU state worker) = some store)
+      (admission : Queue.Admission state.world worker.resources store worker.nextStore profile entry) :
+      QueueEffect state worker instruction ⟨worker.pending ++ [entry], worker.nextStore + 1⟩ profile
 
 theorem prepareQueue_effect {state : State} {worker : Worker} {instruction : Sequential.Instruction}
-    {pending : List Pending} (success : prepareQueue state worker instruction = .ok pending) :
-    QueueEffect state worker instruction pending := by
+    {update : Queue.Cursor} {profile : Profile}
+    (success : prepareQueue state worker instruction profile = .ok update) :
+    QueueEffect state worker instruction update profile := by
   cases intent : storeIntent instruction (localCPU state worker) with
   | none =>
     simp [prepareQueue, intent] at success
-    subst pending
+    subst update
     exact .unchanged intent
   | some store =>
-    cases grant : grantFor state.world worker.resources store with
-    | none => simp [prepareQueue, intent, grant] at success
-    | some ticket =>
-      simp [prepareQueue, intent, grant] at success
-      subst pending
-      exact .enqueued intent grant
+    have enqueued : (Queue.Cursor.mk worker.pending worker.nextStore).enqueue
+        state.world worker.resources store profile = .ok update := by
+      simpa only [prepareQueue, intent] using success
+    obtain ⟨entry, admission, pending, counter⟩ := Queue.Cursor.enqueue_effect
+      ⟨worker.pending, worker.nextStore⟩ state.world worker.resources store profile update enqueued
+    rcases update with ⟨entries, nextStore⟩
+    change entries = worker.pending ++ [entry] at pending
+    change nextStore = worker.nextStore + 1 at counter
+    subst entries
+    subst nextStore
+    exact .enqueued intent admission
 
 inductive FinishEffect (state : State) (tid : Nat) (worker : Worker)
-    (pending : List Pending) (observation : Sequential.Observation) : State × Observation → Prop where
-  | next {output} (outcome : observation.result = .next output) :
-      FinishEffect state tid worker pending observation
-        (install state tid state.world { worker with context := .ofCPU output, pending := pending }, .ordinary tid)
-  | returned {output} (outcome : observation.result = .returned output) :
+    (pending : List Pending) (observation : Sequential.Observation) :
+    State × Observation → (nextStore : Nat := worker.nextStore) → Prop where
+  | next {output} {nextStore : Nat} (outcome : observation.result = .next output) :
       FinishEffect state tid worker pending observation
         (install state tid state.world
-          { worker with context := .ofCPU output, phase := .returned, pending := pending }, .returned tid)
+          { worker with context := .ofCPU output, pending := pending, nextStore := nextStore }, .ordinary tid)
+        nextStore
+  | returned {output} {nextStore : Nat} (outcome : observation.result = .returned output) :
+      FinishEffect state tid worker pending observation
+        (install state tid state.world
+          { worker with
+            context := .ofCPU output
+            phase := .returned
+            pending := pending
+            nextStore := nextStore }, .returned tid)
+        nextStore
 
 theorem finishOrdinary_effect {state : State} {tid : Nat} {worker : Worker} {pending : List Pending}
-    {observation : Sequential.Observation} {result : State × Observation}
-    (success : finishOrdinary state tid worker pending observation = .ok result) :
-    FinishEffect state tid worker pending observation result := by
+    {observation : Sequential.Observation} {result : State × Observation} {nextStore : Nat}
+    (success : finishOrdinary state tid worker pending observation nextStore = .ok result) :
+    FinishEffect state tid worker pending observation result nextStore := by
   cases outcome : observation.result <;> simp [finishOrdinary, outcome] at success
   all_goals subst result
   · exact .next outcome
   · exact .returned outcome
 
 inductive OrdinaryEffect (state : State) (tid : Nat) (worker : Worker)
-    (instruction : Sequential.Instruction) (af : Bool) (result : State × Observation) : Prop where
-  | intro {pending observation}
+    (instruction : Sequential.Instruction) (af : Bool) (result : State × Observation)
+    (profile : Profile := .ownedOnly) : Prop where
+  | intro {update : Queue.Cursor} {observation : Sequential.Observation}
       (supported : supported instruction = true)
       (bounds : codeFits worker instruction.length)
       (decoded : Sequential.decodeAt (localCPU state worker) = .ok instruction)
-      (reads : ∃ units, (instruction.operandReads (localCPU state worker)).mapM (checkRead state worker) = .ok units)
-      (queue : QueueEffect state worker instruction pending)
+      (reads : ∃ units, (instruction.operandReads (localCPU state worker)).mapM
+        (fun read => checkRead state worker read profile) = .ok units)
+      (queue : QueueEffect state worker instruction update profile)
       (step : Sequential.step af (localCPU state worker) = .ok observation)
-      (finish : FinishEffect state tid worker pending observation result) :
-      OrdinaryEffect state tid worker instruction af result
+      (finish : FinishEffect state tid worker update.pending observation result update.nextStore) :
+      OrdinaryEffect state tid worker instruction af result profile
 
 theorem ordinary_effect {state : State} {tid : Nat} {worker : Worker}
-    {instruction : Sequential.Instruction} {af : Bool} {result : State × Observation}
-    (success : ordinary state tid worker instruction af = .ok result) :
-    OrdinaryEffect state tid worker instruction af result := by
+    {instruction : Sequential.Instruction} {af : Bool} {result : State × Observation} {profile : Profile}
+    (success : ordinary state tid worker instruction af profile = .ok result) :
+    OrdinaryEffect state tid worker instruction af result profile := by
   by_cases admitted : supported instruction = true
   · by_cases bounds : codeFits worker instruction.length
     · cases decoded : Sequential.decodeAt (localCPU state worker) with
@@ -95,16 +92,17 @@ theorem ordinary_effect {state : State} {tid : Nat} {worker : Worker}
       | ok actual =>
         by_cases same : actual = instruction
         · subst actual
-          cases reads : (instruction.operandReads (localCPU state worker)).mapM (checkRead state worker) with
+          cases reads : (instruction.operandReads (localCPU state worker)).mapM
+              (fun read => checkRead state worker read profile) with
           | error fault => simp [ordinary, admitted, bounds, decoded, reads, Except.mapError] at success
           | ok units =>
-            cases pending : prepareQueue state worker instruction with
+            cases pending : prepareQueue state worker instruction profile with
             | error fault => simp [ordinary, admitted, bounds, decoded, reads, pending, Except.mapError] at success
-            | ok queue =>
+            | ok update =>
               cases executed : Sequential.execute (localCPU state worker) instruction af with
               | error fault => simp [ordinary, admitted, bounds, decoded, reads, pending, executed, Except.mapError] at success
               | ok observation =>
-                have finished : finishOrdinary state tid worker queue observation = .ok result := by
+                have finished : finishOrdinary state tid worker update.pending observation update.nextStore = .ok result := by
                   simpa [ordinary, admitted, bounds, decoded, reads, pending, executed, Except.mapError] using success
                 exact .intro admitted bounds decoded ⟨units, reads⟩ (prepareQueue_effect pending)
                   (by rw [Sequential.step_eq_execute af decoded]; exact executed)
@@ -180,14 +178,14 @@ theorem locked_coupled {state : State} {worker : Worker} {instruction : LockedAd
   subst machine
   exact bridge
 
-theorem issue_effect {state : State} {tid : Nat} {af : Bool} {result : State × Observation}
-    (success : issue state tid af = .ok result) :
+theorem issue_effect {state : State} {tid : Nat} {af : Bool} {result : State × Observation} {profile : Profile}
+    (success : issue state tid af profile = .ok result) :
     ∃ worker, state.workers[tid]? = some worker ∧ worker.phase ≠ .returned ∧
       LeaseCurrent state.world worker.resources.actor worker.resources.code ∧
       LeaseCurrent state.world worker.resources.actor worker.resources.caller ∧
       ∃ instruction, decode (fetchCPU state worker) = .ok instruction ∧
         (match instruction with
-        | .ordinary instruction => OrdinaryEffect state tid worker instruction af result
+        | .ordinary instruction => OrdinaryEffect state tid worker instruction af result profile
         | .locked instruction => LockedEffect state tid worker instruction result) := by
   cases live : state.workers[tid]? with
   | none => simp [issue, live] at success
@@ -210,12 +208,12 @@ theorem issue_effect {state : State} {tid : Nat} {af : Bool} {result : State × 
         · simp [issue, live, returned, caller] at success
       · simp [issue, live, returned, code] at success
 
-theorem drain_effect {state : State} {tid : Nat} {result : State × Observation}
-    (success : drain state tid = .ok result) :
+theorem drain_effect {state : State} {tid : Nat} {result : State × Observation} {profile : Profile}
+    (success : drain state tid profile = .ok result) :
     ∃ worker head tail output,
       state.workers[tid]? = some worker ∧ worker.pending = head :: tail ∧
-      PendingValid state.world worker.resources head ∧
-      Atomics64.mutate state.world (operation worker.resources.actor head.ticket head.store) = .ok output ∧
+      PendingValid state.world worker.resources head profile ∧
+      Queue.Effect state.world worker.resources head output ∧
       result = (install state tid output.1 { worker with pending := tail }, .drained tid head) := by
   cases live : state.workers[tid]? with
   | none => simp [drain, live] at success
@@ -223,12 +221,36 @@ theorem drain_effect {state : State} {tid : Nat} {result : State × Observation}
     cases pending : worker.pending with
     | nil => simp [drain, live, pending] at success
     | cons head tail =>
-      by_cases gate : PendingValid state.world worker.resources head
-      · cases changed : Atomics64.mutate state.world (operation worker.resources.actor head.ticket head.store) with
-        | error fault => simp [drain, live, pending, gate, changed, Except.mapError] at success
-        | ok output =>
-          simp [drain, live, pending, gate, changed, Except.mapError] at success
-          exact ⟨worker, head, tail, output, rfl, pending, gate, changed, success.symm⟩
-      · simp [drain, live, pending, gate] at success
+      cases changed : Queue.publish state.world worker.resources head profile with
+      | error fault => simp [drain, live, pending, changed] at success
+      | ok output =>
+        simp [drain, live, pending, changed] at success
+        obtain ⟨gate, effect⟩ := Queue.publish_effect changed
+        exact ⟨worker, head, tail, output, rfl, pending, gate, effect, success.symm⟩
+
+/-- Successful default publication exposes the ordinary tag and the real outer
+mutation. This holds for arbitrary initial inputs, without a WF or provenance
+premise, so managed publication cannot enter the old quiet arithmetic history. -/
+theorem drain_effect_owned {state : State} {tid : Nat} {result : State × Observation}
+    (success : drain state tid .ownedOnly = .ok result) :
+    ∃ worker ticket store tail output,
+      state.workers[tid]? = some worker ∧
+      worker.pending = .ordinary ticket store :: tail ∧
+      PendingValid state.world worker.resources (.ordinary ticket store) .ownedOnly ∧
+      Atomics64.mutate state.world (operation worker.resources.actor ticket store) = .ok output ∧
+      result = (install state tid output.1 { worker with pending := tail },
+        .drained tid (.ordinary ticket store)) := by
+  obtain ⟨worker, head, tail, output, live, pending, gate, effect, same⟩ := drain_effect success
+  cases effect with
+  | ordinary changed => exact ⟨worker, _, _, tail, _, live, pending, gate, changed, same⟩
+  | managed current changed =>
+    exact False.elim (Queue.not_valid_managed_ownedOnly _ _ _ _ _ gate)
+
+theorem drain_managed_ownedOnly {state : State} {tid : Nat} {worker : Worker}
+    {reference : Queue.ManagedRef} {value : Word} {occurrence : Nat} {tail : List Pending}
+    (live : state.workers[tid]? = some worker)
+    (pending : worker.pending = .managed reference value occurrence :: tail) :
+    drain state tid .ownedOnly = .error .resource := by
+  simp [drain, live, pending, Queue.publish_managed_ownedOnly]
 
 end EDSL.OS.TSO64
