@@ -105,6 +105,10 @@ inductive Instruction where
   the old low bit, OF the old high bit; AF is an independent undefined choice.
   One REX.W D1 /5 encoding, with B selecting the destination and R/X ignored. -/
   | shrOne64 (destination : Register)
+  /-- Register-only full64 rotate left by old CL masked to six bits. Exactly
+  48/49 D3 /0, mod=3. AF/PF/ZF/SF survive; OF is the sole undefined bit for
+  masked counts 2..63. Count zero preserves every flag. -/
+  | rolCL64 (destination : Register)
   /-- MOVZX r32, r/m8. Exactly one DATA1 read at the full64 prestate address;
   the complete destination is the zero-extended byte and all flags survive. -/
   | movzxMem8 (destination : Register) (address : Address) (prefixed : Bool)

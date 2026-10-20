@@ -179,6 +179,12 @@ theorem domain_nonvacuous (id : TaskID) (bytes : List Byte)
         (0x8000000000000001 : Word) trivial Arithmetic64.parity64_useful_separated
         bytes positive bound)
 
+  | rotateLeft64 =>
+    exact (old_nonvacuous_iff _ _).mpr
+      (PureCall.Candidate.nonvacuous Arithmetic64.rotateLeft
+        ((0x8123456789abcdef, 4) : Word × BitVec 32) trivial
+        Arithmetic64.rotateLeft_useful_wraparound bytes positive bound)
+
 /-- All admitted pair inputs and all AF streams satisfy the fixed semantic
 contract. Graph validity is separately proved evidence used by the adapters. -/
 theorem pair_semantics : SemanticClaim pairTask Pair32.bytes := by

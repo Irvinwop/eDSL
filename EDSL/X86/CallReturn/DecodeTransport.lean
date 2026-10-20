@@ -207,6 +207,7 @@ private theorem rexW_rejects_stack {state : State} (rex : Byte) {opcode : Byte}
   have outside {value : Nat} := @byte_ne_outside opcode 0x50 0x5f value range.1 range.2
   have notXchg : ¬(0x90 ≤ opcode.toNat ∧ opcode.toNat ≤ 0x97) := by omega
   simp [Sequential.decodeREXWAt, fetched, notXchg,
+    outside (by decide : 0xd3 < 256) (by decide),
     outside (by decide : 0xd1 < 256) (by decide),
     outside (by decide : 0xc7 < 256) (by decide),
     outside (by decide : 0x0f < 256) (by decide),

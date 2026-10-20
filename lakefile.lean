@@ -136,3 +136,9 @@ lean_lib ParityTests where
   roots := #[`tests.SequentialParityISA, `tests.ParityISAAudit,
     `tests.ParityBodies, `tests.ParityResources, `tests.GradingParity]
   moreLeanArgs := #["-DautoImplicit=false"]
+
+-- Shared neutral flag choices, generated rotation and registered resources.
+lean_lib RotationTests where
+  roots := #[`tests.SequentialRotate, `tests.RotateAudit, `tests.RotationBodies,
+    `tests.RotationResources, `tests.GradingRotation]
+  moreLeanArgs := #["-DautoImplicit=false"]

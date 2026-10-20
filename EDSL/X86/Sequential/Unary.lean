@@ -115,12 +115,12 @@ theorem execute_negReg32_af_independent (state : State) (destination : Register)
     (prefixed left right : Bool) :
     execute state (.negReg32 destination prefixed) left =
       execute state (.negReg32 destination prefixed) right :=
-  execute_af_independent state _ left right rfl
+  execute_choice_independent state _ left right rfl
 
 theorem execute_bswapReg64_af_independent (state : State) (destination : Register)
     (left right : Bool) :
     execute state (.bswapReg64 destination) left = execute state (.bswapReg64 destination) right :=
-  execute_af_independent state _ left right rfl
+  execute_choice_independent state _ left right rfl
 
 namespace Literals
 

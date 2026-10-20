@@ -39,7 +39,7 @@ def Instruction.length : Instruction → Nat
   | .legacy _ => 2
   | .xorSelf32 _ | .movReg32 _ _ | .xchgRax64 _ | .je _ | .jcc _ _ | .jmp _ => 2
   | .movReg64 _ _ | .addReg64 _ _ | .logicalReg64 _ _ _ | .xchgReg64 _ _ | .test64 _ _ | .cmp64 _ _
-  | .inc64 _ | .dec64 _ | .bswapReg64 _ | .shrOne64 _ => 3
+  | .inc64 _ | .dec64 _ | .bswapReg64 _ | .shrOne64 _ | .rolCL64 _ => 3
   | .addMem32 _ address | .loadMem32 _ address | .storeMem32 address _ => 2 + address.suffixBytes
   | .lea64 _ address | .loadMem64 _ address | .addMem64 _ address | .storeMem64 address _ =>
     3 + address.suffixBytes
@@ -376,7 +376,12 @@ All addressing restrictions, ADD operand direction and register-only CMOV
 checks remain explicit. -/
 def decodeREXWAt (state : State) (opcode : Byte) : Except Error Instruction := do
   let operation ← fetchByte state.memory (state.rip + 1)
-  if operation = 0xd1 then
+  if operation = 0xd3 then
+    if opcode ≠ 0x48 ∧ opcode ≠ 0x49 then throw .unsupportedEncoding
+    let modrm ← fetchByte state.memory (state.rip + 2)
+    if modrm.toNat / 64 ≠ 3 ∨ modrm.toNat / 8 % 8 ≠ 0 then throw .unsupportedEncoding
+    return .rolCL64 (rexModRMRM opcode modrm)
+  else if operation = 0xd1 then
     let modrm ← fetchByte state.memory (state.rip + 2)
     if modrm.toNat / 64 ≠ 3 ∨ modrm.toNat / 8 % 8 ≠ 5 then throw .unsupportedEncoding
     return .shrOne64 (rexModRMRM opcode modrm)
@@ -457,6 +462,8 @@ def decodeREXWAt (state : State) (opcode : Byte) : Except Error Instruction := d
 REX.B extends the destination; REX.R is ignored for the opcode-extension field
 and REX.X is ignored without a SIB. No other counts, widths, group selectors,
 memory or extra prefixes are admitted by this family.
+ROL64 by CL admits exactly 48/49 D3 /0, mod=3, length three. B extends the
+destination; R/X aliases, other count sources, widths and memory forms reject.
 MOV64, LEA64, ADD64, register AND/OR/XOR64, register CMOV64 and register XCHG64 admit
 one REX.W prefix 48..4F, including R/B and the SIB index extension X. Register
 ADD, AND/OR/XOR and CMOV ignore X. Logical instructions admit both opcode
@@ -590,7 +597,7 @@ theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.len
     cases address <;> simp [Instruction.length, Address.suffixBytes]
   | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | addReg64 _ _ | logicalReg64 _ _ _ | xchgReg64 _ _ | xchgRax64 _
   | test64 _ _ | cmp64 _ _ | cmpImm64 _ _ | addImm64 _ _ | movSignImm32 _ _
-  | inc64 _ | dec64 _ | bswapReg64 _ | shrOne64 _ | je _ | jcc _ _ | jmp _ => simp [Instruction.length]
+  | inc64 _ | dec64 _ | bswapReg64 _ | shrOne64 _ | rolCL64 _ | je _ | jcc _ _ | jmp _ => simp [Instruction.length]
 
 theorem Instruction.length_le_nine (instruction : Instruction) : instruction.length ≤ 9 := by
   cases instruction with
@@ -611,7 +618,7 @@ theorem Instruction.length_le_nine (instruction : Instruction) : instruction.len
     cases address <;> simp [Instruction.length, Address.suffixBytes]
   | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | addReg64 _ _ | logicalReg64 _ _ _ | xchgReg64 _ _ | xchgRax64 _
   | test64 _ _ | cmp64 _ _ | cmpImm64 _ _ | addImm64 _ _ | movSignImm32 _ _
-  | inc64 _ | dec64 _ | bswapReg64 _ | shrOne64 _ | je _ | jcc _ _ | jmp _ => simp [Instruction.length]
+  | inc64 _ | dec64 _ | bswapReg64 _ | shrOne64 _ | rolCL64 _ | je _ | jcc _ _ | jmp _ => simp [Instruction.length]
 
 /-- Admission of a NEW instruction never admits it in the old sequential/TSO
 profile; those clients continue to use the untouched legacy decoder. -/

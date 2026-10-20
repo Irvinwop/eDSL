@@ -67,7 +67,8 @@ theorem CheckedTrace.read_origin {AllowedRead : State → Read → Prop}
 /-- Generate bounded weakest preconditions by reducing the production ISA
 executor. The only instruction data comes from an independently byte-checked
 CFG. The generator automatically composes all successor obligations; clients
-provide no per-instruction `localVC`. Both values of undefined AF are required.
+provide no per-instruction `localVC`. Both values of the named undefined flag
+(AF or OF) are required; inactive choices are ignored by the executor.
 
 Zero fuel, machine errors, locked events, syscalls and missing successors fail
 closed. This first profile inherits the CFG's explicit read-only restriction. -/
@@ -185,7 +186,7 @@ def certify (bytes : List Byte) (graph : CFG.Graph) (base : Word)
     decide (initial.rip = base + BitVec.ofNat 64 (graph.node node).offset) &&
     check graph base AllowedRead fuel node initial Post
 
-private def decidableAF (chooses : Bool) (P : Bool → Prop)
+private def decidableChoice (chooses : Bool) (P : Bool → Prop)
     (decision : ∀ af, Decidable (P af))
     (independent : chooses = false → ∀ af, P af ↔ P false) : Decidable (∀ af, P af) :=
   if noChoice : chooses = false then
@@ -198,7 +199,7 @@ private def decidableAF (chooses : Bool) (P : Bool → Prop)
 
 /-- Construct the executable decision procedure from decidable client
 contracts. The recursion is on fuel and enumerates finite CFG-node choices.
-The existing ISA independence theorem avoids branching on AF for instructions
+The existing ISA independence theorem avoids branching on an undefined flag for instructions
 which ignore it. No external solver is called. -/
 def decidableWP (graph : CFG.Graph) (base : Word) (AllowedRead : State → Read → Prop)
     (decReads : ∀ state read, Decidable (AllowedRead state read))
@@ -210,7 +211,7 @@ def decidableWP (graph : CFG.Graph) (base : Word) (AllowedRead : State → Read 
   | zero => exact isFalse id
   | succ fuel induction =>
     change Decidable (∀ af : Bool, _)
-    refine decidableAF (graph.node node).instruction.choosesAF _ ?_ ?_
+    refine decidableChoice ((graph.node node).instruction.choiceFlag initial).isSome _ ?_ ?_
     · intro af
       cases effect : execute initial (graph.node node).instruction af with
       | error fault => exact isFalse id
@@ -229,7 +230,9 @@ def decidableWP (graph : CFG.Graph) (base : Word) (AllowedRead : State → Read 
         | atomic event middle => infer_instance
         | syscall request => infer_instance
     · intro independent af
-      rw [execute_af_independent initial (graph.node node).instruction af false independent]
+      have noChoice : (graph.node node).instruction.choiceFlag initial = none :=
+        Option.isNone_iff_eq_none.mp (Option.isSome_eq_false_iff.mp independent)
+      rw [execute_choice_independent initial (graph.node node).instruction af false noChoice]
 
 theorem check_iff (graph : CFG.Graph) (base : Word) (AllowedRead : State → Read → Prop)
     (fuel : Nat) (node : graph.Index) (initial : State) (Post : Contract)
@@ -271,7 +274,7 @@ theorem certify_sound {bytes : List Byte} {graph : CFG.Graph}
     (ELF.checkCode_sound _ _ _ parts.2.1) parts.2.2.1 parts.2.2.2 choices
 
 /-- The independently selected result contract and fuel bound hold for every
-concrete execution, including every choice of undefined AF. -/
+concrete execution, including every choice of the named undefined flag. -/
 theorem all_executions {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid bytes graph)
     {base : Word} {AllowedRead : State → Read → Prop} {fuel : Nat}
     {node : graph.Index} {initial : State} {Post : Contract}

@@ -48,6 +48,25 @@ def Instruction.choosesAF : Instruction → Bool
   | .xorSelf32 _ | .test32 _ _ _ | .test64 _ _ | .logicalReg64 _ _ _ | .shrOne64 _ => true
   | _ => false
 
+/-- Identity of the single undefined flag supported by this profile. This is
+not a multi-flag choice vector; IMUL's four undefined bits remain unsupported. -/
+inductive ChoiceFlag where
+  | af | of
+  deriving DecidableEq, Repr
+
+def ChoiceFlag.bitIndex : ChoiceFlag → Nat
+  | .af => 4 | .of => 11
+
+def ChoiceFlag.mask : ChoiceFlag → Word
+  | .af => 0x10 | .of => 0x800
+
+/-- State-dependent, truthful choice metadata. `choosesAF` retains its old
+AF-only meaning for native capture clients. ROL uses old RCX, including aliases. -/
+def Instruction.choiceFlag (instruction : Instruction) (state : State) : Option ChoiceFlag :=
+  match instruction with
+  | .rolCL64 _ => if 1 < rolCount64 (state.registers .rcx) then some .of else none
+  | other => if other.choosesAF then some .af else none
+
 /-- Read success is checked by the actual memory primitives, including their
 canonicality, nonwrapping and per-byte accessibility checks. -/
 def OperandReadSucceeds (state : State) (read : Read) : Prop :=
@@ -58,7 +77,8 @@ def OperandReadSucceeds (state : State) (read : Read) : Prop :=
     | 8 => ∃ value, loadQWord state.memory read.address = .ok value
     | _ => read.bytes = 4 ∧ ∃ value, loadDWord state.memory read.address = .ok value
 
-/-- The explicit AF argument is used by logical32/64, self-XOR32, TEST and SHR1. Legacy execution retains
+/-- The Bool selects the flag named by `choiceFlag`: AF for self-XOR32, TEST,
+logical32/64 and SHR1; OF for ROL with masked count > 1. Legacy execution retains
 its complete old result, including concrete flags, stores, atomics and syscall
 contexts, for EVERY value of the new argument. -/
 def execute (state : State) (instruction : Instruction) (af : Bool) : Except Error Observation := do
@@ -112,6 +132,12 @@ def execute (state : State) (instruction : Instruction) (af : Bool) : Except Err
     let value := state.registers destination
     return ⟨.next { state.writeRegister destination (value >>> 1) with
       rip := state.rip + 3, flags := shrOneFlags64 state.flags value af }, reads⟩
+  | .rolCL64 destination =>
+    let value := state.registers destination
+    let count := rolCount64 (state.registers .rcx)
+    let result := value.rotateLeft count
+    return ⟨.next { state.writeRegister destination result with
+      rip := state.rip + 3, flags := rolFlags64 state.flags result count af }, reads⟩
   | .movzxReg8 destination source _ =>
     let value := (state.registers source).setWidth 8
     return ⟨.next { state.writeRegister destination ((value.setWidth 32).setWidth 64) with
@@ -895,7 +921,7 @@ theorem execute_storeIntent {state : State} {instruction : Instruction} {address
     exact execute_storeMem32 state operand source af
   | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | addImm32 _ _ _ | inc32 _ _
-  | negReg32 _ _ | bswapReg64 _ | shrOne64 _
+  | negReg32 _ _ | bswapReg64 _ | shrOne64 _ | rolCL64 _
   | movzxMem8 _ _ _ | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _
   | movReg32 _ _ | movReg64 _ _ | movSignImm32 _ _ | cmovReg32 _ _ _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | logicalReg64 _ _ _ | xchgReg64 _ _ | xchgRax64 _ | loadMem32 _ _ | loadMem64 _ _ | storeMem64 _ _ | xorSelf32 _ | test32 _ _ _ | cmp32 _ _ _ | endbr64IbtDisabled | nop _ | test64 _ _ | cmp64 _ _ | cmpMemImm8 _ _ | cmpMemReg8 _ _ | cmpMemReg32 _ _ | addMem32 _ _ | addMem64 _ _
   | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ =>
@@ -1223,7 +1249,7 @@ theorem execute_reads {state : State} {instruction : Instruction} {af : Bool}
     cases success
     rfl
   | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
-  | negReg32 destination prefixed | bswapReg64 destination | shrOne64 destination
+  | negReg32 destination prefixed | bswapReg64 destination | shrOne64 destination | rolCL64 destination
   | movzxReg8 destination source prefixed
   | movReg32 destination source | movReg64 destination source | movSignImm32 destination immediate | lea64 destination address
   | cmovReg32 condition destination source prefixed | cmovReg64 condition destination source | addReg64 destination source | logicalReg64 operation destination source | xchgReg64 left right | xchgRax64 other
@@ -1340,7 +1366,7 @@ theorem execute_reads_succeed {state : State} {instruction : Instruction} {af : 
       exact ⟨value, loaded⟩
   | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | addImm32 _ _ _ | inc32 _ _
-  | negReg32 _ _ | bswapReg64 _ | shrOne64 _
+  | negReg32 _ _ | bswapReg64 _ | shrOne64 _ | rolCL64 _
   | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _
   | movReg32 _ _ | movReg64 _ _ | movSignImm32 _ _ | cmovReg32 _ _ _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | logicalReg64 _ _ _ | xchgReg64 _ _ | xchgRax64 _ | storeMem32 _ _ | storeMem64 _ _ | xorSelf32 _ | test32 _ _ _ | cmp32 _ _ _ | endbr64IbtDisabled | nop _ | test64 _ _ | cmp64 _ _
   | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ =>
@@ -1367,7 +1393,7 @@ theorem execute_new_memory {state final : State} {instruction : Instruction} {af
   | cmpMemReg32 address source =>
     exact (execute_cmpMemReg32_context success next).2.1
   | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
-  | negReg32 destination prefixed | bswapReg64 destination | shrOne64 destination
+  | negReg32 destination prefixed | bswapReg64 destination | shrOne64 destination | rolCL64 destination
   | movzxReg8 destination source prefixed
   | movReg32 destination source | movReg64 destination source | movSignImm32 destination immediate | lea64 destination address
   | cmovReg32 condition destination source prefixed | cmovReg64 condition destination source | addReg64 destination source | logicalReg64 operation destination source | xchgReg64 left right | xchgRax64 other
@@ -1437,10 +1463,19 @@ theorem Instruction.new_effects (instruction : Instruction) (state : State)
     instruction.storeIntent state = none ∧ instruction.isLocked = false :=
   ⟨noStore, instruction.new_unlocked newInstruction⟩
 
-theorem execute_af_independent (state : State) (instruction : Instruction) (left right : Bool)
-    (noChoice : instruction.choosesAF = false) :
+/-- Neutral replacement for the former AF-only independence implication.
+AF-preserving instructions can still choose OF, so `choosesAF = false` alone
+is not a sufficient premise. -/
+theorem execute_choice_independent (state : State) (instruction : Instruction) (left right : Bool)
+    (noChoice : instruction.choiceFlag state = none) :
     execute state instruction left = execute state instruction right := by
-  cases instruction <;> first | rfl | simp [Instruction.choosesAF] at noChoice
+  cases instruction <;> first
+    | rfl
+    | simp [Instruction.choiceFlag, Instruction.choosesAF] at noChoice
+  rename_i destination
+  have defined : rolCount64 (state.registers .rcx) ≤ 1 := by omega
+  simp only [execute]
+  rw [rolFlags64_independent _ _ _ left right defined]
 
 theorem execute_new_next {state : State} {instruction : Instruction} {af : Bool}
     {observation : Observation} (newInstruction : instruction.isNew = true)
@@ -1461,7 +1496,7 @@ theorem execute_new_next {state : State} {instruction : Instruction} {af : Bool}
     obtain ⟨value, _, rfl⟩ := execute_cmpMemReg32_success_iff.mp success
     exact ⟨_, rfl⟩
   | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
-  | negReg32 destination prefixed | bswapReg64 destination | shrOne64 destination
+  | negReg32 destination prefixed | bswapReg64 destination | shrOne64 destination | rolCL64 destination
   | movzxReg8 destination source prefixed
   | movReg32 destination source | movReg64 destination source | movSignImm32 destination immediate | lea64 destination address
   | cmovReg32 condition destination source prefixed | cmovReg64 condition destination source | addReg64 destination source | logicalReg64 operation destination source | xchgReg64 left right | xchgRax64 other
@@ -1554,6 +1589,9 @@ theorem execute_new_flags {state final : State} {instruction : Instruction} {af 
   | cmpImm64 left immediate =>
     cases success; cases next
     exact cmpFlags64_preserves ..
+  | rolCL64 destination =>
+    cases success; cases next
+    exact rolFlags64_preserves ..
   | legacy old => simp [Instruction.isNew] at newInstruction
   | cmpMemImm8 address immediate =>
     exact (execute_cmpMemImm8_context success next).2.2.1

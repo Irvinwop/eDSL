@@ -145,6 +145,18 @@ def Instruction.choosesAF : Instruction → Bool
   | .sequential old => old.choosesAF
   | _ => false
 
+/-- Shared neutral metadata; the sibling's CALL/PUSH/POP/LEA add no choices. -/
+def Instruction.choiceFlag (instruction : Instruction) (state : State) : Option Sequential.ChoiceFlag :=
+  match instruction with
+  | .sequential old => old.choiceFlag state
+  | _ => none
+
+theorem liftSequential_choiceFlag (instruction : Sequential.Instruction) (state : State) :
+    (liftSequential instruction).choiceFlag state = instruction.choiceFlag state := by
+  cases instruction <;> try rfl
+  rename_i address
+  cases address <;> rfl
+
 @[simp] theorem call_no_data_intent (state : State) (d : BitVec 32) :
     (Instruction.callRelative32 d).storeIntent state = none ∧
     (Instruction.callRelative32 d).storeIntent64 state = none := ⟨rfl, rfl⟩

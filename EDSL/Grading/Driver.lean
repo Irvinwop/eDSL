@@ -40,6 +40,7 @@ def taskID : String → Option TaskID
   | "populationCount64" => some .populationCount64
   | "average64" => some .average64
   | "parity64" => some .parity64
+  | "rotateLeft64" => some .rotateLeft64
   | _ => none
 
 def taskExpr : TaskID → Expr
@@ -64,6 +65,7 @@ def taskExpr : TaskID → Expr
   | .populationCount64 => mkConst ``TaskID.populationCount64
   | .average64 => mkConst ``TaskID.average64
   | .parity64 => mkConst ``TaskID.parity64
+  | .rotateLeft64 => mkConst ``TaskID.rotateLeft64
 
 /-- Balanced quotation is a controller optimization, not a trusted conversion
 axiom. Its exact value is checked by the kernel in the expected statement. -/

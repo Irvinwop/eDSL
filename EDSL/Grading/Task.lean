@@ -15,6 +15,7 @@ import EDSL.Arithmetic64.Spec
 import EDSL.Arithmetic64.Popcount
 import EDSL.Arithmetic64.Average
 import EDSL.Arithmetic64.Parity
+import EDSL.Arithmetic64.Rotation
 import EDSL.Scalar32.Spec
 import EDSL.PureCall.Resources
 
@@ -211,6 +212,11 @@ low32, with every input and the common current caller-resource contract. -/
 def Task.parity64Task : Task :=
   ofReadOnly (PureCall.readOnlyTask Arithmetic64.parity64)
 
+/-- Full64 bit-origin rotation by an unsigned low32 count, with the shared
+current caller-resource contract and no restriction on argument values. -/
+def Task.rotateLeft64Task : Task :=
+  ofReadOnly (PureCall.readOnlyTask Arithmetic64.rotateLeft)
+
 inductive TaskID where
   | pair32 | stride32 | write32 | storeReturn32 | storeReturnValue64 | countedStore64
   | maximum64 | minimum64 | signedMaximum64 | arrayMaximum64 | arraySum64
@@ -220,6 +226,7 @@ inductive TaskID where
   | populationCount64
   | average64
   | parity64
+  | rotateLeft64
   deriving DecidableEq, Repr
 
 def registered : TaskID → Task
@@ -244,6 +251,7 @@ def registered : TaskID → Task
   | .populationCount64 => Task.populationCount64Task
   | .average64 => Task.average64Task
   | .parity64 => Task.parity64Task
+  | .rotateLeft64 => Task.rotateLeft64Task
 
 /-- The trusted task ID and literal artifact bytes determine this type. -/
 def Claim (id : TaskID) (bytes : List Byte) : Prop :=

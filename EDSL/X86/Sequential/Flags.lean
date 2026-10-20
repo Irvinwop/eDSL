@@ -6,6 +6,54 @@ import EDSL.X86.Sequential.Model
 
 namespace EDSL.X86.Sequential
 
+/-- REX.W rotates use the old RCX's low six bits, equivalently CL & 63. -/
+def rolCount64 (rcx : Word) : Nat := rcx.toNat % 64
+
+/-- Only CF/OF may change. The zero-count branch retains the entire word,
+including OF; the supplied Bool names undefined OF, never AF. -/
+def rolFlags64 (old result : Word) (count : Nat) (choice : Bool) : Word :=
+  if count = 0 then old else
+    (old &&& ~~~(0x801 : Word)) ||| flagBit 0 (result.getLsbD 0) |||
+      flagBit 11 (if count = 1 then xor (result.getLsbD 63) (result.getLsbD 0) else choice)
+
+theorem rolFlags64_bits (old result : Word) (count : Nat) (choice : Bool)
+    (nonzero : count ≠ 0) :
+    (rolFlags64 old result count choice).getLsbD 0 = result.getLsbD 0 ∧
+    (rolFlags64 old result count choice).getLsbD 11 =
+      (if count = 1 then xor (result.getLsbD 63) (result.getLsbD 0) else choice) := by
+  unfold rolFlags64
+  simp only [nonzero, ↓reduceIte]
+  generalize result.getLsbD 0 = cf
+  generalize (if count = 1 then xor (result.getLsbD 63) cf else choice) = of
+  cases cf <;> cases of <;> simp [flagBit]
+
+theorem rolFlags64_frame (old result : Word) (count : Nat) (choice : Bool) :
+    rolFlags64 old result count choice &&& ~~~(0x801 : Word) = old &&& ~~~(0x801 : Word) := by
+  unfold rolFlags64
+  split
+  · rfl
+  · generalize result.getLsbD 0 = cf
+    generalize (if count = 1 then xor (result.getLsbD 63) cf else choice) = of
+    cases cf <;> cases of <;>
+      simp [flagBit, BitVec.and_or_distrib_right, BitVec.and_assoc]
+
+theorem rolFlags64_preserves (old result : Word) (count : Nat) (choice : Bool) :
+    rolFlags64 old result count choice &&& ~~~arithmeticFlagMask =
+      old &&& ~~~arithmeticFlagMask := by
+  unfold rolFlags64
+  split
+  · rfl
+  · generalize result.getLsbD 0 = cf
+    generalize (if count = 1 then xor (result.getLsbD 63) cf else choice) = of
+    cases cf <;> cases of <;>
+      simp [flagBit, arithmeticFlagMask, BitVec.and_or_distrib_right, BitVec.and_assoc]
+
+theorem rolFlags64_independent (old result : Word) (count : Nat) (left right : Bool)
+    (defined : count ≤ 1) :
+    rolFlags64 old result count left = rolFlags64 old result count right := by
+  have cases : count = 0 ∨ count = 1 := by omega
+  rcases cases with rfl | rfl <;> simp [rolFlags64]
+
 /-- The six arithmetic status bits; every other bit of the abstract flags word
 is preserved. Logical operations take an explicit, independent AF choice.
 Intel SDM XOR: https://cdrdv2-public.intel.com/843855/334569-sdm-vol-2d-dec-24.pdf#page=43

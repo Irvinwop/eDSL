@@ -6,8 +6,10 @@ import EDSL.X86.Sequential.Model
 
 namespace EDSL.X86.Sequential
 
-/-- One choice for each retired instruction. Instructions with defined AF ignore
-their choice; choices are never reused for a later instruction. -/
+/-- One undefined-flag choice for each retired instruction. The sequential
+metadata names AF or OF; instructions without a choice ignore the Bool.
+Positions are never reused for a later instruction. Four independently
+undefined flags (e.g. IMUL) cannot be represented by this schedule. -/
 abbrev Choices := Nat → Bool
 
 def Choices.drop (choices : Choices) (count : Nat) : Choices :=
