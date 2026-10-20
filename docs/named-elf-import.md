@@ -46,10 +46,10 @@ The emitted `observedProfile` records both chosen caps. Named-file checking,
 [explicit ELF bounds](elf-function-bounds.md) for the library APIs.
 
 Static caps do not increase execution fuel, proof-packet limits or kernel
-budgets. The current `PureCall.ELFCertificate` and caller-resource convenience
-interfaces described below still use the default byte bound; explicit-profile
-imports expose the generalized binding and CFG interfaces without extending
-those certificate constructors.
+budgets. `ELF.CallerResources` provides explicit-bound `With` helpers, and
+`Corpus.Buffer.Certificate` carries the chosen bound through its loaded call
+and named-file binding. `PureCall.ELFCertificate` currently retains the default
+64-byte bound; its scalar example below uses the default import profile.
 
 ## Prove the independent behavior
 
@@ -79,7 +79,8 @@ The generated `LocalObligations`/`conditionalExecution` declarations are a
 lower-level CFG interface; the VCG/PureCall route is the usual scalar workflow.
 Buffers use the separate BufferCall adapter and explicit input loans.
 
-Bind the resulting `semantics` theorem with the shared constructor:
+For a scalar import using the default profile, bind the resulting `semantics`
+theorem with the shared constructor:
 
 ```lean
 open EDSL.GeneratedCFG.artifacts.Imported
