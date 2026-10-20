@@ -229,6 +229,7 @@ import tests.AverageBodies
 import tests.AverageResources
 import tests.GradingAverage
 import tests.SequentialParityISA
+import tests.SequentialPadding
 import tests.ParityISAAudit
 import tests.ParityBodies
 import tests.ParityResources

@@ -134,7 +134,7 @@ lean_lib AverageTests where
 
 -- Shared parity ISA, exact generated bodies and registered scalar certificates.
 lean_lib ParityTests where
-  roots := #[`tests.SequentialParityISA, `tests.ParityISAAudit,
+  roots := #[`tests.SequentialParityISA, `tests.SequentialPadding, `tests.ParityISAAudit,
     `tests.ParityBodies, `tests.ParityResources, `tests.GradingParity]
   moreLeanArgs := #["-DautoImplicit=false"]
 

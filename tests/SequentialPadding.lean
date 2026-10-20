@@ -22,7 +22,8 @@ private def entry (bytes : List Byte) : State where
 Noncanonical apparent NOP operands cannot cause a data-access failure. -/
 theorem exact_lengths_and_no_data_read (af : Bool) :
     ([ [0x90], [0x66,0x90], [0x0f,0x1f,0], [0x0f,0x1f,0x40,0],
-       [0x0f,0x1f,0x44,0,0], [0xf3,0x0f,0x1e,0xfa] ] : List (List Byte)).map
+       [0x0f,0x1f,0x44,0,0], [0x66,0x0f,0x1f,0x44,0,0],
+       [0xf3,0x0f,0x1e,0xfa] ] : List (List Byte)).map
       (fun bytes => (Sequential.step af (entry bytes)).map (fun observation =>
         match observation.result with
         | .next final => some (final.rip, final.registers .rax, final.flags, observation.reads)
@@ -32,6 +33,7 @@ theorem exact_lengths_and_no_data_read (af : Bool) :
      .ok (some (4099,0x8000000000000001,0xffffffffffffffff,[])),
      .ok (some (4100,0x8000000000000001,0xffffffffffffffff,[])),
      .ok (some (4101,0x8000000000000001,0xffffffffffffffff,[])),
+     .ok (some (4102,0x8000000000000001,0xffffffffffffffff,[])),
      .ok (some (4100,0x8000000000000001,0xffffffffffffffff,[]))] := by rfl
 
 /-- ENDBR32, extra prefixes, reserved hints and valid hardware NOP aliases
@@ -43,7 +45,8 @@ theorem reject_aliases :
        [0x41,0x90], [0xf3,0x90], [0x66,0x66,0x90],
        [0x0f,0x1f,1], [0x0f,0x1f,0xc0], [0x0f,0x1f,8],
        [0x0f,0x1f,0x40,1], [0x0f,0x1f,0x44,1,0],
-       [0x66,0x0f,0x1f,0x44,0,0], [0x0f,0x1f,0x80,0,0,0,0] ] : List (List Byte)).all
+       [0x66,0x0f,0x1f,0x44,1,0], [0x66,0x0f,0x1f,0x44,0,1],
+       [0x0f,0x1f,0x80,0,0,0,0] ] : List (List Byte)).all
       (fun bytes => !(Sequential.decodeAt (entry bytes)).isOk) = true := by decide
 
 /-- Every encoded byte is fetched: not just prefixes, opcode and ModRM, but
@@ -51,13 +54,14 @@ also the last SIB/displacement byte, even though there is no data read. -/
 theorem truncation_faults :
     ([ [0x66], [0xf3], [0xf3,0x0f], [0xf3,0x0f,0x1e],
        [0x0f], [0x0f,0x1f], [0x0f,0x1f,0x40],
-       [0x0f,0x1f,0x44], [0x0f,0x1f,0x44,0] ] : List (List Byte)).map
+       [0x0f,0x1f,0x44], [0x0f,0x1f,0x44,0],
+       [0x66,0x0f,0x1f,0x44,0] ] : List (List Byte)).map
       (fun bytes => Sequential.decodeAt (entry bytes)) =
     [.error (.inaccessibleInstruction 4097), .error (.inaccessibleInstruction 4097),
      .error (.inaccessibleInstruction 4098), .error (.inaccessibleInstruction 4099),
      .error (.inaccessibleInstruction 4097), .error (.inaccessibleInstruction 4098),
      .error (.inaccessibleInstruction 4099), .error (.inaccessibleInstruction 4099),
-     .error (.inaccessibleInstruction 4100)] := by rfl
+     .error (.inaccessibleInstruction 4100), .error (.inaccessibleInstruction 4101)] := by rfl
 
 theorem final_byte_requires_execute_permission :
     let initial := entry [0x0f,0x1f,0x44,0,0]
