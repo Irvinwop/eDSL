@@ -96,6 +96,11 @@ lean_lib WholeQWordTests where
   roots := #[`tests.WholeQWordProvenance]
   moreLeanArgs := #["-DautoImplicit=false"]
 
+-- Current-authority publication and persistent per-worker store occurrences.
+lean_lib ManagedQueue64Tests where
+  roots := #[`tests.ManagedQueue64]
+  moreLeanArgs := #["-DautoImplicit=false"]
+
 -- Cache input-traced byte-scan regressions alongside production proofs.
 lean_lib BoundedScanTests where
   roots := #[`tests.SequentialByteComparison, `tests.BufferCallResources,

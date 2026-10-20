@@ -104,6 +104,7 @@ import EDSL.OS.AtomicAccess64
 import EDSL.OS.AtomicFetchAddHistory64
 import EDSL.OS.TSO64
 import EDSL.OS.TSO64.ManagedPublication
+import EDSL.OS.TSO64.Queue
 import EDSL.OS.TSO64History
 import EDSL.OS.FetchAddCalls64
 import EDSL.OS.FetchAddABI64

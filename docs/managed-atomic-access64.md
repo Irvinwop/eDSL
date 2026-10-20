@@ -76,6 +76,39 @@ checked `publishStore` to the existing scheduler's complete-memory publication
 contract: stable resource metadata and exactly the production qword update.
 It derives enabledness from current authorization and world invariants.
 
+[`TSO64.Queue`](../EDSL/OS/TSO64/Queue.lean) provides the checked FIFO policy
+needed for integration with that instruction engine:
+
+- `admit` prefers the existing ordinary `StoreGate`. The explicit `sharedCell`
+  profile permits an exact-address managed qword fallback. DWORDs and neighboring
+  addresses have no managed fallback; `ownedOnly` remains the default.
+- A managed `Entry` retains its original handle identifier, complete handle and
+  cell descriptors, full64 value and occurrence. `publish` checks current grant
+  membership and exact reauthorization before calling the OS primitive. Even a
+  valid replacement descriptor at the same address cannot replace the original.
+- `publishHead` publishes exactly one FIFO head. Its effect proves equality of
+  the complete memory projection, unchanged metadata, preservation of live loan
+  bytes and the issuing buffer's actual Mixed view after removing the head.
+  Every managed publication retains its store event, including unchanged values.
+- `Cursor.enqueue` allocates a per-worker store sequence number only after
+  successful admission. Ordinary stores consume numbers too. Draining never
+  resets the counter or renumbers remaining entries. Its ordering invariant
+  rules out duplicate managed occurrences and relates a newest-qword buffer
+  position to its actual tagged entry.
+
+The [queue regressions](../tests/ManagedQueue64.lean) use checked OS setup and
+independent memory observations to cover peer visibility, FIFO order, repeated
+equal values, descriptor replacement, policy denials and current permissions.
+The lower-level `enqueueOrdinary`, `enqueueManaged` and `dropHead` operations
+only update bookkeeping; they do not grant authority or perform publication.
+
+This is a reusable policy library, not yet the scheduler's managed MOV API.
+The instruction engine still needs profile threading, mixed-entry invariants,
+derived whole-qword compatibility and a shared history. A per-worker sequence
+number must be paired with the scheduler thread identifier; neither an arbitrary
+nonempty initial queue nor its ordering invariant establishes prior issue events
+or a global reads-from relation.
+
 `publishStore` is a shared-memory publication operation. A buffered instruction
 may issue a store and return before that store publishes. The existing
 [managed scheduler](managed-fetch-add64.md) still excludes ordinary access to
