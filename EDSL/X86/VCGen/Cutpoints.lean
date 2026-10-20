@@ -8,6 +8,8 @@ import EDSL.X86.Sequential.CFGDiscovery
 namespace EDSL.X86.VCGen.Cutpoints
 open Sequential
 
+variable {profile : CFG.Profile}
+
 /-- Generate a nonempty block obligation by executing the production ISA
 semantics. A block stops at RET or its first cutpoint successor. Every ordinary
 successor is composed automatically, without an interior invariant or a local
@@ -107,7 +109,7 @@ code and RIP transport through actual steps; a supplied node cannot override
 the bytes in executable RAM. -/
 def Annotations.machineAnnotations
     (annotations : Annotations bytes graph base Post AllowedRead)
-    (valid : CFG.Valid bytes graph) : CFG.Annotations bytes graph base Post AllowedRead where
+    (valid : CFG.Valid bytes graph profile) : CFG.Annotations bytes graph base Post AllowedRead where
   Inv node state := CFG.At bytes graph base node state ∧ annotations.Inv node state
   rank := annotations.rank
   Interior _ budget node state := CFG.At bytes graph base node state ∧
@@ -154,14 +156,14 @@ def Annotations.machineAnnotations
 
 /-- Reuse the existing generic cutpoint totality and prefix-safety theory. -/
 def Annotations.certificate (annotations : Annotations bytes graph base Post AllowedRead)
-    (valid : CFG.Valid bytes graph) :
+    (valid : CFG.Valid bytes graph profile) :
     Sequential.Cutpoints.Certificate valid.layout Post AllowedRead :=
   (annotations.machineAnnotations valid).certificate valid
 
 /-- Construct a total actual execution for every AF stream. The instruction
 bound is conservative; it counts retired model instructions, not wall time. -/
 theorem Annotations.execution (annotations : Annotations bytes graph base Post AllowedRead)
-    (valid : CFG.Valid bytes graph) {entry : graph.Index} {initial : State}
+    (valid : CFG.Valid bytes graph profile) {entry : graph.Index} {initial : State}
     (isCut : graph.cutpoint entry = true) (binding : CFG.At bytes graph base entry initial)
     (admitted : annotations.Inv entry initial) (choices : Choices) :
     ∃ result, Sequential.Executes choices initial result ∧ Post result.state ∧
@@ -171,7 +173,7 @@ theorem Annotations.execution (annotations : Annotations bytes graph base Post A
 /-- The generated VC produces success of the production bounded evaluator;
 there is no assumed successful run or external interpreter in its premises. -/
 theorem Annotations.sound (annotations : Annotations bytes graph base Post AllowedRead)
-    (valid : CFG.Valid bytes graph) {entry : graph.Index} {initial : State}
+    (valid : CFG.Valid bytes graph profile) {entry : graph.Index} {initial : State}
     (isCut : graph.cutpoint entry = true) (binding : CFG.At bytes graph base entry initial)
     (admitted : annotations.Inv entry initial) (choices : Choices) :
     ∃ result, Sequential.run choices
@@ -181,7 +183,7 @@ theorem Annotations.sound (annotations : Annotations bytes graph base Post Allow
   (annotations.certificate valid).total isCut ⟨binding, admitted⟩ choices
 
 theorem Annotations.all_executions (annotations : Annotations bytes graph base Post AllowedRead)
-    (valid : CFG.Valid bytes graph) {entry : graph.Index} {initial : State}
+    (valid : CFG.Valid bytes graph profile) {entry : graph.Index} {initial : State}
     (isCut : graph.cutpoint entry = true) (binding : CFG.At bytes graph base entry initial)
     (admitted : annotations.Inv entry initial) :
     Sequential.AllExecutions initial (fun result => Post result.state ∧
@@ -189,19 +191,19 @@ theorem Annotations.all_executions (annotations : Annotations bytes graph base P
   (annotations.certificate valid).all_executions isCut ⟨binding, admitted⟩
 
 theorem Annotations.safe (annotations : Annotations bytes graph base Post AllowedRead)
-    (valid : CFG.Valid bytes graph) {entry : graph.Index} {initial : State}
+    (valid : CFG.Valid bytes graph profile) {entry : graph.Index} {initial : State}
     (isCut : graph.cutpoint entry = true) (binding : CFG.At bytes graph base entry initial)
     (admitted : annotations.Inv entry initial) : Sequential.Safe initial :=
   (annotations.certificate valid).safe isCut ⟨binding, admitted⟩
 
 theorem Annotations.no_divergence (annotations : Annotations bytes graph base Post AllowedRead)
-    (valid : CFG.Valid bytes graph) {entry : graph.Index} {initial : State}
+    (valid : CFG.Valid bytes graph profile) {entry : graph.Index} {initial : State}
     (isCut : graph.cutpoint entry = true) (binding : CFG.At bytes graph base entry initial)
     (admitted : annotations.Inv entry initial) : ¬ Sequential.Diverges initial :=
   (annotations.certificate valid).no_divergence isCut ⟨binding, admitted⟩
 
 theorem Annotations.no_fault_prefix (annotations : Annotations bytes graph base Post AllowedRead)
-    (valid : CFG.Valid bytes graph) {entry : graph.Index} {initial : State}
+    (valid : CFG.Valid bytes graph profile) {entry : graph.Index} {initial : State}
     (isCut : graph.cutpoint entry = true) (binding : CFG.At bytes graph base entry initial)
     (admitted : annotations.Inv entry initial) (choices : Choices) {fuel : Nat} {error : Error}
     (fault : Sequential.run choices fuel initial = .error error) : error = .exhaustedFuel :=
@@ -211,7 +213,7 @@ theorem Annotations.no_fault_prefix (annotations : Annotations bytes graph base 
 permission in the actual pre-state, and successful memory access. RET's stack
 read is included. -/
 theorem Annotations.read_origin (annotations : Annotations bytes graph base Post AllowedRead)
-    (valid : CFG.Valid bytes graph) {entry : graph.Index} {initial : State}
+    (valid : CFG.Valid bytes graph profile) {entry : graph.Index} {initial : State}
     (isCut : graph.cutpoint entry = true) (binding : CFG.At bytes graph base entry initial)
     (admitted : annotations.Inv entry initial) {choices : Choices} {result : Result}
     (execution : Sequential.Executes choices initial result) {read : Read} (member : read ∈ result.reads) :

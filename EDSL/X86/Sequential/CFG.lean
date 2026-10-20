@@ -7,6 +7,19 @@ import EDSL.X86.Sequential.Machine
 
 namespace EDSL.X86.Sequential.CFG
 
+/-- Static structural admission caps, independent of execution fuel and dynamic
+cutpoint ranks. The slack prevents wrapping the static decoder's fetch offsets;
+it does not change the decoder or admit additional instructions. Zero caps are
+well formed and reject every nonempty program. -/
+structure Profile where
+  maxBytes : Nat
+  maxNodes : Nat
+  fetchNoWrap : maxBytes + 15 ≤ 2^64
+  deriving DecidableEq
+
+/-- The unchanged public default: 64 bytes and 32 instructions. -/
+def defaultProfile : Profile := ⟨64, 32, by decide⟩
+
 /-- Finite certificate data. Cutpoints carry user-supplied dynamic invariants;
 `depth` certifies only the acyclic interiors between those cutpoints. -/
 structure Node where
@@ -27,8 +40,8 @@ def Graph.node (graph : Graph) (index : graph.Index) : Node := graph.nodes[index
 def Graph.cutpoint (graph : Graph) (index : graph.Index) : Bool := (graph.node index).cutpoint
 def Graph.depth (graph : Graph) (index : graph.Index) : Nat := (graph.node index).depth
 
-/-- This initial CFG profile admits reads and register operations. Stores,
-locked operations and system calls need further resource-effect obligations. -/
+/-- Resource-effect admission shared by every size profile. Stores, locked
+operations and system calls need further resource-effect obligations. -/
 def readOnly : Instruction → Bool
   | .legacy .storeEsiRdi | .legacy .storeEaxRsi | .legacy .exchangeEaxRdi
   | .legacy .fetchAddEaxRdi | .legacy .syscall | .storeMem32 _ _ | .storeMem64 _ _ => false
@@ -79,7 +92,7 @@ def nodeMatches (bytes : List Byte) (node : Node) : Bool :=
   | .error _ => false
 
 private def Facts (bytes : List Byte) (graph : Graph) : Prop :=
-  bytes.length ≤ 64 ∧ graph.nodes.length ≤ 32 ∧ 0 < graph.nodes.length ∧
+  0 < graph.nodes.length ∧
   linearFrom 0 graph.nodes bytes.length = true ∧
   (∀ i : graph.Index, i.val = 0 → graph.cutpoint i = true) ∧
   (∀ i : graph.Index, (graph.node i).offset < bytes.length ∧
@@ -93,13 +106,20 @@ instance (bytes : List Byte) (graph : Graph) : Decidable (Facts bytes graph) := 
   unfold Facts
   infer_instance
 
-/-- The checker validates supplied finite graph data. Discovery is untrusted;
-there is no execution through an expected-PC/opcode table. -/
-def check (bytes : List Byte) (graph : Graph) : Bool := decide (Facts bytes graph)
+/-- One cap-independent structural invariant, with explicit admission caps.
+Discovery is untrusted; annotation data never selects execution opcodes. -/
+def checkWith (profile : Profile) (bytes : List Byte) (graph : Graph) : Bool :=
+  decide (bytes.length ≤ profile.maxBytes ∧ graph.nodes.length ≤ profile.maxNodes ∧
+    Facts bytes graph)
 
-structure Valid (bytes : List Byte) (graph : Graph) : Prop where
-  byteBound : bytes.length ≤ 64
-  instructionBound : graph.nodes.length ≤ 32
+/-- Compatibility checker; its default is never inferred from candidate bytes. -/
+def check (bytes : List Byte) (graph : Graph) : Bool := checkWith defaultProfile bytes graph
+
+/-- The profile is part of the proof's type. Omitting it means exactly the old
+64-byte/32-node profile, including the original field and constructor order. -/
+structure Valid (bytes : List Byte) (graph : Graph) (profile : Profile := defaultProfile) : Prop where
+  byteBound : bytes.length ≤ profile.maxBytes
+  instructionBound : graph.nodes.length ≤ profile.maxNodes
   nonempty : 0 < graph.nodes.length
   linear : linearFrom 0 graph.nodes bytes.length = true
   entryCutpoint : ∀ i : graph.Index, i.val = 0 → graph.cutpoint i = true
@@ -111,9 +131,12 @@ structure Valid (bytes : List Byte) (graph : Graph) : Prop where
   decreases : ∀ i j : graph.Index, graph.Edge i j → graph.cutpoint j = false →
     graph.depth j < graph.depth i
 
-theorem check_sound {bytes : List Byte} {graph : Graph}
-    (checked : check bytes graph = true) : Valid bytes graph := by
-  have facts : Facts bytes graph := of_decide_eq_true checked
+variable {profile : Profile}
+
+theorem checkWith_sound {bytes : List Byte} {graph : Graph}
+    (checked : checkWith profile bytes graph = true) : Valid bytes graph profile := by
+  have facts : bytes.length ≤ profile.maxBytes ∧ graph.nodes.length ≤ profile.maxNodes ∧
+      Facts bytes graph := of_decide_eq_true checked
   rcases facts with ⟨size, count, nonempty, linear, entry, nodes, closed, decreases⟩
   refine ⟨size, count, nonempty, linear, entry, ?_, ?_, decreases⟩
   · intro i
@@ -128,13 +151,42 @@ theorem check_sound {bytes : List Byte} {graph : Graph}
   · intro i target member
     exact of_decide_eq_true (List.all_eq_true.mp (closed i) target member)
 
-def Valid.entry {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph) : graph.Index :=
+theorem check_sound {bytes : List Byte} {graph : Graph}
+    (checked : check bytes graph = true) : Valid bytes graph := checkWith_sound checked
+
+theorem checkWith_complete {bytes : List Byte} {graph : Graph}
+    (valid : Valid bytes graph profile) : checkWith profile bytes graph = true := by
+  have facts : Facts bytes graph := by
+    refine ⟨valid.nonempty, valid.linear, valid.entryCutpoint, ?_, ?_, valid.decreases⟩
+    · intro i
+      have node := valid.nodes i
+      exact ⟨node.1, by simp [nodeMatches, node.2.1], node.2.2⟩
+    · intro i
+      apply List.all_eq_true.mpr
+      intro target member
+      exact decide_eq_true (valid.closed i target member)
+  exact decide_eq_true ⟨valid.byteBound, valid.instructionBound, facts⟩
+
+theorem checkWith_iff {bytes : List Byte} {graph : Graph} :
+    checkWith profile bytes graph = true ↔ Valid bytes graph profile :=
+  ⟨checkWith_sound, checkWith_complete⟩
+
+theorem check_iff {bytes : List Byte} {graph : Graph} :
+    check bytes graph = true ↔ Valid bytes graph := checkWith_iff
+
+theorem Valid.fetchNoWrap {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile) :
+    bytes.length + 15 ≤ 2^64 := by
+  have := valid.byteBound
+  have := profile.fetchNoWrap
+  omega
+
+def Valid.entry {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile) : graph.Index :=
   ⟨0, valid.nonempty⟩
 
-theorem Valid.entry_cutpoint {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph) :
+theorem Valid.entry_cutpoint {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile) :
     graph.cutpoint valid.entry = true := valid.entryCutpoint valid.entry rfl
 
-theorem Valid.entry_offset {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph) :
+theorem Valid.entry_offset {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile) :
     (graph.node valid.entry).offset = 0 := by
   cases nodes : graph.nodes with
   | nil => have nonempty := valid.nonempty; simp [nodes] at nonempty
@@ -144,26 +196,46 @@ theorem Valid.entry_offset {bytes : List Byte} {graph : Graph} (valid : Valid by
     simpa only [Graph.node, Valid.entry, nodes, List.getElem_cons_zero] using linear.1
 
 /-- A checked node decodes in current actual RAM, with its actual runtime RIP. -/
-theorem Valid.decoded {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph)
+theorem Valid.decoded {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile)
     {memory : Memory} {base : Word} (code : CodeAt memory base bytes)
     (index : graph.Index) (state : State) (currentMemory : state.memory = memory)
     (currentPC : state.rip = base + BitVec.ofNat 64 (graph.node index).offset) :
     decodeAt state = .ok (graph.node index).instruction :=
   decodeAt_transport
-    (code_fetch_transport code valid.byteBound (graph.node index).offset
+    (code_fetch_transport_of_bound code valid.fetchNoWrap (graph.node index).offset
       (valid.nodes index).1 state currentMemory currentPC) (valid.nodes index).2.1
 
-theorem Valid.step_eq_execute {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph)
+theorem Valid.step_eq_execute {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile)
     {memory : Memory} {base : Word} (code : CodeAt memory base bytes)
     (index : graph.Index) (state : State) (currentMemory : state.memory = memory)
     (currentPC : state.rip = base + BitVec.ofNat 64 (graph.node index).offset) (af : Bool) :
     step af state = execute state (graph.node index).instruction af :=
   Sequential.step_eq_execute af (valid.decoded code index state currentMemory currentPC)
 
-theorem Valid.canonical_node {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph)
+theorem Valid.canonical_node {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile)
     {memory : Memory} {base : Word} (code : CodeAt memory base bytes) (index : graph.Index) :
     canonical (base + BitVec.ofNat 64 (graph.node index).offset) = true :=
   code_canonical_offset code (graph.node index).offset (valid.nodes index).1
+
+/-- The selected runtime node address is an ordinary, non-wrapping natural
+sum. Relative branch arithmetic remains the production ISA's word arithmetic. -/
+theorem Valid.address_no_wrap {bytes : List Byte} {graph : Graph}
+    (valid : Valid bytes graph profile) {memory : Memory} {base : Word}
+    (code : CodeAt memory base bytes) (index : graph.Index) :
+    base.toNat + (graph.node index).offset < 2^64 := by
+  have := code.1
+  have := (valid.nodes index).1
+  omega
+
+theorem Valid.address_toNat {bytes : List Byte} {graph : Graph}
+    (valid : Valid bytes graph profile) {memory : Memory} {base : Word}
+    (code : CodeAt memory base bytes) (index : graph.Index) :
+    (base + BitVec.ofNat 64 (graph.node index).offset).toNat =
+      base.toNat + (graph.node index).offset := by
+  have sum := valid.address_no_wrap code index
+  have offsetSmall : (graph.node index).offset < 2^64 := by omega
+  simp only [BitVec.toNat_add, BitVec.toNat_ofNat, Nat.mod_eq_of_lt offsetSmall,
+    Nat.mod_eq_of_lt sum]
 
 theorem linearFrom_start_le_finish {nodes : List Node} {start finish : Nat}
     (linear : linearFrom start nodes finish = true) : start ≤ finish := by
@@ -233,12 +305,12 @@ theorem linearFrom_strict {nodes : List Node} {start finish : Nat}
           dsimp only
           omega)
 
-theorem Valid.instruction_span {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph)
+theorem Valid.instruction_span {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile)
     (index : graph.Index) :
     (graph.node index).offset + (graph.node index).instruction.length ≤ bytes.length :=
   (linearFrom_bounds valid.linear index).2
 
-theorem Valid.offset_injective {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph)
+theorem Valid.offset_injective {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile)
     {left right : graph.Index} (same : (graph.node left).offset = (graph.node right).offset) :
     left = right := by
   have notLess : ¬left.val < right.val := by
@@ -254,18 +326,18 @@ theorem Valid.offset_injective {bytes : List Byte} {graph : Graph} (valid : Vali
   apply Fin.ext
   omega
 
-theorem Valid.wordOffset_injective {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph)
+theorem Valid.wordOffset_injective {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile)
     {left right : graph.Index}
     (same : BitVec.ofNat 64 (graph.node left).offset = BitVec.ofNat 64 (graph.node right).offset) :
     left = right := by
   apply valid.offset_injective
   have leftSmall : (graph.node left).offset < 2^64 := by
     have bound := (valid.nodes left).1
-    have size := valid.byteBound
+    have size := valid.fetchNoWrap
     omega
   have rightSmall : (graph.node right).offset < 2^64 := by
     have bound := (valid.nodes right).1
-    have size := valid.byteBound
+    have size := valid.fetchNoWrap
     omega
   have natural := congrArg BitVec.toNat same
   simpa only [BitVec.toNat_ofNat, Nat.mod_eq_of_lt leftSmall,
@@ -293,7 +365,7 @@ theorem linearFrom_covers {nodes : List Node} {start finish position : Nat}
 
 /-- Every selected byte lies in one of the checked positive-length instruction
 spans. The checker therefore neither skips bytes nor silently ignores suffixes. -/
-theorem Valid.covers {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph)
+theorem Valid.covers {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile)
     (position : Nat) (inside : position < bytes.length) :
     ∃ index : graph.Index, (graph.node index).offset ≤ position ∧
       position < (graph.node index).offset + (graph.node index).instruction.length :=

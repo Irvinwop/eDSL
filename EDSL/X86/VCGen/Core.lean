@@ -9,6 +9,8 @@ import EDSL.ELF.Loader
 namespace EDSL.X86.VCGen
 open Sequential
 
+variable {profile : CFG.Profile}
+
 /-- The client's contract observes the final state, the exact retired-instruction
 count, and the ordered operand-read trace. It is independent of the checker. -/
 abbrev Contract := Result → Prop
@@ -105,7 +107,7 @@ theorem wp_pure_next_iff (graph : CFG.Graph) (base : Word)
 /-- Sound once for every checked binary, initial state, independently chosen
 contract and complete AF sequence. Exact code bytes are fetched from actual
 current executable RAM; the static graph cannot override them. -/
-theorem sound {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid bytes graph)
+theorem sound {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid bytes graph profile)
     {base : Word} {AllowedRead : State → Read → Prop} {fuel : Nat}
     {node : graph.Index} {initial : State} {Post : Contract}
     (code : CodeAt initial.memory base bytes)
@@ -155,7 +157,7 @@ theorem sound {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid bytes g
 /-- A successful VC also produces the production bounded evaluator's result.
 No claim depends on native evaluation, an external solver or an untrusted
 instruction interpreter. -/
-theorem run_sound {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid bytes graph)
+theorem run_sound {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid bytes graph profile)
     {base : Word} {AllowedRead : State → Read → Prop} {fuel : Nat}
     {node : graph.Index} {initial : State} {Post : Contract}
     (code : CodeAt initial.memory base bytes)
@@ -178,13 +180,20 @@ def check (graph : CFG.Graph) (base : Word) (AllowedRead : State → Read → Pr
 /-- Complete executable admission for a concrete modeled initial state. Besides
 the generated VC, this checks the decoder-validated CFG, actual executable RAM
 bytes and current entry RIP. `check` alone reflects only the dynamic formula. -/
+def certifyWith (profile : CFG.Profile) (bytes : List Byte) (graph : CFG.Graph) (base : Word)
+    (AllowedRead : State → Read → Prop) (fuel : Nat) (node : graph.Index)
+    (initial : State) (Post : Contract)
+    [Decidable (wp graph base AllowedRead fuel node initial Post)] : Bool :=
+  CFG.checkWith profile bytes graph && ELF.checkCode initial.memory base bytes &&
+    decide (initial.rip = base + BitVec.ofNat 64 (graph.node node).offset) &&
+    check graph base AllowedRead fuel node initial Post
+
+/-- Compatibility entry point, fixed to the original CFG admission profile. -/
 def certify (bytes : List Byte) (graph : CFG.Graph) (base : Word)
     (AllowedRead : State → Read → Prop) (fuel : Nat) (node : graph.Index)
     (initial : State) (Post : Contract)
     [Decidable (wp graph base AllowedRead fuel node initial Post)] : Bool :=
-  CFG.check bytes graph && ELF.checkCode initial.memory base bytes &&
-    decide (initial.rip = base + BitVec.ofNat 64 (graph.node node).offset) &&
-    check graph base AllowedRead fuel node initial Post
+  certifyWith CFG.defaultProfile bytes graph base AllowedRead fuel node initial Post
 
 private def decidableChoice (chooses : Bool) (P : Bool → Prop)
     (decision : ∀ af, Decidable (P af))
@@ -241,7 +250,7 @@ theorem check_iff (graph : CFG.Graph) (base : Word) (AllowedRead : State → Rea
       wp graph base AllowedRead fuel node initial Post := by
   simp [check]
 
-theorem checked_sound {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid bytes graph)
+theorem checked_sound {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid bytes graph profile)
     {base : Word} {AllowedRead : State → Read → Prop} {fuel : Nat}
     {node : graph.Index} {initial : State} {Post : Contract}
     [Decidable (wp graph base AllowedRead fuel node initial Post)]
@@ -257,6 +266,22 @@ theorem checked_sound {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid
 Its premises contain no trusted claimed opcode, assumed future execution or
 external semantic solver result. Platform/OS interpretation of the modeled
 initial state remains the caller's environmental obligation. -/
+theorem certifyWith_sound {bytes : List Byte} {graph : CFG.Graph}
+    {base : Word} {AllowedRead : State → Read → Prop} {fuel : Nat}
+    {node : graph.Index} {initial : State} {Post : Contract}
+    [Decidable (wp graph base AllowedRead fuel node initial Post)]
+    (accepted : certifyWith profile bytes graph base AllowedRead fuel node initial Post = true)
+    (choices : Choices) :
+    ∃ result, Sequential.run choices fuel initial = .ok result ∧ Post result ∧
+      result.instructions ≤ fuel ∧ CheckedTrace AllowedRead choices initial result := by
+  have parts : CFG.checkWith profile bytes graph = true ∧
+      ELF.checkCode initial.memory base bytes = true ∧
+      initial.rip = base + BitVec.ofNat 64 (graph.node node).offset ∧
+      check graph base AllowedRead fuel node initial Post = true := by
+    simpa only [certifyWith, Bool.and_eq_true, decide_eq_true_eq, and_assoc] using accepted
+  exact checked_sound (CFG.checkWith_sound parts.1)
+    (ELF.checkCode_sound _ _ _ parts.2.1) parts.2.2.1 parts.2.2.2 choices
+
 theorem certify_sound {bytes : List Byte} {graph : CFG.Graph}
     {base : Word} {AllowedRead : State → Read → Prop} {fuel : Nat}
     {node : graph.Index} {initial : State} {Post : Contract}
@@ -264,18 +289,12 @@ theorem certify_sound {bytes : List Byte} {graph : CFG.Graph}
     (accepted : certify bytes graph base AllowedRead fuel node initial Post = true)
     (choices : Choices) :
     ∃ result, Sequential.run choices fuel initial = .ok result ∧ Post result ∧
-      result.instructions ≤ fuel ∧ CheckedTrace AllowedRead choices initial result := by
-  have parts : CFG.check bytes graph = true ∧
-      ELF.checkCode initial.memory base bytes = true ∧
-      initial.rip = base + BitVec.ofNat 64 (graph.node node).offset ∧
-      check graph base AllowedRead fuel node initial Post = true := by
-    simpa only [certify, Bool.and_eq_true, decide_eq_true_eq, and_assoc] using accepted
-  exact checked_sound (CFG.check_sound parts.1)
-    (ELF.checkCode_sound _ _ _ parts.2.1) parts.2.2.1 parts.2.2.2 choices
+      result.instructions ≤ fuel ∧ CheckedTrace AllowedRead choices initial result :=
+  certifyWith_sound accepted choices
 
 /-- The independently selected result contract and fuel bound hold for every
 concrete execution, including every choice of the named undefined flag. -/
-theorem all_executions {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid bytes graph)
+theorem all_executions {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid bytes graph profile)
     {base : Word} {AllowedRead : State → Read → Prop} {fuel : Nat}
     {node : graph.Index} {initial : State} {Post : Contract}
     (code : CodeAt initial.memory base bytes)
@@ -286,7 +305,7 @@ theorem all_executions {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Vali
   obtain ⟨result, execution, post, bound, _⟩ := sound valid code pc vc choices
   exact ⟨result, execution, post, bound⟩
 
-theorem safe {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid bytes graph)
+theorem safe {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid bytes graph profile)
     {base : Word} {AllowedRead : State → Read → Prop} {fuel : Nat}
     {node : graph.Index} {initial : State} {Post : Contract}
     (code : CodeAt initial.memory base bytes)
@@ -294,7 +313,7 @@ theorem safe {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid bytes gr
     (vc : wp graph base AllowedRead fuel node initial Post) : Sequential.Safe initial :=
   (all_executions valid code pc vc).safe
 
-theorem no_divergence {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid bytes graph)
+theorem no_divergence {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid bytes graph profile)
     {base : Word} {AllowedRead : State → Read → Prop} {fuel : Nat}
     {node : graph.Index} {initial : State} {Post : Contract}
     (code : CodeAt initial.memory base bytes)
@@ -306,7 +325,7 @@ theorem no_divergence {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid
 this exact program on this admitted input. This is a dynamic instruction lower
 bound, not a minimum across equivalent programs or a physical cycle count. -/
 theorem lower_bound_exhausted {bytes : List Byte} {graph : CFG.Graph}
-    (valid : CFG.Valid bytes graph)
+    (valid : CFG.Valid bytes graph profile)
     {base : Word} {AllowedRead : State → Read → Prop} {fuel minimum : Nat}
     {node : graph.Index} {initial : State} {Post : Contract}
     (code : CodeAt initial.memory base bytes)

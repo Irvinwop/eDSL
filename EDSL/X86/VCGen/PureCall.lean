@@ -11,6 +11,8 @@ set_option warningAsError true
 namespace EDSL.X86.VCGen
 open Sequential
 
+variable {profile : CFG.Profile}
+
 /-- Generated obligations retain complete current RAM and permit only the
 original caller slot. Actual read success comes from the production step. -/
 def PureCallAllowed (initial before : State) (read : Read) : Prop :=
@@ -26,7 +28,7 @@ come from Pre, not an assumed future run. This establishes no native loading,
 physical refinement, certificate/score or additional target feature support. -/
 theorem pureCall_semantics_of_generated
     (spec : EDSL.PureCall.Spec) (bytes : List Byte) (graph : CFG.Graph)
-    (valid : CFG.Valid bytes graph) (entry : graph.Index)
+    (valid : CFG.Valid bytes graph profile) (entry : graph.Index)
     (entryOffset : (graph.node entry).offset = 0) (fuel : Nat)
     (Evidence : EDSL.PureCall.Invocation spec → State → Result → Prop)
     (project : ∀ input initial result, Evidence input initial result →
@@ -53,7 +55,7 @@ evidence, never restrictions assuming a result or successful future execution.
 The protected original return slot is the only permitted operand read. -/
 theorem pureCall_raw_of_cutpoints
     (spec : EDSL.PureCall.Spec) (bytes : List Byte) (graph : CFG.Graph)
-    (valid : CFG.Valid bytes graph)
+    (valid : CFG.Valid bytes graph profile)
     (generated : ∀ input initial, EDSL.PureCall.Pre spec bytes input initial →
       ∃ annotations : Cutpoints.Annotations bytes graph initial.rip
         (EDSL.PureCall.Post spec input initial)
@@ -81,7 +83,7 @@ RAM/ABI frames. Native loading, hardware correspondence and interference
 control remain the existing sequential target assumptions. -/
 theorem pureCall_semantics_of_cutpoints
     (spec : EDSL.PureCall.Spec) (bytes : List Byte) (graph : CFG.Graph)
-    (valid : CFG.Valid bytes graph)
+    (valid : CFG.Valid bytes graph profile)
     (generated : ∀ input initial, EDSL.PureCall.Pre spec bytes input initial →
       ∃ annotations : Cutpoints.Annotations bytes graph initial.rip
         (EDSL.PureCall.Post spec input initial)

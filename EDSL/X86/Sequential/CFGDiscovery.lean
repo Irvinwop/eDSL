@@ -43,47 +43,66 @@ def annotate (nodes : List Node) : Graph :=
     cutpoint := decide (node.offset = 0) || targets.contains node.offset
     depth := nodes.length - index }), nodes.length⟩
 
-/-- Discover and validate a read-only CFG with sparse cutpoints. Successful
-discovery establishes finite code facts, not a program's functional contract. -/
-def analyze (bytes : List Byte) : Except DiscoveryError Graph :=
+/-- Discover under an explicitly selected static admission profile. The node
+counter bounds only this finite scan, never a program's dynamic execution.
+Successful discovery is rechecked and establishes no functional contract. -/
+def analyzeWith (profile : Profile) (bytes : List Byte) : Except DiscoveryError Graph :=
   if bytes.isEmpty then .error .empty
-  else if bytes.length > 64 then .error .byteLimit
+  else if bytes.length > profile.maxBytes then .error .byteLimit
   else do
-    let nodes ← decodeNodes bytes 32 0
+    let nodes ← decodeNodes bytes profile.maxNodes 0
     let graph := annotate nodes
-    if check bytes graph then return graph else throw .invalidGraph
+    if checkWith profile bytes graph then return graph else throw .invalidGraph
+
+def discoverWith (profile : Profile) (bytes : List Byte) : Option Graph :=
+  (analyzeWith profile bytes).toOption
+
+/-- Unchanged 64-byte/32-node compatibility entry points. -/
+def analyze (bytes : List Byte) : Except DiscoveryError Graph := analyzeWith defaultProfile bytes
 
 def discover (bytes : List Byte) : Option Graph := (analyze bytes).toOption
 
-theorem analyze_checked {bytes : List Byte} {graph : Graph}
-    (accepted : analyze bytes = .ok graph) : check bytes graph = true := by
+variable {profile : Profile}
+
+theorem analyzeWith_checked {bytes : List Byte} {graph : Graph}
+    (accepted : analyzeWith profile bytes = .ok graph) : checkWith profile bytes graph = true := by
   by_cases empty : bytes.isEmpty
-  · simp [analyze, empty] at accepted
-  · by_cases large : bytes.length > 64
-    · simp [analyze, empty, large] at accepted
-    · cases decoded : decodeNodes bytes 32 0 with
-      | error fault => simp [analyze, empty, large, decoded] at accepted
+  · simp [analyzeWith, empty] at accepted
+  · by_cases large : bytes.length > profile.maxBytes
+    · simp [analyzeWith, empty, large] at accepted
+    · cases decoded : decodeNodes bytes profile.maxNodes 0 with
+      | error fault => simp [analyzeWith, empty, large, decoded] at accepted
       | ok nodes =>
-        cases checked : check bytes (annotate nodes) with
-        | false => simp [analyze, empty, large, decoded, checked] at accepted
+        cases checked : checkWith profile bytes (annotate nodes) with
+        | false => simp [analyzeWith, empty, large, decoded, checked] at accepted
         | true =>
           have same : annotate nodes = graph := by
-            simpa [analyze, empty, large, decoded, checked] using accepted
+            simpa [analyzeWith, empty, large, decoded, checked] using accepted
           simpa only [same] using checked
 
-theorem analyze_sound {bytes : List Byte} {graph : Graph}
-    (accepted : analyze bytes = .ok graph) : Valid bytes graph :=
-  check_sound (analyze_checked accepted)
+theorem analyzeWith_sound {bytes : List Byte} {graph : Graph}
+    (accepted : analyzeWith profile bytes = .ok graph) : Valid bytes graph profile :=
+  checkWith_sound (analyzeWith_checked accepted)
 
-theorem discover_sound {bytes : List Byte} {graph : Graph}
-    (accepted : discover bytes = some graph) : Valid bytes graph := by
-  cases result : analyze bytes with
+theorem discoverWith_sound {bytes : List Byte} {graph : Graph}
+    (accepted : discoverWith profile bytes = some graph) : Valid bytes graph profile := by
+  cases result : analyzeWith profile bytes with
   | error fault =>
-    simp only [discover, result] at accepted
+    simp only [discoverWith, result] at accepted
     cases accepted
   | ok candidate =>
-    have same : candidate = graph := by simpa only [discover, result, Except.toOption, Option.some.injEq] using accepted
+    have same : candidate = graph := by
+      simpa only [discoverWith, result, Except.toOption, Option.some.injEq] using accepted
     subst candidate
-    exact analyze_sound result
+    exact analyzeWith_sound result
+
+theorem analyze_checked {bytes : List Byte} {graph : Graph}
+    (accepted : analyze bytes = .ok graph) : check bytes graph = true := analyzeWith_checked accepted
+
+theorem analyze_sound {bytes : List Byte} {graph : Graph}
+    (accepted : analyze bytes = .ok graph) : Valid bytes graph := analyzeWith_sound accepted
+
+theorem discover_sound {bytes : List Byte} {graph : Graph}
+    (accepted : discover bytes = some graph) : Valid bytes graph := discoverWith_sound accepted
 
 end EDSL.X86.Sequential.CFG

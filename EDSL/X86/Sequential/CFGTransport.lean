@@ -6,6 +6,8 @@ import EDSL.X86.Sequential.CFG
 
 namespace EDSL.X86.Sequential.CFG
 
+variable {profile : Profile}
+
 /-- Relative graph edges translated by the actual runtime code base. -/
 def Targets (pc : Word) (instruction : Instruction) : List Word :=
   let fallthrough := pc + BitVec.ofNat 64 instruction.length
@@ -273,7 +275,7 @@ theorem targets_translate (node : Node) (base : Word) :
 
 /-- A real successful continuation identifies a checked destination. Its code
 binding is retained because admitted instructions preserve actual current RAM. -/
-theorem Valid.next {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph)
+theorem Valid.next {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile)
     {base : Word} {initial final : State} (code : CodeAt initial.memory base bytes)
     (index : graph.Index)
     (currentPC : initial.rip = base + BitVec.ofNat 64 (graph.node index).offset)
@@ -298,7 +300,7 @@ theorem Valid.next {bytes : List Byte} {graph : Graph} (valid : Valid bytes grap
   · rw [memory]
     exact code
 
-theorem Valid.returned {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph)
+theorem Valid.returned {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile)
     {base : Word} {initial final : State} (code : CodeAt initial.memory base bytes)
     (index : graph.Index)
     (currentPC : initial.rip = base + BitVec.ofNat 64 (graph.node index).offset)
@@ -318,7 +320,7 @@ theorem Valid.returned {bytes : List Byte} {graph : Graph} (valid : Valid bytes 
   · rw [memory]
     exact code
 
-theorem Valid.result {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph)
+theorem Valid.result {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile)
     {base : Word} {initial : State} (code : CodeAt initial.memory base bytes)
     (index : graph.Index)
     (currentPC : initial.rip = base + BitVec.ofNat 64 (graph.node index).offset)
@@ -329,7 +331,7 @@ theorem Valid.result {bytes : List Byte} {graph : Graph} (valid : Valid bytes gr
     rwa [valid.step_eq_execute code index initial rfl currentPC af] at success
   exact execute_result (valid.nodes index).2.2.1 executed
 
-theorem Valid.no_atomic {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph)
+theorem Valid.no_atomic {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile)
     {base : Word} {initial : State} (code : CodeAt initial.memory base bytes)
     (index : graph.Index)
     (currentPC : initial.rip = base + BitVec.ofNat 64 (graph.node index).offset)
@@ -342,7 +344,7 @@ theorem Valid.no_atomic {bytes : List Byte} {graph : Graph} (valid : Valid bytes
   · rw [atomic] at returned
     cases returned
 
-theorem Valid.no_syscall {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph)
+theorem Valid.no_syscall {bytes : List Byte} {graph : Graph} (valid : Valid bytes graph profile)
     {base : Word} {initial : State} (code : CodeAt initial.memory base bytes)
     (index : graph.Index)
     (currentPC : initial.rip = base + BitVec.ofNat 64 (graph.node index).offset)

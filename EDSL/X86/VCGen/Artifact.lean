@@ -7,6 +7,8 @@ import EDSL.X86.VCGen.Core
 namespace EDSL.X86.VCGen.Artifact
 open Sequential
 
+variable {profile : CFG.Profile}
+
 /-- Bind a selected complete machine-code window to literal bytes of the final
 artifact. This performs no ELF parsing or source-language interpretation. -/
 def checkWindow (file : List Byte) (offset : Nat) (bytes : List Byte) : Bool :=
@@ -45,7 +47,7 @@ theorem codeAt {file bytes : List Byte} {offset : Nat} {memory : Memory} {base :
 mapping to every generated bounded functional, footprint and cost theorem.
 No symbol extractor or disassembler is in the proof's trusted path. -/
 theorem sound {file bytes : List Byte} {offset : Nat} {graph : CFG.Graph}
-    (window : checkWindow file offset bytes = true) (valid : CFG.Valid bytes graph)
+    (window : checkWindow file offset bytes = true) (valid : CFG.Valid bytes graph profile)
     {base : Word} {AllowedRead : State → Read → Prop} {fuel : Nat}
     {node : graph.Index} {initial : State} {Post : Contract}
     (mapped : MappedWindow initial.memory base file offset bytes.length)

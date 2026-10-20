@@ -11,13 +11,15 @@ set_option warningAsError true
 namespace EDSL.X86.VCGen
 open Sequential
 
+variable {profile : CFG.Profile}
+
 /-- Present-only buffer admission plus generated cutpoint VCs proves raw call
 semantics. Annotations and their initial invariant are proof evidence, outside
 `Pre`; no successful evaluator run, fixed fuel or per-instruction client proof
 is an admission premise. Empty buffers and zero dynamic ranks are retained. -/
 theorem bufferCall_raw_of_cutpoints
     (spec : EDSL.BufferCall.Spec) (bytes : List Byte) (graph : CFG.Graph)
-    (valid : CFG.Valid bytes graph)
+    (valid : CFG.Valid bytes graph profile)
     (generated : ∀ input initial, EDSL.BufferCall.Pre spec bytes input initial →
       ∃ annotations : Cutpoints.Annotations bytes graph initial.rip
         (EDSL.BufferCall.Post spec input initial)
@@ -50,7 +52,7 @@ ordinary RAM, interference control and the sequential callable target profile
 remain the environmental boundary of the represented semantics. -/
 theorem bufferCall_semantics_of_cutpoints
     (spec : EDSL.BufferCall.Spec) (bytes : List Byte) (graph : CFG.Graph)
-    (valid : CFG.Valid bytes graph)
+    (valid : CFG.Valid bytes graph profile)
     (generated : ∀ input initial, EDSL.BufferCall.Pre spec bytes input initial →
       ∃ annotations : Cutpoints.Annotations bytes graph initial.rip
         (EDSL.BufferCall.Post spec input initial)

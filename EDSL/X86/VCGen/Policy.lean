@@ -10,6 +10,8 @@ set_option warningAsError true
 namespace EDSL.X86.VCGen
 open Sequential
 
+variable {profile : CFG.Profile}
+
 /-- Every actual continuing prefix retains executable code, its checked PC,
 complete initial memory and the residual generated WP. The residual contract
 accounts for the prefix's actual cost and reads. In particular, a continuing
@@ -18,7 +20,7 @@ prefix cannot consume all the fuel of a proved returning WP.
 This induction follows the production `Sequential.Block`, including arbitrary
 AF choices. It assumes neither a future successful run nor a prefix policy. -/
 theorem block_residual {bytes : List Byte} {graph : CFG.Graph}
-    (valid : CFG.Valid bytes graph) {base : Word}
+    (valid : CFG.Valid bytes graph profile) {base : Word}
     {AllowedRead : State → Read → Prop} {fuel : Nat} {node : graph.Index}
     {initial before : State} {Post : Contract} {choices : Choices}
     {count : Nat} {reads : List Read}
@@ -67,7 +69,7 @@ The code binding and steps refer to stable ordinary modeled RAM. Relating that
 RAM to a native mapping, its lifetime, interference control and physical CPU
 behavior remains the caller's environmental obligation. -/
 theorem readOnly_policy {bytes : List Byte} {graph : CFG.Graph}
-    (valid : CFG.Valid bytes graph) {base : Word}
+    (valid : CFG.Valid bytes graph profile) {base : Word}
     {AllowedRead : State → Read → Prop} {fuel : Nat} {node : graph.Index}
     {initial : State} {Post : Contract}
     (code : CodeAt initial.memory base bytes)
@@ -108,7 +110,7 @@ theorem readOnly_policy {bytes : List Byte} {graph : CFG.Graph}
 /-- Canonical raw policy for later transport through an independently proved
 current-resource admission. No decidable equality on memory functions is used. -/
 theorem readOnly_policy_memory {bytes : List Byte} {graph : CFG.Graph}
-    (valid : CFG.Valid bytes graph) {base : Word}
+    (valid : CFG.Valid bytes graph profile) {base : Word}
     {AllowedRead : State → Read → Prop} {fuel : Nat} {node : graph.Index}
     {initial : State} {Post : Contract}
     (code : CodeAt initial.memory base bytes)

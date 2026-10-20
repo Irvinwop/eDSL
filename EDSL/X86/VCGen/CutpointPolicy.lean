@@ -11,6 +11,8 @@ set_option warningAsError true
 namespace EDSL.X86.VCGen.Cutpoints
 open Sequential
 
+variable {profile : CFG.Profile}
+
 variable {bytes : List Byte} {graph : CFG.Graph} {base : Word}
   {Post : State → Prop} {AllowedRead : State → Read → Prop}
 
@@ -19,7 +21,7 @@ execute and write permissions. The proof uses the checked read-only CFG and
 retained cutpoint ghost, not a memory assertion supplied at every instruction. -/
 theorem Annotations.block_memory
     (annotations : Annotations bytes graph base Post AllowedRead)
-    (valid : CFG.Valid bytes graph) {entry : graph.Index} {initial before : State}
+    (valid : CFG.Valid bytes graph profile) {entry : graph.Index} {initial before : State}
     (isCut : graph.cutpoint entry = true) (binding : CFG.At bytes graph base entry initial)
     (admitted : annotations.Inv entry initial) {choices : Choices} {count : Nat}
     {reads : List Read} (block : Sequential.Block choices initial before count reads) :
@@ -50,7 +52,7 @@ permitted and succeeds in current RAM. Interior assertions are generated once
 by the production cutpoint adapter. -/
 theorem Annotations.readOnly_policy_memory
     (annotations : Annotations bytes graph base Post AllowedRead)
-    (valid : CFG.Valid bytes graph) {entry : graph.Index} {initial : State}
+    (valid : CFG.Valid bytes graph profile) {entry : graph.Index} {initial : State}
     (isCut : graph.cutpoint entry = true) (binding : CFG.At bytes graph base entry initial)
     (admitted : annotations.Inv entry initial) :
     Grading.ReadOnlyPolicy initial (fun before => before.memory = initial.memory) AllowedRead := by
@@ -83,7 +85,7 @@ CFG, sparse invariants and input-dependent rank. The static block depth never
 bounds the mathematical input size. -/
 theorem Annotations.total_policy
     (annotations : Annotations bytes graph base Post AllowedRead)
-    (valid : CFG.Valid bytes graph) {entry : graph.Index} {initial : State}
+    (valid : CFG.Valid bytes graph profile) {entry : graph.Index} {initial : State}
     (isCut : graph.cutpoint entry = true) (binding : CFG.At bytes graph base entry initial)
     (admitted : annotations.Inv entry initial) :
     Sequential.AllExecutions initial (fun result => Post result.state ∧

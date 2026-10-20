@@ -17,8 +17,8 @@ def codeState (bytes : List Byte) (offset : Nat) : State :=
 
 /-- A successful finite-code fetch transfers to current executable RAM. Failed
 source fetches impose no premise, including bytes following a final RET. -/
-theorem code_fetch_transport {bytes : List Byte} {memory : Memory} {base : Word}
-    (code : CodeAt memory base bytes) (size : bytes.length ≤ 64) (offset : Nat)
+theorem code_fetch_transport_of_bound {bytes : List Byte} {memory : Memory} {base : Word}
+    (code : CodeAt memory base bytes) (size : bytes.length + 15 ≤ 2^64) (offset : Nat)
     (inside : offset < bytes.length) (state : State)
     (currentMemory : state.memory = memory) (currentPC : state.rip = base + BitVec.ofNat 64 offset) :
     SuccessfulFetchTransport (codeState bytes offset) state := by
@@ -44,6 +44,14 @@ theorem code_fetch_transport {bytes : List Byte} {memory : Memory} {base : Word}
       rw [currentMemory, currentPC]
       simpa only [BitVec.ofNat_add, BitVec.add_assoc] using actual
   next => cases fetched
+
+/-- Compatibility rule for the original 64-byte admission profile. -/
+theorem code_fetch_transport {bytes : List Byte} {memory : Memory} {base : Word}
+    (code : CodeAt memory base bytes) (size : bytes.length ≤ 64) (offset : Nat)
+    (inside : offset < bytes.length) (state : State)
+    (currentMemory : state.memory = memory) (currentPC : state.rip = base + BitVec.ofNat 64 offset) :
+    SuccessfulFetchTransport (codeState bytes offset) state :=
+  code_fetch_transport_of_bound code (by omega) offset inside state currentMemory currentPC
 
 theorem code_canonical_offset {bytes : List Byte} {memory : Memory} {base : Word}
     (code : CodeAt memory base bytes) (offset : Nat) (inside : offset < bytes.length) :
