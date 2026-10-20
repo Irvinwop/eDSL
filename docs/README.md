@@ -13,10 +13,12 @@ for supported capabilities, and [trust](trust.md) for the assumptions behind a
 proof. Source-language frontends and a privileged kernel target remain future
 work.
 
-The latest [parity and rotation measurement](../corpus/measurements/parity-rotation-v1/)
-records locally accepted conditional coverage of **15/40 functions and 30/80
-artifacts**, including one concurrent function. Commit-specific validation is
-available in [GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
+The latest [byte-equality measurement](../corpus/measurements/byte-equality-v1/)
+records validated conditional coverage of **16/40 functions and 32/80
+artifacts**, including one concurrent function; **24 functions / 48 artifacts**
+remain. Its certificate gate passed on source
+`383d1f1ef928f551b89a8424ae46c8bb019ce2e2`. See
+[commit-specific CI results in GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
 
 ## Verify a program
 
@@ -24,7 +26,7 @@ available in [GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
 | --- | --- |
 | Prove a new function against your own contract | [Complete worked example](verify-a-function.md), then [the reusable checker](reusable-checker.md) |
 | Import exact machine code | [Raw/ELF CFG import](cfg.md) or [named-function ELF import](named-elf-import.md) |
-| Supply caller or input-buffer authority | [Scalar calls and loop frames](pure-call.md), [scratch-frame proofs](scratch-frame.md), [buffer calls](bounded-byte-scans.md), [caller resource domain](call-resource-domain.md) |
+| Supply caller or input-buffer authority | [Scalar calls and loop frames](pure-call.md), [scratch-frame proofs](scratch-frame.md), [buffer calls](bounded-byte-scans.md), [read-only call transport](read-only-call-transport.md), [caller resource domain](call-resource-domain.md) |
 | Bind a theorem to a final file | [Standalone scalar ELF certificates](elf-certificates.md) or [registered-contract certificates](corpus-certificates.md) |
 | Check and reproduce a proof | [Build and validation](validation.md), [proof packets and grading](grading.md) |
 
@@ -80,7 +82,8 @@ These examples reuse the library under their stated profiles:
   [rotation](rotate.md).
 - Read-only loops: [byte scans](bounded-byte-scans.md),
   [first-match searches](first-match-searches.md),
-  [paired byte comparison](paired-byte-comparison.md), [sum32](sum32.md),
+  [paired byte comparison](paired-byte-comparison.md),
+  [byte equality](byte-equality.md), [sum32](sum32.md),
   [pair32](pair32.md), [array sum64](array-sum64.md) and
   [array maximum64](array-maximum64.md).
 - Mutation and workers: [store/return32](store-return32.md),

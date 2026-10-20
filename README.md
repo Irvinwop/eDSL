@@ -69,13 +69,15 @@ program can be certified.
 | Executable binding | Checked ELF layouts and named-function selection, with certificates tied to exact final bytes |
 | Languages | Lean models and design work for GNU C23, GNU C++26, LLVM IR, and assembly; complete source frontends and compiler-preservation proofs remain incomplete |
 
-The fixed GCC/Clang `-O2` evaluation corpus has locally accepted conditional
-certificates for **15 of 40 functions across both compilers: 30 of 80 artifacts**,
-including one concurrent fetch-add function. See the
+The fixed GCC/Clang `-O2` evaluation corpus has validated conditional
+certificates for **16 of 40 functions across both compilers: 32 of 80 artifacts**,
+including one concurrent fetch-add function; **24 functions / 48 artifacts**
+remain. See the
 [corpus results](docs/compiler-corpus.md) and
-[measurement records](corpus/measurements/parity-rotation-v1/).
-Parity and rotation passed the combined local full-project/corpus gate and
-fresh kernel replay. CI results are available in [GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
+[byte-equality measurement](corpus/measurements/byte-equality-v1/).
+Byte equality passed the combined certificate gate and fresh kernel replay.
+Commit-specific CI results are available in
+[GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
 
 A certificate records the machine and resource assumptions under which its
 contract holds. Connecting these models to native Linux, physical CPUs, and

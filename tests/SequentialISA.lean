@@ -186,20 +186,16 @@ example (destination : State) (code : CodeAt destination.memory destination.rip 
     X86.Sequential.decodeAt destination = .ok (.legacy .ret) := by
   apply X86.Sequential.decodeAt_transport (source := entry [0xc3]) ?_ (by rfl)
   intro offset bound byte fetched
-  have cases : offset = 0 ∨ offset = 1 ∨ offset = 2 ∨ offset = 3 ∨ offset = 4 ∨
-      offset = 5 ∨ offset = 6 ∨ offset = 7 ∨ offset = 8 := by omega
-  rcases cases with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
-  · change Except.ok (0xc3 : Byte) = .ok byte at fetched
-    cases fetched
-    simpa only [BitVec.add_zero] using code.2 0 0xc3 (by rfl)
-  · cases fetched
-  · cases fetched
-  · cases fetched
-  · cases fetched
-  · cases fetched
-  · cases fetched
-  · cases fetched
-  · cases fetched
+  have totalSmall : 4096 + offset < 2^64 := by omega
+  have zero : offset = 0 := by
+    by_cases zero : offset = 0
+    · exact zero
+    · have outside : ¬ (4096 + offset < 4097) := by omega
+      simp [fetchByte, entry, Nat.mod_eq_of_lt totalSmall, outside] at fetched
+  subst offset
+  change Except.ok (0xc3 : Byte) = .ok byte at fetched
+  cases fetched
+  simpa only [BitVec.add_zero] using code.2 0 0xc3 (by rfl)
 
 end EDSL.Tests.SequentialISA
 

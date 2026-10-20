@@ -2,8 +2,12 @@
 
 The [corpus guide](../docs/compiler-corpus.md) defines the fixed 40 functions
 and 80 default GCC/Clang final-ELF windows. Current conditional certificate
-coverage is 13/40 functions, 26/80 artifacts, including one concurrent function.
-Both compiler outputs must pass for function credit.
+coverage is **16/40 functions, 32/80 artifacts**, including **one concurrent
+function**; **24 functions / 48 artifacts** remain. Both compiler outputs must
+pass for function credit. The latest
+[byte-equality measurement](measurements/byte-equality-v1/) records the validated
+certificate gate on source `383d1f1ef928f551b89a8424ae46c8bb019ce2e2`. See
+[commit-specific CI results in GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
 
 | Path | Purpose |
 | --- | --- |

@@ -2,9 +2,13 @@
 
 This is the capability index for eDieSeL's implemented verification profiles.
 Use [implementation status](implementation-status.md) for the current
-**13/40-function, 26/80-artifact** frozen-corpus total, including **one managed
-concurrent function**. Other callable fixtures and model proofs remain useful
-without adding corpus coverage. No parity or rotation certificate is accepted.
+**16/40-function, 32/80-artifact** validated conditional frozen-corpus total,
+including **one managed concurrent function**. Other callable fixtures and model proofs remain useful
+without adding corpus coverage. The latest
+[byte-equality measurement](../corpus/measurements/byte-equality-v1/) records the
+certificate gate on source `383d1f1ef928f551b89a8424ae46c8bb019ce2e2`;
+**24 functions / 48 artifacts** remain. See
+[commit-specific CI results in GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
 
 Every entry below has a restricted contract. Follow its reference for exact
 encodings, APIs, hypotheses and rejection behavior; instruction support is not
@@ -76,7 +80,7 @@ remain explicit. Named entry points include
 | --- | --- |
 | Scalar specifications and reusable proofs | [VC generator](reusable-checker.md), [scalar-call/resource adapter](pure-call.md), [spec-indexed ELF certificates](elf-certificates.md) |
 | Arithmetic, comparisons and logical results | [Modular addition](compiler-arithmetic.md), [comparisons](comparison64.md), [logical sets](logical64.md), [signed clamp](compiler-clamp32.md), [unary functions](unary-functions.md), [popcount](popcount.md), [unsigned average](unsigned-average.md) |
-| Read-only loops and searches | [Array maximum](array-maximum64.md), [array sum](array-sum64.md), [bounded byte scans](bounded-byte-scans.md), [first matches](first-match-searches.md), [paired byte comparison](paired-byte-comparison.md) |
+| Read-only loops and searches | [Array maximum](array-maximum64.md), [array sum](array-sum64.md), [bounded byte scans](bounded-byte-scans.md), [first matches](first-match-searches.md), [paired byte comparison](paired-byte-comparison.md), [byte equality](byte-equality.md), [read-only call transport](read-only-call-transport.md) |
 | Owned mutations | [Memory64](memory64.md), [pointer-returning stores](store-return32.md), [full64 store/return](store-return-value64.md), [counted stores](counted-store64.md), [Clang counted stores](counted-store64-clang.md), [final-store loop](counted-store-final64.md), [direct-add clients](counted-store-direct64.md) |
 | Private stacks and DATA8 | [Direct nested calls](call-stack.md), [callable store/reload](call-memory64.md), [counted helper calls](call-memory-loop64.md) |
 | Fixed-contract proof packets | [Interface/tasks](grading.md), [call-stack](call-stack-grading.md), [DATA8](call-memory64-grading.md), [counted DATA8](call-memory-loop64-grading.md), [counted store](counted-store64-grading.md) |
@@ -113,7 +117,12 @@ and 32 instructions, not the dynamic input count. See [sum32](sum32.md).
 [`CFG.check`](../EDSL/X86/Sequential/CFG.lean) validates an explicit finite
 instruction partition, actual decode, closed successors and static depths.
 The initial read-only profile caps windows at 64 bytes/32 instructions and
-excludes stores, locked operations and syscalls. Sparse local obligations add
+excludes stores, locked operations and syscalls. Row-20 Clang byte equality uses
+an explicit 128-byte/32-node [CFG profile](cfg-profiles.md) for its complete
+68-byte function; the default 64-byte path rejects it. GCC's 46-byte window
+retains the 64-byte/32-node profile. These static limits leave the standard
+300,000-step/depth-128 scalar packet limits unchanged and add no equality packet
+API. See [byte equality](byte-equality.md). Sparse local obligations add
 independent postconditions, actual current read permission and decreasing
 ranks; optional equations derive exact instruction/read totals. The importer
 alone establishes static facts. [CFGs](cfg.md), [stride sums](cfg.md) and

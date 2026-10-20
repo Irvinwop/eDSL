@@ -19,9 +19,9 @@ implemented.
 ## Frozen corpus coverage
 
 The fixed [compiler corpus](compiler-corpus.md) contains 40 functions and
-80 exact final-ELF windows. Current locally accepted conditional coverage is
-**15/40 functions**, **30/80 artifacts**, and **one distinct concurrent function**;
-**25 functions / 50 artifacts** remain. Both GCC and Clang
+80 exact final-ELF windows. Current validated conditional coverage is
+**16/40 functions**, **32/80 artifacts**, and **one distinct concurrent function**;
+**24 functions / 48 artifacts** remain. Both GCC and Clang
 outputs must pass for a function to count. Certificates for different routines
 and successful decode/native checks do not increase these totals.
 
@@ -39,17 +39,19 @@ and successful decode/native checks do not increase these totals.
 | `c_average_u64` | [Floor of the unbounded natural sum divided by two](unsigned-average.md) |
 | `c_parity_loop` | [Full64 set-bit cardinality modulo two, returned in unsigned low32](parity.md) |
 | `c_rotl64` | [Full64 bit-origin left rotation by the unsigned low32 count modulo 64](rotate.md) |
+| `c_bytes_equal` | [Complete-list equality, canonical low8 Boolean result, unconstrained upper56](byte-equality.md) |
 
 The concurrent contract is `managed-tso64-closed-batch-v1`. Its actual schedules,
 histories, caller/resource frames and bounds on each worker's own instruction
 selections remain conditional on that model. Published x86-TSO, GNU source atomic
 orders and native Linux refinement are separate obligations.
 
-The [parity and rotation measurement](../corpus/measurements/parity-rotation-v1/)
-records the latest locally accepted total above. The combined full-project/corpus
-gate and fresh kernel replay passed. Commit-specific CI results are available in
-[GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions). Earlier
-measurement files retain their historical counts. See
+The [byte-equality measurement](../corpus/measurements/byte-equality-v1/)
+records the latest validated total above. The combined full-project/corpus
+certificate gate and external fresh kernel replay passed on source
+`383d1f1ef928f551b89a8424ae46c8bb019ce2e2`. See
+[commit-specific CI results in GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
+Earlier measurement files retain their historical counts. See
 [remaining blockers](corpus-blockers.md).
 
 ## Implemented foundations

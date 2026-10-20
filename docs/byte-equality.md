@@ -11,7 +11,9 @@ the upper 56 bits.
 name, unique complete extent, executable mapping and every byte. GCC uses the
 existing default admission profile. Clang uses an explicit 128-byte, 32-node profile;
 the 64-byte default still rejects it. Its exact NOP15 and final RET at offset 67 remain
-part of the checked window. Decoder acceptance does not prove equality.
+part of the checked window. The exact NOP15 bytes are
+`66 66 66 66 66 66 2e 0f 1f 84 00 00 00 00 00`.
+Decoder acceptance does not prove equality.
 
 The proofs use the production executor and sparse cutpoint VCG. GCC's cursor
 indexes the next pair; Clang first compares pair 0, then uses RCX for the next
@@ -19,23 +21,25 @@ unread pair, possibly the complete extent. An equal-prefix invariant and a
 natural remaining-length rank prove termination for every admitted full-width
 count, without a fixed execution-fuel admission premise. Admission includes
 equal snapshot lengths `n < 2^64`, argument bindings, current code and the
-original callable stack/return conditions. The model instruction bound is
-`10 * (n + 2)`. Paired reads, frames,
+original callable stack/return conditions. For every modeled undefined-flag
+choice stream, `10 * (n + 2)` is an upper bound on retired model instructions,
+with no minimum-cost or physical-timing claim. Paired reads, frames,
 prefix advancement and rank mathematics reuse the existing byte-comparison
 helpers through a result-only Invocation/Pre view. No interpreter or paired
 resource implementation is duplicated.
 
-The resulting callable contract retains complete Memory and permission maps,
-original caller return/RSP, SysV callee-saved registers and every
-nonarithmetic flag, for every choice stream. The existing buffer-call cutpoint
-bridge retains current original read authority at every actual continuing
-prefix and return. Compatible buffer/code/caller aliases require matching
+The resulting callable contract retains complete Memory and permission maps
+and current original read authority at every actual continuing prefix and
+return, for every choice stream. Original caller return/RSP, SysV callee-saved
+registers and every nonarithmetic flag satisfy the ABI/frame conditions at
+return. Compatible buffer/code/caller aliases require matching
 actual bytes, rather than disjointness. Empty buffers need no DATA access,
 canonical address, allocation or DATA loan.
 
 These are the represented sequential callable semantics. Stable ordinary RAM,
 absence of asynchronous interference and the existing target profile remain
-environmental assumptions, including support for the exact long-NOP form.
+environmental assumptions, including x86-64 long mode, disabled CET/IBT/shadow
+stacks and support for the exact NOP15 form above.
 `Grading.BufferTask` registers this result as `.equalBytes`.
 `ByteEqualityCertificates.certificate` composes the universal body proof with
 the full named-file check and a useful call at the actual loaded entry. Its
@@ -51,8 +55,15 @@ conditions hold at return. `tests/ByteEqualityCertificates.lean` applies the
 actual two certificates to overlapping mismatching inputs for every choice
 stream and checks the original caller, memory, permissions and loan authority.
 
-Combined corpus-gate acceptance remains pending. Physical CPU refinement,
-native/Linux execution, source/compiler equivalence and minimum cost remain
-separate claims. The installed `edsl-grade` packet interface currently accepts
-scalar tasks; `.equalBytes` is available through the typed buffer-certificate
-API. The finite execution regressions do not replace the universal proof.
+The [byte-equality measurement](../corpus/measurements/byte-equality-v1/)
+records the accepted full-project/corpus certificate gate and external fresh
+kernel replay on source `383d1f1ef928f551b89a8424ae46c8bb019ce2e2` in
+[Frozen corpus run 39454868896](https://github.com/Irvinwop/eDieSeL/actions/runs/39454868896).
+See [commit-specific CI results in GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
+Physical CPU,
+Linux/kernel/whole-OS refinement and source/IR/compiler preservation remain
+separate obligations. The installed `edsl-grade` packet interface remains
+scalar-only; `.equalBytes` uses the typed buffer-certificate API. No equality
+packet result is claimed. Existing scalar body/reference packets passed under
+the unchanged 300,000-step / depth-128 limits. Finite native regressions do not
+strengthen the modeled contract or replace the universal proof.

@@ -91,23 +91,31 @@ conditional coverage was **13/40 functions and 26/80 artifacts**, leaving
 
 The subsequent [parity](parity.md) and [rotation](rotate.md) milestones add both
 unchanged row-12 `c_parity_loop` and row-09 `c_rotl64` outputs. Their combined
-full-project/corpus gate and fresh kernel replay passed locally. Current locally
-accepted conditional coverage is **15/40 functions and 30/80 artifacts**;
-**25 functions / 50 artifacts** remain. One distinct concurrent function is
-certified under the existing managed model.
-The latest [measurement](../corpus/measurements/parity-rotation-v1/) records these
-results; earlier reports retain their historical counts. Earlier probe counts
-below describe their labeled historical baselines.
+full-project/corpus gate and fresh kernel replay passed locally. At that milestone,
+conditional coverage was **15/40 functions and 30/80 artifacts**;
+**25 functions / 50 artifacts** remained. One distinct concurrent function was
+certified under the existing managed model. The
+[parity and rotation measurement](../corpus/measurements/parity-rotation-v1/)
+retains these historical results.
 
-The next family is row 20 `c_bytes_equal`, reusing paired-buffer snapshots,
-current input loans and canonical [low8 Boolean results](low8-results.md), with
-explicit [larger CFG bounds](cfg-profiles.md). Complete-list equality must be
-proved for each unchanged GCC/Clang body and composed with its current-resource
-and final-file contracts. No final equality binary certificate is accepted yet.
-Reuse the checker, paired-buffer rules and sparse loop bridge where applicable.
-Further batches include shifts and predicates with independently undefined
-flags, multiplication, vector/struct effects, and atomic load/store/lock
-histories. CFG admission alone certifies none of these contracts.
+The [byte-equality milestone](byte-equality.md) adds both unchanged row-20
+`c_bytes_equal` outputs, reusing paired snapshots, original input loans and
+read-only call transport. The complete-list contract requires canonical low8
+0/1 and leaves upper56 unconstrained. GCC's 46-byte window uses a 64-byte cap;
+Clang's complete 68-byte window uses an explicit 128-byte cap, both with a 32-node cap.
+The full-project/corpus certificate gate and external fresh replay passed on
+source `383d1f1ef928f551b89a8424ae46c8bb019ce2e2`. Current validated conditional
+coverage is **16/40 functions and 32/80 artifacts**, including **one distinct
+concurrent function**; **24 functions / 48 artifacts** remain. The latest
+[measurement](../corpus/measurements/byte-equality-v1/) records these scopes and
+[commit-specific CI results in GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
+Earlier probe counts below retain their historical scope.
+
+Planned shared extensions include shifts and predicates with independently
+undefined flags, multiplication, vector/struct effects, atomic load/store/lock
+histories, and further OS/resource composition. Source load/store and
+acquire/release correspondence remain unproved. CFG admission alone certifies
+none of these contracts.
 
 At the initial probe, the first blocker for 37 GCC artifacts was opcode `0xf3` at offset zero; their
 literal windows begin with `f3 0f 1e fa` (`ENDBR64`). The other three exceed the

@@ -82,19 +82,28 @@ proof.
 
 The [parity](parity.md) and [rotation](rotate.md) milestones add both unchanged
 row-12 `c_parity_loop` and row-09 `c_rotl64` outputs. The combined
-full-project/corpus gate and fresh kernel replay passed locally. Current locally
-accepted conditional coverage is **15/40 functions and 30/80 artifacts**, including
-one distinct concurrent function; **25 functions / 50 artifacts** remain.
-The latest
+full-project/corpus gate and fresh kernel replay passed locally. Conditional
+coverage at that milestone was **15/40 functions and 30/80 artifacts**, including
+one distinct concurrent function; **25 functions / 50 artifacts** remained.
+The
 [parity and rotation measurement](../corpus/measurements/parity-rotation-v1/)
-records these results; earlier measurements retain their own counts and evidence.
+retains these historical results.
 
-The next corpus family is row-20 `c_bytes_equal`. It can reuse paired snapshots,
-current input loans and [low8 Boolean results](low8-results.md), with explicit
-[larger CFG bounds](cfg-profiles.md). Final certificates must compose independent
-complete-list equality, proofs of the unchanged compiler bodies, current
-resources and complete-file binding. This family has no accepted final-binary
-coverage.
+The [byte-equality milestone](byte-equality.md) certifies both unchanged row-20
+`c_bytes_equal` outputs against independent complete-list equality: low8 RAX is
+exactly 0/1, with upper56 unconstrained. Shared paired snapshots and original
+input loans compose through [read-only call transport](read-only-call-transport.md)
+with universal body proofs and complete-file binding, without resetting RAM or
+inputs. GCC's 46-byte window uses the default 64-byte cap; Clang's complete
+68-byte window requires the explicit [128-byte profile](cfg-profiles.md), both
+with a 32-node cap. The default path rejects the entire Clang window.
+The full-project/corpus certificate gate and external fresh replay passed on
+source `383d1f1ef928f551b89a8424ae46c8bb019ce2e2`. Current validated conditional
+coverage is **16/40 functions and 32/80 artifacts**, including **one distinct
+concurrent function**; **24 functions / 48 artifacts** remain. The latest
+[measurement](../corpus/measurements/byte-equality-v1/) records these scopes.
+See [commit-specific CI results in GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
+Earlier measurements retain their counts and evidence.
 
 ## What is frozen
 
