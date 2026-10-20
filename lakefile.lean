@@ -91,6 +91,11 @@ lean_lib ManagedFetchAdd64Tests where
 lean_lib AtomicAccess64Tests where
   roots := #[`tests.AtomicAccess64]
 
+-- Whole-word sources in the production mixed-width memory projection.
+lean_lib WholeQWordTests where
+  roots := #[`tests.WholeQWordProvenance]
+  moreLeanArgs := #["-DautoImplicit=false"]
+
 -- Cache input-traced byte-scan regressions alongside production proofs.
 lean_lib BoundedScanTests where
   roots := #[`tests.SequentialByteComparison, `tests.BufferCallResources,

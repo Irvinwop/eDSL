@@ -54,6 +54,28 @@ permissions on the last operand byte.
 
 ## Publication and concurrency
 
+[`WholeQWord`](../EDSL/X86/StoreBuffer/WholeQWord.lean) relates the existing
+mixed-width buffer projection to a single full64 store. It requires an
+addressable qword and a compatible buffer: every pending store must either
+replace that complete qword or be disjoint from all eight bytes. A DWORD must
+be disjoint. The theorem identifies the newest matching entry and proves that
+all later stores miss the operand. With no matching entry, the load uses the
+actual current published memory, including any read fault.
+
+`QWordOrigin.index` names a position in the supplied buffer snapshot. Equal
+values at different positions remain distinct; draining the FIFO can change
+the index. It is not a persistent issue identifier or a source reads-from
+witness. The [regressions](../tests/WholeQWordProvenance.lean) include repeated
+values, disjoint mixed-width stores, FIFO publication, current-memory faults
+and a partial DWORD overlap that fails the compatibility condition. These
+buffer facts grant no OS access authority. A scheduler must derive
+compatibility and current permissions from its resource invariants.
+
+[`ManagedPublication`](../EDSL/OS/TSO64/ManagedPublication.lean) connects a
+checked `publishStore` to the existing scheduler's complete-memory publication
+contract: stable resource metadata and exactly the production qword update.
+It derives enabledness from current authorization and world invariants.
+
 `publishStore` is a shared-memory publication operation. A buffered instruction
 may issue a store and return before that store publishes. The existing
 [managed scheduler](managed-fetch-add64.md) still excludes ordinary access to

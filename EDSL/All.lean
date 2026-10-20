@@ -97,11 +97,13 @@ import EDSL.Grading.CallMemory64.Artifact
 import EDSL.Grading.CallMemoryLoop64.Artifact
 import EDSL.OS.MutexReplay.Footprints
 import EDSL.X86.StoreBuffer.Mixed
+import EDSL.X86.StoreBuffer.WholeQWord
 import EDSL.X86.LockedAdd64
 import EDSL.OS.AtomicFetchAddMachine64
 import EDSL.OS.AtomicAccess64
 import EDSL.OS.AtomicFetchAddHistory64
 import EDSL.OS.TSO64
+import EDSL.OS.TSO64.ManagedPublication
 import EDSL.OS.TSO64History
 import EDSL.OS.FetchAddCalls64
 import EDSL.OS.FetchAddABI64
