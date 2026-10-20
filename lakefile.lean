@@ -108,7 +108,8 @@ lean_lib ByteComparisonTests where
 lean_lib VerificationTests where
   roots := #[`tests.VerificationImports, `tests.VerifyFunction, `tests.ELFCertificate,
     `tests.ELFFunctionSymbol, `tests.ELFFunctionCandidate, `tests.ELFStackCaller,
-    `tests.ELFFunctionWindow, `tests.ELFFunctionBounds, `tests.VCGenScratchFrame]
+    `tests.ELFFunctionWindow, `tests.ELFFunctionBounds, `tests.ELFCallerBounds,
+    `tests.VCGenScratchFrame]
   moreLeanArgs := #["-DautoImplicit=false"]
 
 -- Shared unary ISA rules, generated scalar clients and exact loaded resources.
