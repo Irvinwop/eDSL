@@ -142,12 +142,20 @@ theorem checkLayout_sound {file : List Byte} {table : Table}
   have row := Bool.and_eq_true_iff.mp (List.all_eq_true.mp checked.1.2 pair member)
   exact ⟨checkFields_sound _ _ row.1, of_decide_eq_true row.2⟩
 
-def Window.Bounds (window : Window) (fileLength length : Nat) : Prop :=
-  0 < length ∧ length ≤ 64 ∧ window.address + length ≤ 2^47 ∧
+def Window.BoundsWith (window : Window) (maxBytes fileLength length : Nat) : Prop :=
+  0 < length ∧ length ≤ maxBytes ∧ window.address + length ≤ 2^47 ∧
   window.offset + length ≤ fileLength
 
+instance (window : Window) (maxBytes fileLength length : Nat) :
+    Decidable (window.BoundsWith maxBytes fileLength length) := inferInstanceAs (Decidable (_ ∧ _))
+
+/-- Compatibility bound: exactly the original 64-byte limit. -/
+def Window.Bounds (window : Window) (fileLength length : Nat) : Prop :=
+  window.BoundsWith 64 fileLength length
+
 instance (window : Window) (fileLength length : Nat) :
-    Decidable (window.Bounds fileLength length) := inferInstanceAs (Decidable (_ ∧ _))
+    Decidable (window.Bounds fileLength length) := inferInstanceAs
+      (Decidable (window.BoundsWith 64 fileLength length))
 
 def Window.CoveredBy (window : Window) (length : Nat) (segment : Segment) : Prop :=
   segment.executable = true ∧ segment.virtualAddress ≤ window.address ∧
@@ -160,28 +168,32 @@ instance (window : Window) (length : Nat) (segment : Segment) :
 /-- Exact selected bytes and a complete, file-backed executable LOAD interval.
 The descriptor conveys no function boundaries or symbol identity. -/
 structure Selection (file : List Byte) (image : Image) (window : Window)
-    (bytes : List Byte) : Prop where
-  bounds : window.Bounds file.length bytes.length
+    (bytes : List Byte) (maxBytes : Nat := 64) : Prop where
+  bounds : window.BoundsWith maxBytes file.length bytes.length
   covered : ∃ segment ∈ image.segments, window.CoveredBy bytes.length segment
   source : (file.drop window.offset).take bytes.length = bytes
 
-def check (file : List Byte) (table : Table) (window : Window) (bytes : List Byte) : Bool :=
-  checkLayout file table && decide (window.Bounds file.length bytes.length) &&
+private abbrev checkCore (maxBytes : Nat) (file : List Byte) (table : Table) (window : Window) (bytes : List Byte) : Bool :=
+  checkLayout file table && decide (window.BoundsWith maxBytes file.length bytes.length) &&
   table.image.segments.any (fun segment => decide (window.CoveredBy bytes.length segment)) &&
   decide ((file.drop window.offset).take bytes.length = bytes) &&
   checkCode (toMemory (install file table.image empty)) window.base bytes
 
-theorem selection_sound {file bytes : List Byte} {table : Table} {window : Window}
-    (checked : check file table window bytes = true) :
-    Layout file table ∧ Selection file table.image window bytes := by
-  simp only [check, Bool.and_eq_true] at checked
+/-- Explicit caller-selected admission bound, sharing the default checker body. -/
+def checkWith (maxBytes : Nat) (file : List Byte) (table : Table) (window : Window)
+    (bytes : List Byte) : Bool := checkCore maxBytes file table window bytes
+
+theorem selection_soundWith {maxBytes : Nat} {file bytes : List Byte} {table : Table} {window : Window}
+    (checked : checkWith maxBytes file table window bytes = true) :
+    Layout file table ∧ Selection file table.image window bytes maxBytes := by
+  simp only [checkWith, Bool.and_eq_true] at checked
   obtain ⟨segment, member, covers⟩ := List.any_eq_true.mp checked.1.1.2
   exact ⟨checkLayout_sound checked.1.1.1.1,
     ⟨of_decide_eq_true checked.1.1.1.2,
       ⟨segment, member, of_decide_eq_true covers⟩, of_decide_eq_true checked.1.2⟩⟩
 
-theorem Selection.file_byte {file bytes : List Byte} {image : Image} {window : Window}
-    (selected : Selection file image window bytes) {index : Nat} {byte : Byte}
+theorem Selection.file_byteWith {maxBytes : Nat} {file bytes : List Byte} {image : Image} {window : Window}
+    (selected : Selection file image window bytes maxBytes) {index : Nat} {byte : Byte}
     (present : bytes[index]? = some byte) : file[window.offset + index]? = some byte := by
   have inside := (List.getElem_of_getElem? present).1
   rw [← selected.source] at present
@@ -212,12 +224,12 @@ theorem Layout.no_competing_pages {file : List Byte} {table : Table}
   exact ordered_disjoint (of_decide_eq_true validated.1.2)
 
 /-- The selected LOAD itself is validated, with no distinct competing page map. -/
-theorem selected_segment {file bytes : List Byte} {table : Table} {window : Window}
-    (checked : check file table window bytes = true) :
+theorem selected_segmentWith {maxBytes : Nat} {file bytes : List Byte} {table : Table} {window : Window}
+    (checked : checkWith maxBytes file table window bytes = true) :
     ∃ segment ∈ table.image.segments, segment.valid file.length = true ∧
       window.CoveredBy bytes.length segment ∧
       ∀ other ∈ table.image.segments, segment ≠ other → segment.pageDisjoint other := by
-  obtain ⟨layout, selected⟩ := selection_sound checked
+  obtain ⟨layout, selected⟩ := selection_soundWith checked
   obtain ⟨segment, member, covered⟩ := selected.covered
   have validated := layout.loads
   simp only [valid, Bool.and_eq_true] at validated
@@ -227,8 +239,8 @@ theorem selected_segment {file bytes : List Byte} {table : Table} {window : Wind
 /-- Reuses the existing byte-fetch checker and its prior-space independence
 proof. This is a theorem about the exact abstract installation, before any
 interpreter, relocation, runtime patching or concurrent modification. -/
-theorem checked_code {file bytes : List Byte} {table : Table} {window : Window}
-    (checked : check file table window bytes = true) (prior : Space) :
+theorem checked_codeWith {maxBytes : Nat} {file bytes : List Byte} {table : Table} {window : Window}
+    (checked : checkWith maxBytes file table window bytes = true) (prior : Space) :
     CodeAt (toMemory (install file table.image prior)) window.base bytes := by
   have code := checkCode_sound _ _ _ (Bool.and_eq_true_iff.mp checked).2
   refine ⟨code.1, ?_⟩
@@ -237,38 +249,44 @@ theorem checked_code {file bytes : List Byte} {table : Table} {window : Window}
 
 /-- Freshness is mandatory for admission, including hidden cells in page
 padding. This does not call or extend the restricted legacy ELF parser. -/
-def admit (file : List Byte) (table : Table) (window : Window) (bytes : List Byte)
-    (prior : Space) : Except Error Loaded :=
-  if check file table window bytes then
-    if fresh table.image prior then .ok ⟨table.image, install file table.image prior⟩
-    else .error .mappingCollision
-  else .error .invalidImage
+-- Term templates preserve the shallow public definitions used by existing
+-- explicit simplification clients, while keeping one admission implementation.
+local macro "admitChecked%(" checked:term ", " file:term ", " table:term ", " prior:term ")" : term =>
+  `(if $checked then
+      if fresh (Table.image $table) $prior then
+        .ok ⟨Table.image $table, install $file (Table.image $table) $prior⟩
+      else .error .mappingCollision
+    else .error .invalidImage)
 
-theorem admit_ok {file bytes : List Byte} {table : Table} {window : Window}
-    {prior : Space} {loaded : Loaded} (success : admit file table window bytes prior = .ok loaded) :
-    check file table window bytes = true ∧ fresh table.image prior = true ∧
+def admitWith (maxBytes : Nat) (file : List Byte) (table : Table) (window : Window)
+    (bytes : List Byte) (prior : Space) : Except Error Loaded :=
+  admitChecked%(checkWith maxBytes file table window bytes, file, table, prior)
+
+theorem admit_okWith {maxBytes : Nat} {file bytes : List Byte} {table : Table} {window : Window}
+    {prior : Space} {loaded : Loaded} (success : admitWith maxBytes file table window bytes prior = .ok loaded) :
+    checkWith maxBytes file table window bytes = true ∧ fresh table.image prior = true ∧
     loaded.image = table.image ∧ loaded.space = install file table.image prior := by
-  by_cases checked : check file table window bytes = true
+  by_cases checked : checkWith maxBytes file table window bytes = true
   · by_cases free : fresh table.image prior = true
-    · simp [admit, checked, free] at success
+    · simp [admitWith, checked, free] at success
       cases success
       exact ⟨checked, free, rfl, rfl⟩
-    · simp [admit, checked, free] at success
-  · simp [admit, checked] at success
+    · simp [admitWith, checked, free] at success
+  · simp [admitWith, checked] at success
 
 /-- Generic LOAD admission bridge: literal syntax, selected source bytes,
 executable CodeAt and preservation of every pre-existing caller cell. It
 establishes neither physical ownership nor an ABI or OS startup contract. -/
-theorem admitted_sound {file bytes : List Byte} {table : Table} {window : Window}
-    {prior : Space} {loaded : Loaded} (success : admit file table window bytes prior = .ok loaded) :
-    Layout file table ∧ Selection file loaded.image window bytes ∧
+theorem admitted_soundWith {maxBytes : Nat} {file bytes : List Byte} {table : Table} {window : Window}
+    {prior : Space} {loaded : Loaded} (success : admitWith maxBytes file table window bytes prior = .ok loaded) :
+    Layout file table ∧ Selection file loaded.image window bytes maxBytes ∧
     CodeAt (toMemory loaded.space) window.base bytes ∧
     ∀ address cell, prior.cells address = some cell → loaded.space.cells address = some cell := by
-  obtain ⟨checked, free, image, space⟩ := admit_ok success
-  obtain ⟨layout, selected⟩ := selection_sound checked
+  obtain ⟨checked, free, image, space⟩ := admit_okWith success
+  obtain ⟨layout, selected⟩ := selection_soundWith checked
   refine ⟨layout, image ▸ selected, ?_, ?_⟩
   · rw [space]
-    exact checked_code checked prior
+    exact checked_codeWith checked prior
   · rw [space]
     exact install_preserves_existing file table.image prior layout.loads free
 
@@ -281,15 +299,62 @@ def TextUnchanged (installed current : X86.Memory) (window : Window) (length : N
     current.read address = installed.read address ∧
     current.executable address = installed.executable address
 
-theorem admitted_current_code {file bytes : List Byte} {table : Table} {window : Window}
+theorem admitted_current_codeWith {maxBytes : Nat} {file bytes : List Byte} {table : Table} {window : Window}
     {prior : Space} {loaded : Loaded} {current : X86.Memory}
-    (success : admit file table window bytes prior = .ok loaded)
+    (success : admitWith maxBytes file table window bytes prior = .ok loaded)
     (unchanged : TextUnchanged (toMemory loaded.space) current window bytes.length) :
     CodeAt current window.base bytes := by
-  have code := (admitted_sound success).2.2.1
+  have code := (admitted_soundWith success).2.2.1
   refine ⟨code.1, ?_⟩
   intro index byte present
   have same := unchanged index (List.getElem_of_getElem? present).1
   simpa only [fetchByte, same.1, same.2] using code.2 index byte present
+
+/-- The legacy checker always keeps the original 64-byte admission bound. -/
+def check (file : List Byte) (table : Table) (window : Window) (bytes : List Byte) : Bool :=
+  checkCore 64 file table window bytes
+
+theorem Selection.file_byte {file bytes : List Byte} {image : Image} {window : Window}
+    (selected : Selection file image window bytes) {index : Nat} {byte : Byte}
+    (present : bytes[index]? = some byte) : file[window.offset + index]? = some byte :=
+  selected.file_byteWith present
+
+theorem selection_sound {file bytes : List Byte} {table : Table} {window : Window}
+    (checked : check file table window bytes = true) :
+    Layout file table ∧ Selection file table.image window bytes := selection_soundWith checked
+
+theorem selected_segment {file bytes : List Byte} {table : Table} {window : Window}
+    (checked : check file table window bytes = true) :
+    ∃ segment ∈ table.image.segments, segment.valid file.length = true ∧
+      window.CoveredBy bytes.length segment ∧
+      ∀ other ∈ table.image.segments, segment ≠ other → segment.pageDisjoint other :=
+  selected_segmentWith checked
+
+theorem checked_code {file bytes : List Byte} {table : Table} {window : Window}
+    (checked : check file table window bytes = true) (prior : Space) :
+    CodeAt (toMemory (install file table.image prior)) window.base bytes :=
+  checked_codeWith checked prior
+
+def admit (file : List Byte) (table : Table) (window : Window) (bytes : List Byte)
+    (prior : Space) : Except Error Loaded :=
+  admitChecked%(check file table window bytes, file, table, prior)
+
+theorem admit_ok {file bytes : List Byte} {table : Table} {window : Window}
+    {prior : Space} {loaded : Loaded} (success : admit file table window bytes prior = .ok loaded) :
+    check file table window bytes = true ∧ fresh table.image prior = true ∧
+    loaded.image = table.image ∧ loaded.space = install file table.image prior := admit_okWith success
+
+theorem admitted_sound {file bytes : List Byte} {table : Table} {window : Window}
+    {prior : Space} {loaded : Loaded} (success : admit file table window bytes prior = .ok loaded) :
+    Layout file table ∧ Selection file loaded.image window bytes ∧
+    CodeAt (toMemory loaded.space) window.base bytes ∧
+    ∀ address cell, prior.cells address = some cell → loaded.space.cells address = some cell :=
+  admitted_soundWith success
+
+theorem admitted_current_code {file bytes : List Byte} {table : Table} {window : Window}
+    {prior : Space} {loaded : Loaded} {current : X86.Memory}
+    (success : admit file table window bytes prior = .ok loaded)
+    (unchanged : TextUnchanged (toMemory loaded.space) current window bytes.length) :
+    CodeAt current window.base bytes := admitted_current_codeWith success unchanged
 
 end EDSL.ELF.FunctionWindow

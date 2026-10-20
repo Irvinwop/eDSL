@@ -15,8 +15,17 @@ structure FunctionInput where
   function : FunctionSymbol.Function
   bytes : List Byte
 
-def FunctionInput.check (input : FunctionInput) (file name : List Byte) : Bool :=
-  FunctionSymbol.check file input.table input.metadata name input.function input.bytes
+def FunctionInput.checkWith (maxBytes : Nat) (input : FunctionInput) (file name : List Byte) : Bool :=
+  FunctionSymbol.checkWith maxBytes file input.table input.metadata name input.function input.bytes
+
+/-- Transparent default wrapper keeps generated default proofs directly usable
+by existing input/caller interfaces without normalizing a closed ELF checker. -/
+abbrev FunctionInput.check (input : FunctionInput) (file name : List Byte) : Bool :=
+  input.checkWith 64 file name
+
+def FunctionInput.admitWith (maxBytes : Nat) (input : FunctionInput) (file name : List Byte)
+    (prior : Space) : Except Error Loaded :=
+  FunctionSymbol.admitWith maxBytes file input.table input.metadata name input.function input.bytes prior
 
 def FunctionInput.admit (input : FunctionInput) (file name : List Byte) (prior : Space) :
     Except Error Loaded :=

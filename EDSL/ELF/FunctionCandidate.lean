@@ -72,9 +72,9 @@ private def symbolsAt (data : ByteArray) (sections : List Section)
   return ⟨index, sh, rows, strings⟩
 
 /-- Bounded *untrusted* proposal of every metadata row, including dynamic tables.
-The full file and requested byte name are finally checked by FunctionInput.check.
+The full file and requested byte name are finally checked by FunctionInput.checkWith.
 No suffix, alternative symbol, zero-size inference or partial table is accepted. -/
-def extract (data : ByteArray) (name : List Byte) : Except Error FunctionInput := do
+def extractWith (maxBytes : Nat) (data : ByteArray) (name : List Byte) : Except Error FunctionInput := do
   if data.size < 64 || data.size > maxFileSize then throw .fileSize
   if name.isEmpty || name.any (· == 0) then throw .invalidName
   let header : Header := ⟨← read data 7 1, ← read data 24 8,
@@ -103,10 +103,15 @@ def extract (data : ByteArray) (name : List Byte) : Except Error FunctionInput :
     | _ => throw .duplicateName
   let some sh := sections[occurrence.symbol.sh]? | throw .invalidTable
   let offset := sh.offset + (occurrence.symbol.value - sh.address)
-  if occurrence.symbol.size = 0 || occurrence.symbol.size > 64 then throw .rejected
+  if occurrence.symbol.size = 0 || occurrence.symbol.size > maxBytes then throw .rejected
   let bytes ← slice data offset occurrence.symbol.size
   let input : FunctionInput := ⟨⟨header, programs⟩, metadata,
     ⟨occurrence, sh, ⟨occurrence.symbol.value, offset⟩⟩, bytes⟩
-  if input.check (fileBytes data) name then return input else throw .rejected
+  if input.checkWith maxBytes (fileBytes data) name then return input else throw .rejected
+
+/-- The default extractor retains the original 64-byte bound. Explicit bounds
+are caller configuration, never inferred from a file's declared symbol size. -/
+def extract (data : ByteArray) (name : List Byte) : Except Error FunctionInput :=
+  extractWith 64 data name
 
 end EDSL.ELF.FunctionCandidate

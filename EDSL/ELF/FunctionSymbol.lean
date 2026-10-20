@@ -300,29 +300,36 @@ instance (function : Function) (metadata : Metadata) (name : List Byte) (length 
 
 /-- No external symbol extractor is an authority: every supplied field,
 string, row count, table link and window is checked against the literal file. -/
-def check (file : List Byte) (table : FunctionWindow.Table) (metadata : Metadata)
-    (name : List Byte) (function : Function) (bytes : List Byte) : Bool :=
-  checkMetadata file table.header metadata &&
-  decide (function.Contract metadata name bytes.length) &&
-  FunctionWindow.check file table function.window bytes
+-- A local term template shares the checker without an additional delta step
+-- at its conjunction head; old projection and `simp only` clients retain their
+-- original elaboration behavior under the standard recursion limit.
+local macro "checkSelected%(" file:term ", " table:term ", " metadata:term ", "
+    name:term ", " function:term ", " bytes:term ", " windowChecked:term ")" : term =>
+  `(checkMetadata $file (FunctionWindow.Table.header $table) $metadata &&
+    decide (Function.Contract $function $metadata $name (List.length $bytes)) && $windowChecked)
 
-theorem checked_sound {file bytes name : List Byte} {table : FunctionWindow.Table}
+def checkWith (maxBytes : Nat) (file : List Byte) (table : FunctionWindow.Table) (metadata : Metadata)
+    (name : List Byte) (function : Function) (bytes : List Byte) : Bool :=
+  checkSelected%(file, table, metadata, name, function, bytes,
+    FunctionWindow.checkWith maxBytes file table function.window bytes)
+
+theorem checked_soundWith {maxBytes : Nat} {file bytes name : List Byte} {table : FunctionWindow.Table}
     {metadata : Metadata} {function : Function}
-    (checked : check file table metadata name function bytes = true) :
+    (checked : checkWith maxBytes file table metadata name function bytes = true) :
     CheckedMetadata file table.header metadata ∧
     function.Contract metadata name bytes.length ∧
     FunctionWindow.Layout file table ∧
-    FunctionWindow.Selection file table.image function.window bytes := by
-  simp only [check, Bool.and_eq_true] at checked
+    FunctionWindow.Selection file table.image function.window bytes maxBytes := by
+  simp only [checkWith, Bool.and_eq_true] at checked
   exact ⟨checkMetadata_sound checked.1.1, of_decide_eq_true checked.1.2,
-    FunctionWindow.selection_sound checked.2⟩
+    FunctionWindow.selection_soundWith checked.2⟩
 
 /-- Literal symbol-row and complete linked-string evidence for the selected
 unique name. Exact section-header rows and the full tables are additionally
 available from checked_sound; no host extraction result appears as a premise. -/
-theorem checked_symbol {file bytes name : List Byte} {table : FunctionWindow.Table}
+theorem checked_symbolWith {maxBytes : Nat} {file bytes name : List Byte} {table : FunctionWindow.Table}
     {metadata : Metadata} {function : Function}
-    (checked : check file table metadata name function bytes = true) :
+    (checked : checkWith maxBytes file table metadata name function bytes = true) :
     ∃ symbols ∈ metadata.tables,
       function.occurrence.table = symbols.sectionIndex ∧
       (function.occurrence.symbol, function.occurrence.index) ∈ symbols.rows.zipIdx ∧
@@ -333,7 +340,7 @@ theorem checked_symbol {file bytes name : List Byte} {table : FunctionWindow.Tab
         symbols.strings.bytes ∧
       nameAt symbols.strings.bytes function.occurrence.symbol.nameOffset = name ∧
       Terminated symbols.strings.bytes function.occurrence.symbol.nameOffset := by
-  obtain ⟨metadataChecked, contract, _, _⟩ := checked_sound checked
+  obtain ⟨metadataChecked, contract, _, _⟩ := checked_soundWith checked
   have present : function.occurrence ∈ metadata.matches name := by
     rw [contract.2.2.1]
     exact List.mem_singleton_self _
@@ -346,6 +353,90 @@ theorem checked_symbol {file bytes name : List Byte} {table : FunctionWindow.Tab
 
 /-- The selected declared symbol extent maps to the same file interval through
 both its executable PROGBITS section and an executable validated LOAD. -/
+theorem checked_mappingWith {maxBytes : Nat} {file bytes name : List Byte} {table : FunctionWindow.Table}
+    {metadata : Metadata} {function : Function}
+    (checked : checkWith maxBytes file table metadata name function bytes = true) :
+    function.window.address = function.occurrence.symbol.value ∧
+    function.occurrence.symbol.size = bytes.length ∧
+    function.sh.kind = 1 ∧ function.sh.flags = 6 ∧
+    function.window.offset = function.sh.offset +
+      (function.occurrence.symbol.value - function.sh.address) ∧
+    ∃ segment ∈ table.image.segments,
+      function.window.CoveredBy bytes.length segment := by
+  obtain ⟨_, contract, _, selected⟩ := checked_soundWith checked
+  rcases contract with ⟨_, _, _, _, _, _, _, kind, flags, _, _, address, offset, size⟩
+  exact ⟨address, size, kind, flags, offset, selected.covered⟩
+
+/-- Admission keeps FunctionWindow's freshness/page-collision requirements.
+It does not execute an interpreter, apply relocations or establish an ABI. -/
+local macro "admitChecked%(" checked:term ", " result:term ")" : term =>
+  `(if $checked then $result else .error .invalidImage)
+
+def admitWith (maxBytes : Nat) (file : List Byte) (table : FunctionWindow.Table) (metadata : Metadata)
+    (name : List Byte) (function : Function) (bytes : List Byte) (prior : Space) : Except Error Loaded :=
+  admitChecked%(checkWith maxBytes file table metadata name function bytes,
+    FunctionWindow.admitWith maxBytes file table function.window bytes prior)
+
+theorem admit_okWith {maxBytes : Nat} {file bytes name : List Byte} {table : FunctionWindow.Table}
+    {metadata : Metadata} {function : Function} {prior : Space} {loaded : Loaded}
+    (success : admitWith maxBytes file table metadata name function bytes prior = .ok loaded) :
+    checkWith maxBytes file table metadata name function bytes = true ∧
+    FunctionWindow.admitWith maxBytes file table function.window bytes prior = .ok loaded := by
+  by_cases checked : checkWith maxBytes file table metadata name function bytes = true
+  · exact ⟨checked, by simpa [admitWith, checked] using success⟩
+  · simp [admitWith, checked] at success
+
+theorem admitted_soundWith {maxBytes : Nat} {file bytes name : List Byte} {table : FunctionWindow.Table}
+    {metadata : Metadata} {function : Function} {prior : Space} {loaded : Loaded}
+    (success : admitWith maxBytes file table metadata name function bytes prior = .ok loaded) :
+    CheckedMetadata file table.header metadata ∧
+    function.Contract metadata name bytes.length ∧
+    FunctionWindow.Layout file table ∧
+    FunctionWindow.Selection file loaded.image function.window bytes maxBytes ∧
+    CodeAt (toMemory loaded.space) function.window.base bytes ∧
+    ∀ address cell, prior.cells address = some cell → loaded.space.cells address = some cell := by
+  obtain ⟨checked, admitted⟩ := admit_okWith success
+  obtain ⟨metadata, contract, _, _⟩ := checked_soundWith checked
+  exact ⟨metadata, contract, FunctionWindow.admitted_soundWith admitted⟩
+
+/-- Current-code use still requires explicit post-installation text and
+execute-permission preservation. Symbol metadata discharges neither of them. -/
+theorem admitted_current_codeWith {maxBytes : Nat} {file bytes name : List Byte} {table : FunctionWindow.Table}
+    {metadata : Metadata} {function : Function} {prior : Space} {loaded : Loaded}
+    {current : X86.Memory}
+    (success : admitWith maxBytes file table metadata name function bytes prior = .ok loaded)
+    (unchanged : FunctionWindow.TextUnchanged (toMemory loaded.space) current
+      function.window bytes.length) : CodeAt current function.window.base bytes :=
+  FunctionWindow.admitted_current_codeWith (admit_okWith success).2 unchanged
+
+/-- Compatibility checker: explicit bounds are opt-in and never inferred. -/
+def check (file : List Byte) (table : FunctionWindow.Table) (metadata : Metadata)
+    (name : List Byte) (function : Function) (bytes : List Byte) : Bool :=
+  checkSelected%(file, table, metadata, name, function, bytes,
+    FunctionWindow.check file table function.window bytes)
+
+theorem checked_sound {file bytes name : List Byte} {table : FunctionWindow.Table}
+    {metadata : Metadata} {function : Function}
+    (checked : check file table metadata name function bytes = true) :
+    CheckedMetadata file table.header metadata ∧
+    function.Contract metadata name bytes.length ∧
+    FunctionWindow.Layout file table ∧
+    FunctionWindow.Selection file table.image function.window bytes := checked_soundWith checked
+
+theorem checked_symbol {file bytes name : List Byte} {table : FunctionWindow.Table}
+    {metadata : Metadata} {function : Function}
+    (checked : check file table metadata name function bytes = true) :
+    ∃ symbols ∈ metadata.tables,
+      function.occurrence.table = symbols.sectionIndex ∧
+      (function.occurrence.symbol, function.occurrence.index) ∈ symbols.rows.zipIdx ∧
+      symbols.Shape metadata.sections ∧
+      (∀ field ∈ function.occurrence.symbol.fields
+        (symbols.sh.offset + function.occurrence.index * 24), field.Holds file) ∧
+      (file.drop symbols.strings.sh.offset).take symbols.strings.bytes.length =
+        symbols.strings.bytes ∧
+      nameAt symbols.strings.bytes function.occurrence.symbol.nameOffset = name ∧
+      Terminated symbols.strings.bytes function.occurrence.symbol.nameOffset := checked_symbolWith checked
+
 theorem checked_mapping {file bytes name : List Byte} {table : FunctionWindow.Table}
     {metadata : Metadata} {function : Function}
     (checked : check file table metadata name function bytes = true) :
@@ -355,27 +446,18 @@ theorem checked_mapping {file bytes name : List Byte} {table : FunctionWindow.Ta
     function.window.offset = function.sh.offset +
       (function.occurrence.symbol.value - function.sh.address) ∧
     ∃ segment ∈ table.image.segments,
-      function.window.CoveredBy bytes.length segment := by
-  obtain ⟨_, contract, _, selected⟩ := checked_sound checked
-  rcases contract with ⟨_, _, _, _, _, _, _, kind, flags, _, _, address, offset, size⟩
-  exact ⟨address, size, kind, flags, offset, selected.covered⟩
+      function.window.CoveredBy bytes.length segment := checked_mappingWith checked
 
-/-- Admission keeps FunctionWindow's freshness/page-collision requirements.
-It does not execute an interpreter, apply relocations or establish an ABI. -/
 def admit (file : List Byte) (table : FunctionWindow.Table) (metadata : Metadata)
     (name : List Byte) (function : Function) (bytes : List Byte) (prior : Space) : Except Error Loaded :=
-  if check file table metadata name function bytes then
-    FunctionWindow.admit file table function.window bytes prior
-  else .error .invalidImage
+  admitChecked%(check file table metadata name function bytes,
+    FunctionWindow.admit file table function.window bytes prior)
 
 theorem admit_ok {file bytes name : List Byte} {table : FunctionWindow.Table}
     {metadata : Metadata} {function : Function} {prior : Space} {loaded : Loaded}
     (success : admit file table metadata name function bytes prior = .ok loaded) :
     check file table metadata name function bytes = true ∧
-    FunctionWindow.admit file table function.window bytes prior = .ok loaded := by
-  by_cases checked : check file table metadata name function bytes = true
-  · exact ⟨checked, by simpa [admit, checked] using success⟩
-  · simp [admit, checked] at success
+    FunctionWindow.admit file table function.window bytes prior = .ok loaded := admit_okWith success
 
 theorem admitted_sound {file bytes name : List Byte} {table : FunctionWindow.Table}
     {metadata : Metadata} {function : Function} {prior : Space} {loaded : Loaded}
@@ -385,19 +467,13 @@ theorem admitted_sound {file bytes name : List Byte} {table : FunctionWindow.Tab
     FunctionWindow.Layout file table ∧
     FunctionWindow.Selection file loaded.image function.window bytes ∧
     CodeAt (toMemory loaded.space) function.window.base bytes ∧
-    ∀ address cell, prior.cells address = some cell → loaded.space.cells address = some cell := by
-  obtain ⟨checked, admitted⟩ := admit_ok success
-  obtain ⟨metadata, contract, _, _⟩ := checked_sound checked
-  exact ⟨metadata, contract, FunctionWindow.admitted_sound admitted⟩
+    ∀ address cell, prior.cells address = some cell → loaded.space.cells address = some cell := admitted_soundWith success
 
-/-- Current-code use still requires explicit post-installation text and
-execute-permission preservation. Symbol metadata discharges neither of them. -/
 theorem admitted_current_code {file bytes name : List Byte} {table : FunctionWindow.Table}
     {metadata : Metadata} {function : Function} {prior : Space} {loaded : Loaded}
     {current : X86.Memory}
     (success : admit file table metadata name function bytes prior = .ok loaded)
     (unchanged : FunctionWindow.TextUnchanged (toMemory loaded.space) current
-      function.window bytes.length) : CodeAt current function.window.base bytes :=
-  FunctionWindow.admitted_current_code (admit_ok success).2 unchanged
+      function.window bytes.length) : CodeAt current function.window.base bytes := admitted_current_codeWith success unchanged
 
 end EDSL.ELF.FunctionSymbol

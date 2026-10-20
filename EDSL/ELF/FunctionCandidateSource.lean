@@ -67,7 +67,7 @@ def namespaceText (suffix : String) : Except String String :=
 interface. Only validated namespace components enter declaration names; raw symbol
 names and metadata remain typed data.
 No source/compiler, native OS, functional or resource premise is invented. -/
-private def render (scope : String) (file name : List Byte)
+private def render (profile : CFG.Profile) (scope : String) (file name : List Byte)
     (input : FunctionInput) (graph : CFG.Graph) : String := Id.run do
   let mut text := "import EDSL.ELF.FunctionCandidateFacts\n" ++
     "import EDSL.X86.Sequential.CFGVerification\nimport EDSL.Audit\n\n" ++
@@ -77,6 +77,7 @@ private def render (scope : String) (file name : List Byte)
     "local invariants/ranks/access obligations and present caller resources.\n" ++
     "Loading/relocations, stable text, native CPU correspondence, CET-disabled\n" ++
     "sequential execution and OS behavior remain explicit model assumptions. -/\n\n"
+  text := text ++ s!"def observedProfile : CFG.Profile := ⟨{profile.maxBytes}, {profile.maxNodes}, by decide⟩\n\n"
   text := text ++ bytesSource "observedELF" file ++ bytesSource "observedName" name ++
     bytesSource "observedBytes" input.bytes ++ bytesSource "sectionNameBytes" input.metadata.names.bytes
   for (table, index) in input.metadata.tables.zipIdx do
@@ -99,16 +100,16 @@ private def render (scope : String) (file name : List Byte)
     s!"{sectionLiteral input.function.sh}, ⟨{window.address}, {window.offset}⟩⟩\n\n" ++
     "def observedInput : ELF.FunctionInput :=\n" ++
     "  ⟨observedTable, observedMetadata, observedFunction, observedBytes⟩\n\n" ++
-    "theorem inputChecked : observedInput.check observedELF observedName = true := by decide +kernel\n\n" ++
-    "theorem binding : ELF.FunctionCandidate.Binding observedInput observedELF observedName :=\n" ++
-    "  ELF.FunctionCandidate.checked_binding observedInput observedELF observedName inputChecked\n\n" ++
+    "theorem inputChecked : observedInput.checkWith observedProfile.maxBytes observedELF observedName = true := by decide +kernel\n\n" ++
+    "theorem binding : ELF.FunctionCandidate.Binding observedInput observedELF observedName observedProfile.maxBytes :=\n" ++
+    "  ELF.FunctionCandidate.checked_bindingWith observedProfile.maxBytes observedInput observedELF observedName inputChecked\n\n" ++
     "theorem loadedCode (prior : Space) :\n" ++
     "    CodeAt (toMemory (ELF.install observedELF observedInput.table.image prior))\n" ++
     "      observedInput.function.window.base observedInput.bytes :=\n" ++
-    "  ELF.FunctionCandidate.checked_code observedInput observedELF observedName inputChecked prior\n\n"
+    "  ELF.FunctionCandidate.checked_codeWith observedProfile.maxBytes observedInput observedELF observedName inputChecked prior\n\n"
   text := text ++ "def observedGraph : CFG.Graph := " ++ CFG.Artifact.graphLiteral graph ++ "\n\n" ++
-    "theorem checked : CFG.check observedBytes observedGraph = true := by decide +kernel\n" ++
-    "theorem valid : CFG.Valid observedBytes observedGraph := CFG.check_sound checked\n\n" ++
+    "theorem checked : CFG.checkWith observedProfile observedBytes observedGraph = true := by decide +kernel\n" ++
+    "theorem valid : CFG.Valid observedBytes observedGraph observedProfile := CFG.checkWith_sound checked\n\n" ++
     "def LocalObligations (Post : State → Prop) (AllowedRead : State → Read → Prop) :=\n" ++
     "  CFG.Annotations observedBytes observedGraph observedFunction.window.base Post AllowedRead\n\n" ++
     "theorem conditionalExecution (Post : State → Prop)\n" ++
@@ -125,9 +126,14 @@ private def render (scope : String) (file name : List Byte)
 
 /-- Namespace validation precedes rendering; every emitted declaration remains
 under EDSL so the transitive project audit includes both generated clients. -/
-def source (namespaceSuffix : String) (file name : List Byte)
+def sourceWithProfile (profile : CFG.Profile) (namespaceSuffix : String) (file name : List Byte)
     (input : FunctionInput) (graph : CFG.Graph) : Except String String := do
   let scope ← namespaceText namespaceSuffix
-  return render scope file name input graph
+  return render profile scope file name input graph
+
+/-- Existing callers always emit the original 64-byte/32-node profile. -/
+def source (namespaceSuffix : String) (file name : List Byte)
+    (input : FunctionInput) (graph : CFG.Graph) : Except String String :=
+  sourceWithProfile CFG.defaultProfile namespaceSuffix file name input graph
 
 end EDSL.ELF.FunctionCandidate
