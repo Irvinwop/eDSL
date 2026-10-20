@@ -1,0 +1,9 @@
+metric	count	meaning
+definitions_frozen	40	Distinct independently specified C functions.
+compiler_profiles	2	GCC 13.3.0 and Clang 18.1.3; exact executable hashes in provenance.
+exact_final_elf_function_windows	80	Two normal -O2 compiler artifacts per function; symbol windows extracted by Lean tooling.
+corpus_functions_certified_end_to_end	0	An independent universal contract plus exact final ELF binding and kernel-checked audited evidence is required.
+corpus_function_artifacts_certified_end_to_end	0	No reuse of historical fixed-routine certificates for different final ELF bytes.
+corpus_concurrency_contracts_proved	0	Native two-thread tests are not linearizability or x86-TSO refinement proofs.
+baseline_read_only_cfg_accepted_gcc	0	Production CFG discovery/checker; not end-to-end certification.
+baseline_read_only_cfg_accepted_clang	4	min_u64, max_u64, add_mod64, atomic_load_acquire64; still no independent final-image contract proofs.

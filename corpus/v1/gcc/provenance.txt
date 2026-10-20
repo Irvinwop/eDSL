@@ -1,0 +1,60 @@
+corpus: edsl.compiler-corpus.v1
+compiler-label: gcc
+compiler-executable: /usr/bin/x86_64-linux-gnu-gcc-13
+compiler-sha256: 1b99826121ae6682a634e5efe09bd3e3df58ce58e0b28f849114ab5b89139c26
+compiler-version:
+gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+Copyright (C) 2023 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+target-triple: x86_64-linux-gnu
+compile-arguments (one per line):
+-std=gnu2x
+-O2
+-march=x86-64
+-mtune=generic
+-fno-pie
+-Wall
+-Wextra
+-Werror
+-Wpedantic
+-c
+fixtures/corpus-v1/functions.c
+-o
+functions.o
+harness-arguments (one per line):
+-std=gnu2x
+-O2
+-march=x86-64
+-mtune=generic
+-fno-pie
+-Wall
+-Wextra
+-Werror
+-Wpedantic
+-pthread
+-c
+fixtures/corpus-v1/check.c
+-o
+check.o
+link-arguments (one per line):
+functions.o
+check.o
+-no-pie
+-pthread
+-Wl,--build-id=none
+-o
+final.elf
+linker-executable: /usr/bin/x86_64-linux-gnu-ld.bfd
+linker-sha256: e9ceb054c12207970f2726dfc07e9a66b411602748628baf27399f02a9bbb31b
+linker-version:
+GNU ld (GNU Binutils for Ubuntu) 2.42
+Copyright (C) 2024 Free Software Foundation, Inc.
+This program is free software; you may redistribute it under the terms of
+the GNU General Public License version 3 or (at your option) a later version.
+This program has absolutely no warranty.
+compiler-internal-sha256: 5d1679131184e2de4435b426eb264bf13472fe026db8e5c6bc97445814e8e2f4
+libc-version:
+glibc 2.39
+lean-toolchain: leanprover/lean4:v4.35.0

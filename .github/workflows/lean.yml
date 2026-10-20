@@ -1,0 +1,780 @@
+name: Lean proofs
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check repository layout
+        run: bash scripts/check-repository-layout.sh
+      - name: Install pinned elan
+        shell: bash
+        run: |
+          curl --fail --location --silent --show-error \
+            https://github.com/leanprover/elan/releases/download/v4.2.4/elan-x86_64-unknown-linux-gnu.tar.gz \
+            --output "$RUNNER_TEMP/elan.tar.gz"
+          printf '%s  %s\n' \
+            42b94d4244e8353142c456ec0e4ca6528fd898a6c604d4059f494e706e431f63 \
+            "$RUNNER_TEMP/elan.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/elan-installer"
+          tar -xzf "$RUNNER_TEMP/elan.tar.gz" -C "$RUNNER_TEMP/elan-installer"
+          "$RUNNER_TEMP/elan-installer/elan-init" -y --no-modify-path --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Cache pinned Lean toolchain
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.elan/toolchains
+          key: lean-toolchain-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}
+      - name: Cache Lake build outputs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .lake/build
+          key: lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean', 'lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: |
+            lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean', 'lake-manifest.json') }}-
+            lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-
+            lake-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.lean', 'lake-manifest.json') }}-
+      # Reuse the same Lean version across target/dependency configuration
+      # changes. Lake invalidates affected inputs; the final v1 prefix permits
+      # migration from the previous cache format without a cold build.
+      # Always invoke Lake: its input traces invalidate changed modules.
+      # Runtime checks, explicit audits and fresh production replay still run.
+      - name: Build pinned Lean project
+        run: lake build EDSL.All edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-futex-predicate edsl-certify-sum32 edsl-cfg-import edsl-grade edsl-grade-call-stack edsl-grade-call-memory64 edsl-grade-call-memory-loop64 edsl-proof-export edsl-certify-store-return32 edsl-certify-store-load64 edsl-certify-counted-store64 edsl-certify-counted-store64-clang GradingFixtures VerificationTests UnaryTests PopcountTests AverageTests
+      - name: ISA, ELF, OS contracts and rejection properties
+        run: |
+          lake env lean -DwarningAsError=true tests/X86.lean
+          lake env lean -DwarningAsError=true tests/Memory.lean
+          lake env lean -DwarningAsError=true tests/Memory64.lean
+          lake env lean -DwarningAsError=true tests/AddressSpace.lean
+          lake env lean -DwarningAsError=true tests/OSComposition.lean
+          lake env lean -DwarningAsError=true tests/WordStore.lean
+          lake env lean -DwarningAsError=true tests/ELF.lean
+          lake env lean -DwarningAsError=true tests/Process.lean
+          lake env lean -DwarningAsError=true tests/Write.lean
+          lake env lean -DwarningAsError=true tests/ControlFlow.lean
+          lake env lean -DwarningAsError=true tests/Ownership.lean
+          lake env lean -DwarningAsError=true tests/Ownership64.lean
+          lake env lean -DwarningAsError=true tests/OwnershipRead64.lean
+          lake env lean -DwarningAsError=true tests/StackFrameResources.lean
+          lake env lean -DwarningAsError=true tests/CallReturnRaw.lean
+          lake env lean -DwarningAsError=true tests/StackFrameCPU.lean
+          lake env lean -DwarningAsError=true tests/CallStack.lean
+          lake env lean -DwarningAsError=true tests/CallStackAdmission.lean
+          lake env lean -DwarningAsError=true tests/CallStackDomain.lean
+          lake env lean -DwarningAsError=true tests/CallStackCoverage.lean
+          lake env lean -DwarningAsError=true tests/GradingCallStackContract.lean
+          lake env lean -DwarningAsError=true tests/CallMemory64Resources.lean
+          lake env lean -DwarningAsError=true tests/CallMemory64CapacityDomain.lean
+          lake env lean -DwarningAsError=true tests/CallMemory64Cutpoints.lean
+          lake env lean -DwarningAsError=true tests/CallMemory64Private.lean
+          lake env lean -DwarningAsError=true tests/CallMemory64Domain.lean
+          lake env lean -DwarningAsError=true tests/CallMemory64CPU.lean
+          lake env lean -DwarningAsError=true tests/CallMemory64Contract.lean
+          lake env lean -DwarningAsError=true tests/GradingCallMemory64Artifact.lean
+          lake env lean -DwarningAsError=true tests/GradingCallMemoryLoop64Artifact.lean
+          lake env lean -DwarningAsError=true tests/Borrowing.lean
+          lake env lean -DwarningAsError=true tests/Threads.lean
+          lake env lean -DwarningAsError=true tests/AtomicExchange.lean
+          lake env lean -DwarningAsError=true tests/OSAtomicExchange.lean
+          lake env lean -DwarningAsError=true tests/Atomics.lean
+          lake env lean -DwarningAsError=true tests/AtomicMemory64.lean
+          lake env lean -DwarningAsError=true tests/LockedLogical64Execution.lean
+          lake env lean -DwarningAsError=true tests/Atomics64.lean
+          lake env lean -DwarningAsError=true tests/Atomics64History.lean
+          lake env lean -DwarningAsError=true tests/Atomics64Machine.lean
+          lake env lean -DwarningAsError=true tests/AtomicThreads64.lean
+          lake env lean -DwarningAsError=true tests/Logical64Ordered.lean
+          lake env lean -DwarningAsError=true tests/AtomicSetThreads64.lean
+          lake env lean -DwarningAsError=true tests/AtomicSetThreads64Adversarial.lean
+          lake env lean -DwarningAsError=true tests/AtomicLogical64Artifact.lean
+          lake env lean -DwarningAsError=true tests/AtomicLogical64Domain.lean
+          lake env lean -DwarningAsError=true tests/AtomicLogical64Grading.lean
+          lake env lean -DwarningAsError=true tests/LockedSet64.lean
+          lake env lean -DwarningAsError=true tests/Atomics64Logical.lean
+          lake env lean -DwarningAsError=true tests/AtomicSet64.lean
+          lake env lean -DwarningAsError=true tests/AtomicSet64Artifact.lean
+          lake env lean -DwarningAsError=true tests/AtomicThreads.lean
+          lake env lean -DwarningAsError=true tests/FetchAdd.lean
+          lake env lean -DwarningAsError=true tests/AtomicAdd64.lean
+          lake env lean -DwarningAsError=true tests/LockedAdd64.lean
+          lake env lean -DwarningAsError=true tests/AtomicFetchAdd64.lean
+          lake env lean -DwarningAsError=true tests/AtomicFetchAddMachine64.lean
+          lake env lean -DwarningAsError=true tests/ModuloCounter.lean
+          lake env lean -DwarningAsError=true tests/CounterThreads.lean
+          lake env lean -DwarningAsError=true tests/CounterThreadsWitness.lean
+          lake env lean -DwarningAsError=true tests/Mutex.lean
+          lake env lean -DwarningAsError=true tests/MutexISA.lean
+          lake env lean -DwarningAsError=true tests/MutexReplay.lean
+          lake env lean -DwarningAsError=true tests/MutexInvariant.lean
+          lake env lean -DwarningAsError=true tests/MutexExecution.lean
+          lake env lean -DwarningAsError=true tests/StoreBuffer.lean
+          lake env lean -DwarningAsError=true tests/MixedStoreBuffer.lean
+          lake env lean -DwarningAsError=true tests/TSO.lean
+          lake env lean -DwarningAsError=true tests/TSOCounter.lean
+          lake env lean -DwarningAsError=true tests/TSOCounterCalls.lean
+          lake env lean -DwarningAsError=true tests/MutexTSO.lean
+          lake env lean -DwarningAsError=true tests/Suspend.lean
+          lake env lean -DwarningAsError=true tests/FutexResources.lean
+          lake env lean -DwarningAsError=true tests/FutexStubs.lean
+          lake env lean -DwarningAsError=true tests/FutexService.lean
+          lake env lean -DwarningAsError=true tests/FutexPhysical.lean
+          lake env lean -DwarningAsError=true tests/FutexAdmission.lean
+          lake env lean -DwarningAsError=true tests/FutexClientFrames.lean
+          lake env lean -DwarningAsError=true tests/FutexClientControl.lean
+          lake env lean -DwarningAsError=true tests/FutexClientPhysical.lean
+          lake env lean -DwarningAsError=true tests/FutexClientCertificate.lean
+          lake env lean -DwarningAsError=true tests/FutexClientCoverage.lean
+          lake env lean -DwarningAsError=true tests/FutexNotification.lean
+          lake env lean -DwarningAsError=true tests/FutexNotificationCertificate.lean
+          lake env lean -DwarningAsError=true tests/FutexPredicate.lean
+          lake env lean -DwarningAsError=true tests/FutexPredicateCertificate.lean
+          lake env lean -DwarningAsError=true tests/FutexPredicateAccounting.lean
+          lake env lean -DwarningAsError=true tests/SequentialISA.lean
+          lake env lean -DwarningAsError=true tests/SequentialCompare32.lean
+          lake env lean -DwarningAsError=true tests/SequentialPadding.lean
+          lake env lean -DwarningAsError=true tests/SequentialExecution.lean
+          lake env lean -DwarningAsError=true tests/SequentialMoves.lean
+          lake env lean -DwarningAsError=true tests/SequentialMoves64.lean
+          lake env lean -DwarningAsError=true tests/SequentialMoveResources.lean
+          lake env lean -DwarningAsError=true tests/SequentialXchg64.lean
+          lake env lean -DwarningAsError=true tests/SequentialXchgResources.lean
+          lake env lean -DwarningAsError=true tests/SequentialMemory64.lean
+          lake env lean -DwarningAsError=true tests/SequentialMemory64Resources.lean
+          lake env lean -DwarningAsError=true tests/SequentialArithmetic64.lean
+          lake env lean -DwarningAsError=true tests/SequentialArithmetic64Resources.lean
+          lake env lean -DwarningAsError=true tests/SequentialLogical64.lean
+          lake env lean -DwarningAsError=true tests/SequentialLogical64Resources.lean
+          lake env lean -DwarningAsError=true tests/SequentialAddMemory64.lean
+          lake env lean -DwarningAsError=true tests/SequentialAddMemory64Resources.lean
+          lake env lean -DwarningAsError=true tests/SequentialCmov64.lean
+          lake env lean -DwarningAsError=true tests/SequentialCmov64Resources.lean
+          lake env lean -DwarningAsError=true tests/SequentialCmov32.lean
+          lake env lean -DwarningAsError=true tests/SequentialCmov32Resources.lean
+          lake env lean -DwarningAsError=true tests/SequentialJcc.lean
+          lake env lean -DwarningAsError=true tests/SequentialJccResources.lean
+          lake env lean -DwarningAsError=true tests/Comparison64.lean
+          lake env lean -DwarningAsError=true tests/GradingComparison64.lean
+          lake env lean -DwarningAsError=true tests/Logical64.lean
+          lake env lean -DwarningAsError=true tests/GradingLogical64.lean
+          lake env lean -DwarningAsError=true tests/StoreLoad64.lean
+          lake env lean -DwarningAsError=true tests/CountedStore64.lean
+          lake env lean -DwarningAsError=true tests/CountedStore64Accounting.lean
+          lake env lean -DwarningAsError=true tests/CountedStore64Clang.lean
+          lake env lean -DwarningAsError=true tests/GradingCountedStore64.lean
+          lake env lean -DwarningAsError=true tests/CountedStoreFinal64.lean
+          lake env lean -DwarningAsError=true tests/StoreReturn32Raw.lean
+          lake env lean -DwarningAsError=true tests/StoreReturn32Resources.lean
+          lake env lean -DwarningAsError=true tests/GradingStoreReturn.lean
+          lake env lean -DwarningAsError=true tests/GradingStoreReturnValue64.lean
+          lake env lean -DwarningAsError=true tests/GradingStoreReturnValue64Policy.lean
+          lake env lean -DwarningAsError=true tests/StoreReturnValue64Mixed.lean
+          lake env lean -DwarningAsError=true tests/StoreReturnValue64Upper.lean
+          lake env lean -DwarningAsError=true tests/StoreReturnRcx.lean
+          lake env lean -DwarningAsError=true tests/StoreReturnXchg.lean
+          lake env lean -DwarningAsError=true tests/StoreReturnAccounting.lean
+          lake env lean -DwarningAsError=true tests/ArrayResources.lean
+          lake env lean -DwarningAsError=true tests/ArrayResources64.lean
+          lake env lean -DwarningAsError=true tests/ArrayMaximum64.lean
+          lake env lean -DwarningAsError=true tests/ArraySum64.lean
+          lake env lean -DwarningAsError=true tests/Sum32Pointer.lean
+          lake env lean -DwarningAsError=true tests/Sum32Index.lean
+          lake env lean -DwarningAsError=true tests/Sum32Artifact.lean
+          lake env lean -DwarningAsError=true tests/CFG.lean
+          lake env lean -DwarningAsError=true tests/VCGen.lean
+          lake env lean -DwarningAsError=true tests/VCGenReflection.lean
+          lake env lean -DwarningAsError=true tests/VCGenPolicy.lean
+          lake env lean -DwarningAsError=true tests/VCGenCutpoints.lean
+          lake env lean -DwarningAsError=true tests/VCGenCompilerComparisons.lean
+          lake env lean -DwarningAsError=true tests/PureCall.lean
+          lake env lean -DwarningAsError=true tests/CompilerArithmetic.lean
+          lake env lean -DwarningAsError=true tests/CorpusArithmetic.lean
+          lake env lean -DwarningAsError=true tests/GradingArithmetic.lean
+          lake env lean -DwarningAsError=true tests/CompilerClamp32.lean
+          lake env lean -DwarningAsError=true tests/CorpusClamp32.lean
+          lake env lean -DwarningAsError=true tests/GradingClamp32.lean
+          lake env lean -DwarningAsError=true tests/ELFFunctionWindow.lean
+          lake env lean -DwarningAsError=true tests/ELFFunctionSymbol.lean
+          lake env lean -DwarningAsError=true tests/CallResourcesDomain.lean
+          lake env lean -DwarningAsError=true tests/CorpusCertificates.lean
+          lake env lean -DwarningAsError=true tests/Stride32.lean
+          lake env lean -DwarningAsError=true tests/Pair32.lean
+          lake env lean -DwarningAsError=true tests/Pair32Resources.lean
+          lake env lean -DwarningAsError=true tests/GradingDomain.lean
+          lake env lean -DwarningAsError=true tests/GradingTask.lean
+          lake env lean -DwarningAsError=true tests/GradingWrite.lean
+          lake env lean -DwarningAsError=true tests/Write32Accounting.lean
+          lake env lean -DwarningAsError=true tests/GradingArtifact.lean
+          lake env lean -DwarningAsError=true tests/GradingDriver.lean
+          lake env lean -DwarningAsError=true tests/GradingRuntime.lean
+          lake env lean -DwarningAsError=true tests/GradingDAG.lean
+          lake env lean -DwarningAsError=true tests/StrideMov.lean
+          lake env lean -DwarningAsError=true tests/WriteIntermediate.lean
+          lake env lean -DwarningAsError=true tests/WriteMoves.lean
+      - name: Audit transitive axiom dependencies
+        run: bash scripts/check-audit.sh
+      - name: Check bounded byte scans and current buffer resources
+        run: lake build BoundedScanTests
+      - name: Compare byte flags and read footprints with native x86-64
+        run: bash scripts/check-sequential-byte-native.sh
+      - name: Check first-match search contracts and instruction semantics
+        env:
+          LEAN_NUM_THREADS: '1'
+        run: flock /tmp/edsl-lean-build.lock lake build IndexSearchTests
+      - name: Compare search instructions with finite native x86-64 observations
+        env:
+          CC: gcc-13
+        run: bash scripts/check-sequential-search-native.sh
+      - name: Check paired byte contracts, instruction widths and current input loans
+        env:
+          LEAN_NUM_THREADS: '1'
+        run: flock /tmp/edsl-lean-build.lock lake build ByteComparisonTests
+      - name: Compare byte-order instructions with finite native x86-64 observations
+        env:
+          CC: gcc-13
+        run: bash scripts/check-sequential-byte-order-native.sh
+      - name: Replay stored proofs through a fresh kernel environment
+        run: lake env leanchecker --fresh EDSL.All
+
+  managed-fetch-add64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned elan
+        shell: bash
+        run: |
+          curl --fail --location --silent --show-error \
+            https://github.com/leanprover/elan/releases/download/v4.2.4/elan-x86_64-unknown-linux-gnu.tar.gz \
+            --output "$RUNNER_TEMP/elan.tar.gz"
+          printf '%s  %s\n' \
+            42b94d4244e8353142c456ec0e4ca6528fd898a6c604d4059f494e706e431f63 \
+            "$RUNNER_TEMP/elan.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/elan-installer"
+          tar -xzf "$RUNNER_TEMP/elan.tar.gz" -C "$RUNNER_TEMP/elan-installer"
+          "$RUNNER_TEMP/elan-installer/elan-init" -y --no-modify-path --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Cache pinned Lean toolchain
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.elan/toolchains
+          key: lean-toolchain-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}
+      - name: Restore shared production proofs
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .lake/build
+          key: lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean', 'lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: |
+            lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean', 'lake-manifest.json') }}-
+            lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-
+            lake-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.lean', 'lake-manifest.json') }}-
+      # Save only test proof outputs here; build-and-audit owns the shared
+      # production cache. Lake checks source and dependency traces on every run.
+      - name: Cache managed concurrency test proofs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .lake/build/lib/lean/tests
+            .lake/build/ir/tests
+          key: lake-managed-tests-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean', 'lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: |
+            lake-managed-tests-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean', 'lake-manifest.json') }}-
+            lake-managed-tests-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-
+      - name: Build managed concurrency contracts and regressions
+        run: lake build ManagedFetchAdd64Tests
+      - name: Audit imported managed concurrency proofs
+        run: lake env lean -DwarningAsError=true tests/ManagedFetchAdd64Audit.lean
+
+  # Run independent native domains beside contracts and fresh proof replay.
+  # Compiler fixtures stay with mutex checks, which consume and re-certify
+  # their exact bytes. Each shard has its own checkout, build tree and locks.
+  native-domains:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        domain: [compiler-os, sequential-cfg, pointer-results, counted-stores, unary-registers, counter-displacement, shift-one]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned elan
+        shell: bash
+        run: |
+          curl --fail --location --silent --show-error \
+            https://github.com/leanprover/elan/releases/download/v4.2.4/elan-x86_64-unknown-linux-gnu.tar.gz \
+            --output "$RUNNER_TEMP/elan.tar.gz"
+          printf '%s  %s\n' \
+            42b94d4244e8353142c456ec0e4ca6528fd898a6c604d4059f494e706e431f63 \
+            "$RUNNER_TEMP/elan.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/elan-installer"
+          tar -xzf "$RUNNER_TEMP/elan.tar.gz" -C "$RUNNER_TEMP/elan-installer"
+          "$RUNNER_TEMP/elan-installer/elan-init" -y --no-modify-path --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Cache pinned Lean toolchain
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.elan/toolchains
+          key: lean-toolchain-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}
+      # build-and-audit writes the shared Lake cache. Shards restore it
+      # without racing to save the same immutable key.
+      - name: Restore Lake build outputs
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .lake/build
+          key: lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean', 'lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: |
+            lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean', 'lake-manifest.json') }}-
+            lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-
+            lake-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.lean', 'lake-manifest.json') }}-
+      # Reuse the same Lean version across target/dependency configuration
+      # changes. Lake invalidates affected inputs; the final v1 prefix permits
+      # migration from the previous cache format without a cold build.
+      # Always invoke Lake: its input traces invalidate changed modules.
+      # Runtime checks, explicit audits and fresh production replay still run.
+      - name: Build pinned Lean project
+        # The instruction-only runners build and snapshot their own minimal
+        # production closure. The full catalogue is already a separate job.
+        if: ${{ matrix.domain != 'unary-registers' && matrix.domain != 'counter-displacement' && matrix.domain != 'shift-one' }}
+        run: lake build EDSL.All edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-futex-predicate edsl-certify-sum32 edsl-cfg-import edsl-grade edsl-grade-call-stack edsl-grade-call-memory64 edsl-grade-call-memory-loop64 edsl-proof-export edsl-certify-store-return32 edsl-certify-store-load64 edsl-certify-counted-store64 edsl-certify-counted-store64-clang GradingFixtures VerificationTests UnaryTests
+      - name: Install native integration tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 gcc gcc-13 binutils shellcheck
+      - name: Replay owned NEG32 and BSWAP64 CPU observations through Lean
+        if: ${{ matrix.domain == 'unary-registers' }}
+        env:
+          CXX: clang++-18
+        run: bash scripts/verify-sequential-unary.sh
+      - name: Preserve owned unary observations and kernel checks
+        if: ${{ always() && matrix.domain == 'unary-registers' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sequential-unary-evidence
+          path: .cache/unary-registers/native/run.*/
+          include-hidden-files: true
+          if-no-files-found: error
+      - name: Replay owned ADD32, INC32 and displaced LEA CPU observations through Lean
+        if: ${{ matrix.domain == 'counter-displacement' }}
+        env:
+          CXX: clang++-18
+        run: bash scripts/verify-counter-displacement.sh
+      - name: Preserve counter and displacement observations and kernel checks
+        if: ${{ always() && matrix.domain == 'counter-displacement' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: counter-displacement-evidence
+          path: .cache/popcount/native/run.*/
+          include-hidden-files: true
+          if-no-files-found: error
+      - name: Replay owned SHR64 CPU observations through Lean
+        if: ${{ matrix.domain == 'shift-one' }}
+        env:
+          CXX: clang++-18
+        run: bash scripts/verify-shift-one.sh
+      - name: Preserve owned shift observations and kernel checks
+        if: ${{ always() && matrix.domain == 'shift-one' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sequential-shift-one-evidence
+          path: .cache/shift-average/native-replay/run.*/
+          include-hidden-files: true
+          if-no-files-found: error
+      - name: Replay full64 LOCK XADD CPU captures through Lean
+        if: ${{ matrix.domain == 'compiler-os' }}
+        run: bash scripts/verify-locked-add64-native.sh
+      - name: Preserve full64 LOCK XADD conformance evidence
+        if: ${{ always() && matrix.domain == 'compiler-os' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: locked-add64-native-evidence
+          path: artifacts/locked-add64-native/
+          if-no-files-found: error
+      - name: Certify fresh C and C++ compiler outputs and execute owned fixtures
+        if: ${{ matrix.domain == 'compiler-os' }}
+        env:
+          EDSL_CLANG: clang-18
+          EDSL_CLANGXX: clang++-18
+        run: bash scripts/verify-compilers.sh
+      - name: Certify standalone process bytes and observe native exit
+        if: ${{ matrix.domain == 'compiler-os' }}
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-process.sh
+      - name: Certify counted loops and observe bounded native inputs
+        if: ${{ matrix.domain == 'compiler-os' }}
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-loops.sh
+      - name: Certify fetch-add and compare arithmetic flags with native observations
+        if: ${{ matrix.domain == 'compiler-os' }}
+        env:
+          EDSL_CLANG: clang-18
+          EDSL_CLANGXX: clang++-18
+        run: bash scripts/verify-fetch-add.sh
+      - name: Certify counter loops and observe owned threaded workloads
+        if: ${{ matrix.domain == 'compiler-os' }}
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-counter-workers.sh
+      - name: Observe protected payloads using certified exchange/load/store bytes
+        if: ${{ matrix.domain == 'compiler-os' }}
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-mutex.sh
+      - name: Certify complete mutex workers and observe owned workloads
+        if: ${{ matrix.domain == 'compiler-os' }}
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-mutex-workers.sh
+      - name: Certify private futex stubs and observe installed-kernel results
+        if: ${{ matrix.domain == 'compiler-os' }}
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-futex.sh
+      - name: Certify publishing futex clients and observe owned native publication
+        if: ${{ matrix.domain == 'compiler-os' }}
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-futex-clients.sh
+      - name: Certify ordinary sum32 loops and observe owned native calls
+        if: ${{ matrix.domain == 'sequential-cfg' }}
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-sum32.sh
+      - name: Replay owned CMP32, TEST32 and padding CPU observations through Lean
+        if: ${{ matrix.domain == 'sequential-cfg' }}
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-sequential-compare32.sh
+      - name: Preserve owned comparison and padding observations and kernel checks
+        if: ${{ always() && matrix.domain == 'sequential-cfg' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sequential-compare32-evidence
+          path: artifacts/sequential-compare32/
+          if-no-files-found: error
+      - name: Replay owned MOV32, MOV64 and XCHG64 CPU observations through Lean
+        if: ${{ matrix.domain == 'sequential-cfg' }}
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-sequential-moves.sh
+      - name: Preserve owned register and memory observations and kernel checks
+        if: ${{ always() && matrix.domain == 'sequential-cfg' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sequential-moves-evidence
+          path: artifacts/sequential-moves/
+          if-no-files-found: error
+      - name: Replay owned LEA64 and register ADD64 CPU observations through Lean
+        if: ${{ matrix.domain == 'sequential-cfg' }}
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-sequential-arithmetic64.sh
+      - name: Preserve owned arithmetic observations and kernel checks
+        if: ${{ always() && matrix.domain == 'sequential-cfg' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sequential-arithmetic64-evidence
+          path: artifacts/sequential-arithmetic64/
+          if-no-files-found: error
+      - name: Replay owned memory-source ADD64 CPU observations through Lean
+        if: ${{ matrix.domain == 'sequential-cfg' }}
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-sequential-add-memory64.sh
+      - name: Preserve owned memory-source ADD64 observations and kernel checks
+        if: ${{ always() && matrix.domain == 'sequential-cfg' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sequential-add-memory64-evidence
+          path: artifacts/sequential-add-memory64/
+          if-no-files-found: error
+      - name: Replay owned register CMOV64 CPU observations through Lean
+        if: ${{ matrix.domain == 'sequential-cfg' }}
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-sequential-cmov64.sh
+      - name: Preserve owned conditional-move observations and kernel checks
+        if: ${{ always() && matrix.domain == 'sequential-cfg' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sequential-cmov64-evidence
+          path: artifacts/sequential-cmov64/
+          if-no-files-found: error
+      - name: Observe register CMOV32 against independent native contracts
+        if: ${{ matrix.domain == 'sequential-cfg' }}
+        env:
+          EDSL_CLANG: clang-18
+          EDSL_CMOV32_OUTPUT: artifacts/sequential-cmov32
+        run: bash scripts/verify-sequential-cmov32.sh
+      - name: Preserve owned CMOV32 native observations and rejection controls
+        if: ${{ always() && matrix.domain == 'sequential-cfg' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sequential-cmov32-evidence
+          path: artifacts/sequential-cmov32/
+          if-no-files-found: error
+      - name: Certify pointer-returning stores and observe full pointer and memory frames
+        if: ${{ matrix.domain == 'pointer-results' }}
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-store-return32.sh
+      - name: Preserve owned pointer-return store certificates and observations
+        if: ${{ always() && matrix.domain == 'pointer-results' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: store-return32-evidence
+          path: artifacts/store-return32/
+          if-no-files-found: error
+      - name: Grade full-pointer results and a fresh implementation proof
+        if: ${{ matrix.domain == 'pointer-results' }}
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-store-return-grading.sh
+      - name: Preserve owned pointer-result proof grading evidence
+        if: ${{ always() && matrix.domain == 'pointer-results' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: store-return-grading-evidence
+          path: artifacts/store-return-grading/
+          if-no-files-found: error
+      - name: Grade GCC size-optimized register-exchange output and observe native calls
+        if: ${{ matrix.domain == 'pointer-results' }}
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-store-return-xchg.sh
+      - name: Preserve owned register-exchange client proof grading evidence
+        if: ${{ always() && matrix.domain == 'pointer-results' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: store-return-xchg-evidence
+          path: artifacts/store-return-xchg/
+          if-no-files-found: error
+      - name: Certify full64 memory outputs and observe owned callable functions
+        if: ${{ matrix.domain == 'pointer-results' }}
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+          EDSL_CLANGXX: clang++-18
+        run: bash scripts/verify-store-load64.sh
+      - name: Certify owned full64 counted stores and execute native fixtures
+        if: ${{ matrix.domain == 'counted-stores' }}
+        run: bash scripts/verify-counted-store64.sh
+      - name: Preserve full64 counted-store certificates and native observations
+        if: ${{ always() && matrix.domain == 'counted-stores' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: counted-store64-evidence
+          path: artifacts/counted-store64-native/
+          if-no-files-found: error
+      - name: Certify Clang full64 counted stores and execute native fixtures
+        if: ${{ matrix.domain == 'counted-stores' }}
+        env:
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-counted-store64-clang.sh
+      - name: Preserve Clang counted-store certificates and native observations
+        if: ${{ always() && matrix.domain == 'counted-stores' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: counted-store64-clang-evidence
+          path: artifacts/counted-store64-clang-native/
+          if-no-files-found: error
+      - name: Grade both counted-store compiler outputs under one fixed contract
+        if: ${{ matrix.domain == 'counted-stores' }}
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-counted-store64-grading.sh
+      - name: Preserve counted-store fixed-task grading evidence
+        if: ${{ always() && matrix.domain == 'counted-stores' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: counted-store64-grading-evidence
+          path: artifacts/counted-store64-grading/
+          if-no-files-found: error
+      - name: Grade a fresh final-store loop proof outside the trusted registry
+        if: ${{ matrix.domain == 'counted-stores' }}
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-counted-store-final64.sh
+      - name: Preserve owned final-store client grading evidence
+        if: ${{ always() && matrix.domain == 'counted-stores' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: counted-store-final64-evidence
+          path: artifacts/counted-store-final64/
+          if-no-files-found: error
+      - name: Grade direct-add GCC and Clang clients outside the trusted registry
+        if: ${{ matrix.domain == 'counted-stores' }}
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+        run: bash scripts/verify-counted-store-direct64.sh
+      - name: Preserve owned direct-add client grading evidence
+        if: ${{ always() && matrix.domain == 'counted-stores' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: counted-store-direct64-evidence
+          path: artifacts/counted-store-direct64/
+          if-no-files-found: error
+      - name: Preserve owned full64 memory certificates and observations
+        if: ${{ always() && matrix.domain == 'pointer-results' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: store-load64-evidence
+          path: artifacts/store-load64/
+          if-no-files-found: error
+      - name: Grade full64 results with mixed-width effects and current OS authority
+        if: ${{ matrix.domain == 'pointer-results' }}
+        env:
+          EDSL_GCC: gcc-13
+          EDSL_CLANG: clang-18
+          EDSL_CLANGXX: clang++-18
+        run: bash scripts/verify-store-return-value64-grading.sh
+      - name: Preserve owned full64 result grading evidence
+        if: ${{ always() && matrix.domain == 'pointer-results' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: store-return-value64-grading-evidence
+          path: artifacts/store-return-value64-grading/
+          if-no-files-found: error
+      - name: Preserve owned sum32 certificates and native observations
+        if: ${{ always() && matrix.domain == 'sequential-cfg' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sum32-fixture-certificates
+          path: artifacts/sum32-fixtures/
+          if-no-files-found: error
+      - name: Check finite CFG imports and observe owned native functions
+        if: ${{ matrix.domain == 'sequential-cfg' }}
+        env:
+          EDSL_GCC: gcc-13
+        run: bash scripts/verify-cfg.sh
+      - name: Check named ELF imports, functional/current-resource proofs and stale rejection
+        if: ${{ matrix.domain == 'sequential-cfg' }}
+        env:
+          CC: gcc-13
+        run: bash scripts/check-named-elf-import.sh
+      - name: Preserve owned named ELF import checks
+        if: ${{ always() && matrix.domain == 'sequential-cfg' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: named-elf-import-evidence
+          path: .cache/named-elf-import/regression/
+          if-no-files-found: error
+          include-hidden-files: true
+      - name: Grade exact artifacts against fixed tasks with data-only proofs
+        if: ${{ matrix.domain == 'sequential-cfg' }}
+        env:
+          EDSL_GCC: gcc-13
+        run: bash scripts/verify-grading.sh
+      - name: Preserve owned proof-grading evidence
+        if: ${{ always() && matrix.domain == 'sequential-cfg' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: grading-fixture-evidence
+          path: artifacts/grading-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned CFG imports and native observations
+        if: ${{ always() && matrix.domain == 'sequential-cfg' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cfg-fixture-evidence
+          path: artifacts/cfg-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned publishing-client certificates and observations
+        if: ${{ always() && matrix.domain == 'compiler-os' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: futex-client-fixture-certificates
+          path: artifacts/futex-client-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned futex certificates and native observations
+        if: ${{ always() && matrix.domain == 'compiler-os' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: futex-fixture-certificates
+          path: artifacts/futex-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned fixture certificates and build provenance
+        if: ${{ always() && matrix.domain == 'compiler-os' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: compiler-fixture-certificates
+          path: artifacts/compiler-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned loop certificates and build provenance
+        if: ${{ always() && matrix.domain == 'compiler-os' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: loop-fixture-certificates
+          path: artifacts/loop-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned process certificates and build provenance
+        if: ${{ always() && matrix.domain == 'compiler-os' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: process-fixture-certificates
+          path: artifacts/process-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned fetch-add certificates and native observations
+        if: ${{ always() && matrix.domain == 'compiler-os' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fetch-add-fixture-certificates
+          path: artifacts/fetch-add-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned counter-worker certificates and native observations
+        if: ${{ always() && matrix.domain == 'compiler-os' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: counter-worker-fixture-certificates
+          path: artifacts/counter-worker-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned mutex native observations and provenance
+        if: ${{ always() && matrix.domain == 'compiler-os' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutex-fixture-observations
+          path: artifacts/mutex-fixtures/
+          if-no-files-found: error
+      - name: Preserve owned mutex-worker certificates and observations
+        if: ${{ always() && matrix.domain == 'compiler-os' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutex-worker-fixture-certificates
+          path: artifacts/mutex-worker-fixtures/
+          if-no-files-found: error
+
+  # Keep the existing native check name as an aggregate of every matrix leg.
+  native-and-grading:
+    if: ${{ always() }}
+    needs: native-domains
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every native and grading domain to pass
+        env:
+          DOMAIN_RESULT: ${{ needs.native-domains.result }}
+        run: test "$DOMAIN_RESULT" = success

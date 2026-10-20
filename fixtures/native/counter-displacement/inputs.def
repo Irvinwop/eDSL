@@ -1,0 +1,15 @@
+/* Independent full64 inputs. Each of ten controlled registers receives a
+ * cyclic rotation, so every counter destination sees all twelve values and
+ * unrelated address operands remain asymmetric. */
+V(zero_dirty,   0xdeadbeef00000000)
+V(one_dirty,    0x1234567800000001)
+V(nibble_last,  0xfedcba980000000f)
+V(nibble_next,  0x0000800000000010)
+V(byte_signed,  0xffff80000000007f)
+V(byte_high,    0x0000000000000080)
+V(byte_last,    0xa5a5a5a5000000ff)
+V(byte_next,    0x5a5a5a5a00000100)
+V(signed_max,   0x876543217fffffff)
+V(signed_min,   0x1122334480000000)
+V(neg128,       0xffffffffffffff80)
+V(wrap,         0xffffffffffffffff)

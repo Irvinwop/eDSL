@@ -1,0 +1,39 @@
+name: Native dialect probes
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gnu-language-modes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 cmake ninja-build
+      - name: Configure exact GNU language modes
+        run: >-
+          cmake -S . -B build -G Ninja
+          -DCMAKE_C_COMPILER=clang-18
+          -DCMAKE_CXX_COMPILER=clang++-18
+      - name: Compile toolchain probes
+        run: cmake --build build --verbose
+      - name: Check short conditional branches against independent native contracts
+        env:
+          EDSL_CC: clang-18
+        run: bash scripts/verify-short-jcc.sh
+      - name: Preserve owned short-branch evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: short-jcc-native-evidence
+          path: artifacts/short-jcc/
+          if-no-files-found: error

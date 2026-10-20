@@ -1,0 +1,70 @@
+name: Predicate WAIT Linux conformance
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  predicate-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned elan
+        shell: bash
+        run: |
+          curl --fail --location --silent --show-error \
+            https://github.com/leanprover/elan/releases/download/v4.2.4/elan-x86_64-unknown-linux-gnu.tar.gz \
+            --output "$RUNNER_TEMP/elan.tar.gz"
+          printf '%s  %s\n' \
+            42b94d4244e8353142c456ec0e4ca6528fd898a6c604d4059f494e706e431f63 \
+            "$RUNNER_TEMP/elan.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/elan-installer"
+          tar -xzf "$RUNNER_TEMP/elan.tar.gz" -C "$RUNNER_TEMP/elan-installer"
+          "$RUNNER_TEMP/elan-installer/elan-init" -y --no-modify-path --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Cache pinned Lean toolchain
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.elan/toolchains
+          key: lean-toolchain-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}
+      - name: Cache Lake build outputs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .lake/build
+          key: lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean', 'lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: |
+            lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lakefile.lean', 'lake-manifest.json') }}-
+            lake-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-
+            lake-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.lean', 'lake-manifest.json') }}-
+      # Reuse the same Lean version across target/dependency configuration
+      # changes. Lake invalidates affected inputs; the final v1 prefix permits
+      # migration from the previous cache format without a cold build.
+      # Always invoke Lake: its input traces invalidate changed modules. Cached
+      # outputs never skip contract tests or generated certificate checks.
+      # The Lean proofs workflow runs the full audit and fresh kernel replay.
+      - name: Build predicate certificate and genuine model example
+        run: lake build edsl-certify-futex-predicate EDSL.Examples.FutexPredicate
+      - name: Check predicate-loop contracts and artifact rejections
+        run: |
+          lake env lean -DwarningAsError=true tests/FutexPredicate.lean
+          lake env lean -DwarningAsError=true tests/FutexPredicateCertificate.lean
+          lake env lean -DwarningAsError=true tests/FutexPredicateAccounting.lean
+      - name: Check Linux observers and exact raw and ELF certificates
+        env:
+          EDSL_CLANG: clang-18
+          EDSL_GCC: gcc-13
+        run: bash scripts/verify-futex-predicate.sh
+      - name: Preserve owned predicate observations and certificates
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: futex-predicate-evidence
+          path: artifacts/futex-predicate/
+          if-no-files-found: warn

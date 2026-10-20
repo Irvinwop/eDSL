@@ -1,0 +1,17 @@
+/build/
+/.lake/
+/artifacts/
+/findings/private/
+/findings/index.json
+/findings/records/
+/build-*/
+/out/
+/CMakeUserPresets.json
+/compile_commands.json
+/.cache/
+/docs/continue.md
+/continue.md
+/CONTINUE*.md
+.DS_Store
+*.swp
+*~

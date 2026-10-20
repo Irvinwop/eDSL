@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use eDieSeL in research, please cite this repository."
+type: software
+title: "eDieSeL: Machine-code verification and OS resource models in Lean 4"
+abstract: >-
+  A Lean 4 library for proving program behavior from exact machine code and
+  explicit models of memory, operating-system resources, and concurrency.
+  The project develops reusable verification conditions, executable binding,
+  and semantic foundations for systems languages and operating systems.
+authors:
+  - family-names: "Irvinwop"
+repository-code: "https://github.com/Irvinwop/eDieSeL"
+url: "https://github.com/Irvinwop/eDieSeL"
+license: Apache-2.0
+keywords:
+  - Lean 4
+  - formal verification
+  - binary verification
+  - operating systems
+  - program semantics

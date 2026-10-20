@@ -1,0 +1,342 @@
+/* Copyright 2026 Irvinwop. SPDX-License-Identifier: Apache-2.0 */
+/* No stack access occurs while the modeled RSP is installed. The single
+ * owned instruction is followed only by a direct jump to the RIP-relative
+ * capture sequence. This fixture is deliberately single-threaded. */
+.text
+.globl edsl_moves_probe
+.type edsl_moves_probe,@function
+edsl_moves_probe:
+    movq %rsp, edsl_moves_host_rsp(%rip)
+    movq %rbx, edsl_moves_host_saved(%rip)
+    movq %rbp, edsl_moves_host_saved+8(%rip)
+    movq %r12, edsl_moves_host_saved+16(%rip)
+    movq %r13, edsl_moves_host_saved+24(%rip)
+    movq %r14, edsl_moves_host_saved+32(%rip)
+    movq %r15, edsl_moves_host_saved+40(%rip)
+    movq %rdi, edsl_moves_function(%rip)
+    pushq edsl_moves_input+128(%rip)
+    popfq
+    pushfq
+    popq edsl_moves_effective_flags(%rip)
+    movq edsl_moves_input+0(%rip), %rax
+    movq edsl_moves_input+8(%rip), %rcx
+    movq edsl_moves_input+16(%rip), %rdx
+    movq edsl_moves_input+24(%rip), %rbx
+    movq edsl_moves_input+32(%rip), %rsp
+    movq edsl_moves_input+40(%rip), %rbp
+    movq edsl_moves_input+48(%rip), %rsi
+    movq edsl_moves_input+56(%rip), %rdi
+    movq edsl_moves_input+64(%rip), %r8
+    movq edsl_moves_input+72(%rip), %r9
+    movq edsl_moves_input+80(%rip), %r10
+    movq edsl_moves_input+88(%rip), %r11
+    movq edsl_moves_input+96(%rip), %r12
+    movq edsl_moves_input+104(%rip), %r13
+    movq edsl_moves_input+112(%rip), %r14
+    movq edsl_moves_input+120(%rip), %r15
+    jmp *edsl_moves_function(%rip)
+.size edsl_moves_probe,.-edsl_moves_probe
+
+.type edsl_moves_capture,@function
+edsl_moves_capture:
+    movq %rax, edsl_moves_output+0(%rip)
+    movq %rcx, edsl_moves_output+8(%rip)
+    movq %rdx, edsl_moves_output+16(%rip)
+    movq %rbx, edsl_moves_output+24(%rip)
+    movq %rsp, edsl_moves_output+32(%rip)
+    movq %rbp, edsl_moves_output+40(%rip)
+    movq %rsi, edsl_moves_output+48(%rip)
+    movq %rdi, edsl_moves_output+56(%rip)
+    movq %r8, edsl_moves_output+64(%rip)
+    movq %r9, edsl_moves_output+72(%rip)
+    movq %r10, edsl_moves_output+80(%rip)
+    movq %r11, edsl_moves_output+88(%rip)
+    movq %r12, edsl_moves_output+96(%rip)
+    movq %r13, edsl_moves_output+104(%rip)
+    movq %r14, edsl_moves_output+112(%rip)
+    movq %r15, edsl_moves_output+120(%rip)
+    movq edsl_moves_host_rsp(%rip), %rsp
+    pushfq
+    popq edsl_moves_output+128(%rip)
+    cld
+    movq edsl_moves_host_saved(%rip), %rbx
+    movq edsl_moves_host_saved+8(%rip), %rbp
+    movq edsl_moves_host_saved+16(%rip), %r12
+    movq edsl_moves_host_saved+24(%rip), %r13
+    movq edsl_moves_host_saved+32(%rip), %r14
+    movq edsl_moves_host_saved+40(%rip), %r15
+    ret
+.size edsl_moves_capture,.-edsl_moves_capture
+
+.bss
+.balign 8
+edsl_moves_host_rsp: .zero 8
+edsl_moves_host_saved: .zero 48
+edsl_moves_function: .zero 8
+
+/* Keep this separate from .text so objcopy can extract precisely these final
+ * linked bytes, including each capture jump, for an identity check at runtime. */
+.section .edsl_moves,"ax",@progbits
+.globl edsl_moves_section_start
+edsl_moves_section_start:
+.macro PROBE name, bytes:vararg
+.globl edsl_move_\name
+.globl edsl_move_\name\()_end
+.type edsl_move_\name,@function
+edsl_move_\name:
+.byte \bytes
+edsl_move_\name\()_end:
+    jmp edsl_moves_capture
+.size edsl_move_\name,.-edsl_move_\name
+.endm
+
+/* 89 /r: each low register occurs as both destination and source. */
+PROBE r89_0, 0x89,0xc8
+PROBE r89_1, 0x89,0xd1
+PROBE r89_2, 0x89,0xda
+PROBE r89_3, 0x89,0xe3
+PROBE r89_4, 0x89,0xec
+PROBE r89_5, 0x89,0xf5
+PROBE r89_6, 0x89,0xfe
+PROBE r89_7, 0x89,0xc7
+/* 8b /r reverses the ModRM roles. */
+PROBE r8b_0, 0x8b,0xc7
+PROBE r8b_1, 0x8b,0xc8
+PROBE r8b_2, 0x8b,0xd1
+PROBE r8b_3, 0x8b,0xda
+PROBE r8b_4, 0x8b,0xe3
+PROBE r8b_5, 0x8b,0xec
+PROBE r8b_6, 0x8b,0xf5
+PROBE r8b_7, 0x8b,0xfe
+PROBE self_0, 0x89,0xc0
+PROBE self_1, 0x8b,0xc9
+PROBE self_2, 0x89,0xd2
+PROBE self_3, 0x8b,0xdb
+PROBE self_4, 0x89,0xe4
+PROBE self_5, 0x8b,0xed
+PROBE self_6, 0x89,0xf6
+PROBE self_7, 0x8b,0xff
+
+/* Base/destination and base/source aliasing, for every plain admitted base. */
+PROBE load_0, 0x8b,0x00
+PROBE load_1, 0x8b,0x09
+PROBE load_2, 0x8b,0x12
+PROBE load_3, 0x8b,0x1b
+PROBE load_6, 0x8b,0x36
+PROBE load_7, 0x8b,0x3f
+PROBE store_0, 0x89,0x00
+PROBE store_1, 0x89,0x09
+PROBE store_2, 0x89,0x12
+PROBE store_3, 0x89,0x1b
+PROBE store_6, 0x89,0x36
+PROBE store_7, 0x89,0x3f
+/* Include the old load/store successes which the legacy decoder owns first. */
+PROBE legacy_load, 0x8b,0x07
+PROBE legacy_store, 0x89,0x37
+
+/* Full-width base+index at all four SIB scales. Loads alias destination/index;
+ * stores alias source/base. Neither addressing register is truncated. */
+PROBE sibload_0, 0x8b,0x0c,0x0f
+PROBE sibload_1, 0x8b,0x0c,0x4f
+PROBE sibload_2, 0x8b,0x0c,0x8f
+PROBE sibload_3, 0x8b,0x0c,0xcf
+PROBE sibstore_0, 0x89,0x3c,0x0f
+PROBE sibstore_1, 0x89,0x3c,0x4f
+PROBE sibstore_2, 0x89,0x3c,0x8f
+PROBE sibstore_3, 0x89,0x3c,0xcf
+/* RSP base, RBP index, destination/base and source/index aliases. */
+PROBE sib_rsp_load, 0x8b,0x24,0x6c
+PROBE sib_rsp_store, 0x89,0x2c,0x6c
+PROBE sib_same_load, 0x8b,0x0c,0x09
+PROBE sib_same_store, 0x89,0x0c,0x09
+
+/* Assembler-selected 89 register copies: every destination and source, with
+ * low/high bank combinations exercising REX.R and REX.B independently. */
+.macro QWORD_PROBE name, source, destination
+.globl edsl_move_\name
+.globl edsl_move_\name\()_end
+.type edsl_move_\name,@function
+edsl_move_\name:
+    movq \source, \destination
+edsl_move_\name\()_end:
+    jmp edsl_moves_capture
+.size edsl_move_\name,.-edsl_move_\name
+.endm
+QWORD_PROBE q89_0, %rcx, %rax
+QWORD_PROBE q89_1, %r10, %rcx
+QWORD_PROBE q89_2, %rbx, %rdx
+QWORD_PROBE q89_3, %r12, %rbx
+QWORD_PROBE q89_4, %rbp, %rsp
+QWORD_PROBE q89_5, %r14, %rbp
+QWORD_PROBE q89_6, %rdi, %rsi
+QWORD_PROBE q89_7, %r8, %rdi
+QWORD_PROBE q89_8, %r9, %r8
+QWORD_PROBE q89_9, %rdx, %r9
+QWORD_PROBE q89_10, %r11, %r10
+QWORD_PROBE q89_11, %rsp, %r11
+QWORD_PROBE q89_12, %r13, %r12
+QWORD_PROBE q89_13, %rsi, %r13
+QWORD_PROBE q89_14, %r15, %r14
+QWORD_PROBE q89_15, %rax, %r15
+
+/* Alternate 8B encodings with explicit requested operands in the C contracts.
+ * The same ModRM fields reverse direction compared with the 89 windows. */
+PROBE q8b_0, 0x49,0x8b,0xc7 /* rax <- r15 */
+PROBE q8b_1, 0x48,0x8b,0xc8 /* rcx <- rax */
+PROBE q8b_2, 0x49,0x8b,0xd1 /* rdx <- r9 */
+PROBE q8b_3, 0x48,0x8b,0xda /* rbx <- rdx */
+PROBE q8b_4, 0x49,0x8b,0xe3 /* rsp <- r11 */
+PROBE q8b_5, 0x48,0x8b,0xec /* rbp <- rsp */
+PROBE q8b_6, 0x49,0x8b,0xf5 /* rsi <- r13 */
+PROBE q8b_7, 0x48,0x8b,0xfe /* rdi <- rsi */
+PROBE q8b_8, 0x4c,0x8b,0xc7 /* r8 <- rdi */
+PROBE q8b_9, 0x4d,0x8b,0xc8 /* r9 <- r8 */
+PROBE q8b_10, 0x4c,0x8b,0xd1 /* r10 <- rcx */
+PROBE q8b_11, 0x4d,0x8b,0xda /* r11 <- r10 */
+PROBE q8b_12, 0x4c,0x8b,0xe3 /* r12 <- rbx */
+PROBE q8b_13, 0x4d,0x8b,0xec /* r13 <- r12 */
+PROBE q8b_14, 0x4c,0x8b,0xf5 /* r14 <- rbp */
+PROBE q8b_15, 0x4d,0x8b,0xfe /* r15 <- r14 */
+
+/* Full64 self-copies preserve high halves, including arbitrary RSP. */
+QWORD_PROBE qself_0, %rax, %rax
+QWORD_PROBE qself_1, %rcx, %rcx
+QWORD_PROBE qself_2, %rdx, %rdx
+QWORD_PROBE qself_3, %rbx, %rbx
+QWORD_PROBE qself_4, %rsp, %rsp
+QWORD_PROBE qself_5, %rbp, %rbp
+QWORD_PROBE qself_6, %rsi, %rsi
+QWORD_PROBE qself_7, %rdi, %rdi
+QWORD_PROBE qself_8, %r8, %r8
+QWORD_PROBE qself_9, %r9, %r9
+QWORD_PROBE qself_10, %r10, %r10
+QWORD_PROBE qself_11, %r11, %r11
+QWORD_PROBE qself_12, %r12, %r12
+QWORD_PROBE qself_13, %r13, %r13
+QWORD_PROBE qself_14, %r14, %r14
+QWORD_PROBE qself_15, %r15, %r15
+
+/* REX.X is ignored in register mode for each R/B combination and direction.
+ * Together with the assembler windows, all prefix bytes 48..4F execute. */
+PROBE qx89_low, 0x4a,0x89,0xd8 /* rax <- rbx */
+PROBE qx89_b, 0x4b,0x89,0xd8 /* r8 <- rbx */
+PROBE qx89_r, 0x4e,0x89,0xd8 /* rax <- r11 */
+PROBE qx89_rb, 0x4f,0x89,0xd8 /* r8 <- r11 */
+PROBE qx8b_low, 0x4a,0x8b,0xd8 /* rbx <- rax */
+PROBE qx8b_b, 0x4b,0x8b,0xd8 /* rbx <- r8 */
+PROBE qx8b_r, 0x4e,0x8b,0xd8 /* r11 <- rax */
+PROBE qx8b_rb, 0x4f,0x8b,0xd8 /* r11 <- r8 */
+
+/* Full-width memory operands, independently requested by the C contracts.
+ * Every destination/source occurs, as do all admitted plain base registers. */
+QWORD_PROBE load64_0, (%rdi), %rax
+QWORD_PROBE load64_1, (%r8), %rcx
+QWORD_PROBE load64_2, (%rcx), %rdx
+QWORD_PROBE load64_3, (%r10), %rbx
+QWORD_PROBE load64_4, (%rbx), %rsp
+QWORD_PROBE load64_5, (%r14), %rbp
+QWORD_PROBE load64_6, (%rdi), %rsi
+QWORD_PROBE load64_7, (%rax), %rdi
+QWORD_PROBE load64_8, (%r9), %r8
+QWORD_PROBE load64_9, (%rdx), %r9
+QWORD_PROBE load64_10, (%r11), %r10
+QWORD_PROBE load64_11, (%rsi), %r11
+QWORD_PROBE load64_12, (%r15), %r12
+QWORD_PROBE load64_13, (%rax), %r13
+QWORD_PROBE load64_14, (%rcx), %r14
+QWORD_PROBE load64_15, (%r8), %r15
+QWORD_PROBE store64_0, %rax, (%rax)
+QWORD_PROBE store64_1, %rcx, (%rcx)
+QWORD_PROBE store64_2, %rdx, (%rdx)
+QWORD_PROBE store64_3, %rbx, (%rbx)
+QWORD_PROBE store64_4, %rsp, (%rsi)
+QWORD_PROBE store64_5, %rbp, (%rdi)
+QWORD_PROBE store64_6, %rsi, (%rsi)
+QWORD_PROBE store64_7, %rdi, (%rdi)
+QWORD_PROBE store64_8, %r8, (%r8)
+QWORD_PROBE store64_9, %r9, (%r9)
+QWORD_PROBE store64_10, %r10, (%r10)
+QWORD_PROBE store64_11, %r11, (%r11)
+QWORD_PROBE store64_12, %r12, (%r14)
+QWORD_PROBE store64_13, %r13, (%r15)
+QWORD_PROBE store64_14, %r14, (%r14)
+QWORD_PROBE store64_15, %r15, (%r15)
+/* REX.X outside SIB is ignored; R/B still select their respective operands. */
+PROBE load64_x0, 0x4a,0x8b,0x07
+PROBE load64_x1, 0x4b,0x8b,0x07
+PROBE load64_x2, 0x4e,0x8b,0x07
+PROBE load64_x3, 0x4f,0x8b,0x07
+PROBE store64_x0, 0x4a,0x89,0x37
+PROBE store64_x1, 0x4b,0x89,0x37
+PROBE store64_x2, 0x4e,0x89,0x37
+PROBE store64_x3, 0x4f,0x89,0x37
+/* High-bank base/index/data, every scale, then source/destination aliases. */
+PROBE load64_scale0, 0x4f,0x8b,0x14,0x08
+PROBE load64_scale1, 0x4f,0x8b,0x14,0x48
+PROBE load64_scale2, 0x4f,0x8b,0x14,0x88
+PROBE load64_scale3, 0x4f,0x8b,0x14,0xc8
+PROBE store64_scale0, 0x4f,0x89,0x1c,0x08
+PROBE store64_scale1, 0x4f,0x89,0x1c,0x48
+PROBE store64_scale2, 0x4f,0x89,0x1c,0x88
+PROBE store64_scale3, 0x4f,0x89,0x1c,0xc8
+PROBE load64_alias_base, 0x4f,0x8b,0x04,0x08
+PROBE load64_alias_index, 0x4f,0x8b,0x0c,0x08
+PROBE store64_alias_base, 0x4f,0x89,0x04,0x08
+PROBE store64_alias_index, 0x4f,0x89,0x0c,0x08
+/* Index lowbits4 is R12 when X=1, and is not the absent-index encoding. */
+PROBE load64_r12_index, 0x4e,0x8b,0x24,0x64
+PROBE store64_r12_index, 0x4e,0x89,0x2c,0x64
+PROBE load64_r12_base, 0x4b,0x8b,0x24,0x2c
+PROBE store64_r12_base, 0x4b,0x89,0x2c,0x2c
+PROBE load64_same_address, 0x4f,0x8b,0x0c,0x09
+PROBE store64_same_address, 0x4f,0x89,0x0c,0x09
+
+/* All 256 ModRM register pairs, including every alias and RSP position.
+ * The C observer separately requests left <-> right, with no byte decoder. */
+.macro EXCHANGE left,right
+    PROBE exchange_\left\()_\right, (0x48 | ((\left >> 3) << 2) | (\right >> 3)),0x87,(0xc0 | ((\left & 7) << 3) | (\right & 7))
+.endm
+.irp left,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+    .irp right,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+        EXCHANGE \left,\right
+    .endr
+.endr
+/* All 16 opcode-register operands and every ignored R/X combination. */
+.macro SHORT_EXCHANGE other,ignored
+    PROBE short_\other\()_\ignored, (0x48 | (\other >> 3) | (\ignored << 1)),(0x90 | (\other & 7))
+.endm
+.irp other,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+    .irp ignored,0,1,2,3
+        SHORT_EXCHANGE \other,\ignored
+    .endr
+.endr
+/* Ignored X with all R/B combinations for the ModRM encoding. */
+PROBE exchange_x_0, 0x4a,0x87,0xd9 /* rbx <-> rcx */
+PROBE exchange_x_1, 0x4b,0x87,0xd9 /* rbx <-> r9 */
+PROBE exchange_x_2, 0x4e,0x87,0xd9 /* r11 <-> rcx */
+PROBE exchange_x_3, 0x4f,0x87,0xd9 /* r11 <-> r9 */
+
+/* Safe project-owned mutations. The independent contract observer must reject
+ * all of these and none is passed to the positive Lean replay. Some bytes now
+ * decode successfully but violate their independently requested width. */
+PROBE mutant_width, 0x48,0x89,0xd8
+PROBE mutant_direction, 0x89,0xc3
+PROBE mutant_omitted, 0x90,0x90
+PROBE mutant_neighbor, 0x48,0x89,0x37
+PROBE mutant_narrow, 0x89,0xd8 /* requested rax <- full64 rbx, executed eax <- ebx */
+/* Safe register-only defects: never touch memory with arbitrary GPR values. */
+PROBE mutant_exchange_copy, 0x48,0x89,0xf8 /* only copies rdi to rax */
+PROBE mutant_exchange_wrong, 0x48,0x96 /* exchanges rsi instead of rdi */
+PROBE mutant_exchange_omitted, 0x90,0x90
+PROBE mutant_exchange_narrow, 0x97 /* exchanges only eax and edi */
+PROBE mutant_exchange_flags, 0x48,0x97,0xf9 /* swap then set CF */
+/* Memory64 mutants execute only with owned, mapped addresses. */
+PROBE mutant_load64_narrow, 0x8b,0x07
+PROBE mutant_store64_narrow, 0x89,0x37
+PROBE mutant_store64_source, 0x48,0x89,0x07
+PROBE mutant_store64_address, 0x48,0x89,0x77,0x01
+PROBE mutant_store64_endian, 0x48,0x0f,0xce,0x48,0x89,0x37,0x48,0x0f,0xce
+PROBE mutant_store64_neighbor, 0x48,0x89,0x37,0xc6,0x47,0x08,0x00
+.globl edsl_moves_section_end
+edsl_moves_section_end:
+.section .note.GNU-stack,"",@progbits
