@@ -90,11 +90,11 @@ cannot supply that guarantee.
 The [managed-word trace refinement](word-tso-refinement.md) covers an independent
 uniform64 memory fragment. Extend it to a justified correspondence with the
 complete selected published x86-TSO model before claiming that broader result.
-The [store trace correspondence](managed-store-trace.md) retains complete
-issues and unique publications for finite successful runs. Extend extraction
-to managed loads, their exact read-from sources and complete source event
-graphs. Add source acquire/release/relaxed orders, compare/exchange and
-fences only with justified mappings. Extend private futex protocols beyond the
+The [checked atomic-trace API](checked-atomic-traces.md) extracts complete
+managed accesses, writer identities and publication-based graphs for finite
+successful runs with declared interface orders. Prove universal preservation
+across schedules and justify source-to-interface annotations. Add compare/exchange
+and fences only with justified mappings. Extend private futex protocols beyond the
 current policies to blocking acquisition, multiple waiters, interruption,
 timeouts, cancellation and process sharing. Separate safety, enabledness,
 constructive completion and eventual progress assumptions.

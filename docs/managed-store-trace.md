@@ -75,8 +75,8 @@ authority, check both memory effects, and reject a scan at the exact managed
 policy fault after an earlier ordinary issue.
 
 These interfaces annotate finite runs of the existing fixed-world scheduler.
-They do not yet extract complete C23 graphs: managed load events, read-from
-sources, initial-object coverage, source-order annotations and modification
-ranks still need a checked bridge. No full source/compiler preservation,
+The [checked atomic-trace API](checked-atomic-traces.md) adds managed loads,
+identity-based read-from sources, complete initial-object coverage, declared
+interface orders and publication-based modification ranks. No full source/compiler preservation,
 physical CPU/Linux correspondence, fairness, liveness or additional frozen
 compiler-function certification follows from this store trace alone.

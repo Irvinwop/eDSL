@@ -57,7 +57,7 @@ and lower-bound claims.
 | Writable calls and private stacks | [Call stack](call-stack.md), [DATA8 calls](call-memory64.md), [counted helper calls](call-memory-loop64.md) |
 | Threads and shared atomics | [Threads](threads.md), [exchange](atomic-exchange.md), [atomic handles](atomic-handles.md), [fetch-add](fetch-add.md) |
 | Full64 managed concurrency | [Atomic foundations](atomic-fetch-add64.md), [scheduler and histories](managed-fetch-add64.md), [frozen certificates](concurrent-fetch-add-certificates.md) |
-| Source atomic ordering | [C23 event graphs](c23-atomic-events.md) and [sound finite admission](c23-atomic-checker.md); separate from machine ordering |
+| Source atomic ordering | [C23 event graphs](c23-atomic-events.md), [sound finite admission](c23-atomic-checker.md), and [checked graphs from actual finite executions](checked-atomic-traces.md) |
 | Weak memory and call histories | [Managed store traces](managed-store-trace.md), [managed-word TSO refinement](word-tso-refinement.md), [mixed-width store buffers](mixed-store-buffer.md), [TSO counter](tso-counter.md), [linearizability](counter-call-linearizability.md) |
 | Locks and blocking | [Mutexes](mutex.md), [buffered mutex](store-buffers.md), [syscall boundaries](concurrent-syscalls.md), [futexes](futex.md), [predicate rechecking](futex-predicate.md) |
 | Process boundaries | [Restricted ELF loading](elf.md), [exit](process-exit.md), [write/exit](process-write.md) |

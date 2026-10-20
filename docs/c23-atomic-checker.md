@@ -9,6 +9,10 @@ every structural, coherence and predecessor condition.
 The inputs describe an event graph. Certifying a program additionally requires
 proving that its actual execution produces those events, values, objects and
 read-from identities under the declared machine and OS assumptions.
+The [checked atomic-trace API](checked-atomic-traces.md) supplies this connection
+for finite managed-qword executions with explicit interface orders and empty
+queue boundaries. Universal program and source/compiler preservation remain
+separate obligations.
 
 ## Input and certificate
 
