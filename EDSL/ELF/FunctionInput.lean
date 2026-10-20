@@ -18,10 +18,11 @@ structure FunctionInput where
 def FunctionInput.checkWith (maxBytes : Nat) (input : FunctionInput) (file name : List Byte) : Bool :=
   FunctionSymbol.checkWith maxBytes file input.table input.metadata name input.function input.bytes
 
-/-- Transparent default wrapper keeps generated default proofs directly usable
-by existing input/caller interfaces without normalizing a closed ELF checker. -/
-abbrev FunctionInput.check (input : FunctionInput) (file name : List Byte) : Bool :=
-  input.checkWith 64 file name
+/-- Keep the default named checker at the public definition head. Literal-file
+clients can unfold it without comparing default and explicit-bound checkers
+over a complete closed ELF. The explicit variant remains opt-in. -/
+def FunctionInput.check (input : FunctionInput) (file name : List Byte) : Bool :=
+  FunctionSymbol.check file input.table input.metadata name input.function input.bytes
 
 /-- Convert default input checks without elaborating closed file literals while
 unifying the two transparent checker wrappers. The equality is proved once on
