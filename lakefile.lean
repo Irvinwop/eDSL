@@ -98,7 +98,7 @@ lean_lib WholeQWordTests where
 
 -- Current-authority publication and persistent per-worker store occurrences.
 lean_lib ManagedQueue64Tests where
-  roots := #[`tests.ManagedQueue64, `tests.TSO64SharedCells]
+  roots := #[`tests.ManagedQueue64, `tests.TSO64SharedCells, `tests.TSO64ReadSource]
   moreLeanArgs := #["-DautoImplicit=false"]
 
 -- Cache input-traced byte-scan regressions alongside production proofs.

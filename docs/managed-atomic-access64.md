@@ -128,8 +128,37 @@ derives enabledness from present authority and world invariants.
 from empty setup through actual steps and schedules, separately from resource
 validity. A per-worker sequence number must be paired with the scheduler thread
 identifier. An arbitrary nonempty initial queue or its ordering invariant
-establishes no prior issue events or global reads-from relation. A complete
-shared issue/publication/read history remains a separate obligation.
+establishes no prior issue events or global reads-from relation.
+
+[`StoreHistory`](../EDSL/OS/TSO64/StoreHistory.lean) proves that every pending
+entry after a successful schedule either belonged to that thread's initial
+queue or came from an actual store issue in the schedule. The issue witness
+retains the decoded instruction, prestate operands, checked admission and
+committed FIFO update. Managed occurrences equal the issuing worker's original
+counter. The same provenance holds for the exact tag subsequently published
+by a drain. Starting from empty queues removes the initial-boundary alternative.
+
+[`ReadHistory`](../EDSL/OS/TSO64/ReadHistory.lean) connects an actual MOV64 load
+to the exact newest managed occurrence in its own queue, including that
+occurrence's issue provenance, or to current published memory when no matching
+own store exists. It derives queue compatibility from current resources and
+preserves the actual destination-register result. Equal values do not identify
+writers; queue positions may change after a drain while occurrence numbers
+remain attached to their original entries.
+
+| Client obligation | Reusable theorem |
+| --- | --- |
+| Pending tag's initial or actual issue origin | `StoreHistory.schedule_pending_origin` |
+| Actual issue from empty initial queues | `StoreHistory.schedule_pending_issued` |
+| Origin of a subsequently published tag | `StoreHistory.drain_after_schedule_origin` |
+| Tagged source of an actual managed MOV64 | `OrdinaryEffect.managed_read_source` |
+| Forwarded source and actual issue history after a prefix | `schedule_loadMem64_history` |
+
+These theorems annotate the existing executor; they introduce no alternative
+execution engine or postcondition checks in instruction admission. Published
+memory's last writer, RMW occurrence identities and a complete shared event
+history remain separate obligations. In particular, identifying current RAM
+does not yet identify the publication that supplied it.
 
 The [instruction regressions](../tests/TSO64SharedCells.lean) execute real MOV,
 LOCK XADD and RET bytes in two checked actor contexts. They cover repeated equal
@@ -144,7 +173,7 @@ the checked access and publication rules above.
 
 The typed events retain checked actor, handle, cell, address and value. A value
 alone cannot identify the write a load observed: separate writes can store
-the same value. Reads-from identities, source acquire/release synchronization,
+the same value. Published reads-from identities, source acquire/release synchronization,
 source-to-machine preservation, and physical x86-TSO/Linux correspondence
 remain separate proof obligations. See the [platform model](platform-model.md)
 and [trust ledger](trust.md).

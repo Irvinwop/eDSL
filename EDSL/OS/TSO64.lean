@@ -5,6 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 import EDSL.OS.TSO64.Run
 import EDSL.OS.TSO64.Access
 import EDSL.OS.TSO64.Occurrences
+import EDSL.OS.TSO64.ReadHistory
 
 /-!
 Reusable checked fixed-world scheduler for the explicitly admitted Sequential
@@ -24,8 +25,10 @@ releases, transfers, enrollment/revocation or loan finishing during a run.
 Each plain store consumes a per-worker sequence number only on successful
 instruction execution; managed FIFO entries retain the full original authority
 descriptor and occurrence. Publication reauthorizes the head at the current
-world. Returning does not publish pending stores. Numerical queue integrity is
-proved separately from authority and supplies no complete shared event history.
+world. Returning does not publish pending stores. StoreHistory connects retained
+and published tags to actual issues or an explicit initial queue boundary;
+ReadHistory connects forwarded MOV values to those exact tagged origins.
+Published-writer identity and complete shared/RMW histories remain separate.
 As for the underlying resource models, actor labels are logical principals and
 copyable tickets are registry authority, not native authentication/linear tokens.
 
