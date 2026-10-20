@@ -155,7 +155,7 @@ lean_lib Low8Tests where
 lean_lib ByteEqualityTests where
   roots := #[`tests.ByteEquality, `tests.SequentialByteComparePadding,
     `tests.ByteComparePaddingAudit, `tests.ByteEqualityBodies,
-    `tests.GradingByteEquality]
+    `tests.GradingByteEquality, `tests.ByteEqualityCertificates]
   moreLeanArgs := #["-DautoImplicit=false"]
 
 -- Explicit larger bounds and preservation of the original default profile.

@@ -15,7 +15,7 @@ case "$#:${1:-}" in
     1:--full-project) full_project=true ;;
     1:--help)
         echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]'
-        echo 'Builds twenty scalar, two managed concurrent fetch-add, two bounded byte-scan, four first-match search and two byte-comparison certificates, audits axioms and checks file binding.'
+        echo 'Builds twenty scalar, two managed concurrent fetch-add, two bounded byte-scan, four first-match search, two byte-comparison and two byte-equality certificates, audits axioms and checks file binding.'
         echo 'Default: fresh-replays corpus.Certify. --full-project: also builds the full catalogue and verification, unary, popcount, average, parity, rotation, low-byte and CFG-profile tests; fresh-replays them together.'
         exit 0 ;;
     *) echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]' >&2; exit 2 ;;
@@ -191,6 +191,7 @@ record concurrent-certificate-api test -f EDSL/Corpus/V1/FetchAddCertificates.le
 record buffer-certificate-api test -f EDSL/Corpus/V1/ByteScanCertificates.lean
 record index-search-certificate-api test -f EDSL/Corpus/V1/IndexSearchCertificates.lean
 record byte-comparison-certificate-api test -f EDSL/Corpus/V1/ByteComparisonCertificates.lean
+record byte-equality-certificate-api test -f EDSL/Corpus/V1/ByteEqualityCertificates.lean
 record unary-certificate-api test -f EDSL/Corpus/V1/UnaryCertificates.lean
 record popcount-certificate-api test -f EDSL/Corpus/V1/PopcountCertificates.lean
 record average-certificate-api test -f EDSL/Corpus/V1/AverageCertificates.lean
@@ -248,6 +249,7 @@ import tests.SequentialByteComparePadding
 import tests.ByteComparePaddingAudit
 import tests.ByteEqualityBodies
 import tests.GradingByteEquality
+import tests.ByteEqualityCertificates
 import tests.CFGProfiles
 import tests.VCGenScratchFrame
 LEAN
@@ -342,6 +344,38 @@ example :
       (EDSL.Corpus.V1.Comparisons.file .defaultClang)
       EDSL.Corpus.V1.ByteComparisonWindows.name) :=
   EDSL.Corpus.Reporting.acceptedByteComparisonCertificates
+
+-- Require the independent low8 Boolean task at the same complete files read
+-- by the CLI. Literal name and explicit per-compiler caps prevent a smaller
+-- selected window or the lexicographic task from substituting for equality.
+example :
+    Nonempty (EDSL.Corpus.Buffer.Certificate .equalBytes
+      (EDSL.Corpus.V1.Comparisons.file .defaultGCC)
+      [99,95,98,121,116,101,115,95,101,113,117,97,108] 64) ∧
+    Nonempty (EDSL.Corpus.Buffer.Certificate .equalBytes
+      (EDSL.Corpus.V1.Comparisons.file .defaultClang)
+      [99,95,98,121,116,101,115,95,101,113,117,97,108] 128) :=
+  EDSL.Corpus.Reporting.acceptedByteEqualityCertificates
+example (compiler : EDSL.Corpus.V1.ByteEqualityWindows.Compiler) :
+    (EDSL.Corpus.V1.ByteEqualityCertificates.certificate compiler).input =
+      EDSL.Corpus.V1.ByteEqualityWindows.input compiler := rfl
+example (compiler : EDSL.Corpus.V1.ByteEqualityWindows.Compiler) :
+    EDSL.Corpus.V1.ByteEqualityWindows.file compiler =
+      EDSL.Corpus.V1.Comparisons.file compiler := rfl
+
+-- The bound is a conclusion for every admitted snapshot and every choice
+-- stream in actual decoded execution. It is neither interpreter fuel nor a
+-- physical timing/minimum-cost assertion.
+example (compiler : EDSL.Corpus.V1.ByteEqualityWindows.Compiler)
+    (input : EDSL.BufferCall.Invocation EDSL.Grading.ByteEquality.spec)
+    (initial : EDSL.X86.State)
+    (pre : EDSL.BufferCall.Pre EDSL.Grading.ByteEquality.spec
+      (EDSL.Corpus.V1.ByteEqualityWindows.bytes compiler) input initial)
+    (choices : EDSL.X86.Sequential.Choices) :
+    ∃ result, EDSL.X86.Sequential.Executes choices initial result ∧
+      EDSL.BufferCall.Post EDSL.Grading.ByteEquality.spec input initial result.state ∧
+      result.instructions ≤ 10 * (input.value.left.length + 2) :=
+  EDSL.Corpus.V1.ByteEqualityBodies.dynamic_bound compiler input initial pre choices
 
 -- Require both registry-owned unary contracts at both exact complete files.
 example :
@@ -480,6 +514,7 @@ example (compiler : EDSL.Corpus.V1.FetchAddWindows.Compiler) :
 #print axioms EDSL.Corpus.Reporting.acceptedBufferCertificates
 #print axioms EDSL.Corpus.Reporting.acceptedIndexSearchCertificates
 #print axioms EDSL.Corpus.Reporting.acceptedByteComparisonCertificates
+#print axioms EDSL.Corpus.Reporting.acceptedByteEqualityCertificates
 #print axioms EDSL.Corpus.Reporting.acceptedUnaryCertificates
 #print axioms EDSL.Corpus.Reporting.acceptedPopcountCertificates
 #print axioms EDSL.Corpus.Reporting.acceptedAverageCertificates
@@ -538,6 +573,10 @@ def certificate($manifest; $operation; $symbol; $proof):
     .model == "sequential-read-only-x86-buffer-callable-v1" and
     ([$manifest.functions[] | select(.symbol == $symbol)][0] |
       .definition_id == "19" and .contract_id == "v1:19:c_memcmp_bytes")
+   elif $operation == "canonical_low8_byte_equality" then
+    .model == "sequential-read-only-x86-buffer-callable-v1" and
+    ([$manifest.functions[] | select(.symbol == $symbol)][0] |
+      .definition_id == "20" and .contract_id == "v1:20:c_bytes_equal")
    elif $operation == "signed_absolute32" then
     (has("model") | not) and
     ([$manifest.functions[] | select(.symbol == $symbol)][0] |
@@ -590,7 +629,7 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
   type == "object" and .compiler == $compiler and .path == $path and
   .bytes == $bytes and $manifest.elf_size == $bytes and
   .match == "complete_byte_equality" and
-  (.certificates | type == "array" and length == 15) and
+  (.certificates | type == "array" and length == 16) and
   (.certificates[0] | certificate($manifest; "unsigned_minimum64"; "c_min_u64";
     "EDSL.Corpus.V1.Comparisons.certificate " + $enum + " minimum")) and
   (.certificates[1] | certificate($manifest; "unsigned_maximum64"; "c_max_u64";
@@ -621,6 +660,8 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
     "c_parity_loop"; "EDSL.Corpus.V1.ParityCertificates.certificate " + $enum)) and
   (.certificates[14] | certificate($manifest; "rotate_left64";
     "c_rotl64"; "EDSL.Corpus.V1.RotationCertificates.certificate " + $enum)) and
+  (.certificates[15] | certificate($manifest; "canonical_low8_byte_equality";
+    "c_bytes_equal"; "EDSL.Corpus.V1.ByteEqualityCertificates.certificate " + $enum)) and
   (.certificates[6] | search_extent($compiler; "byte")) and
   (.certificates[7] | search_extent($compiler; "u32")) and
   (.certificates[8] | byte_comparison_extent($compiler)) and
@@ -638,10 +679,13 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
   (.certificates[14] | [.file_offset, .address, .size] ==
     (if $compiler == "gcc" then [11744, 4206048, 13]
      elif $compiler == "clang" then [4944, 4199248, 9] else [] end)) and
+  (.certificates[15] | [.file_offset, .address, .size, .max_function_bytes, .max_cfg_nodes] ==
+    (if $compiler == "gcc" then [12240, 4206544, 46, 64, 32]
+     elif $compiler == "clang" then [5376, 4199680, 68, 128, 32] else [] end)) and
   all(.certificates[]; .file_offset + .size <= $bytes) and
-  ([.certificates[].symbol] | unique | length == 15) and
-  ([.certificates[].operation] | unique | length == 15) and
-  ([.certificates[] | [.file_offset, .address, .size]] | unique | length == 15) and
+  ([.certificates[].symbol] | unique | length == 16) and
+  ([.certificates[].operation] | unique | length == 16) and
+  ([.certificates[] | [.file_offset, .address, .size]] | unique | length == 16) and
   (.certificates as $certificates | all($certificates[]; . as $a |
     all($certificates[]; . as $b | $a.symbol == $b.symbol or
       (($a.file_offset + $a.size <= $b.file_offset or
@@ -656,19 +700,19 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
 length == 1 and (.[0] |
   type == "object" and .schema == "edsl.compiler-corpus.certificates.v1" and
   .status == "certified_under_recorded_model_assumptions" and
-  .score == {functions_certified_end_to_end: 15,
+  .score == {functions_certified_end_to_end: 16,
     functions_total: ($gccNames | length),
-    compiler_artifacts_certified_end_to_end: 30,
+    compiler_artifacts_certified_end_to_end: 32,
     compiler_artifacts_total: (($gccNames | length) + ($clangNames | length)),
     concurrency_contracts_proved: 1} and
   (.files | type == "array" and length == 2) and
   (.files[0] | artifact("gcc"; $gcc; $gccBytes; $gccManifest[0]; "defaultGCC")) and
   (.files[1] | artifact("clang"; $clang; $clangBytes; $clangManifest[0]; "defaultClang")) and
   ([.files[] | .compiler as $compiler | .certificates[] |
-      [$compiler, .operation, .symbol]] | unique | length == 30) and
-  ([.files[].certificates[].proof] | unique | length == 30) and
-  ([.files[].certificates[].symbol] | unique | length == 15) and
-  ([.files[].certificates[].operation] | unique | length == 15) and
+      [$compiler, .operation, .symbol]] | unique | length == 32) and
+  ([.files[].certificates[].proof] | unique | length == 32) and
+  ([.files[].certificates[].symbol] | unique | length == 16) and
+  ([.files[].certificates[].operation] | unique | length == 16) and
   ([.files[].certificates[] | select(.operation == "full64_fetch_add_concurrent")] |
     length == 2 and (map(.symbol) | unique | length == 1)) and
   (.score.functions_certified_end_to_end ==
@@ -679,6 +723,8 @@ length == 1 and (.[0] |
       [.operation, .symbol, .model]] | unique | length)) and
   .profile.long_mode == true and .profile.cet_ibt_enabled == false and
   .profile.shadow_stack_enabled == false and .profile.multi_byte_nop == true and
+  .profile.exact_nop15_supported == true and
+  .profile.exact_nop15_bytes == [102,102,102,102,102,102,46,15,31,132,0,0,0,0,0] and
   .profile.status == "recorded model assumptions; native configuration is not checked" and
   (.stages | type == "object" and
     all(.complete_file_identity, .elf_symbol_binding, .cfg, .symbolic_vc,
@@ -687,6 +733,7 @@ length == 1 and (.[0] |
       .rotation_semantics, .rotation_progress,
       .buffer_semantics, .index_search_semantics,
       .byte_comparison_semantics, .byte_comparison_resources, .byte_comparison_progress,
+      .byte_equality_semantics, .byte_equality_resources, .byte_equality_progress,
       .concurrent_semantics, .concurrent_progress,
       .concurrent_resources, .concurrent_useful_domain,
       .caller_resources, .useful_domain, .certificate_axioms; text)) and
@@ -699,8 +746,10 @@ length == 1 and (.[0] |
     .stages.population_count_semantics, .stages.average_semantics, .stages.average_progress,
     .stages.parity_semantics, .stages.rotation_semantics, .stages.rotation_progress,
     .stages.byte_comparison_semantics,
-    .stages.byte_comparison_resources, .stages.byte_comparison_progress] |
-      unique | length == 25) and
+    .stages.byte_comparison_resources, .stages.byte_comparison_progress,
+    .stages.byte_equality_semantics, .stages.byte_equality_resources,
+    .stages.byte_equality_progress] |
+      unique | length == 28) and
   (.stages.population_count_semantics | contains("full64 input bit-position cardinality") and
     contains("unsigned low32") and contains("all inputs including zero and all-ones admitted") and
     contains("every AF stream terminates") and contains("strict remaining-cardinality rank") and
@@ -764,11 +813,30 @@ length == 1 and (.[0] |
     contains("no DATA loan") and contains("no DATA read")) and
   (.stages.byte_comparison_resources | contains("complete RAM and permissions") and
     contains("current code, original caller and both nonempty input loans") and
-    contains("every prefix and return") and contains("ABI frames and nonarithmetic flags")) and
+    contains("every prefix and return") and contains("ABI frames and nonarithmetic flags established at return")) and
   (.stages.byte_comparison_progress | contains("all AF streams") and
     contains("terminate by dynamic rank") and
     contains("9*(n+2) is a proved output upper bound on retired model instructions") and
     contains("no physical cost or minimum-cost claim")) and
+  (.stages.byte_equality_semantics | contains("canonical low8 Boolean 0/1") and
+    contains("1 exactly when the independent complete byte snapshots are equal") and
+    contains("upper56 RAX unconstrained") and contains("Clang empty B0 01 path") and
+    contains("arbitrary equal-length complete snapshots with n < 2^64") and
+    contains("full64 RDI/RSI/RDX bind both pointers and count") and
+    contains("DATA1 reads stay within the two exact input spans") and
+    contains("compatible overlapping, identical, unaligned, code and caller aliases admitted") and
+    contains("n=0 ignores both pointers and input-loan selectors") and
+    contains("no DATA loan") and contains("no DATA read")) and
+  (.stages.byte_equality_resources | contains("complete RAM and permissions") and
+    contains("ABI frames and nonarithmetic flags established at return") and
+    contains("current code, original caller and both nonempty input loans") and
+    contains("every prefix and return") and
+    contains("reuse the original paired input snapshots and exact loan selectors")) and
+  (.stages.byte_equality_progress | contains("every choice stream terminates by dynamic rank") and
+    contains("10*(n+2) is a proved output upper bound on retired model instructions") and
+    contains("no physical cost or minimum-cost claim") and
+    contains("GCC 46 bytes with cap64, Clang 68 bytes with cap128") and
+    contains("both CFG node caps are 32")) and
   (.stages.registered_semantics | contains("signed low32") and
     contains("lower <= upper") and contains("arbitrary argument upper halves")) and
   (.stages.concurrent_semantics | contains("CLOSED-COHORT") and
@@ -802,6 +870,9 @@ length == 1 and (.[0] |
       contains("stable ordinary RAM") and contains("absent asynchronous interference") and
       contains("CET off") and contains("no source/LLVM preservation") and
       contains("native Linux") and contains("concurrent-buffer claim")) and
+    any(.[]; contains("Byte equality") and contains("same borrowed sequential callable profile") and
+      contains("CPU support for the exact NOP15 encoding recorded in profile") and
+      contains("environmental assumption, not a native CPU capability check")) and
     all(.[]; contains("concurrent histories receive no certificate") | not) and
     any(.[]; contains("not future filesystem or process mappings")) and
     any(.[]; contains("Fresh kernel replay is a separate verification-gate step"))))
@@ -817,6 +888,7 @@ record save-gate-inputs cp -- "$output/commands/gate-inputs.stdout" "$output/gat
 certificate_targets=(EDSL.Corpus.V1.Comparisons EDSL.Corpus.V1.Arithmetic EDSL.Corpus.V1.Clamps
     EDSL.Corpus.V1.FetchAddCertificates EDSL.Corpus.V1.ByteScanCertificates
     EDSL.Corpus.V1.IndexSearchCertificates EDSL.Corpus.V1.ByteComparisonCertificates
+    EDSL.Corpus.V1.ByteEqualityCertificates
     EDSL.Corpus.V1.UnaryCertificates EDSL.Corpus.V1.PopcountCertificates
     EDSL.Corpus.V1.AverageCertificates EDSL.Corpus.V1.ParityCertificates
     EDSL.Corpus.V1.RotationCertificates)
@@ -947,7 +1019,14 @@ reject_report reject-report-pre-parity-function-count '.score.functions_certifie
 reject_report reject-report-pre-parity-artifact-count '.score.compiler_artifacts_certified_end_to_end = 26'
 reject_report reject-report-pre-rotation-function-count '.score.functions_certified_end_to_end = 14'
 reject_report reject-report-pre-rotation-artifact-count '.score.compiler_artifacts_certified_end_to_end = 28'
+reject_report reject-report-pre-equality-function-count '.score.functions_certified_end_to_end = 15'
+reject_report reject-report-pre-equality-artifact-count '.score.compiler_artifacts_certified_end_to_end = 30'
 reject_report reject-report-concurrency-count '.score.concurrency_contracts_proved = 2'
+reject_report reject-report-cet-ibt '.profile.cet_ibt_enabled = true'
+reject_report reject-report-shadow-stack '.profile.shadow_stack_enabled = true'
+reject_report reject-report-exact-nop15-missing 'del(.profile.exact_nop15_supported)'
+reject_report reject-report-exact-nop15-unsupported '.profile.exact_nop15_supported = false'
+reject_report reject-report-exact-nop15-encoding '.profile.exact_nop15_bytes[6] = 102'
 report_compilers=(gcc clang)
 for index in 0 1; do
     label=${report_compilers[$index]}
@@ -1022,6 +1101,25 @@ duplicate	.files[$index].certificates[3] = .files[$index].certificates[8]
 missing-row	del(.files[$index].certificates[8])
 doubled-row	.files[$index].certificates += [.files[$index].certificates[8]]
 row-swap	.files[$index].certificates |= .[0:7] + [.[8], .[7]] + .[9:]
+MUTATIONS
+    while IFS=$'\t' read -r mutation filter; do
+        reject_report "reject-$label-byte-equality-$mutation" "$filter" \
+            --argjson index "$index"
+    done <<'MUTATIONS'
+missing-model	del(.files[$index].certificates[15].model)
+model	.files[$index].certificates[15].model = "physical-linux-callable"
+lexicographic-operation	.files[$index].certificates[15].operation = "unsigned_lexicographic_bytes"
+compiler-proof	.files[$index].certificates[15].proof = .files[1 - $index].certificates[15].proof
+lexicographic-proof	.files[$index].certificates[15].proof = .files[$index].certificates[8].proof
+symbol	.files[$index].certificates[15].symbol = "c_memcmp_bytes"
+offset	.files[$index].certificates[15].file_offset += 1
+address	.files[$index].certificates[15].address += 1
+size	.files[$index].certificates[15].size -= 1
+byte-cap	.files[$index].certificates[15].max_function_bytes = (if $index == 0 then 128 else 64 end)
+node-cap	.files[$index].certificates[15].max_cfg_nodes = 64
+duplicate	.files[$index].certificates[8] = .files[$index].certificates[15]
+missing-row	del(.files[$index].certificates[15])
+doubled-row	.files[$index].certificates += [.files[$index].certificates[15]]
 MUTATIONS
     for entry in 9 10 11 12 13 14; do
         case "$entry" in
@@ -1137,6 +1235,37 @@ read -r filter <<'JQ'
 .files[0].certificates[8] as $gcc | .files[0].certificates[8] = .files[1].certificates[8] | .files[1].certificates[8] = $gcc
 JQ
 reject_report reject-byte-comparison-compiler-swap "$filter"
+read -r filter <<'JQ'
+.files[0].certificates[15] as $gcc | .files[0].certificates[15] = .files[1].certificates[15] | .files[1].certificates[15] = $gcc
+JQ
+reject_report reject-byte-equality-compiler-swap "$filter"
+while IFS=$'\t' read -r mutation filter; do
+    reject_report "reject-byte-equality-$mutation" "$filter"
+done <<'MUTATIONS'
+stage-missing	del(.stages.byte_equality_semantics)
+return-width	.stages.byte_equality_semantics |= sub("canonical low8 Boolean 0/1"; "full64 Boolean 0/1")
+return-meaning	.stages.byte_equality_semantics |= sub("1 exactly when the independent complete byte snapshots are equal"; "0 exactly when the independent complete byte snapshots are equal")
+noncanonical	.stages.byte_equality_semantics |= sub("canonical low8 Boolean 0/1"; "any nonzero low8 Boolean")
+upper-rax	.stages.byte_equality_semantics |= sub("upper56 RAX unconstrained"; "upper56 RAX must be zero")
+empty-path	.stages.byte_equality_semantics |= sub("Clang empty B0 01 path"; "Clang empty EAX=1 path")
+bounded-domain	.stages.byte_equality_semantics |= sub("arbitrary equal-length complete snapshots with n < 2\\^64"; "selected snapshots of at most 32 bytes")
+argument-width	.stages.byte_equality_semantics |= sub("full64 RDI/RSI/RDX"; "low32 RDI/RSI/RDX")
+read-width	.stages.byte_equality_semantics |= sub("DATA1 reads"; "DATA8 reads")
+aliases	.stages.byte_equality_semantics |= sub("compatible overlapping, identical, unaligned, code and caller aliases admitted"; "disjoint aligned inputs required")
+empty-pointers	.stages.byte_equality_semantics |= sub("n=0 ignores both pointers and input-loan selectors"; "n=0 requires valid pointers and live input-loan selectors")
+empty-loans	.stages.byte_equality_semantics |= sub("no DATA loan"; "two DATA loans")
+empty-reads	.stages.byte_equality_semantics |= sub("no DATA read"; "one DATA read")
+resources-missing	del(.stages.byte_equality_resources)
+memory-frame	.stages.byte_equality_resources |= sub("complete RAM and permissions"; "selected input bytes")
+caller-loans	.stages.byte_equality_resources |= sub("original caller and both nonempty input loans"; "replacement caller and one input loan")
+prefix-resources	.stages.byte_equality_resources |= sub("every prefix and return"; "return only")
+input-reinitialization	.stages.byte_equality_resources |= sub("reuse the original paired input snapshots and exact loan selectors"; "initialize replacement input snapshots and loan selectors")
+progress-missing	del(.stages.byte_equality_progress)
+choice-streams	.stages.byte_equality_progress |= sub("every choice stream terminates by dynamic rank"; "one choice stream terminates")
+physical-bound	.stages.byte_equality_progress = "10*(n+2) is a physical minimum cost"
+clang-cap	.stages.byte_equality_progress |= sub("Clang 68 bytes with cap128"; "Clang 64-byte prefix with cap64")
+limits	del(.limits[] | select(contains("Byte equality")))
+MUTATIONS
 while IFS=$'\t' read -r mutation filter; do
     reject_report "reject-byte-comparison-$mutation" "$filter"
 done <<'MUTATIONS'
@@ -1165,7 +1294,7 @@ MUTATIONS
 # Keep the report valid while mutating the selected frozen registration, so a
 # validator that accepts the wrong independent task identity is also caught.
 for label in gcc clang; do
-    for symbol in c_memchr_index c_linear_search_u32 c_memcmp_bytes c_abs_i32 c_byteswap64 c_average_u64 c_parity_loop c_rotl64; do
+    for symbol in c_memchr_index c_linear_search_u32 c_memcmp_bytes c_abs_i32 c_byteswap64 c_average_u64 c_parity_loop c_rotl64 c_bytes_equal; do
         while IFS=$'\t' read -r mutation filter; do
             name=reject-$label-$symbol-manifest-$mutation
             record "$name-mutate" jq --arg symbol "$symbol" "$filter" \
@@ -1197,12 +1326,13 @@ JQ
 read -r manifest_extent_mutation <<'JQ'
 (.functions[] | select(.symbol == $symbol))[$field] += $delta
 JQ
-for operation in byte-comparison average parity rotation; do
+for operation in byte-comparison average parity rotation byte-equality; do
     case "$operation" in
         byte-comparison) entry=8 symbol=c_memcmp_bytes ;;
         average) entry=12 symbol=c_average_u64 ;;
         parity) entry=13 symbol=c_parity_loop ;;
         rotation) entry=14 symbol=c_rotl64 ;;
+        byte-equality) entry=15 symbol=c_bytes_equal ;;
     esac
     for index in 0 1; do
         label=${report_compilers[$index]}
@@ -1347,6 +1477,9 @@ mapfile -t parity_offsets < "$output/commands/parity-offsets.stdout"
 record rotation-offsets jq -r '.files[].certificates[] |
     select(.symbol == "c_rotl64").file_offset' "$output/report.json"
 mapfile -t rotation_offsets < "$output/commands/rotation-offsets.stdout"
+record byte-equality-offsets jq -r '.files[].certificates[] |
+    select(.symbol == "c_bytes_equal").file_offset' "$output/report.json"
+mapfile -t byte_equality_offsets < "$output/commands/byte-equality-offsets.stdout"
 gcc_code=$output/mutations/gcc-code-byte.elf
 clang_code=$output/mutations/clang-code-byte.elf
 gcc_addition=$output/mutations/gcc-addition-code-byte.elf
@@ -1367,6 +1500,8 @@ gcc_parity=$output/mutations/gcc-parity-code-byte.elf
 clang_parity=$output/mutations/clang-parity-code-byte.elf
 gcc_rotation=$output/mutations/gcc-rotation-code-byte.elf
 clang_rotation=$output/mutations/clang-rotation-code-byte.elf
+gcc_byte_equality=$output/mutations/gcc-byte-equality-code-byte.elf
+clang_byte_equality=$output/mutations/clang-byte-equality-code-byte.elf
 gcc_metadata=$output/mutations/gcc-metadata-byte.elf
 gcc_comment=$output/mutations/gcc-comment-byte.elf
 gcc_truncated=$output/mutations/gcc-truncated.elf
@@ -1415,6 +1550,10 @@ flip_byte gcc-rotation "$gcc_file" "${rotation_offsets[0]}" "$gcc_rotation"
 reject 1 reject-gcc-rotation-code --gcc "$gcc_rotation"
 flip_byte clang-rotation "$clang_file" "${rotation_offsets[1]}" "$clang_rotation"
 reject 1 reject-clang-rotation-code --clang "$clang_rotation"
+flip_byte gcc-byte-equality "$gcc_file" "${byte_equality_offsets[0]}" "$gcc_byte_equality"
+reject 1 reject-gcc-byte-equality-code --gcc "$gcc_byte_equality"
+flip_byte clang-byte-equality "$clang_file" "${byte_equality_offsets[1]}" "$clang_byte_equality"
+reject 1 reject-clang-byte-equality-code --clang "$clang_byte_equality"
 
 # ELF identification byte 8 is inside each complete file but outside every
 # certified function. Keep this header-field control alongside the opaque

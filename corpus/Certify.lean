@@ -9,6 +9,7 @@ import EDSL.Corpus.V1.FetchAddCertificates
 import EDSL.Corpus.V1.ByteScanCertificates
 import EDSL.Corpus.V1.IndexSearchCertificates
 import EDSL.Corpus.V1.ByteComparisonCertificates
+import EDSL.Corpus.V1.ByteEqualityCertificates
 import EDSL.Corpus.V1.UnaryCertificates
 import EDSL.Corpus.V1.PopcountCertificates
 import EDSL.Corpus.V1.AverageCertificates
@@ -94,6 +95,17 @@ theorem acceptedByteComparisonCertificates :
   ⟨⟨V1.ByteComparisonCertificates.certificate .defaultGCC⟩,
     ⟨V1.ByteComparisonCertificates.certificate .defaultClang⟩⟩
 
+/-- The registered Boolean task binds the complete unchanged named extents.
+The Clang function uses an explicit 128-byte admission cap; the GCC cap remains
+64. Both carry universal semantics and useful original current resources. -/
+theorem acceptedByteEqualityCertificates :
+    Nonempty (Buffer.Certificate .equalBytes
+      (V1.ByteEqualityWindows.file .defaultGCC) V1.ByteEqualityWindows.name 64) ∧
+    Nonempty (Buffer.Certificate .equalBytes
+      (V1.ByteEqualityWindows.file .defaultClang) V1.ByteEqualityWindows.name 128) :=
+  ⟨⟨V1.ByteEqualityCertificates.certificate .defaultGCC⟩,
+    ⟨V1.ByteEqualityCertificates.certificate .defaultClang⟩⟩
+
 /-- Both unchanged compiler outputs satisfy the fixed signed absolute-value
 and full64 byte-reversal tasks, with useful current loaded caller resources. -/
 theorem acceptedUnaryCertificates :
@@ -161,6 +173,7 @@ run_cmd do
       ``EDSL.Corpus.Reporting.acceptedBufferCertificates,
       ``EDSL.Corpus.Reporting.acceptedIndexSearchCertificates,
       ``EDSL.Corpus.Reporting.acceptedByteComparisonCertificates,
+      ``EDSL.Corpus.Reporting.acceptedByteEqualityCertificates,
       ``EDSL.Corpus.Reporting.acceptedUnaryCertificates,
       ``EDSL.Corpus.Reporting.acceptedPopcountCertificates,
       ``EDSL.Corpus.Reporting.acceptedAverageCertificates,
@@ -328,6 +341,23 @@ private def byteComparisonJson (compiler : Corpus.V1.Comparisons.Compiler) : Jso
     ("size", toJson input.bytes.length),
     ("proof", toJson proof)]
 
+private def byteEqualityJson (compiler : Corpus.V1.ByteEqualityWindows.Compiler) : Json :=
+  let input := (Corpus.V1.ByteEqualityCertificates.certificate compiler).input
+  let symbol := String.ofList
+    (Corpus.V1.ByteEqualityWindows.name.map fun byte => Char.ofNat byte.toNat)
+  let proof := "EDSL.Corpus.V1.ByteEqualityCertificates.certificate " ++
+    (match compiler with | .defaultGCC => "defaultGCC" | .defaultClang => "defaultClang")
+  Json.mkObj [
+    ("symbol", toJson symbol),
+    ("operation", toJson ("canonical_low8_byte_equality" : String)),
+    ("model", toJson Grading.BufferTask.model),
+    ("file_offset", toJson input.function.window.offset),
+    ("address", toJson input.function.window.address),
+    ("size", toJson input.bytes.length),
+    ("max_function_bytes", toJson (Corpus.V1.ByteEqualityWindows.maxBytes compiler)),
+    ("max_cfg_nodes", toJson (Corpus.V1.ByteEqualityBodies.profile compiler).maxNodes),
+    ("proof", toJson proof)]
+
 private def unaryJson (compiler : Corpus.V1.UnaryCode.Compiler)
     (operation : Corpus.V1.UnaryCode.Operation) : Json :=
   let input := (Corpus.V1.UnaryCertificates.certificate compiler operation).input
@@ -405,7 +435,7 @@ private def certificateRows (compiler : Corpus.V1.Comparisons.Compiler) : Array 
     indexSearchJson compiler .byte, indexSearchJson compiler .u32,
     byteComparisonJson compiler, unaryJson compiler .absSigned32,
     unaryJson compiler .byteSwap64, popcountJson compiler, averageJson compiler,
-    parityJson compiler, rotationJson compiler]
+    parityJson compiler, rotationJson compiler, byteEqualityJson compiler]
 
 private def fileJson (compiler : Corpus.V1.Comparisons.Compiler) (path : System.FilePath)
     (bytes : Nat) : Json := Json.mkObj [
@@ -454,8 +484,11 @@ private def report (request : Request) (gccBytes clangBytes : Nat) : Json :=
       ("buffer_semantics", toJson ("first bounded NUL length for arbitrary admitted byte snapshots with n < 2^64; all AF streams terminate by dynamic rank; original caller, full RAM and every-prefix read authority retained; n=0 requires no data loan or pointer validity" : String)),
       ("index_search_semantics", toJson ("earliest matching byte or little-endian u32 index, or full64 SIZE_MAX when absent, for arbitrary admitted snapshots with n < 2^64; low8/low32 search key permits arbitrary upper bits; all AF streams terminate by dynamic rank; original caller, full RAM, ABI and every-prefix current read authority retained; n=0 requires no data loan or pointer validity" : String)),
       ("byte_comparison_semantics", toJson ("signed low32 C-int return sign agrees with independent unsigned-byte List.Lex on arbitrary equal-length complete snapshots with n < 2^64; full64 RDI/RSI/RDX bind both pointers and count; actual DATA1 reads stay within the two exact input spans; compatible overlapping, identical, unaligned, code and caller aliases admitted; n=0 ignores both pointers and input-loan selectors, needs no DATA loan and performs no DATA read" : String)),
-      ("byte_comparison_resources", toJson ("complete RAM and permissions, ABI frames and nonarithmetic flags, current code, original caller and both nonempty input loans retained at every prefix and return" : String)),
+      ("byte_comparison_resources", toJson ("complete RAM and permissions, current code, original caller and both nonempty input loans retained at every prefix and return; ABI frames and nonarithmetic flags established at return" : String)),
       ("byte_comparison_progress", toJson ("all AF streams terminate by dynamic rank; 9*(n+2) is a proved output upper bound on retired model instructions, with no physical cost or minimum-cost claim" : String)),
+      ("byte_equality_semantics", toJson ("canonical low8 Boolean 0/1 is 1 exactly when the independent complete byte snapshots are equal; upper56 RAX unconstrained, including the Clang empty B0 01 path; arbitrary equal-length complete snapshots with n < 2^64; full64 RDI/RSI/RDX bind both pointers and count; actual DATA1 reads stay within the two exact input spans; compatible overlapping, identical, unaligned, code and caller aliases admitted; n=0 ignores both pointers and input-loan selectors, needs no DATA loan and performs no DATA read" : String)),
+      ("byte_equality_resources", toJson ("complete RAM and permissions, current code, original caller and both nonempty input loans retained at every prefix and return; ABI frames and nonarithmetic flags established at return; loaded witnesses reuse the original paired input snapshots and exact loan selectors" : String)),
+      ("byte_equality_progress", toJson ("every choice stream terminates by dynamic rank; 10*(n+2) is a proved output upper bound on retired model instructions, with no physical cost or minimum-cost claim; full named extents: GCC 46 bytes with cap64, Clang 68 bytes with cap128; both CFG node caps are 32" : String)),
       ("concurrent_semantics", toJson ("managed CLOSED-COHORT current-only ABI admission with arbitrary full64 initial values and deltas; every successful finite returned schedule has independent legal modulo-counter histories and exact selected RMW/call occurrence coverage" : String)),
       ("concurrent_progress", toJson ("every successful finite prefix preserves safety and current authority; every running context has an enabled actual issue for every AF value; global completion exists and a positive own-issue bound is proved as output" : String)),
       ("concurrent_resources", toJson ("represented return continuation, callee-save registers, stack, DF and collect; original resources and byte frames outside the selected cell; full installed ELF retained under current authority" : String)),
@@ -469,6 +502,9 @@ private def report (request : Request) (gccBytes clangBytes : Nat) : Json :=
       ("cet_ibt_enabled", toJson profile.ibtEnabled),
       ("shadow_stack_enabled", toJson profile.shadowStackEnabled),
       ("multi_byte_nop", toJson profile.multiByteNop),
+      ("exact_nop15_supported", toJson true),
+      ("exact_nop15_bytes", toJson
+        ((Sequential.NopEncoding.bytes .fifteen).map fun byte => byte.toNat)),
       ("status", toJson ("recorded model assumptions; native configuration is not checked" : String))]),
     ("files", Json.arr #[fileJson .defaultGCC request.gcc gccBytes,
       fileJson .defaultClang request.clang clangBytes]),
@@ -480,6 +516,7 @@ private def report (request : Request) (gccBytes clangBytes : Nat) : Json :=
       "Scalar certificates retain their registered caller/resource assumptions and exclude concurrent interference.",
       "The concurrent result establishes only the modeled managed profile: no published physical x86-TSO refinement, Linux/GNU memory-order contract, scheduling fairness or hardware-minimum progress bound is proved.",
       "Byte comparison uses the current borrowed sequential callable profile with stable ordinary RAM, absent asynchronous interference and CET off; no source/LLVM preservation, native Linux behavior or concurrent-buffer claim is proved.",
+      "Byte equality uses that same borrowed sequential callable profile and additionally assumes CPU support for the exact NOP15 encoding recorded in profile; this is an environmental assumption, not a native CPU capability check.",
       "The report concerns bytes observed in this read, not future filesystem or process mappings.",
       "Fresh kernel replay is a separate verification-gate step; this IO command is not a physical OS proof."
     ] : List String))]

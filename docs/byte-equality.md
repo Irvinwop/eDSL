@@ -36,6 +36,23 @@ canonical address, allocation or DATA loan.
 These are the represented sequential callable semantics. Stable ordinary RAM,
 absence of asynchronous interference and the existing target profile remain
 environmental assumptions, including support for the exact long-NOP form.
-Physical CPU refinement, native/Linux execution, source/compiler equivalence,
-minimum cost, task registration, certificates and corpus credit are separate
-claims. The finite execution regressions do not replace the universal proof.
+`Grading.BufferTask` registers this result as `.equalBytes`.
+`ByteEqualityCertificates.certificate` composes the universal body proof with
+the full named-file check and a useful call at the actual loaded entry. Its
+explicit byte cap is 64 for GCC and 128 for Clang. The original 64-byte admission
+path rejects the complete Clang function; it cannot select a smaller prefix.
+
+`ByteEqualityResources` reuses the initialized paired-comparison world with
+[`ReadOnlyCallTransport`](read-only-call-transport.md). Code attachment retains
+the original caller slot, worker, paired snapshots and exact input-loan
+selectors without reinitializing RAM. The complete memory and current resource
+authority remain valid at every prefix and return; the ABI return/frame
+conditions hold at return. `tests/ByteEqualityCertificates.lean` applies the
+actual two certificates to overlapping mismatching inputs for every choice
+stream and checks the original caller, memory, permissions and loan authority.
+
+Combined corpus-gate acceptance remains pending. Physical CPU refinement,
+native/Linux execution, source/compiler equivalence and minimum cost remain
+separate claims. The installed `edsl-grade` packet interface currently accepts
+scalar tasks; `.equalBytes` is available through the typed buffer-certificate
+API. The finite execution regressions do not replace the universal proof.
