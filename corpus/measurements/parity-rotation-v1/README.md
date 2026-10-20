@@ -38,6 +38,12 @@ and [frozen-files.sha256](frozen-files.sha256) identify that gate's exact public
 proof/tooling inputs and complete ELF files. These manifests describe the proof
 snapshot; later documentation changes do not change those inputs.
 
+[publication-sources.sha256](publication-sources.sha256) additionally records
+the shared padding regression's registration in `ParityTests` and the aggregate
+replay. This covers the exact six-byte NOP, its truncated forms and unsupported
+nearby encodings. Production semantics, contracts and certificates are unchanged;
+exact-commit CI checks the expanded test scope separately from the local gate.
+
 - The full build passed **1,059 jobs** with Lean **4.35.0**, warnings as errors
   and no third-party Lean packages.
 - The aggregate transitive audit checked **29,955 EDSL declarations**, allowing
