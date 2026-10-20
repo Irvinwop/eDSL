@@ -84,9 +84,11 @@ theorem code_before (compiler : Compiler) :
       (entry compiler) (ByteEqualityWindows.bytes compiler) :=
   ELF.FunctionSymbol.admitted_current_codeWith (admitted compiler)
     (BufferResources.text_of_retainedWith (ByteEqualityWindows.checked compiler)
-      (executable_permissions compiler) (fun _ _ original =>
+      (executable_permissions compiler) (fun address cell original =>
         ByteComparisonResources.installed_frame compiler
-          (by simpa only [installed_seed] using original)))
+          (by
+            change (installed compiler).space.cells address = some cell at original
+            simpa only [installed_seed] using original)))
 
 def resources (compiler : Compiler) : Resources spec :=
   ReadOnlyCallTransport.resultView
@@ -104,7 +106,11 @@ def machine (compiler : Compiler) (registers : Register → Word) (flags : Word)
 theorem pre (compiler : Compiler) (registers : Register → Word) (flags : Word) :
     ResourcePre spec (ByteEqualityWindows.bytes compiler) (resources compiler)
       (machine compiler registers flags) :=
-  (ReadOnlyCallTransport.resultView_pre_iff _ Grading.ByteEquality.Result _ _).mpr
+  (ReadOnlyCallTransport.resultView_pre_iff
+    (ReadOnlyCallTransport.retarget (ByteComparisonResources.resources compiler)
+      (ByteEqualityWindows.bytes compiler) (ready compiler))
+    Grading.ByteEquality.Result (ByteEqualityWindows.bytes compiler)
+    (machine compiler registers flags)).mpr
     (ReadOnlyCallTransport.retarget_pre (ready compiler) (seed_shared compiler)
       (ByteComparisonResources.pre compiler registers flags) (code_before compiler))
 
@@ -122,9 +128,15 @@ theorem text (compiler : Compiler) :
     ELF.FunctionWindow.TextUnchanged (toMemory (installed compiler).space)
       (machine compiler (fun _ => 0) 0x202).memory
       (ByteEqualityWindows.function compiler).window (ByteEqualityWindows.bytes compiler).length := by
+  change ELF.FunctionWindow.TextUnchanged
+    (toMemory (BufferResources.installed (ByteEqualityWindows.file compiler)
+      (ByteEqualityWindows.input compiler)).space)
+    (toMemory (ByteComparisonResources.resources compiler).shared.resources.space)
+    (ByteEqualityWindows.input compiler).function.window
+    (ByteEqualityWindows.input compiler).bytes.length
   have unchanged := BufferResources.text_of_retainedWith (ByteEqualityWindows.checked compiler)
     (executable_permissions compiler) (fun _ _ present => installed_frame compiler present)
-  simpa only [machine, ByteComparisonResources.machine, space] using unchanged
+  simpa only [space] using unchanged
 
 #print axioms admitted
 #print axioms spaceView_eq
