@@ -173,15 +173,20 @@ structure Selection (file : List Byte) (image : Image) (window : Window)
   covered : ∃ segment ∈ image.segments, window.CoveredBy bytes.length segment
   source : (file.drop window.offset).take bytes.length = bytes
 
-private abbrev checkCore (maxBytes : Nat) (file : List Byte) (table : Table) (window : Window) (bytes : List Byte) : Bool :=
-  checkLayout file table && decide (window.BoundsWith maxBytes file.length bytes.length) &&
-  table.image.segments.any (fun segment => decide (window.CoveredBy bytes.length segment)) &&
-  decide ((file.drop window.offset).take bytes.length = bytes) &&
-  checkCode (toMemory (install file table.image empty)) window.base bytes
+-- Share one checker body while preserving the shallow public definition shape
+-- used by literal-file proofs after `unfold check` or `unfold checkWith`.
+local macro "checkWindow%(" maxBytes:term ", " file:term ", " table:term ", "
+    window:term ", " bytes:term ")" : term =>
+  `(checkLayout $file $table &&
+    decide (Window.BoundsWith $window $maxBytes (List.length $file) (List.length $bytes)) &&
+    (Table.image $table).segments.any
+      (fun segment => decide (Window.CoveredBy $window (List.length $bytes) segment)) &&
+    decide ((List.drop (Window.offset $window) $file).take (List.length $bytes) = $bytes) &&
+    checkCode (toMemory (install $file (Table.image $table) empty)) (Window.base $window) $bytes)
 
 /-- Explicit caller-selected admission bound, sharing the default checker body. -/
 def checkWith (maxBytes : Nat) (file : List Byte) (table : Table) (window : Window)
-    (bytes : List Byte) : Bool := checkCore maxBytes file table window bytes
+    (bytes : List Byte) : Bool := checkWindow%(maxBytes, file, table, window, bytes)
 
 theorem selection_soundWith {maxBytes : Nat} {file bytes : List Byte} {table : Table} {window : Window}
     (checked : checkWith maxBytes file table window bytes = true) :
@@ -312,7 +317,7 @@ theorem admitted_current_codeWith {maxBytes : Nat} {file bytes : List Byte} {tab
 
 /-- The legacy checker always keeps the original 64-byte admission bound. -/
 def check (file : List Byte) (table : Table) (window : Window) (bytes : List Byte) : Bool :=
-  checkCore 64 file table window bytes
+  checkWindow%(64, file, table, window, bytes)
 
 theorem Selection.file_byte {file bytes : List Byte} {image : Image} {window : Window}
     (selected : Selection file image window bytes) {index : Nat} {byte : Byte}
