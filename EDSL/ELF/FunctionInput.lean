@@ -31,6 +31,12 @@ theorem FunctionInput.check_eq_symbol (input : FunctionInput) (file name : List 
     input.check file name =
       FunctionSymbol.check file input.table input.metadata name input.function input.bytes := rfl
 
+/-- Bridge explicit 64-byte evidence to the default checker without comparing
+the transparent wrappers over a closed ELF. Prove their equality once on
+arbitrary inputs, keeping the default checker's public definition head. -/
+theorem FunctionInput.checkWith64_eq_check (input : FunctionInput) (file name : List Byte) :
+    input.checkWith 64 file name = input.check file name := rfl
+
 def FunctionInput.admitWith (maxBytes : Nat) (input : FunctionInput) (file name : List Byte)
     (prior : Space) : Except Error Loaded :=
   FunctionSymbol.admitWith maxBytes file input.table input.metadata name input.function input.bytes prior

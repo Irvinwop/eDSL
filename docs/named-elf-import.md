@@ -85,10 +85,18 @@ theorem with the shared constructor:
 ```lean
 open EDSL.GeneratedCFG.artifacts.Imported
 
+theorem defaultInputChecked : observedInput.check observedELF observedName = true :=
+  (ELF.FunctionInput.checkWith64_eq_check observedInput observedELF observedName).symm.trans
+    inputChecked
+
 def certificate : PureCall.ELFCertificate spec observedELF observedName :=
-  PureCall.ELFCertificate.ofCaller spec observedInput inputChecked semantics
+  PureCall.ELFCertificate.ofCaller spec observedInput defaultInputChecked semantics
     caller fresh callerFacts separate value domain useful
 ```
+
+The generated check carries its explicit profile. `checkWith64_eq_check`
+converts a 64-byte check to the default scalar API; larger imports retain their
+explicit-bound contracts.
 
 The client supplies present caller mappings, freshness, code/stack separation
 and a useful mathematical input. Current executable text, permissions,

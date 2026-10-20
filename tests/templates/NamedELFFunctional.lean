@@ -20,6 +20,11 @@ def name : List Byte := [116, 119, 105, 99, 101] -- twice
 abbrev bytes := GeneratedCFG.Named.observedBytes
 abbrev spec := Examples.Verification.Double.spec
 
+/-- Reuse the generated explicit-bound evidence at the default checker API. -/
+theorem inputChecked : imported.check file name = true :=
+  (ELF.FunctionInput.checkWith64_eq_check imported file name).symm.trans
+    GeneratedCFG.Named.inputChecked
+
 theorem valid : CFG.Valid bytes observedGraph := GeneratedCFG.Named.valid
 abbrev entry : observedGraph.Index := ⟨0, by decide +kernel⟩
 
@@ -58,7 +63,7 @@ theorem separate : OS.Ownership.Disjoint
 /-- A useful modeled current call accompanies the universal semantic claim.
 The compiler and native Linux/CPU refinement remain outside this theorem. -/
 def certificate : ELFCertificate spec file name :=
-  ELFCertificate.ofCaller spec imported GeneratedCFG.Named.inputChecked semantics
+  ELFCertificate.ofCaller spec imported inputChecked semantics
     caller fresh ELF.CallerResources.Stack.standard_facts separate (7 : Word)
     trivial (by change (7 : Word) ≠ 0; decide +kernel)
 
@@ -69,7 +74,7 @@ def initial (value : Word) : State := Domain.initial environment spec value
 theorem pre (value : Word) :
     ResourcePre spec bytes (resource value) (initial value) :=
   Domain.resource_pre
-    (ELF.CallerResources.initial_facts GeneratedCFG.Named.inputChecked fresh
+    (ELF.CallerResources.initial_facts inputChecked fresh
       ELF.CallerResources.Stack.standard_facts separate) spec value rfl trivial
 
 /-- Literal full64 wraparound through an actual loaded current-resource call,
