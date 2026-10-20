@@ -70,6 +70,11 @@ def legacyLiteral : X86.Instruction → String
   | .syscall => ".syscall" | .ret => ".ret"
 
 def instructionLiteral : Sequential.Instruction → String
+  | .logicalReg32 operation destination source prefixed =>
+    Sequential.Literals.instruction (.logicalReg32 operation destination source prefixed)
+  | .logicalImm32 operation destination immediate prefixed =>
+    Sequential.Literals.instruction (.logicalImm32 operation destination immediate prefixed)
+  | .cmpImm64 left immediate => Sequential.Literals.instruction (.cmpImm64 left immediate)
   | .addImm32 destination immediate prefixed =>
     Sequential.Literals.instruction (.addImm32 destination immediate prefixed)
   | .inc32 destination prefixed => Sequential.Literals.instruction (.inc32 destination prefixed)

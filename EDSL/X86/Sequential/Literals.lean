@@ -54,6 +54,15 @@ def legacy : X86.Instruction → String
 
 def instruction : Instruction → String
   | .legacy operation => s!"(.legacy {legacy operation})"
+  | .logicalReg32 operation destination source prefixed =>
+    let logical := match operation with
+      | .band => ".band" | .bor => ".bor" | .bxor => ".bxor"
+    s!"(.logicalReg32 {logical} {register destination} {register source} {prefixed})"
+  | .logicalImm32 operation destination immediate prefixed =>
+    let logical := match operation with
+      | .band => ".band" | .bor => ".bor" | .bxor => ".bxor"
+    s!"(.logicalImm32 {logical} {register destination} {immediate.toNat} {prefixed})"
+  | .cmpImm64 left immediate => s!"(.cmpImm64 {register left} {immediate.toNat})"
   | .test32 left right prefixed => s!"(.test32 {register left} {register right} {prefixed})"
   | .cmp32 left right prefixed => s!"(.cmp32 {register left} {register right} {prefixed})"
   | .cmpReg8 left right prefixed => s!"(.cmpReg8 {register left} {register right} {prefixed})"
@@ -73,7 +82,7 @@ def instruction : Instruction → String
   | .nop encoding =>
     let name := match encoding with
       | .one => ".one" | .two => ".two" | .three => ".three" | .four => ".four" | .five => ".five"
-      | .nine => ".nine"
+      | .six => ".six" | .nine => ".nine"
     s!"(.nop {name})"
   | .xorSelf32 destination => s!"(.xorSelf32 {register destination})"
   | .test64 left right => s!"(.test64 {register left} {register right})"

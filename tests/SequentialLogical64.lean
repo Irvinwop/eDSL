@@ -238,14 +238,15 @@ theorem cfg_admission :
       (3,.logicalReg64 .bor .r11 .r8,3),
       (6,.logicalReg64 .bxor .rsp .rsp,3),(9,.legacy .ret,1)] := by rfl
 
-/-- The original unprefixed zeroing operation retains its existing API and
-32-bit zero-extension behavior rather than acquiring a general XOR32 meaning. -/
+/-- Self XOR retains its existing constructor and zero-extension behavior;
+non-self XOR32 uses the shared logical instruction with its decoded operands. -/
 theorem legacy_self_xor_unchanged (af : Bool) :
     (Sequential.decodeAt (entry [0x31,0xc0]),
       Sequential.decodeAt (entry [0x31,0xc8]),
       nextView af (entry [0x31,0xc0] (fun _ => 0x80000001000000ff))
         (fun state reads => (state.registers .rax,state.rip,reads))) =
-    (.ok (.xorSelf32 .rax),.error .unsupportedEncoding,.ok (0,4098,[])) := by rfl
+    (.ok (.xorSelf32 .rax),.ok (.logicalReg32 .bxor .rax .rcx false),
+      .ok (0,4098,[])) := by rfl
 
 end EDSL.Tests.SequentialLogical64
 

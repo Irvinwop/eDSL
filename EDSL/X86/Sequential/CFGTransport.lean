@@ -102,6 +102,7 @@ theorem execute_next_target {initial final : State} {instruction : Instruction} 
         simp [execute, X86.executeInstruction, branched] at success
       cases success; cases next
       simpa [Targets, Instruction.length] using shortBranch_target branched
+  | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | negReg32 destination prefixed | bswapReg64 destination | shrOne64 destination
   | movzxReg8 destination source prefixed | cmpReg8 left right prefixed
   | subReg32 destination source prefixed
@@ -158,6 +159,7 @@ theorem execute_next_memory {initial final : State} {instruction : Instruction} 
     cases success
     cases next
     exact executeInstruction_ordinary_memory noStore (Or.inl result)
+  | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | addImm32 _ _ _ | inc32 _ _
   | negReg32 _ _ | bswapReg64 _ | shrOne64 _
   | movzxMem8 _ _ _ | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _
@@ -213,6 +215,7 @@ theorem execute_result {initial : State} {instruction : Instruction} {af : Bool}
         simp [execute, X86.executeInstruction, branched] at success
       cases success
       exact ⟨_, Or.inl rfl⟩
+  | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | addImm32 _ _ _ | inc32 _ _
   | negReg32 _ _ | bswapReg64 _ | shrOne64 _
   | movzxMem8 _ _ _ | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _
@@ -259,6 +262,7 @@ theorem targets_translate (node : Node) (base : Word) :
   cases instruction : node.instruction with
   | legacy old => cases old <;>
       simp [Targets, Node.successors, instruction, BitVec.ofNat_add, BitVec.add_assoc]
+  | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | addImm32 _ _ _ | inc32 _ _
   | negReg32 _ _ | bswapReg64 _ | shrOne64 _
   | movzxMem8 _ _ _ | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _

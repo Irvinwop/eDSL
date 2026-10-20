@@ -15,8 +15,8 @@ case "$#:${1:-}" in
     1:--full-project) full_project=true ;;
     1:--help)
         echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]'
-        echo 'Builds sixteen scalar, two managed concurrent fetch-add, two bounded byte-scan, four first-match search and two byte-comparison certificates, audits axioms and checks file binding.'
-        echo 'Default: fresh-replays corpus.Certify. --full-project: builds EDSL.All, VerificationTests, UnaryTests, PopcountTests and AverageTests; fresh-replays catalogue, corpus CLI and reusable regressions together.'
+        echo 'Builds eighteen scalar, two managed concurrent fetch-add, two bounded byte-scan, four first-match search and two byte-comparison certificates, audits axioms and checks file binding.'
+        echo 'Default: fresh-replays corpus.Certify. --full-project: builds EDSL.All, VerificationTests, UnaryTests, PopcountTests, AverageTests and ParityTests; fresh-replays catalogue, corpus CLI and reusable regressions together.'
         exit 0 ;;
     *) echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]' >&2; exit 2 ;;
 esac
@@ -194,6 +194,7 @@ record byte-comparison-certificate-api test -f EDSL/Corpus/V1/ByteComparisonCert
 record unary-certificate-api test -f EDSL/Corpus/V1/UnaryCertificates.lean
 record popcount-certificate-api test -f EDSL/Corpus/V1/PopcountCertificates.lean
 record average-certificate-api test -f EDSL/Corpus/V1/AverageCertificates.lean
+record parity-certificate-api test -f EDSL/Corpus/V1/ParityCertificates.lean
 record lean-version "${lean_lock[@]}" lean --version
 
 if [[ $full_project == true ]]; then
@@ -225,6 +226,11 @@ import tests.ShiftOneAudit
 import tests.AverageBodies
 import tests.AverageResources
 import tests.GradingAverage
+import tests.SequentialParityISA
+import tests.ParityISAAudit
+import tests.ParityBodies
+import tests.ParityResources
+import tests.GradingParity
 LEAN
     printf 'import CorpusFullReplay\n' > "$output/Audit.lean"
 else
@@ -362,6 +368,25 @@ example (compiler : EDSL.Corpus.V1.AverageCode.Compiler) :
     EDSL.Corpus.V1.AverageWindows.file compiler =
       EDSL.Corpus.V1.Comparisons.file compiler := rfl
 
+-- Pin the independent registered parity contract to the same complete files
+-- read by the CLI and the literal full row-12 symbol name. An alias, report
+-- string, different task or selected code window cannot satisfy this type.
+example :
+    Nonempty (EDSL.Corpus.Certificate .parity64
+      (EDSL.Corpus.V1.Comparisons.file .defaultGCC)
+      [99,95,112,97,114,105,116,121,95,108,111,111,112]) ∧
+    Nonempty (EDSL.Corpus.Certificate .parity64
+      (EDSL.Corpus.V1.Comparisons.file .defaultClang)
+      [99,95,112,97,114,105,116,121,95,108,111,111,112]) :=
+  EDSL.Corpus.Reporting.acceptedParityCertificates
+example (compiler : EDSL.Corpus.V1.ParityCode.Compiler) :
+    (EDSL.Corpus.V1.ParityCertificates.certificate compiler).input =
+      EDSL.Corpus.V1.ParityWindows.input compiler := by
+  cases compiler <;> rfl
+example (compiler : EDSL.Corpus.V1.ParityCode.Compiler) :
+    EDSL.Corpus.V1.ParityWindows.file compiler =
+      EDSL.Corpus.V1.Comparisons.file compiler := rfl
+
 -- These literal counts are conclusions for arbitrary admitted input pairs and
 -- actual decoded execution, not fixture assignments or graph-size assertions.
 example (compiler : EDSL.Corpus.V1.AverageCode.Compiler)
@@ -410,6 +435,7 @@ example (compiler : EDSL.Corpus.V1.FetchAddWindows.Compiler) :
 #print axioms EDSL.Corpus.Reporting.acceptedUnaryCertificates
 #print axioms EDSL.Corpus.Reporting.acceptedPopcountCertificates
 #print axioms EDSL.Corpus.Reporting.acceptedAverageCertificates
+#print axioms EDSL.Corpus.Reporting.acceptedParityCertificates
 #audit_edsl
 LEAN
 
@@ -479,6 +505,10 @@ def certificate($manifest; $operation; $symbol; $proof):
     (has("model") | not) and
     ([$manifest.functions[] | select(.symbol == $symbol)][0] |
       .definition_id == "08" and .contract_id == "v1:08:c_average_u64")
+   elif $operation == "parity64" then
+    (has("model") | not) and
+    ([$manifest.functions[] | select(.symbol == $symbol)][0] |
+      .definition_id == "12" and .contract_id == "v1:12:c_parity_loop")
    else (has("model") | not) end) and
   (.file_offset | natural) and (.address | natural) and (.size | natural and . > 0) and
   ([$manifest.functions[] | select(.symbol == $symbol)] | length == 1) and
@@ -507,7 +537,7 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
   type == "object" and .compiler == $compiler and .path == $path and
   .bytes == $bytes and $manifest.elf_size == $bytes and
   .match == "complete_byte_equality" and
-  (.certificates | type == "array" and length == 13) and
+  (.certificates | type == "array" and length == 14) and
   (.certificates[0] | certificate($manifest; "unsigned_minimum64"; "c_min_u64";
     "EDSL.Corpus.V1.Comparisons.certificate " + $enum + " minimum")) and
   (.certificates[1] | certificate($manifest; "unsigned_maximum64"; "c_max_u64";
@@ -534,6 +564,8 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
     "c_popcount_loop"; "EDSL.Corpus.V1.PopcountCertificates.certificate " + $enum)) and
   (.certificates[12] | certificate($manifest; "unsigned_floor_average64";
     "c_average_u64"; "EDSL.Corpus.V1.AverageCertificates.certificate " + $enum)) and
+  (.certificates[13] | certificate($manifest; "parity64";
+    "c_parity_loop"; "EDSL.Corpus.V1.ParityCertificates.certificate " + $enum)) and
   (.certificates[6] | search_extent($compiler; "byte")) and
   (.certificates[7] | search_extent($compiler; "u32")) and
   (.certificates[8] | byte_comparison_extent($compiler)) and
@@ -545,10 +577,13 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
   (.certificates[12] | [.file_offset, .address, .size] ==
     (if $compiler == "gcc" then [11712, 4206016, 20]
      elif $compiler == "clang" then [4928, 4199232, 16] else [] end)) and
+  (.certificates[13] | [.file_offset, .address, .size] ==
+    (if $compiler == "gcc" then [11808, 4206112, 33]
+     elif $compiler == "clang" then [5008, 4199312, 36] else [] end)) and
   all(.certificates[]; .file_offset + .size <= $bytes) and
-  ([.certificates[].symbol] | unique | length == 13) and
-  ([.certificates[].operation] | unique | length == 13) and
-  ([.certificates[] | [.file_offset, .address, .size]] | unique | length == 13) and
+  ([.certificates[].symbol] | unique | length == 14) and
+  ([.certificates[].operation] | unique | length == 14) and
+  ([.certificates[] | [.file_offset, .address, .size]] | unique | length == 14) and
   (.certificates as $certificates | all($certificates[]; . as $a |
     all($certificates[]; . as $b | $a.symbol == $b.symbol or
       (($a.file_offset + $a.size <= $b.file_offset or
@@ -563,19 +598,19 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
 length == 1 and (.[0] |
   type == "object" and .schema == "edsl.compiler-corpus.certificates.v1" and
   .status == "certified_under_recorded_model_assumptions" and
-  .score == {functions_certified_end_to_end: 13,
+  .score == {functions_certified_end_to_end: 14,
     functions_total: ($gccNames | length),
-    compiler_artifacts_certified_end_to_end: 26,
+    compiler_artifacts_certified_end_to_end: 28,
     compiler_artifacts_total: (($gccNames | length) + ($clangNames | length)),
     concurrency_contracts_proved: 1} and
   (.files | type == "array" and length == 2) and
   (.files[0] | artifact("gcc"; $gcc; $gccBytes; $gccManifest[0]; "defaultGCC")) and
   (.files[1] | artifact("clang"; $clang; $clangBytes; $clangManifest[0]; "defaultClang")) and
   ([.files[] | .compiler as $compiler | .certificates[] |
-      [$compiler, .operation, .symbol]] | unique | length == 26) and
-  ([.files[].certificates[].proof] | unique | length == 26) and
-  ([.files[].certificates[].symbol] | unique | length == 13) and
-  ([.files[].certificates[].operation] | unique | length == 13) and
+      [$compiler, .operation, .symbol]] | unique | length == 28) and
+  ([.files[].certificates[].proof] | unique | length == 28) and
+  ([.files[].certificates[].symbol] | unique | length == 14) and
+  ([.files[].certificates[].operation] | unique | length == 14) and
   ([.files[].certificates[] | select(.operation == "full64_fetch_add_concurrent")] |
     length == 2 and (map(.symbol) | unique | length == 1)) and
   (.score.functions_certified_end_to_end ==
@@ -590,7 +625,7 @@ length == 1 and (.[0] |
   (.stages | type == "object" and
     all(.complete_file_identity, .elf_symbol_binding, .cfg, .symbolic_vc,
       .registered_semantics, .unary_semantics, .unary_progress, .population_count_semantics,
-      .average_semantics, .average_progress,
+      .average_semantics, .average_progress, .parity_semantics,
       .buffer_semantics, .index_search_semantics,
       .byte_comparison_semantics, .byte_comparison_resources, .byte_comparison_progress,
       .concurrent_semantics, .concurrent_progress,
@@ -603,14 +638,25 @@ length == 1 and (.[0] |
     .stages.concurrent_useful_domain, .stages.buffer_semantics,
     .stages.index_search_semantics, .stages.unary_semantics, .stages.unary_progress,
     .stages.population_count_semantics, .stages.average_semantics, .stages.average_progress,
+    .stages.parity_semantics,
     .stages.byte_comparison_semantics,
     .stages.byte_comparison_resources, .stages.byte_comparison_progress] |
-      unique | length == 22) and
+      unique | length == 23) and
   (.stages.population_count_semantics | contains("full64 input bit-position cardinality") and
     contains("unsigned low32") and contains("all inputs including zero and all-ones admitted") and
     contains("every AF stream terminates") and contains("strict remaining-cardinality rank") and
     contains("complete RAM and original caller resources") and
     contains("every prefix and return") and contains("ABI and result established at return")) and
+  (.stages.parity_semantics | contains("independent full64 input bit-position cardinality modulo 2") and
+    contains("returned as unsigned low32") and
+    contains("all full64 words including zero and all-ones admitted") and
+    contains("upper32 RAX unconstrained") and
+    contains("useful endpoint witness 0x8000000000000001 does not restrict the domain") and
+    contains("every AF stream terminates by strict unsigned remainder rank") and
+    contains("complete RAM and permissions, original caller and current code authority") and
+    contains("retained at every prefix and return") and
+    contains("ABI and result established at return") and
+    contains("no physical/OS/compiler refinement or minimum-cost claim")) and
   (.stages.average_semantics | contains("full64 RDI/RSI inputs") and
     contains("unsigned floor of the unbounded natural input sum divided by two") and
     contains("all full64 pairs including overflowing input sums admitted") and
@@ -701,9 +747,9 @@ certificate_targets=(EDSL.Corpus.V1.Comparisons EDSL.Corpus.V1.Arithmetic EDSL.C
     EDSL.Corpus.V1.FetchAddCertificates EDSL.Corpus.V1.ByteScanCertificates
     EDSL.Corpus.V1.IndexSearchCertificates EDSL.Corpus.V1.ByteComparisonCertificates
     EDSL.Corpus.V1.UnaryCertificates EDSL.Corpus.V1.PopcountCertificates
-    EDSL.Corpus.V1.AverageCertificates)
+    EDSL.Corpus.V1.AverageCertificates EDSL.Corpus.V1.ParityCertificates)
 if [[ $full_project == true ]]; then
-    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests \
+    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests ParityTests \
         edsl-proof-export edsl-grade "${certificate_targets[@]}"
 else
     record build "${lean_lock[@]}" lake build "${certificate_targets[@]}"
@@ -826,6 +872,8 @@ reject_report reject-report-pre-popcount-function-count '.score.functions_certif
 reject_report reject-report-pre-popcount-artifact-count '.score.compiler_artifacts_certified_end_to_end = 22'
 reject_report reject-report-pre-average-function-count '.score.functions_certified_end_to_end = 12'
 reject_report reject-report-pre-average-artifact-count '.score.compiler_artifacts_certified_end_to_end = 24'
+reject_report reject-report-pre-parity-function-count '.score.functions_certified_end_to_end = 13'
+reject_report reject-report-pre-parity-artifact-count '.score.compiler_artifacts_certified_end_to_end = 26'
 reject_report reject-report-concurrency-count '.score.concurrency_contracts_proved = 2'
 report_compilers=(gcc clang)
 for index in 0 1; do
@@ -902,12 +950,13 @@ missing-row	del(.files[$index].certificates[8])
 doubled-row	.files[$index].certificates += [.files[$index].certificates[8]]
 row-swap	.files[$index].certificates |= .[0:7] + [.[8], .[7]] + .[9:]
 MUTATIONS
-    for entry in 9 10 11 12; do
+    for entry in 9 10 11 12 13; do
         case "$entry" in
             9) operation=absolute ;;
             10) operation=byte-reverse ;;
             11) operation=popcount ;;
             12) operation=average ;;
+            13) operation=parity ;;
         esac
         while IFS=$'\t' read -r mutation filter; do
             reject_report "reject-$label-scalar-$operation-$mutation" "$filter" \
@@ -925,6 +974,15 @@ missing-row	del(.files[$index].certificates[$entry])
 doubled-row	.files[$index].certificates += [.files[$index].certificates[$entry]]
 MUTATIONS
     done
+    # Same input/output shape, different mathematics: a population-count row
+    # or proof cannot supply parity's registered bit-cardinality modulo two.
+    while IFS=$'\t' read -r mutation filter; do
+        reject_report "reject-$label-parity-$mutation" "$filter" --argjson index "$index"
+    done <<'MUTATIONS'
+popcount-operation	.files[$index].certificates[13].operation = "population_count64"
+popcount-proof	.files[$index].certificates[13].proof = .files[$index].certificates[11].proof
+duplicate	.files[$index].certificates[12] = .files[$index].certificates[13]
+MUTATIONS
 done
 reject_report reject-unary-stage-missing 'del(.stages.unary_semantics)'
 reject_report reject-unary-domain-weakened \
@@ -956,6 +1014,25 @@ reject_report reject-average-progress-count \
     '.stages.average_progress |= sub("average GCC 7, Clang 6"; "average GCC 6, Clang 5")'
 reject_report reject-average-progress-physical \
     '.stages.average_progress = "average GCC 7, Clang 6 physical minimum operations"'
+while IFS=$'\t' read -r mutation filter; do
+    reject_report "reject-parity-$mutation" "$filter"
+done <<'MUTATIONS'
+stage-missing	del(.stages.parity_semantics)
+argument-high64	.stages.parity_semantics |= sub("full64 input bit-position cardinality"; "low32 input bit-position cardinality")
+domain-restricted	.stages.parity_semantics |= sub("all full64 words including zero and all-ones admitted"; "only nonzero words with at most 63 set bits admitted")
+low32-result	.stages.parity_semantics |= sub("returned as unsigned low32"; "returned as signed full64")
+upper-rax	.stages.parity_semantics |= sub("upper32 RAX unconstrained"; "upper32 RAX must be zero")
+popcount-result	.stages.parity_semantics |= sub("cardinality modulo 2"; "cardinality")
+useful-domain	.stages.parity_semantics |= sub("does not restrict the domain"; "is the only admitted input")
+af-streams	.stages.parity_semantics |= sub("every AF stream terminates"; "one AF stream terminates")
+remainder-rank	.stages.parity_semantics |= sub("strict unsigned remainder rank"; "assumed loop termination")
+ram-permissions	.stages.parity_semantics |= sub("complete RAM and permissions"; "selected stack bytes")
+original-caller	.stages.parity_semantics |= sub("original caller"; "replacement caller")
+code-authority	.stages.parity_semantics |= sub("current code authority"; "formerly loaded code")
+prefix-resources	.stages.parity_semantics |= sub("retained at every prefix and return"; "retained at return only")
+abi-scope	.stages.parity_semantics |= sub("ABI and result established at return"; "ABI and result assumed in admission")
+physical-claim	.stages.parity_semantics |= sub("no physical/OS/compiler refinement or minimum-cost claim"; "physical CPU and OS refinement with compiler preservation and minimum cost")
+MUTATIONS
 read -r filter <<'JQ'
 .files[0].certificates[6:8] as $gcc | .files[0].certificates[6:8] = .files[1].certificates[6:8] | .files[1].certificates[6:8] = $gcc
 JQ
@@ -995,7 +1072,7 @@ MUTATIONS
 # Keep the report valid while mutating the selected frozen registration, so a
 # validator that accepts the wrong independent task identity is also caught.
 for label in gcc clang; do
-    for symbol in c_memchr_index c_linear_search_u32 c_memcmp_bytes c_abs_i32 c_byteswap64 c_average_u64; do
+    for symbol in c_memchr_index c_linear_search_u32 c_memcmp_bytes c_abs_i32 c_byteswap64 c_average_u64 c_parity_loop; do
         while IFS=$'\t' read -r mutation filter; do
             name=reject-$label-$symbol-manifest-$mutation
             record "$name-mutate" jq --arg symbol "$symbol" "$filter" \
@@ -1027,9 +1104,12 @@ JQ
 read -r manifest_extent_mutation <<'JQ'
 (.functions[] | select(.symbol == $symbol))[$field] += $delta
 JQ
-for operation in byte-comparison average; do
-    entry=8 symbol=c_memcmp_bytes
-    if [[ $operation == average ]]; then entry=12 symbol=c_average_u64; fi
+for operation in byte-comparison average parity; do
+    case "$operation" in
+        byte-comparison) entry=8 symbol=c_memcmp_bytes ;;
+        average) entry=12 symbol=c_average_u64 ;;
+        parity) entry=13 symbol=c_parity_loop ;;
+    esac
     for index in 0 1; do
         label=${report_compilers[$index]}
         while IFS=$'\t' read -r field delta; do
@@ -1090,28 +1170,43 @@ if [[ $full_project == true ]]; then
     # universal ELF/resource theorems. No candidate proof enters its snapshot.
     record scalar-grading-directory mkdir -p "$output/scalar-grading"
     while IFS=$'\t' read -r compiler operation task client theorem offset size; do
-        label="scalar-$compiler-$operation"
-        raw="$output/scalar-grading/$label.bin"
-        packet="$output/scalar-grading/$label.json"
-        changed="$output/scalar-grading/$label-changed.bin"
-        record "$label-extract" dd "if=corpus/v1/$compiler/final.elf" "of=$raw" \
+        base_label="scalar-$compiler-$operation"
+        raw="$output/scalar-grading/$base_label.bin"
+        record "$base_label-extract" dd "if=corpus/v1/$compiler/final.elf" "of=$raw" \
             bs=1 "skip=$offset" "count=$size" status=none
-        record "$label-export" "${lean_lock[@]}" lake env .lake/build/bin/edsl-proof-export \
-            "$client" "$theorem" "$packet" --body
-        record "$label-grade" "${lean_lock[@]}" lake env .lake/build/bin/edsl-grade \
-            "$task" "$raw" "$packet"
-        wrong_task=absSigned32
-        if [[ $task == absSigned32 ]]; then wrong_task=byteSwap64; fi
-        if [[ $task == average64 ]]; then wrong_task=addModulo64; fi
-        expect_status 5 "$label-wrong-task" "${lean_lock[@]}" lake env .lake/build/bin/edsl-grade \
-            "$wrong_task" "$raw" "$packet"
-        record "$label-wrong-task-reason" grep -F 'kernel declTypeMismatch' \
-            "$output/commands/$label-wrong-task.stderr"
-        flip_byte "$label-change" "$raw" "$((size - 1))" "$changed"
-        expect_status 5 "$label-changed-code" "${lean_lock[@]}" lake env .lake/build/bin/edsl-grade \
-            "$task" "$changed" "$packet"
-        record "$label-changed-code-reason" grep -F 'kernel declTypeMismatch' \
-            "$output/commands/$label-changed-code.stderr"
+        modes=(body)
+        if [[ $task == parity64 ]]; then
+            modes+=(reference)
+            record "$base_label-final-byte" od -An -tx1 -j "$((size - 1))" -N 1 "$raw"
+            record "$base_label-final-ret" grep -Ex '[[:space:]]*c3[[:space:]]*' \
+                "$output/commands/$base_label-final-byte.stdout"
+        fi
+        for mode in "${modes[@]}"; do
+            label=$base_label
+            options=(--body)
+            if [[ $mode == reference ]]; then label=$base_label-reference; options=(); fi
+            packet="$output/scalar-grading/$label.json"
+            changed="$output/scalar-grading/$label-changed.bin"
+            # No limit flags: both packet modes use the installed default
+            # 300000-node / depth-128 checker and the same generic driver.
+            record "$label-export" "${lean_lock[@]}" lake env .lake/build/bin/edsl-proof-export \
+                "$client" "$theorem" "$packet" "${options[@]}"
+            record "$label-grade" "${lean_lock[@]}" lake env .lake/build/bin/edsl-grade \
+                "$task" "$raw" "$packet"
+            wrong_task=absSigned32
+            if [[ $task == absSigned32 ]]; then wrong_task=byteSwap64; fi
+            if [[ $task == average64 ]]; then wrong_task=addModulo64; fi
+            if [[ $task == parity64 ]]; then wrong_task=populationCount64; fi
+            expect_status 5 "$label-wrong-task" "${lean_lock[@]}" lake env .lake/build/bin/edsl-grade \
+                "$wrong_task" "$raw" "$packet"
+            record "$label-wrong-task-reason" grep -F 'kernel declTypeMismatch' \
+                "$output/commands/$label-wrong-task.stderr"
+            flip_byte "$label-change" "$raw" "$((size - 1))" "$changed"
+            expect_status 5 "$label-changed-code" "${lean_lock[@]}" lake env .lake/build/bin/edsl-grade \
+                "$task" "$changed" "$packet"
+            record "$label-changed-code-reason" grep -F 'kernel declTypeMismatch' \
+                "$output/commands/$label-changed-code.stderr"
+        done
     done <<'SCALAR_GRADING'
 gcc	absolute	absSigned32	tests.GradingUnary	EDSL.Tests.GradingUnary.raw_gcc_absolute	11632	12
 clang	absolute	absSigned32	tests.GradingUnary	EDSL.Tests.GradingUnary.raw_clang_absolute	4864	8
@@ -1121,6 +1216,8 @@ gcc	popcount	populationCount64	tests.GradingPopcount	EDSL.Tests.GradingPopcount.
 clang	popcount	populationCount64	tests.GradingPopcount	EDSL.Tests.GradingPopcount.raw_clang	4976	28
 gcc	average	average64	tests.GradingAverage	EDSL.Tests.GradingAverage.raw_gcc	11712	20
 clang	average	average64	tests.GradingAverage	EDSL.Tests.GradingAverage.raw_clang	4928	16
+gcc	parity	parity64	tests.GradingParity	EDSL.Tests.GradingParity.raw_gcc	11808	33
+clang	parity	parity64	tests.GradingParity	EDSL.Tests.GradingParity.raw_clang	5008	36
 SCALAR_GRADING
 fi
 
@@ -1147,6 +1244,9 @@ mapfile -t byte_comparison_offsets < "$output/commands/byte-comparison-offsets.s
 record average-offsets jq -r '.files[].certificates[] |
     select(.symbol == "c_average_u64").file_offset' "$output/report.json"
 mapfile -t average_offsets < "$output/commands/average-offsets.stdout"
+record parity-offsets jq -r '.files[].certificates[] |
+    select(.symbol == "c_parity_loop").file_offset' "$output/report.json"
+mapfile -t parity_offsets < "$output/commands/parity-offsets.stdout"
 gcc_code=$output/mutations/gcc-code-byte.elf
 clang_code=$output/mutations/clang-code-byte.elf
 gcc_addition=$output/mutations/gcc-addition-code-byte.elf
@@ -1163,6 +1263,8 @@ gcc_byte_comparison=$output/mutations/gcc-byte-comparison-code-byte.elf
 clang_byte_comparison=$output/mutations/clang-byte-comparison-code-byte.elf
 gcc_average=$output/mutations/gcc-average-code-byte.elf
 clang_average=$output/mutations/clang-average-code-byte.elf
+gcc_parity=$output/mutations/gcc-parity-code-byte.elf
+clang_parity=$output/mutations/clang-parity-code-byte.elf
 gcc_metadata=$output/mutations/gcc-metadata-byte.elf
 gcc_comment=$output/mutations/gcc-comment-byte.elf
 gcc_truncated=$output/mutations/gcc-truncated.elf
@@ -1203,6 +1305,10 @@ reject 1 reject-gcc-average-code --gcc "$gcc_average"
 flip_byte clang-average "$clang_file" "${average_offsets[1]}" "$clang_average"
 # The unchanged GCC image must not hide a changed Clang average body.
 reject 1 reject-clang-average-code --clang "$clang_average"
+flip_byte gcc-parity "$gcc_file" "${parity_offsets[0]}" "$gcc_parity"
+reject 1 reject-gcc-parity-code --gcc "$gcc_parity"
+flip_byte clang-parity "$clang_file" "${parity_offsets[1]}" "$clang_parity"
+reject 1 reject-clang-parity-code --clang "$clang_parity"
 
 # ELF identification byte 8 is inside each complete file but outside every
 # certified function. Keep this header-field control alongside the opaque

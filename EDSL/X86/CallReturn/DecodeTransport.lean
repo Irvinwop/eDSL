@@ -134,6 +134,7 @@ private theorem sequential_rex_stack {state : State} {opcode : Byte}
     outside (by decide : 0xf3 < 256) (by decide),
     outside (by decide : 0x0f < 256) (by decide),
     outside (by decide : 0x31 < 256) (by decide),
+    outside (by decide : 0x33 < 256) (by decide),
     outside (by decide : 0x03 < 256) (by decide),
     outside (by decide : 0x89 < 256) (by decide),
     outside (by decide : 0x8b < 256) (by decide),
@@ -176,6 +177,8 @@ private theorem rex32_rejects_stack {state : State} {rex opcode : Byte}
       outside (by decide : 0x3a < 256) (by decide),
       outside (by decide : 0x29 < 256) (by decide),
       outside (by decide : 0x2b < 256) (by decide),
+      outside (by decide : 0x31 < 256) (by decide),
+      outside (by decide : 0x33 < 256) (by decide),
       outside (by decide : 0x39 < 256) (by decide),
       outside (by decide : 0x3b < 256) (by decide),
       outside (by decide : 0x85 < 256) (by decide)]

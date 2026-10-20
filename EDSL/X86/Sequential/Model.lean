@@ -35,24 +35,25 @@ their original lengths even when they do not change the computed value. -/
   | .indexed _ _ _ | .baseDisp8 _ _ => 1
   | .sibDisp8 _ _ _ _ => 2
 
-/-- Full-width logical operations. The destination and source are both read
+/-- Width-polymorphic logical operations. The destination and source are both read
 before any register update, including when the registers alias. -/
 inductive LogicalOp where
   | band | bor | bxor
   deriving DecidableEq, Repr
 
-def LogicalOp.eval (operation : LogicalOp) (left right : Word) : Word :=
+def LogicalOp.eval (operation : LogicalOp) {width : Nat}
+    (left right : BitVec width) : BitVec width :=
   match operation with
   | .band => left &&& right
   | .bor => left ||| right
   | .bxor => left ^^^ right
 
-/-- Exact supported alignment encodings from Intel SDM NOP, lengths 1..5 and 9
+/-- Exact supported alignment encodings from Intel SDM NOP, lengths 1..6 and 9
 bytes. These are instruction encodings, not a general prefix grammar. The
 multi-byte forms require a processor supporting 0F 1F /0. Their apparent
 address operands are never evaluated and cause no operand memory access. -/
 inductive NopEncoding where
-  | one | two | three | four | five | nine
+  | one | two | three | four | five | six | nine
   deriving DecidableEq, Repr
 
 /-- Environmental contract of the selected sequential target, outside the
@@ -73,6 +74,14 @@ decoders keep their original supported subset. -/
 inductive Instruction where
   | legacy (instruction : X86.Instruction)
   | xorSelf32 (destination : Register)
+  /-- Low32 logical register operands are captured in the prestate, including
+  aliases. The full destination is zero extended. One optional W=0 REX byte
+  records length. Decoding currently admits XOR (31/33) only. -/
+  | logicalReg32 (operation : LogicalOp) (destination source : Register) (prefixed : Bool)
+  /-- Low32 group-1 logical operation with a sign-extended imm8. The full
+  destination is zero extended; AF is an independent undefined choice.
+  Decoding currently admits register-only 83 /4 with no prefix or 40/41. -/
+  | logicalImm32 (operation : LogicalOp) (destination : Register) (immediate : Byte) (prefixed : Bool)
   /-- Low32 register TEST; `prefixed` records one non-W REX byte for length.
   No GPR is written, and AF is an independent undefined choice. -/
   | test32 (left right : Register) (prefixed : Bool)
@@ -116,6 +125,9 @@ inductive Instruction where
   | nop (encoding : NopEncoding)
   | test64 (left right : Register)
   | cmp64 (left right : Register)
+  /-- Register-only 48/49 83 /7 ib. CMP subtracts the signed imm8 extended
+  to width64, defines all six arithmetic flags and writes no GPR. -/
+  | cmpImm64 (left : Register) (immediate : Byte)
   | addMem32 (destination : Register) (address : Address)
   /-- Full-width ordinary DATA-source addition. Both the old destination and
   effective address are captured before writing, including register aliases. -/

@@ -130,3 +130,9 @@ lean_lib AverageTests where
     `tests.ShiftOneAudit, `tests.AverageBodies,
     `tests.AverageResources, `tests.GradingAverage]
   moreLeanArgs := #["-DautoImplicit=false"]
+
+-- Shared parity ISA, exact generated bodies and registered scalar certificates.
+lean_lib ParityTests where
+  roots := #[`tests.SequentialParityISA, `tests.ParityISAAudit,
+    `tests.ParityBodies, `tests.ParityResources, `tests.GradingParity]
+  moreLeanArgs := #["-DautoImplicit=false"]

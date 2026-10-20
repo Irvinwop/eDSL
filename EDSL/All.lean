@@ -125,7 +125,9 @@ import EDSL.Corpus.V1.ByteComparisonCertificates
 import EDSL.Corpus.V1.UnaryCertificates
 import EDSL.Corpus.V1.PopcountCertificates
 import EDSL.Corpus.V1.AverageCertificates
+import EDSL.Corpus.V1.ParityCertificates
 import EDSL.X86.Sequential.ShiftOne
+import EDSL.X86.Sequential.ParityISA
 import EDSL.WordMath.Parity
 import EDSL.WordMath.Rotation
 import EDSL.Certificate

@@ -12,6 +12,7 @@ import EDSL.Corpus.V1.ByteComparisonCertificates
 import EDSL.Corpus.V1.UnaryCertificates
 import EDSL.Corpus.V1.PopcountCertificates
 import EDSL.Corpus.V1.AverageCertificates
+import EDSL.Corpus.V1.ParityCertificates
 import Lean
 
 namespace EDSL.Corpus.Reporting
@@ -128,6 +129,17 @@ theorem acceptedAverageCertificates :
   ⟨⟨V1.AverageCertificates.certificate .defaultGCC⟩,
     ⟨V1.AverageCertificates.certificate .defaultClang⟩⟩
 
+/-- Both complete row-12 artifacts satisfy the independent full64 set-bit
+cardinality modulo two contract, with unsigned low32 results and original
+caller resources. Each certificate retains its own compiler's semantic proof. -/
+theorem acceptedParityCertificates :
+    Nonempty (Certificate .parity64
+      (V1.ParityWindows.file .defaultGCC) V1.ParityWindows.name) ∧
+    Nonempty (Certificate .parity64
+      (V1.ParityWindows.file .defaultClang) V1.ParityWindows.name) :=
+  ⟨⟨V1.ParityCertificates.gcc_certificate⟩,
+    ⟨V1.ParityCertificates.clang_certificate⟩⟩
+
 -- Keep successful CLI stdout machine-readable, while rejecting an unapproved
 -- transitive certificate dependency before main can run. The verification gate
 -- additionally audits the full imported EDSL namespace and fresh-replays it.
@@ -140,7 +152,8 @@ run_cmd do
       ``EDSL.Corpus.Reporting.acceptedByteComparisonCertificates,
       ``EDSL.Corpus.Reporting.acceptedUnaryCertificates,
       ``EDSL.Corpus.Reporting.acceptedPopcountCertificates,
-      ``EDSL.Corpus.Reporting.acceptedAverageCertificates] do
+      ``EDSL.Corpus.Reporting.acceptedAverageCertificates,
+      ``EDSL.Corpus.Reporting.acceptedParityCertificates] do
     for dependency in ← Lean.collectAxioms family do
       unless allowed.contains dependency do
         throwError "Corpus certificate family {family} depends on unapproved axiom {dependency}"
@@ -346,17 +359,35 @@ private def averageJson (compiler : Corpus.V1.AverageCode.Compiler) : Json :=
     ("size", toJson input.bytes.length),
     ("proof", toJson proof)]
 
+private def parityJson (compiler : Corpus.V1.ParityCode.Compiler) : Json :=
+  let input := (Corpus.V1.ParityCertificates.certificate compiler).input
+  let symbol := String.ofList
+    (Corpus.V1.ParityWindows.name.map fun byte => Char.ofNat byte.toNat)
+  let proof := "EDSL.Corpus.V1.ParityCertificates.certificate " ++
+    (match compiler with | .defaultGCC => "defaultGCC" | .defaultClang => "defaultClang")
+  Json.mkObj [
+    ("symbol", toJson symbol),
+    ("operation", toJson ("parity64" : String)),
+    ("file_offset", toJson input.function.window.offset),
+    ("address", toJson input.function.window.address),
+    ("size", toJson input.bytes.length),
+    ("proof", toJson proof)]
+
+private def certificateRows (compiler : Corpus.V1.Comparisons.Compiler) : Array Json :=
+  #[artifactJson compiler .minimum, artifactJson compiler .maximum,
+    additionJson compiler, clampJson compiler, concurrentJson compiler, bufferJson compiler,
+    indexSearchJson compiler .byte, indexSearchJson compiler .u32,
+    byteComparisonJson compiler, unaryJson compiler .absSigned32,
+    unaryJson compiler .byteSwap64, popcountJson compiler, averageJson compiler,
+    parityJson compiler]
+
 private def fileJson (compiler : Corpus.V1.Comparisons.Compiler) (path : System.FilePath)
     (bytes : Nat) : Json := Json.mkObj [
   ("compiler", toJson (compilerLabel compiler)),
   ("path", toJson path.toString),
   ("bytes", toJson bytes),
   ("match", toJson ("complete_byte_equality" : String)),
-  ("certificates", Json.arr #[artifactJson compiler .minimum, artifactJson compiler .maximum,
-    additionJson compiler, clampJson compiler, concurrentJson compiler, bufferJson compiler,
-    indexSearchJson compiler .byte, indexSearchJson compiler .u32,
-    byteComparisonJson compiler, unaryJson compiler .absSigned32,
-    unaryJson compiler .byteSwap64, popcountJson compiler, averageJson compiler])]
+  ("certificates", Json.arr (certificateRows compiler))]
 
 private def recordedProfile : Bool :=
   let profile := EDSL.X86.VCGen.CompilerComparisons.targetProfile
@@ -364,15 +395,22 @@ private def recordedProfile : Bool :=
 
 private def report (request : Request) (gccBytes clangBytes : Nat) : Json :=
   let profile := EDSL.X86.VCGen.CompilerComparisons.targetProfile
+  let artifacts := (certificateRows .defaultGCC ++ certificateRows .defaultClang).toList
+  let symbols := artifacts.filterMap fun artifact =>
+    (artifact.getObjValAs? String "symbol").toOption
+  let concurrentSymbols := artifacts.filterMap fun artifact =>
+    if (artifact.getObjValAs? String "operation").toOption == some "full64_fetch_add_concurrent" then
+      (artifact.getObjValAs? String "symbol").toOption
+    else none
   Json.mkObj [
     ("schema", toJson ("edsl.compiler-corpus.certificates.v1" : String)),
     ("status", toJson ("certified_under_recorded_model_assumptions" : String)),
     ("score", Json.mkObj [
-      ("functions_certified_end_to_end", toJson (13 : Nat)),
+      ("functions_certified_end_to_end", toJson symbols.eraseDups.length),
       ("functions_total", toJson (40 : Nat)),
-      ("compiler_artifacts_certified_end_to_end", toJson (26 : Nat)),
+      ("compiler_artifacts_certified_end_to_end", toJson artifacts.length),
       ("compiler_artifacts_total", toJson (80 : Nat)),
-      ("concurrency_contracts_proved", toJson (1 : Nat))]),
+      ("concurrency_contracts_proved", toJson concurrentSymbols.eraseDups.length)]),
     ("stages", Json.mkObj [
       ("complete_file_identity", toJson ("both supplied files equal every accepted literal byte" : String)),
       ("elf_symbol_binding", toJson ("kernel-checked complete-file metadata, unique named extents and LOAD layout" : String)),
@@ -381,6 +419,7 @@ private def report (request : Request) (gccBytes clangBytes : Nat) : Json :=
       ("registered_semantics", toJson ("unsigned minimum/maximum, addition modulo 2^64 and signed low32 interval clamp with lower <= upper and arbitrary argument upper halves, for every admitted resource call and every AF stream" : String)),
       ("unary_semantics", toJson ("signed low32 absolute value is nonnegative with the same mathematical square, excludes INT32_MIN and permits arbitrary argument upper halves; full64 reversal of all eight base-256 digits; every admitted resource call and every AF stream" : String)),
       ("population_count_semantics", toJson ("full64 input bit-position cardinality returned as unsigned low32; all inputs including zero and all-ones admitted; every AF stream terminates by strict remaining-cardinality rank, with complete RAM and original caller resources retained at every prefix and return; ABI and result established at return" : String)),
+      ("parity_semantics", toJson ("independent full64 input bit-position cardinality modulo 2 returned as unsigned low32; all full64 words including zero and all-ones admitted; upper32 RAX unconstrained; useful endpoint witness 0x8000000000000001 does not restrict the domain; every AF stream terminates by strict unsigned remainder rank; complete RAM and permissions, original caller and current code authority retained at every prefix and return; ABI and result established at return; no physical/OS/compiler refinement or minimum-cost claim" : String)),
       ("average_semantics", toJson ("full64 RDI/RSI inputs; unsigned floor of the unbounded natural input sum divided by two; all full64 pairs including overflowing input sums admitted; every AF stream terminates; complete RAM and original caller resources retained at every prefix and return; ABI and result established at return" : String)),
       ("average_progress", toJson ("exact retired model instructions including RET and GCC ENDBR64: average GCC 7, Clang 6; universal decoded-execution observations; no physical timing or minimum-cost claim" : String)),
       ("unary_progress", toJson ("exact retired model instructions including RET and GCC ENDBR64: absolute value GCC 5, Clang 4; byte reversal GCC 4, Clang 3; no physical timing or minimum-cost claim" : String)),

@@ -119,9 +119,12 @@ example : X86.Sequential.execute { entry [] with rip := 0x7ffffffffffe } (.jmp 0
 example : X86.Sequential.execute { entry [] (flags := 0x642) with rip := 0x7ffffffffffe } (.je 0) true =
     .error (.noncanonicalBranch 0x800000000000) := by rfl
 
-/-- Deliberate decoding boundary: no non-self XOR, wrong register mode,
+/-- Non-self XOR32 uses the shared logical instruction and correct operand order. -/
+example : X86.Sequential.decodeAt (entry [0x31, 0xc1]) =
+    .ok (.logicalReg32 .bxor .rcx .rax false) := by rfl
+
+/-- Deliberate decoding boundary: wrong register mode,
 address/operand overrides, extended REX, displacements, missing-index/base SIB. -/
-example : X86.Sequential.decodeAt (entry [0x31, 0xc1]) = .error .unsupportedEncoding := by rfl
 example : X86.Sequential.decodeAt (entry [0x48, 0x85, 0x36]) = .error .unsupportedEncoding := by rfl
 example : X86.Sequential.decodeAt (entry [3, 0x47, 0xfc]) = .error .unsupportedEncoding := by rfl
 example : X86.Sequential.decodeAt (entry [3, 4, 0x27]) = .error .unsupportedEncoding := by rfl

@@ -107,6 +107,7 @@ theorem clearTarget_some {instruction : SeqInstruction} {register : Register}
       subst zero
       exact Or.inr rfl
     next => cases cleared
+  | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | addImm32 _ _ _ | inc32 _ _ | negReg32 _ _ | bswapReg64 _ | shrOne64 _
   | movzxMem8 _ _ _ | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _
   | movReg32 _ _ | movReg64 _ _ | movSignImm32 _ _ | cmovReg32 _ _ _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | logicalReg64 _ _ _ | xchgReg64 _ _ | xchgRax64 _

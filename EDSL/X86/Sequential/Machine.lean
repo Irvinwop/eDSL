@@ -44,6 +44,7 @@ def Instruction.isLocked : Instruction → Bool
   | _ => false
 
 def Instruction.choosesAF : Instruction → Bool
+  | .logicalReg32 _ _ _ _ | .logicalImm32 _ _ _ _
   | .xorSelf32 _ | .test32 _ _ _ | .test64 _ _ | .logicalReg64 _ _ _ | .shrOne64 _ => true
   | _ => false
 
@@ -57,7 +58,7 @@ def OperandReadSucceeds (state : State) (read : Read) : Prop :=
     | 8 => ∃ value, loadQWord state.memory read.address = .ok value
     | _ => read.bytes = 4 ∧ ∃ value, loadDWord state.memory read.address = .ok value
 
-/-- The explicit AF argument is used by self-XOR32, TEST, logical64 and SHR1. Legacy execution retains
+/-- The explicit AF argument is used by logical32/64, self-XOR32, TEST and SHR1. Legacy execution retains
 its complete old result, including concrete flags, stores, atomics and syscall
 contexts, for EVERY value of the new argument. -/
 def execute (state : State) (instruction : Instruction) (af : Bool) : Except Error Observation := do
@@ -66,6 +67,18 @@ def execute (state : State) (instruction : Instruction) (af : Bool) : Except Err
   | .legacy old => return ⟨← X86.executeInstruction state old, reads⟩
   | .endbr64IbtDisabled | .nop _ =>
     return ⟨.next { state with rip := state.rip + BitVec.ofNat 64 instruction.length }, reads⟩
+  | .logicalReg32 operation destination source _ =>
+    let result := operation.eval ((state.registers destination).setWidth 32)
+      ((state.registers source).setWidth 32)
+    return ⟨.next { state.writeRegister destination (result.setWidth 64) with
+      rip := state.rip + BitVec.ofNat 64 instruction.length
+      flags := logicalFlags32 state.flags result af }, reads⟩
+  | .logicalImm32 operation destination immediate _ =>
+    let result := operation.eval ((state.registers destination).setWidth 32)
+      (immediate.signExtend 32)
+    return ⟨.next { state.writeRegister destination (result.setWidth 64) with
+      rip := state.rip + BitVec.ofNat 64 instruction.length
+      flags := logicalFlags32 state.flags result af }, reads⟩
   | .test32 left right _ =>
     let result := (state.registers left).setWidth 32 &&& (state.registers right).setWidth 32
     return ⟨.next { state with
@@ -187,6 +200,10 @@ def execute (state : State) (instruction : Instruction) (af : Bool) : Except Err
     return ⟨.next { state with
       rip := state.rip + 3
       flags := cmpFlags64 state.flags (state.registers left) (state.registers right) }, reads⟩
+  | .cmpImm64 left immediate =>
+    return ⟨.next { state with
+      rip := state.rip + 4
+      flags := cmpFlags64 state.flags (state.registers left) (immediate.signExtend 64) }, reads⟩
   | .addMem32 destination address =>
     let value ← loadDWord state.memory (address.eval state)
     let left := (state.registers destination).setWidth 32
@@ -876,6 +893,7 @@ theorem execute_storeIntent {state : State} {instruction : Instruction} {address
     simp only [Instruction.storeIntent, Option.some.injEq, Prod.mk.injEq] at intent
     rcases intent with ⟨rfl, rfl⟩
     exact execute_storeMem32 state operand source af
+  | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | addImm32 _ _ _ | inc32 _ _
   | negReg32 _ _ | bswapReg64 _ | shrOne64 _
   | movzxMem8 _ _ _ | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _
@@ -1204,6 +1222,7 @@ theorem execute_reads {state : State} {instruction : Instruction} {af : Bool}
     cases result : executeShortBranch state true displacement <;> simp only [execute, result, ok_bind, error_bind, pure_ok, Except.ok.injEq, reduceCtorEq] at success
     cases success
     rfl
+  | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | negReg32 destination prefixed | bswapReg64 destination | shrOne64 destination
   | movzxReg8 destination source prefixed
   | movReg32 destination source | movReg64 destination source | movSignImm32 destination immediate | lea64 destination address
@@ -1319,6 +1338,7 @@ theorem execute_reads_succeed {state : State} {instruction : Instruction} {af : 
       simp only [Instruction.operandReads, List.mem_singleton] at member
       subst read
       exact ⟨value, loaded⟩
+  | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | addImm32 _ _ _ | inc32 _ _
   | negReg32 _ _ | bswapReg64 _ | shrOne64 _
   | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _
@@ -1346,6 +1366,7 @@ theorem execute_new_memory {state final : State} {instruction : Instruction} {af
     exact (execute_cmpMemReg8_context success next).2.1
   | cmpMemReg32 address source =>
     exact (execute_cmpMemReg32_context success next).2.1
+  | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | negReg32 destination prefixed | bswapReg64 destination | shrOne64 destination
   | movzxReg8 destination source prefixed
   | movReg32 destination source | movReg64 destination source | movSignImm32 destination immediate | lea64 destination address
@@ -1439,6 +1460,7 @@ theorem execute_new_next {state : State} {instruction : Instruction} {af : Bool}
   | cmpMemReg32 address source =>
     obtain ⟨value, _, rfl⟩ := execute_cmpMemReg32_success_iff.mp success
     exact ⟨_, rfl⟩
+  | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | negReg32 destination prefixed | bswapReg64 destination | shrOne64 destination
   | movzxReg8 destination source prefixed
   | movReg32 destination source | movReg64 destination source | movSignImm32 destination immediate | lea64 destination address
@@ -1525,6 +1547,13 @@ theorem execute_new_flags {state final : State} {instruction : Instruction} {af 
   | shrOne64 destination =>
     cases success; cases next
     exact shrOneFlags64_preserves ..
+  | logicalReg32 operation destination source prefixed
+  | logicalImm32 operation destination immediate prefixed =>
+    cases success; cases next
+    exact logicalFlags32_preserves ..
+  | cmpImm64 left immediate =>
+    cases success; cases next
+    exact cmpFlags64_preserves ..
   | legacy old => simp [Instruction.isNew] at newInstruction
   | cmpMemImm8 address immediate =>
     exact (execute_cmpMemImm8_context success next).2.2.1

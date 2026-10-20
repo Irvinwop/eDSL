@@ -14,6 +14,7 @@ import EDSL.ArraySum64.Resources
 import EDSL.Arithmetic64.Spec
 import EDSL.Arithmetic64.Popcount
 import EDSL.Arithmetic64.Average
+import EDSL.Arithmetic64.Parity
 import EDSL.Scalar32.Spec
 import EDSL.PureCall.Resources
 
@@ -205,6 +206,11 @@ full64 pair, with the common current caller-resource and return contracts. -/
 def Task.average64Task : Task :=
   ofReadOnly (PureCall.readOnlyTask Arithmetic64.average)
 
+/-- Full64 input bit-position cardinality modulo two, returned in unsigned
+low32, with every input and the common current caller-resource contract. -/
+def Task.parity64Task : Task :=
+  ofReadOnly (PureCall.readOnlyTask Arithmetic64.parity64)
+
 inductive TaskID where
   | pair32 | stride32 | write32 | storeReturn32 | storeReturnValue64 | countedStore64
   | maximum64 | minimum64 | signedMaximum64 | arrayMaximum64 | arraySum64
@@ -213,6 +219,7 @@ inductive TaskID where
   | absSigned32 | byteSwap64
   | populationCount64
   | average64
+  | parity64
   deriving DecidableEq, Repr
 
 def registered : TaskID → Task
@@ -236,6 +243,7 @@ def registered : TaskID → Task
   | .byteSwap64 => Task.byteSwap64Task
   | .populationCount64 => Task.populationCount64Task
   | .average64 => Task.average64Task
+  | .parity64 => Task.parity64Task
 
 /-- The trusted task ID and literal artifact bytes determine this type. -/
 def Claim (id : TaskID) (bytes : List Byte) : Prop :=

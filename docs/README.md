@@ -60,7 +60,7 @@ and lower-bound claims.
 | --- | --- |
 | Execution, branches and loops | [Control flow](control-flow.md), [CFG proofs](cfg.md), [short branches](sequential-short-jcc.md) |
 | Register and memory instructions | [Moves](sequential-moves.md), [memory64](memory64.md), [arithmetic64](sequential-arithmetic64.md), [memory addition](sequential-add-memory64.md), [logic64](sequential-logical64.md) |
-| Conditions and operand widths | [Corpus ISA](sequential-corpus-isa.md), [CMOV64](sequential-cmov64.md), [CMOV32](sequential-cmov32.md), [byte order](sequential-byte-order.md) |
+| Conditions and operand widths | [Corpus ISA](sequential-corpus-isa.md), [CMOV64](sequential-cmov64.md), [CMOV32](sequential-cmov32.md), [byte order](sequential-byte-order.md), [low32 logic and CMP64](sequential-parity-isa.md) |
 | Unary, counter and shift rules | [NEG32/BSWAP64](sequential-unary.md), [counter/address rules](popcount.md#reusable-proof-components), [SHR64 by one](shift-one.md) |
 | Exact executable identity | [ELF windows](elf-function-window.md), [named symbols](elf-function-symbol.md), [certificate composition](corpus-certificates.md) |
 
@@ -71,7 +71,7 @@ These examples reuse the library under their stated profiles:
 - Scalar contracts: [comparisons](compiler-comparison-claims.md),
   [arithmetic](compiler-arithmetic.md), [clamp32](compiler-clamp32.md),
   [unary functions](unary-functions.md), [popcount](popcount.md) and
-  [unsigned average](unsigned-average.md).
+  [unsigned average](unsigned-average.md) and [parity](parity.md).
 - Read-only loops: [byte scans](bounded-byte-scans.md),
   [first-match searches](first-match-searches.md),
   [paired byte comparison](paired-byte-comparison.md), [sum32](sum32.md),
