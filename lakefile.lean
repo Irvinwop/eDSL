@@ -109,6 +109,7 @@ lean_lib VerificationTests where
   roots := #[`tests.VerificationImports, `tests.VerifyFunction, `tests.ELFCertificate,
     `tests.ELFFunctionSymbol, `tests.ELFFunctionCandidate, `tests.ELFStackCaller,
     `tests.ELFFunctionWindow, `tests.ELFFunctionBounds, `tests.ELFCallerBounds,
+    `tests.ReadOnlyCallTransport,
     `tests.VCGenScratchFrame]
   moreLeanArgs := #["-DautoImplicit=false"]
 
@@ -153,7 +154,8 @@ lean_lib Low8Tests where
 -- Paired-buffer Boolean contracts and real DATA1 comparison/padding rules.
 lean_lib ByteEqualityTests where
   roots := #[`tests.ByteEquality, `tests.SequentialByteComparePadding,
-    `tests.ByteComparePaddingAudit]
+    `tests.ByteComparePaddingAudit, `tests.ByteEqualityBodies,
+    `tests.GradingByteEquality]
   moreLeanArgs := #["-DautoImplicit=false"]
 
 -- Explicit larger bounds and preservation of the original default profile.

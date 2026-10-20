@@ -122,6 +122,9 @@ import EDSL.Grading.FirstMatchConsumers
 import EDSL.X86.Sequential.Search
 import EDSL.Corpus.V1.IndexSearchCertificates
 import EDSL.Corpus.V1.ByteComparisonCertificates
+import EDSL.Corpus.V1.ByteEqualityBodies
+import EDSL.Corpus.V1.ByteEqualityCertificates
+import EDSL.Corpus.ReadOnlyCallTransport
 import EDSL.Corpus.V1.UnaryCertificates
 import EDSL.Corpus.V1.PopcountCertificates
 import EDSL.Corpus.V1.AverageCertificates

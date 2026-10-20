@@ -145,6 +145,22 @@ theorem installed_cell {file name : List Byte} {input : FunctionInput}
       some ⟨input.bytes[index], readExecute⟩ :=
   installed_cellWith checked permissions index bound
 
+/-- Retaining every installed cell also retains the selected executable text.
+The byte bound, actual permissions and complete-file check remain explicit. -/
+theorem text_of_retainedWith {maxBytes : Nat} {file name : List Byte}
+    {input : FunctionInput} {current : Space}
+    (checked : input.checkWith maxBytes file name = true)
+    (permissions : ∀ segment ∈ input.table.image.segments,
+      segment.permissions.executable = true → segment.permissions = readExecute)
+    (retained : ∀ address original, (installed file input).space.cells address = some original →
+      current.cells address = some original) :
+    ELF.FunctionWindow.TextUnchanged (toMemory (installed file input).space)
+      (toMemory current) input.function.window input.bytes.length := by
+  intro index bound
+  have original := installed_cellWith checked permissions index bound
+  have present := retained _ _ original
+  constructor <;> simp only [toMemory, present, original] <;> rfl
+
 theorem programSpace_eq {file name : List Byte} {input : FunctionInput}
     (checked : input.check file name = true)
     (permissions : ∀ segment ∈ input.table.image.segments,

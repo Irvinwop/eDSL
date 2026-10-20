@@ -213,6 +213,7 @@ import tests.ELFFunctionCandidate
 import tests.ELFStackCaller
 import tests.ELFFunctionBounds
 import tests.ELFCallerBounds
+import tests.ReadOnlyCallTransport
 import tests.SequentialUnary
 import tests.UnaryBodies
 import tests.CorpusUnaryResources
@@ -245,6 +246,8 @@ import tests.Low8Audit
 import tests.ByteEquality
 import tests.SequentialByteComparePadding
 import tests.ByteComparePaddingAudit
+import tests.ByteEqualityBodies
+import tests.GradingByteEquality
 import tests.CFGProfiles
 import tests.VCGenScratchFrame
 LEAN
