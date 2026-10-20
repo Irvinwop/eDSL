@@ -13,6 +13,7 @@ import EDSL.Corpus.V1.UnaryCertificates
 import EDSL.Corpus.V1.PopcountCertificates
 import EDSL.Corpus.V1.AverageCertificates
 import EDSL.Corpus.V1.ParityCertificates
+import EDSL.Corpus.V1.RotationCertificates
 import Lean
 
 namespace EDSL.Corpus.Reporting
@@ -140,6 +141,16 @@ theorem acceptedParityCertificates :
   ⟨⟨V1.ParityCertificates.gcc_certificate⟩,
     ⟨V1.ParityCertificates.clang_certificate⟩⟩
 
+/-- The registered rotation task binds the full input word and unsigned low32
+count to independent bit origins, at both unchanged named final-file extents. -/
+theorem acceptedRotationCertificates :
+    Nonempty (Certificate .rotateLeft64
+      (V1.RotationWindows.file .defaultGCC) V1.RotationWindows.name) ∧
+    Nonempty (Certificate .rotateLeft64
+      (V1.RotationWindows.file .defaultClang) V1.RotationWindows.name) :=
+  ⟨⟨V1.RotationCertificates.gcc_certificate⟩,
+    ⟨V1.RotationCertificates.clang_certificate⟩⟩
+
 -- Keep successful CLI stdout machine-readable, while rejecting an unapproved
 -- transitive certificate dependency before main can run. The verification gate
 -- additionally audits the full imported EDSL namespace and fresh-replays it.
@@ -153,7 +164,8 @@ run_cmd do
       ``EDSL.Corpus.Reporting.acceptedUnaryCertificates,
       ``EDSL.Corpus.Reporting.acceptedPopcountCertificates,
       ``EDSL.Corpus.Reporting.acceptedAverageCertificates,
-      ``EDSL.Corpus.Reporting.acceptedParityCertificates] do
+      ``EDSL.Corpus.Reporting.acceptedParityCertificates,
+      ``EDSL.Corpus.Reporting.acceptedRotationCertificates] do
     for dependency in ← Lean.collectAxioms family do
       unless allowed.contains dependency do
         throwError "Corpus certificate family {family} depends on unapproved axiom {dependency}"
@@ -373,13 +385,27 @@ private def parityJson (compiler : Corpus.V1.ParityCode.Compiler) : Json :=
     ("size", toJson input.bytes.length),
     ("proof", toJson proof)]
 
+private def rotationJson (compiler : Corpus.V1.RotationCode.Compiler) : Json :=
+  let input := (Corpus.V1.RotationCertificates.certificate compiler).input
+  let symbol := String.ofList
+    (Corpus.V1.RotationWindows.name.map fun byte => Char.ofNat byte.toNat)
+  let proof := "EDSL.Corpus.V1.RotationCertificates.certificate " ++
+    (match compiler with | .defaultGCC => "defaultGCC" | .defaultClang => "defaultClang")
+  Json.mkObj [
+    ("symbol", toJson symbol),
+    ("operation", toJson ("rotate_left64" : String)),
+    ("file_offset", toJson input.function.window.offset),
+    ("address", toJson input.function.window.address),
+    ("size", toJson input.bytes.length),
+    ("proof", toJson proof)]
+
 private def certificateRows (compiler : Corpus.V1.Comparisons.Compiler) : Array Json :=
   #[artifactJson compiler .minimum, artifactJson compiler .maximum,
     additionJson compiler, clampJson compiler, concurrentJson compiler, bufferJson compiler,
     indexSearchJson compiler .byte, indexSearchJson compiler .u32,
     byteComparisonJson compiler, unaryJson compiler .absSigned32,
     unaryJson compiler .byteSwap64, popcountJson compiler, averageJson compiler,
-    parityJson compiler]
+    parityJson compiler, rotationJson compiler]
 
 private def fileJson (compiler : Corpus.V1.Comparisons.Compiler) (path : System.FilePath)
     (bytes : Nat) : Json := Json.mkObj [
@@ -420,6 +446,8 @@ private def report (request : Request) (gccBytes clangBytes : Nat) : Json :=
       ("unary_semantics", toJson ("signed low32 absolute value is nonnegative with the same mathematical square, excludes INT32_MIN and permits arbitrary argument upper halves; full64 reversal of all eight base-256 digits; every admitted resource call and every AF stream" : String)),
       ("population_count_semantics", toJson ("full64 input bit-position cardinality returned as unsigned low32; all inputs including zero and all-ones admitted; every AF stream terminates by strict remaining-cardinality rank, with complete RAM and original caller resources retained at every prefix and return; ABI and result established at return" : String)),
       ("parity_semantics", toJson ("independent full64 input bit-position cardinality modulo 2 returned as unsigned low32; all full64 words including zero and all-ones admitted; upper32 RAX unconstrained; useful endpoint witness 0x8000000000000001 does not restrict the domain; every AF stream terminates by strict unsigned remainder rank; complete RAM and permissions, original caller and current code authority retained at every prefix and return; ABI and result established at return; no physical/OS/compiler refinement or minimum-cost claim" : String)),
+      ("rotation_semantics", toJson ("independent full64 bit-origin left rotation by unsigned low32 RSI modulo 64; all full64 RDI values and all low32 counts admitted, with arbitrary upper32 RSI; every independent undefined-flag choice stream terminates; zero count retains all flags, one count defines OF, larger counts permit either OF; complete RAM and permissions, original caller and current code authority retained at every prefix and return; ABI and result established at return" : String)),
+      ("rotation_progress", toJson ("exact retired model instructions including RET and GCC ENDBR64: rotation GCC 5, Clang 4; universal decoded-execution observations; no physical timing or minimum-cost claim" : String)),
       ("average_semantics", toJson ("full64 RDI/RSI inputs; unsigned floor of the unbounded natural input sum divided by two; all full64 pairs including overflowing input sums admitted; every AF stream terminates; complete RAM and original caller resources retained at every prefix and return; ABI and result established at return" : String)),
       ("average_progress", toJson ("exact retired model instructions including RET and GCC ENDBR64: average GCC 7, Clang 6; universal decoded-execution observations; no physical timing or minimum-cost claim" : String)),
       ("unary_progress", toJson ("exact retired model instructions including RET and GCC ENDBR64: absolute value GCC 5, Clang 4; byte reversal GCC 4, Clang 3; no physical timing or minimum-cost claim" : String)),

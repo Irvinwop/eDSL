@@ -15,8 +15,8 @@ case "$#:${1:-}" in
     1:--full-project) full_project=true ;;
     1:--help)
         echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]'
-        echo 'Builds eighteen scalar, two managed concurrent fetch-add, two bounded byte-scan, four first-match search and two byte-comparison certificates, audits axioms and checks file binding.'
-        echo 'Default: fresh-replays corpus.Certify. --full-project: builds EDSL.All, VerificationTests, UnaryTests, PopcountTests, AverageTests and ParityTests; fresh-replays catalogue, corpus CLI and reusable regressions together.'
+        echo 'Builds twenty scalar, two managed concurrent fetch-add, two bounded byte-scan, four first-match search and two byte-comparison certificates, audits axioms and checks file binding.'
+        echo 'Default: fresh-replays corpus.Certify. --full-project: also builds the full catalogue and verification, unary, popcount, average, parity, rotation, low-byte and CFG-profile tests; fresh-replays them together.'
         exit 0 ;;
     *) echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]' >&2; exit 2 ;;
 esac
@@ -195,6 +195,7 @@ record unary-certificate-api test -f EDSL/Corpus/V1/UnaryCertificates.lean
 record popcount-certificate-api test -f EDSL/Corpus/V1/PopcountCertificates.lean
 record average-certificate-api test -f EDSL/Corpus/V1/AverageCertificates.lean
 record parity-certificate-api test -f EDSL/Corpus/V1/ParityCertificates.lean
+record rotation-certificate-api test -f EDSL/Corpus/V1/RotationCertificates.lean
 record lean-version "${lean_lock[@]}" lean --version
 
 if [[ $full_project == true ]]; then
@@ -231,6 +232,15 @@ import tests.ParityISAAudit
 import tests.ParityBodies
 import tests.ParityResources
 import tests.GradingParity
+import tests.SequentialRotate
+import tests.RotateAudit
+import tests.RotationBodies
+import tests.RotationResources
+import tests.GradingRotation
+import tests.SequentialLow8
+import tests.Low8Audit
+import tests.CFGProfiles
+import tests.VCGenScratchFrame
 LEAN
     printf 'import CorpusFullReplay\n' > "$output/Audit.lean"
 else
@@ -387,6 +397,35 @@ example (compiler : EDSL.Corpus.V1.ParityCode.Compiler) :
     EDSL.Corpus.V1.ParityWindows.file compiler =
       EDSL.Corpus.V1.Comparisons.file compiler := rfl
 
+-- The final ELF/name and registry-owned task are independent of report labels.
+example :
+    Nonempty (EDSL.Corpus.Certificate .rotateLeft64
+      (EDSL.Corpus.V1.Comparisons.file .defaultGCC)
+      [99,95,114,111,116,108,54,52]) ∧
+    Nonempty (EDSL.Corpus.Certificate .rotateLeft64
+      (EDSL.Corpus.V1.Comparisons.file .defaultClang)
+      [99,95,114,111,116,108,54,52]) :=
+  EDSL.Corpus.Reporting.acceptedRotationCertificates
+example (compiler : EDSL.Corpus.V1.RotationCode.Compiler) :
+    (EDSL.Corpus.V1.RotationCertificates.certificate compiler).input =
+      EDSL.Corpus.V1.RotationWindows.input compiler := by
+  cases compiler <;> rfl
+example (compiler : EDSL.Corpus.V1.RotationCode.Compiler) :
+    EDSL.Corpus.V1.RotationWindows.file compiler =
+      EDSL.Corpus.V1.Comparisons.file compiler := rfl
+
+-- Count actual retired instructions for arbitrary values, counts and choices.
+example (compiler : EDSL.Corpus.V1.RotationCode.Compiler)
+    {input : EDSL.PureCall.Invocation EDSL.Corpus.V1.RotationCode.spec}
+    {initial : EDSL.X86.State}
+    (pre : EDSL.PureCall.Pre EDSL.Corpus.V1.RotationCode.spec
+      (EDSL.Corpus.V1.RotationCode.bytes compiler) input initial)
+    {choices : EDSL.X86.Sequential.Choices} {result : EDSL.X86.Sequential.Result}
+    (execution : EDSL.X86.Sequential.Executes choices initial result) :
+    result.instructions = (match compiler with | .defaultGCC => 5 | .defaultClang => 4) := by
+  have observed := EDSL.Corpus.V1.RotationBodies.observations compiler pre execution
+  cases compiler <;> exact observed.2.2.1
+
 -- These literal counts are conclusions for arbitrary admitted input pairs and
 -- actual decoded execution, not fixture assignments or graph-size assertions.
 example (compiler : EDSL.Corpus.V1.AverageCode.Compiler)
@@ -436,6 +475,7 @@ example (compiler : EDSL.Corpus.V1.FetchAddWindows.Compiler) :
 #print axioms EDSL.Corpus.Reporting.acceptedPopcountCertificates
 #print axioms EDSL.Corpus.Reporting.acceptedAverageCertificates
 #print axioms EDSL.Corpus.Reporting.acceptedParityCertificates
+#print axioms EDSL.Corpus.Reporting.acceptedRotationCertificates
 #audit_edsl
 LEAN
 
@@ -509,6 +549,10 @@ def certificate($manifest; $operation; $symbol; $proof):
     (has("model") | not) and
     ([$manifest.functions[] | select(.symbol == $symbol)][0] |
       .definition_id == "12" and .contract_id == "v1:12:c_parity_loop")
+   elif $operation == "rotate_left64" then
+    (has("model") | not) and
+    ([$manifest.functions[] | select(.symbol == $symbol)][0] |
+      .definition_id == "09" and .contract_id == "v1:09:c_rotl64")
    else (has("model") | not) end) and
   (.file_offset | natural) and (.address | natural) and (.size | natural and . > 0) and
   ([$manifest.functions[] | select(.symbol == $symbol)] | length == 1) and
@@ -537,7 +581,7 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
   type == "object" and .compiler == $compiler and .path == $path and
   .bytes == $bytes and $manifest.elf_size == $bytes and
   .match == "complete_byte_equality" and
-  (.certificates | type == "array" and length == 14) and
+  (.certificates | type == "array" and length == 15) and
   (.certificates[0] | certificate($manifest; "unsigned_minimum64"; "c_min_u64";
     "EDSL.Corpus.V1.Comparisons.certificate " + $enum + " minimum")) and
   (.certificates[1] | certificate($manifest; "unsigned_maximum64"; "c_max_u64";
@@ -566,6 +610,8 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
     "c_average_u64"; "EDSL.Corpus.V1.AverageCertificates.certificate " + $enum)) and
   (.certificates[13] | certificate($manifest; "parity64";
     "c_parity_loop"; "EDSL.Corpus.V1.ParityCertificates.certificate " + $enum)) and
+  (.certificates[14] | certificate($manifest; "rotate_left64";
+    "c_rotl64"; "EDSL.Corpus.V1.RotationCertificates.certificate " + $enum)) and
   (.certificates[6] | search_extent($compiler; "byte")) and
   (.certificates[7] | search_extent($compiler; "u32")) and
   (.certificates[8] | byte_comparison_extent($compiler)) and
@@ -580,10 +626,13 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
   (.certificates[13] | [.file_offset, .address, .size] ==
     (if $compiler == "gcc" then [11808, 4206112, 33]
      elif $compiler == "clang" then [5008, 4199312, 36] else [] end)) and
+  (.certificates[14] | [.file_offset, .address, .size] ==
+    (if $compiler == "gcc" then [11744, 4206048, 13]
+     elif $compiler == "clang" then [4944, 4199248, 9] else [] end)) and
   all(.certificates[]; .file_offset + .size <= $bytes) and
-  ([.certificates[].symbol] | unique | length == 14) and
-  ([.certificates[].operation] | unique | length == 14) and
-  ([.certificates[] | [.file_offset, .address, .size]] | unique | length == 14) and
+  ([.certificates[].symbol] | unique | length == 15) and
+  ([.certificates[].operation] | unique | length == 15) and
+  ([.certificates[] | [.file_offset, .address, .size]] | unique | length == 15) and
   (.certificates as $certificates | all($certificates[]; . as $a |
     all($certificates[]; . as $b | $a.symbol == $b.symbol or
       (($a.file_offset + $a.size <= $b.file_offset or
@@ -598,19 +647,19 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
 length == 1 and (.[0] |
   type == "object" and .schema == "edsl.compiler-corpus.certificates.v1" and
   .status == "certified_under_recorded_model_assumptions" and
-  .score == {functions_certified_end_to_end: 14,
+  .score == {functions_certified_end_to_end: 15,
     functions_total: ($gccNames | length),
-    compiler_artifacts_certified_end_to_end: 28,
+    compiler_artifacts_certified_end_to_end: 30,
     compiler_artifacts_total: (($gccNames | length) + ($clangNames | length)),
     concurrency_contracts_proved: 1} and
   (.files | type == "array" and length == 2) and
   (.files[0] | artifact("gcc"; $gcc; $gccBytes; $gccManifest[0]; "defaultGCC")) and
   (.files[1] | artifact("clang"; $clang; $clangBytes; $clangManifest[0]; "defaultClang")) and
   ([.files[] | .compiler as $compiler | .certificates[] |
-      [$compiler, .operation, .symbol]] | unique | length == 28) and
-  ([.files[].certificates[].proof] | unique | length == 28) and
-  ([.files[].certificates[].symbol] | unique | length == 14) and
-  ([.files[].certificates[].operation] | unique | length == 14) and
+      [$compiler, .operation, .symbol]] | unique | length == 30) and
+  ([.files[].certificates[].proof] | unique | length == 30) and
+  ([.files[].certificates[].symbol] | unique | length == 15) and
+  ([.files[].certificates[].operation] | unique | length == 15) and
   ([.files[].certificates[] | select(.operation == "full64_fetch_add_concurrent")] |
     length == 2 and (map(.symbol) | unique | length == 1)) and
   (.score.functions_certified_end_to_end ==
@@ -626,6 +675,7 @@ length == 1 and (.[0] |
     all(.complete_file_identity, .elf_symbol_binding, .cfg, .symbolic_vc,
       .registered_semantics, .unary_semantics, .unary_progress, .population_count_semantics,
       .average_semantics, .average_progress, .parity_semantics,
+      .rotation_semantics, .rotation_progress,
       .buffer_semantics, .index_search_semantics,
       .byte_comparison_semantics, .byte_comparison_resources, .byte_comparison_progress,
       .concurrent_semantics, .concurrent_progress,
@@ -638,10 +688,10 @@ length == 1 and (.[0] |
     .stages.concurrent_useful_domain, .stages.buffer_semantics,
     .stages.index_search_semantics, .stages.unary_semantics, .stages.unary_progress,
     .stages.population_count_semantics, .stages.average_semantics, .stages.average_progress,
-    .stages.parity_semantics,
+    .stages.parity_semantics, .stages.rotation_semantics, .stages.rotation_progress,
     .stages.byte_comparison_semantics,
     .stages.byte_comparison_resources, .stages.byte_comparison_progress] |
-      unique | length == 23) and
+      unique | length == 25) and
   (.stages.population_count_semantics | contains("full64 input bit-position cardinality") and
     contains("unsigned low32") and contains("all inputs including zero and all-ones admitted") and
     contains("every AF stream terminates") and contains("strict remaining-cardinality rank") and
@@ -664,6 +714,18 @@ length == 1 and (.[0] |
     contains("complete RAM and original caller resources") and
     contains("every prefix and return") and contains("ABI and result established at return")) and
   (.stages.average_progress | contains("average GCC 7, Clang 6") and
+    contains("including RET and GCC ENDBR64") and
+    contains("universal decoded-execution observations") and
+    contains("no physical timing or minimum-cost claim")) and
+  (.stages.rotation_semantics | contains("independent full64 bit-origin left rotation") and
+    contains("unsigned low32 RSI modulo 64") and
+    contains("all full64 RDI values and all low32 counts admitted") and
+    contains("arbitrary upper32 RSI") and
+    contains("every independent undefined-flag choice stream terminates") and
+    contains("zero count retains all flags, one count defines OF, larger counts permit either OF") and
+    contains("complete RAM and permissions, original caller and current code authority") and
+    contains("retained at every prefix and return") and contains("ABI and result established at return")) and
+  (.stages.rotation_progress | contains("rotation GCC 5, Clang 4") and
     contains("including RET and GCC ENDBR64") and
     contains("universal decoded-execution observations") and
     contains("no physical timing or minimum-cost claim")) and
@@ -747,9 +809,10 @@ certificate_targets=(EDSL.Corpus.V1.Comparisons EDSL.Corpus.V1.Arithmetic EDSL.C
     EDSL.Corpus.V1.FetchAddCertificates EDSL.Corpus.V1.ByteScanCertificates
     EDSL.Corpus.V1.IndexSearchCertificates EDSL.Corpus.V1.ByteComparisonCertificates
     EDSL.Corpus.V1.UnaryCertificates EDSL.Corpus.V1.PopcountCertificates
-    EDSL.Corpus.V1.AverageCertificates EDSL.Corpus.V1.ParityCertificates)
+    EDSL.Corpus.V1.AverageCertificates EDSL.Corpus.V1.ParityCertificates
+    EDSL.Corpus.V1.RotationCertificates)
 if [[ $full_project == true ]]; then
-    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests ParityTests \
+    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests ParityTests RotationTests Low8Tests CFGProfileTests \
         edsl-proof-export edsl-grade "${certificate_targets[@]}"
 else
     record build "${lean_lock[@]}" lake build "${certificate_targets[@]}"
@@ -775,7 +838,6 @@ fi
 record modules-before bash -o pipefail -c "$module_hash_command"
 record save-module-hashes cp -- "$output/commands/modules-before.stdout" "$output/modules-before.sha256"
 record axiom-audit "${lean_env[@]}" lean -DwarningAsError=true "$output/Audit.lean"
-record "$fresh_label" "${lean_env[@]}" leanchecker --fresh "$fresh_target"
 
 record gcc-size wc -c "$gcc_file"
 record clang-size wc -c "$clang_file"
@@ -874,6 +936,8 @@ reject_report reject-report-pre-average-function-count '.score.functions_certifi
 reject_report reject-report-pre-average-artifact-count '.score.compiler_artifacts_certified_end_to_end = 24'
 reject_report reject-report-pre-parity-function-count '.score.functions_certified_end_to_end = 13'
 reject_report reject-report-pre-parity-artifact-count '.score.compiler_artifacts_certified_end_to_end = 26'
+reject_report reject-report-pre-rotation-function-count '.score.functions_certified_end_to_end = 14'
+reject_report reject-report-pre-rotation-artifact-count '.score.compiler_artifacts_certified_end_to_end = 28'
 reject_report reject-report-concurrency-count '.score.concurrency_contracts_proved = 2'
 report_compilers=(gcc clang)
 for index in 0 1; do
@@ -950,13 +1014,14 @@ missing-row	del(.files[$index].certificates[8])
 doubled-row	.files[$index].certificates += [.files[$index].certificates[8]]
 row-swap	.files[$index].certificates |= .[0:7] + [.[8], .[7]] + .[9:]
 MUTATIONS
-    for entry in 9 10 11 12 13; do
+    for entry in 9 10 11 12 13 14; do
         case "$entry" in
             9) operation=absolute ;;
             10) operation=byte-reverse ;;
             11) operation=popcount ;;
             12) operation=average ;;
             13) operation=parity ;;
+            14) operation=rotation ;;
         esac
         while IFS=$'\t' read -r mutation filter; do
             reject_report "reject-$label-scalar-$operation-$mutation" "$filter" \
@@ -1015,6 +1080,25 @@ reject_report reject-average-progress-count \
 reject_report reject-average-progress-physical \
     '.stages.average_progress = "average GCC 7, Clang 6 physical minimum operations"'
 while IFS=$'\t' read -r mutation filter; do
+    reject_report "reject-rotation-$mutation" "$filter"
+done <<'MUTATIONS'
+stage-missing	del(.stages.rotation_semantics)
+direction	.stages.rotation_semantics |= sub("bit-origin left rotation"; "bit-origin right rotation")
+count-width	.stages.rotation_semantics |= sub("unsigned low32 RSI modulo 64"; "full64 RSI modulo 64")
+argument-width	.stages.rotation_semantics |= sub("full64 RDI values"; "low32 RDI values")
+domain	.stages.rotation_semantics |= sub("all low32 counts admitted"; "only counts below 64 admitted")
+upper-rsi	.stages.rotation_semantics |= sub("arbitrary upper32 RSI"; "zero upper32 RSI")
+choice-streams	.stages.rotation_semantics |= sub("every independent undefined-flag choice stream terminates"; "one undefined-flag choice stream terminates")
+zero-flags	.stages.rotation_semantics |= sub("zero count retains all flags"; "zero count clears flags")
+of-choice	.stages.rotation_semantics |= sub("larger counts permit either OF"; "larger counts force OF=false")
+caller-resources	.stages.rotation_semantics |= sub("original caller and current code authority"; "replacement caller and formerly loaded code")
+prefix	.stages.rotation_semantics |= sub("every prefix and return"; "return only")
+abi	.stages.rotation_semantics |= sub("ABI and result established at return"; "ABI and result assumed in admission")
+progress-missing	del(.stages.rotation_progress)
+retired	.stages.rotation_progress |= sub("rotation GCC 5, Clang 4"; "rotation GCC 4, Clang 3")
+physical	.stages.rotation_progress = "rotation GCC 5, Clang 4 physical minimum operations"
+MUTATIONS
+while IFS=$'\t' read -r mutation filter; do
     reject_report "reject-parity-$mutation" "$filter"
 done <<'MUTATIONS'
 stage-missing	del(.stages.parity_semantics)
@@ -1072,7 +1156,7 @@ MUTATIONS
 # Keep the report valid while mutating the selected frozen registration, so a
 # validator that accepts the wrong independent task identity is also caught.
 for label in gcc clang; do
-    for symbol in c_memchr_index c_linear_search_u32 c_memcmp_bytes c_abs_i32 c_byteswap64 c_average_u64 c_parity_loop; do
+    for symbol in c_memchr_index c_linear_search_u32 c_memcmp_bytes c_abs_i32 c_byteswap64 c_average_u64 c_parity_loop c_rotl64; do
         while IFS=$'\t' read -r mutation filter; do
             name=reject-$label-$symbol-manifest-$mutation
             record "$name-mutate" jq --arg symbol "$symbol" "$filter" \
@@ -1104,11 +1188,12 @@ JQ
 read -r manifest_extent_mutation <<'JQ'
 (.functions[] | select(.symbol == $symbol))[$field] += $delta
 JQ
-for operation in byte-comparison average parity; do
+for operation in byte-comparison average parity rotation; do
     case "$operation" in
         byte-comparison) entry=8 symbol=c_memcmp_bytes ;;
         average) entry=12 symbol=c_average_u64 ;;
         parity) entry=13 symbol=c_parity_loop ;;
+        rotation) entry=14 symbol=c_rotl64 ;;
     esac
     for index in 0 1; do
         label=${report_compilers[$index]}
@@ -1175,7 +1260,7 @@ if [[ $full_project == true ]]; then
         record "$base_label-extract" dd "if=corpus/v1/$compiler/final.elf" "of=$raw" \
             bs=1 "skip=$offset" "count=$size" status=none
         modes=(body)
-        if [[ $task == parity64 ]]; then
+        if [[ $task == parity64 || $task == rotateLeft64 ]]; then
             modes+=(reference)
             record "$base_label-final-byte" od -An -tx1 -j "$((size - 1))" -N 1 "$raw"
             record "$base_label-final-ret" grep -Ex '[[:space:]]*c3[[:space:]]*' \
@@ -1197,6 +1282,7 @@ if [[ $full_project == true ]]; then
             if [[ $task == absSigned32 ]]; then wrong_task=byteSwap64; fi
             if [[ $task == average64 ]]; then wrong_task=addModulo64; fi
             if [[ $task == parity64 ]]; then wrong_task=populationCount64; fi
+            if [[ $task == rotateLeft64 ]]; then wrong_task=average64; fi
             expect_status 5 "$label-wrong-task" "${lean_lock[@]}" lake env .lake/build/bin/edsl-grade \
                 "$wrong_task" "$raw" "$packet"
             record "$label-wrong-task-reason" grep -F 'kernel declTypeMismatch' \
@@ -1208,6 +1294,10 @@ if [[ $full_project == true ]]; then
                 "$output/commands/$label-changed-code.stderr"
         done
     done <<'SCALAR_GRADING'
+gcc	rotation	rotateLeft64	tests.GradingRotation	EDSL.Tests.GradingRotation.raw_gcc	11744	13
+clang	rotation	rotateLeft64	tests.GradingRotation	EDSL.Tests.GradingRotation.raw_clang	4944	9
+gcc	parity	parity64	tests.GradingParity	EDSL.Tests.GradingParity.raw_gcc	11808	33
+clang	parity	parity64	tests.GradingParity	EDSL.Tests.GradingParity.raw_clang	5008	36
 gcc	absolute	absSigned32	tests.GradingUnary	EDSL.Tests.GradingUnary.raw_gcc_absolute	11632	12
 clang	absolute	absSigned32	tests.GradingUnary	EDSL.Tests.GradingUnary.raw_clang_absolute	4864	8
 gcc	reverse	byteSwap64	tests.GradingUnary	EDSL.Tests.GradingUnary.raw_gcc_reverse	11760	11
@@ -1216,8 +1306,6 @@ gcc	popcount	populationCount64	tests.GradingPopcount	EDSL.Tests.GradingPopcount.
 clang	popcount	populationCount64	tests.GradingPopcount	EDSL.Tests.GradingPopcount.raw_clang	4976	28
 gcc	average	average64	tests.GradingAverage	EDSL.Tests.GradingAverage.raw_gcc	11712	20
 clang	average	average64	tests.GradingAverage	EDSL.Tests.GradingAverage.raw_clang	4928	16
-gcc	parity	parity64	tests.GradingParity	EDSL.Tests.GradingParity.raw_gcc	11808	33
-clang	parity	parity64	tests.GradingParity	EDSL.Tests.GradingParity.raw_clang	5008	36
 SCALAR_GRADING
 fi
 
@@ -1247,6 +1335,9 @@ mapfile -t average_offsets < "$output/commands/average-offsets.stdout"
 record parity-offsets jq -r '.files[].certificates[] |
     select(.symbol == "c_parity_loop").file_offset' "$output/report.json"
 mapfile -t parity_offsets < "$output/commands/parity-offsets.stdout"
+record rotation-offsets jq -r '.files[].certificates[] |
+    select(.symbol == "c_rotl64").file_offset' "$output/report.json"
+mapfile -t rotation_offsets < "$output/commands/rotation-offsets.stdout"
 gcc_code=$output/mutations/gcc-code-byte.elf
 clang_code=$output/mutations/clang-code-byte.elf
 gcc_addition=$output/mutations/gcc-addition-code-byte.elf
@@ -1265,6 +1356,8 @@ gcc_average=$output/mutations/gcc-average-code-byte.elf
 clang_average=$output/mutations/clang-average-code-byte.elf
 gcc_parity=$output/mutations/gcc-parity-code-byte.elf
 clang_parity=$output/mutations/clang-parity-code-byte.elf
+gcc_rotation=$output/mutations/gcc-rotation-code-byte.elf
+clang_rotation=$output/mutations/clang-rotation-code-byte.elf
 gcc_metadata=$output/mutations/gcc-metadata-byte.elf
 gcc_comment=$output/mutations/gcc-comment-byte.elf
 gcc_truncated=$output/mutations/gcc-truncated.elf
@@ -1309,6 +1402,10 @@ flip_byte gcc-parity "$gcc_file" "${parity_offsets[0]}" "$gcc_parity"
 reject 1 reject-gcc-parity-code --gcc "$gcc_parity"
 flip_byte clang-parity "$clang_file" "${parity_offsets[1]}" "$clang_parity"
 reject 1 reject-clang-parity-code --clang "$clang_parity"
+flip_byte gcc-rotation "$gcc_file" "${rotation_offsets[0]}" "$gcc_rotation"
+reject 1 reject-gcc-rotation-code --gcc "$gcc_rotation"
+flip_byte clang-rotation "$clang_file" "${rotation_offsets[1]}" "$clang_rotation"
+reject 1 reject-clang-rotation-code --clang "$clang_rotation"
 
 # ELF identification byte 8 is inside each complete file but outside every
 # certified function. Keep this header-field control alongside the opaque
@@ -1432,6 +1529,10 @@ reject 2 reject-duplicate-gcc --gcc "$valid_gcc" --gcc "$valid_gcc"
 reject 2 reject-duplicate-clang --clang "$valid_clang" --clang "$valid_clang"
 reject 2 reject-positional "$valid_gcc"
 
+# Run structural, serialization and installed-admission controls before paying
+# for the full fresh replay. Replay is still mandatory for gate success; the
+# original source, object and tool pins remain in force through this stage.
+record "$fresh_label" "${lean_env[@]}" leanchecker --fresh "$fresh_target"
 complete=true
 # EXIT performs the final source, frozen-file, imported-module and gate-input
 # stability checks before it creates READY.md or emits a gate success message.

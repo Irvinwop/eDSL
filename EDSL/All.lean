@@ -133,7 +133,6 @@ import EDSL.X86.Sequential.Low8
 import EDSL.X86.Sequential.ShiftOne
 import EDSL.X86.Sequential.ParityISA
 import EDSL.WordMath.Parity
-import EDSL.WordMath.Rotation
 import EDSL.Certificate
 import EDSL.Process.Certificate
 import EDSL.Process.WriteExit
