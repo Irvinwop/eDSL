@@ -60,8 +60,10 @@ requires:
 - An RMW read from its immediate predecessor in the object's modification order.
 
 A structurally valid graph alone establishes none of those additional facts.
-Clients prove consistency for their actual event graph; no unchecked solver or
-caller-supplied relation is treated as an established theorem.
+The [finite checker](c23-atomic-checker.md) discharges these graph obligations
+from event/RF/rank tables and a checked HB certificate. Its shared soundness
+theorem replaces per-graph legality proofs. No unchecked solver or supplied
+relation is treated as established.
 
 `publication_chain` composes a prior payload write, a release-sequence source,
 a qualifying acquire and subsequent payload access. `Legal.message_passing_not_older`

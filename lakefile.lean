@@ -103,7 +103,7 @@ lean_lib ManagedQueue64Tests where
 
 -- Source atomic event graphs remain separate from machine scheduling.
 lean_lib C23AtomicTests where
-  roots := #[`tests.C23AtomicEvents, `tests.C23MessagePassing]
+  roots := #[`tests.C23AtomicEvents, `tests.C23MessagePassing, `tests.C23AtomicCheck]
   moreLeanArgs := #["-DautoImplicit=false"]
 
 -- Cache input-traced byte-scan regressions alongside production proofs.

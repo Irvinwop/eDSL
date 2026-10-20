@@ -5,7 +5,8 @@ SPDX-License-Identifier: Apache-2.0
 import Init
 
 /-!
-Finite straight-line atomic event graphs for relaxed, acquire, release and
+Finite supplied atomic event graphs, fully sequenced within each thread, for
+relaxed, acquire, release and
 acquire/release operations. The primary reference is C23 draft N3096:
 https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf
 Sections 5.1.2.4p10-11 describe release sequences and synchronization; p18
