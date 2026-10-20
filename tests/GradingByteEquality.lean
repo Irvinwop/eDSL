@@ -20,7 +20,9 @@ theorem registered_equal_dirty_upper56 :
       ¬(registeredSpec .equalBytes).result
         ⟨0x100000001, 0x200000003, [0, 0x80, 0xff, 0x42], [0, 0x80, 0xff, 0x42]⟩
         0xfedcba9876543200 := by
-  decide
+  simp only [registeredSpec, Grading.ByteEquality.spec, Grading.ByteEquality.Result,
+    Grading.ByteComparison.spec]
+  decide +kernel
 
 /-- A final-byte mismatch in admitted equal-length inputs requires AL=0.
 Neither the initial NUL nor the common high-byte prefix ends the comparison. -/
@@ -33,7 +35,9 @@ theorem registered_unequal_same_length :
       ¬(registeredSpec .equalBytes).result
         ⟨0x100000001, 0x200000003, [0, 0x80, 0xff, 0x42], [0, 0x80, 0xff, 0x43]⟩
         0xdeadbeef12345601 := by
-  decide
+  simp only [registeredSpec, Grading.ByteEquality.spec, Grading.ByteEquality.Result,
+    Grading.ByteComparison.spec]
+  decide +kernel
 
 /-- Boolean truth is canonical, rather than any nonzero byte. -/
 theorem registered_noncanonical_two_rejected (input : Grading.ByteEquality.Input) :
@@ -62,7 +66,9 @@ admission under the fixed paired-count domain. -/
 theorem registered_unequal_extents_rejected :
     ¬(registeredSpec .equalBytes).domain ⟨0, 0, [0x80], [0x80, 0]⟩ ∧
       ¬(registeredSpec .equalBytes).result ⟨0, 0, [0x80], [0x80, 0]⟩ 1 := by
-  decide
+  simp only [registeredSpec, Grading.ByteEquality.spec, Grading.ByteEquality.Result,
+    Grading.ByteComparison.spec]
+  decide +kernel
 
 /-- Empty snapshots admit arbitrary bases and unused loan selectors through
 the actual current-resource Pre. Only the original code/caller contract is
