@@ -8,6 +8,11 @@ import EDSL.X86.Sequential.Condition
 
 namespace EDSL.X86.Sequential
 
+/-- Replace exactly bits 0..7. In particular this is neither a full-register
+assignment nor a low32 write. Kept pure to avoid extending `State`. -/
+def replaceLow8 (old : Word) (value : Byte) : Word :=
+  (old &&& 0xffffffffffffff00) ||| value.setWidth 64
+
 /-- The selected ordinary addressing forms use full 64-bit registers. A SIB
 scale is an exponent, so `scale = 2` multiplies the index by four. -/
 inductive Address where
@@ -143,6 +148,12 @@ inductive Instruction where
   /-- Register-only REX.W C7 /0 id. Sign-extend the complete imm32 into the
   full64 destination, preserving FLAGS and requiring no operand memory. -/
   | movSignImm32 (destination : Register) (immediate : BitVec 32)
+  /-- Register-only SETcc: replace LOW8 by 0/1 from PRESTATE flags, preserving
+  upper56 and all flags. Prefix presence records one reviewed REX 40/41. -/
+  | setcc (condition : Condition) (destination : Register) (prefixed : Bool)
+  /-- B0+rb ib: replace LOW8 by the complete literal byte, preserving upper56
+  and all flags. No sign or low32 zero extension. -/
+  | movImm8 (destination : Register) (immediate : Byte) (prefixed : Bool)
   /-- Register-only conditional full-width copy. The false case retains the
   complete destination; flags and operand memory are unchanged. -/
   | cmovReg64 (condition : Condition) (destination source : Register)

@@ -93,6 +93,10 @@ def instruction : Instruction → String
   | .movReg32 destination source => s!"(.movReg32 {register destination} {register source})"
   | .movReg64 destination source => s!"(.movReg64 {register destination} {register source})"
   | .movSignImm32 destination immediate => s!"(.movSignImm32 {register destination} {immediate.toNat})"
+  | .setcc predicate destination prefixed =>
+    s!"(.setcc {condition predicate} {register destination} {prefixed})"
+  | .movImm8 destination immediate prefixed =>
+    s!"(.movImm8 {register destination} {immediate.toNat} {prefixed})"
   | .cmovReg64 predicate destination source =>
     s!"(.cmovReg64 {condition predicate} {register destination} {register source})"
   | .cmovReg32 predicate destination source prefixed =>

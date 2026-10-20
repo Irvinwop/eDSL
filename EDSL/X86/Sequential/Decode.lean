@@ -29,6 +29,8 @@ def Instruction.length : Instruction → Nat
   | .cmpMemImm8 address _ => 3 + address.suffixBytes
   | .cmpMemReg8 address _ | .cmpMemReg32 address _ => 2 + address.suffixBytes
   | .movSignImm32 _ _ => 7
+  | .setcc _ _ prefixed => if prefixed then 4 else 3
+  | .movImm8 _ _ prefixed => if prefixed then 3 else 2
   | .cmovReg32 _ _ _ prefixed => if prefixed then 4 else 3
   | .endbr64IbtDisabled => 4
   | .nop encoding => encoding.length
@@ -98,6 +100,31 @@ def rexModRMRM (rex byte : Byte) : Register :=
 def rexSIBIndex (rex sib : Byte) : Register :=
   if rex.getLsbD 1 then highRegister ⟨sib.toNat / 8 % 8, Nat.mod_lt _ (by decide)⟩
   else modRMReg sib
+
+/-- B0..B7 opcode-register immediate byte forms, with no prefix or exactly
+one 40/41 REX. The enclosing decoder authenticates opcode/prefix bytes. -/
+def decodeMovImm8At (state : State) (opcode rex : Byte) (prefixed : Bool) :
+    Except Error Instruction := do
+  if opcode.toNat < 0xb0 ∨ 0xb7 < opcode.toNat then throw .unsupportedEncoding
+  if prefixed ∧ rex ≠ 0x40 ∧ rex ≠ 0x41 then throw .unsupportedEncoding
+  if !prefixed ∧ 4 ≤ opcode.toNat % 8 then throw .unsupportedEncoding
+  let immediate ← fetchByte state.memory (state.rip + (if prefixed then 2 else 1))
+  return .movImm8 (rexModRMRM rex opcode) immediate prefixed
+
+/-- Continue after authenticated 0F, with no prefix or exactly one 40/41 REX.
+All sixteen conditions are admitted. Only C0..C7 ModRM (mod=3, reg=0) is
+reviewed; real nonzero-reg aliases reject conservatively. Memory destinations
+and unprefixed AH/CH/DH/BH reject, without interpreting an address as a GPR. -/
+def decodeSetccAt (state : State) (rex : Byte) (prefixed : Bool) :
+    Except Error Instruction := do
+  if prefixed ∧ rex ≠ 0x40 ∧ rex ≠ 0x41 then throw .unsupportedEncoding
+  let opcode ← fetchByte state.memory (state.rip + (if prefixed then 2 else 1))
+  if opcode.toNat < 0x90 ∨ 0x9f < opcode.toNat then throw .unsupportedEncoding
+  let modrm ← fetchByte state.memory (state.rip + (if prefixed then 3 else 2))
+  if modrm.toNat / 64 ≠ 3 ∨ modrm.toNat / 8 % 8 ≠ 0 then throw .unsupportedEncoding
+  if !prefixed ∧ 4 ≤ modrm.toNat % 8 then throw .unsupportedEncoding
+  return .setcc (Condition.ofNibble ⟨opcode.toNat % 16, Nat.mod_lt _ (by decide)⟩)
+    (rexModRMRM rex modrm) prefixed
 
 /-- Only register operands. CMP admits both opcode directions; TEST has
 opcode 85 only. `rex=0` is used by the unprefixed caller. This helper assumes
@@ -248,6 +275,7 @@ MOVZX8. This helper does not authenticate its supplied prefix or lead byte. -/
 def decode0FREX32At (state : State) (rex : Byte) : Except Error Instruction := do
   let second ← fetchByte state.memory (state.rip + 2)
   if second = 0xb6 then decodeMovzx8At state rex true
+  else if 0x90 ≤ second.toNat ∧ second.toNat ≤ 0x9f then decodeSetccAt state rex true
   else decodeCmov32At state rex true
 
 /-- Fetch and check a fixed suffix in order. Missing/nonexecutable bytes retain
@@ -307,6 +335,7 @@ def decode0F32At (state : State) : Except Error Instruction := do
   let second ← fetchByte state.memory (state.rip + 1)
   if second = 0x1f then decodePaddingAt state 0x0f
   else if second = 0xb6 then decodeMovzx8At state 0 false
+  else if 0x90 ≤ second.toNat ∧ second.toNat ≤ 0x9f then decodeSetccAt state 0 false
   else decodeCmov32At state 0 false
 
 /-- The common mod=00 address subset. SIB has a real base and index; prefixes,
@@ -506,7 +535,8 @@ and no displacement. A plain base=4 must use SIB; base=5 would be RIP-relative
 and is rejected. Unsupported forms never fall through to weaker addressing. -/
 def decodeNewAt (state : State) (oldError : Error) : Except Error Instruction := do
   let opcode ← fetchByte state.memory state.rip
-  if opcode = 0x80 then decodeCmpMemImm8At state
+  if 0xb0 ≤ opcode.toNat ∧ opcode.toNat ≤ 0xb7 then decodeMovImm8At state opcode 0 false
+  else if opcode = 0x80 then decodeCmpMemImm8At state
   else if opcode = 0x38 then
     let modrm ← fetchByte state.memory (state.rip + 1)
     if modrm.toNat / 64 = 0 then decodeCmpMemRegAt state true
@@ -524,7 +554,8 @@ def decodeNewAt (state : State) (oldError : Error) : Except Error Instruction :=
     decodeCompare32At state opcode 0 false
   else if rex32Prefix opcode then
     let operation ← fetchByte state.memory (state.rip + 1)
-    if operation = 0x0f then decode0FREX32At state opcode
+    if 0xb0 ≤ operation.toNat ∧ operation.toNat ≤ 0xb7 then decodeMovImm8At state operation opcode true
+    else if operation = 0x0f then decode0FREX32At state opcode
     else if operation = 0x38 ∨ operation = 0x3a then decodeCmpReg8At state operation opcode true
     else if operation = 0x29 ∨ operation = 0x2b then decodeSubReg32At state operation opcode true
     else if operation = 0x31 ∨ operation = 0x33 then decodeLogicalReg32At state operation opcode true
@@ -582,6 +613,7 @@ theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.len
   cases instruction with
   | logicalReg32 _ _ _ prefixed | logicalImm32 _ _ _ prefixed
   | test32 _ _ prefixed | cmp32 _ _ prefixed | cmovReg32 _ _ _ prefixed
+  | setcc _ _ prefixed | movImm8 _ _ prefixed
   | cmpReg8 _ _ prefixed | subReg32 _ _ prefixed | movzxReg8 _ _ prefixed | negReg32 _ prefixed
   | addImm32 _ _ prefixed | inc32 _ prefixed =>
     cases prefixed <;> simp [Instruction.length]
@@ -603,6 +635,7 @@ theorem Instruction.length_le_nine (instruction : Instruction) : instruction.len
   cases instruction with
   | logicalReg32 _ _ _ prefixed | logicalImm32 _ _ _ prefixed
   | test32 _ _ prefixed | cmp32 _ _ prefixed | cmovReg32 _ _ _ prefixed
+  | setcc _ _ prefixed | movImm8 _ _ prefixed
   | cmpReg8 _ _ prefixed | subReg32 _ _ prefixed | movzxReg8 _ _ prefixed | negReg32 _ prefixed
   | addImm32 _ _ prefixed | inc32 _ prefixed =>
     cases prefixed <;> simp [Instruction.length]
