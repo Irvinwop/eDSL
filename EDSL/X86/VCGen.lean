@@ -8,3 +8,4 @@ import EDSL.X86.VCGen.Cutpoints
 import EDSL.X86.VCGen.Artifact
 import EDSL.X86.VCGen.Tactics
 import EDSL.X86.VCGen.Unary
+import EDSL.X86.VCGen.ScratchFrame

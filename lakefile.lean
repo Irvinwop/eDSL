@@ -107,7 +107,8 @@ lean_lib ByteComparisonTests where
 -- New-program raw/final-ELF clients and the reusable API import boundary.
 lean_lib VerificationTests where
   roots := #[`tests.VerificationImports, `tests.VerifyFunction, `tests.ELFCertificate,
-    `tests.ELFFunctionSymbol, `tests.ELFFunctionCandidate, `tests.ELFStackCaller]
+    `tests.ELFFunctionSymbol, `tests.ELFFunctionCandidate, `tests.ELFStackCaller,
+    `tests.VCGenScratchFrame]
   moreLeanArgs := #["-DautoImplicit=false"]
 
 -- Shared unary ISA rules, generated scalar clients and exact loaded resources.

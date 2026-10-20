@@ -6,6 +6,7 @@ import EDSL.Corpus.V1.RotationCode
 import EDSL.PureCall.Frame
 import EDSL.X86.Sequential.Rotate
 import EDSL.X86.VCGen.Tactics
+import EDSL.X86.VCGen.ScratchFrame
 import EDSL.X86.VCGen.PureCall
 
 set_option autoImplicit false
@@ -108,17 +109,14 @@ theorem gcc_generated_vc (input : PureCall.Invocation spec) (initial : State)
   have stack := pre.stack
   have target := pre.returnCanonical
   have count := (Arithmetic64.rotateLeft_bound_iff input.value initial).mp pre.arguments |>.2
+  have terminal := (PureCall.ScratchFrame.refl scratch initial).weaken
+    (List.subset_cons_self Register.rsp scratch)
   vcgen_run gccGraph gccEntry simp [PureCallAllowed, PureCall.RawRead, stack, target,
     BitVec.add_assoc]
   vcgen_factor =>
     refine observed_of_frame ?_ (result_of_bound input initial pre.arguments) rfl rfl rfl rfl ?_
-    · constructor
-      · rfl
-      · simp only [Result.prepend, rolFlags64_preserves]
-      · intro register untouched
-        simp only [scratch, List.mem_cons, not_or] at untouched
-        rcases untouched with ⟨notSP, notA, notC⟩
-        simp only [Result.prepend, notSP, notA, notC, ite_false]
+    · vcgen_scratch_frame terminal with
+        simp only [Result.prepend, State.writeRegister, rolFlags64_preserves]
     · simp only [Result.prepend, count, rolCount64_low32]
       exact (rolFlags64_admissible_iff ..).mpr ⟨_, rfl⟩
 
@@ -131,17 +129,14 @@ theorem clang_generated_vc (input : PureCall.Invocation spec) (initial : State)
   have stack := pre.stack
   have target := pre.returnCanonical
   have count := (Arithmetic64.rotateLeft_bound_iff input.value initial).mp pre.arguments |>.2
+  have terminal := (PureCall.ScratchFrame.refl scratch initial).weaken
+    (List.subset_cons_self Register.rsp scratch)
   vcgen_run clangGraph clangEntry simp [PureCallAllowed, PureCall.RawRead, stack, target,
     BitVec.add_assoc]
   vcgen_factor =>
     refine observed_of_frame ?_ (result_of_bound input initial pre.arguments) rfl rfl rfl rfl ?_
-    · constructor
-      · rfl
-      · simp only [Result.prepend, rolFlags64_preserves]
-      · intro register untouched
-        simp only [scratch, List.mem_cons, not_or] at untouched
-        rcases untouched with ⟨notSP, notA, notC⟩
-        simp only [Result.prepend, notSP, notA, notC, ite_false]
+    · vcgen_scratch_frame terminal with
+        simp only [Result.prepend, State.writeRegister, rolFlags64_preserves]
     · simp only [Result.prepend, count, rolCount64_low32]
       exact (rolFlags64_admissible_iff ..).mpr ⟨_, rfl⟩
 

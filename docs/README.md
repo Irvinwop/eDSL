@@ -19,7 +19,7 @@ work.
 | --- | --- |
 | Prove a new function against your own contract | [Complete worked example](verify-a-function.md), then [the reusable checker](reusable-checker.md) |
 | Import exact machine code | [Raw/ELF CFG import](cfg.md) or [named-function ELF import](named-elf-import.md) |
-| Supply caller or input-buffer authority | [Scalar calls and loop frames](pure-call.md), [buffer calls](bounded-byte-scans.md), [caller resource domain](call-resource-domain.md) |
+| Supply caller or input-buffer authority | [Scalar calls and loop frames](pure-call.md), [scratch-frame proofs](scratch-frame.md), [buffer calls](bounded-byte-scans.md), [caller resource domain](call-resource-domain.md) |
 | Bind a theorem to a final file | [Standalone scalar ELF certificates](elf-certificates.md) or [registered-contract certificates](corpus-certificates.md) |
 | Check and reproduce a proof | [Build and validation](validation.md), [proof packets and grading](grading.md) |
 
