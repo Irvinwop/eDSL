@@ -24,7 +24,8 @@ private theorem rejected_admit (candidate : ELF.FunctionInput) (requested : List
     (rejected : candidate.check file requested = false) :
     candidate.admit file requested caller.prior = .error .invalidImage := by
   have failed : ELF.FunctionSymbol.check file candidate.table candidate.metadata requested
-      candidate.function candidate.bytes = false := rejected
+      candidate.function candidate.bytes = false := by
+    simpa only [ELF.FunctionInput.check_eq_symbol] using rejected
   simp only [ELF.FunctionInput.admit, ELF.FunctionSymbol.admit, failed,
     Bool.false_eq_true, ↓reduceIte]
 

@@ -23,6 +23,13 @@ by existing input/caller interfaces without normalizing a closed ELF checker. -/
 abbrev FunctionInput.check (input : FunctionInput) (file name : List Byte) : Bool :=
   input.checkWith 64 file name
 
+/-- Convert default input checks without elaborating closed file literals while
+unifying the two transparent checker wrappers. The equality is proved once on
+arbitrary inputs; it changes neither admission nor the selected byte bound. -/
+theorem FunctionInput.check_eq_symbol (input : FunctionInput) (file name : List Byte) :
+    input.check file name =
+      FunctionSymbol.check file input.table input.metadata name input.function input.bytes := rfl
+
 def FunctionInput.admitWith (maxBytes : Nat) (input : FunctionInput) (file name : List Byte)
     (prior : Space) : Except Error Loaded :=
   FunctionSymbol.admitWith maxBytes file input.table input.metadata name input.function input.bytes prior
