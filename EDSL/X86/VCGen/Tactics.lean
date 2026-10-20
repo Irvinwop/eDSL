@@ -15,12 +15,21 @@ open Sequential
 /-- Normalize the existing CFG discovery result into finite graph data for
 proof reduction. This term elaborator is only a proposer: clients must still
 prove CFG.Valid against the original bytes with the production checker. -/
-elab "vcgen_graph " bytes:term : term => do
-  let proposed ← Lean.Elab.Term.elabTerm (← `(CFG.discover $bytes:term)) none
+private def graphProposal (label analyzer : String) (discovery : Lean.Syntax) :
+    Lean.Elab.Term.TermElabM Lean.Expr := do
+  let proposed ← Lean.Elab.Term.elabTerm discovery none
   let normalized ← Lean.Meta.reduce proposed
   unless normalized.isAppOfArity ``Option.some 2 do
-    throwError "vcgen_graph: CFG discovery failed; inspect CFG.analyze for the unsupported input"
+    throwError "{label}: CFG discovery failed; inspect {analyzer} for the unsupported input"
   return normalized.appArg!
+
+elab "vcgen_graph " bytes:term : term => do
+  graphProposal "vcgen_graph" "CFG.analyze" (← `(CFG.discover $bytes:term))
+
+/-- Explicit static bounds affect discovery only. The proposed graph must still
+be checked against the same profile and exact bytes by CFG.checkWith_sound. -/
+elab "vcgen_graph_with " profile:term:max bytes:term : term => do
+  graphProposal "vcgen_graph_with" "CFG.analyzeWith" (← `(CFG.discoverWith $profile:term $bytes:term))
 
 /-- Propose a successor index and prove its bound and actual generated RIP
 in the kernel. This tactic supplies no instruction semantics or invariant. -/

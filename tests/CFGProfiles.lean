@@ -351,14 +351,10 @@ namespace Padding
 def bytes : List Byte := [0xc3] ++
   (List.replicate 6 [0x66,0x0f,0x1f,0x84,0,0,0,0,0]).flatten ++
   [0x66,0x0f,0x1f,0x44,0,0, 0x66,0x0f,0x1f,0x44,0,0, 0xc3]
-def graph : CFG.Graph := CFG.annotate
-  (⟨0, .legacy .ret, false, 0⟩ ::
-    (List.range 6).map (fun i => ⟨i * 9 + 1, .nop .nine, false, 0⟩) ++
-    [⟨55, .nop .six, false, 0⟩, ⟨61, .nop .six, false, 0⟩, ⟨67, .legacy .ret, false, 0⟩])
+def graph : CFG.Graph := vcgen_graph_with roomy bytes
 abbrev entry : graph.Index := ⟨0, by decide⟩
 
 theorem valid : CFG.Valid bytes graph roomy := CFG.checkWith_sound (by decide)
-example : CFG.analyzeWith roomy bytes = .ok graph := by rfl
 example : CFG.checkWith roomy bytes ⟨[⟨0, .legacy .ret, true, 0⟩], 0⟩ = false := by decide
 example : CFG.checkWith roomy bytes { graph with nodes := graph.nodes.take 9 } = false := by decide
 example : CFG.checkWith roomy (bytes.set 67 0x90) graph = false := by decide

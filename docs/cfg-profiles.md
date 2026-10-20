@@ -25,10 +25,13 @@ adapters consume the profile-indexed validity proof.
 
 The only propagation outside generic CFG/VCG is
 `Sequential.code_fetch_transport_of_bound`; the original
-`code_fetch_transport` keeps its 64-byte premise. Legacy artifact import,
-`vcgen_graph`, and the 32-index successor tactic keep their existing limits.
-Larger clients select the explicit checker/discovery API and supply checked
-graph data; this does not enlarge those frontends or task admission.
+`code_fetch_transport` keeps its 64-byte premise. `vcgen_graph_with profile bytes`
+proposes graph data using the explicit discovery profile, so clients need no
+handwritten instruction table. They must still prove `CFG.Valid bytes graph profile`
+with the production checker. `vcgen_graph` and the 32-index successor tactic
+retain their default limits; larger successors can use `vcgen_next_at` with an
+explicit index. Artifact import and task admission have their own documented
+profiles and are not enlarged by these proof helpers.
 
 These caps govern structural admission, not execution fuel, dynamic loop rank,
 packet decoding, source inputs, compiler options, or task registration. Larger
