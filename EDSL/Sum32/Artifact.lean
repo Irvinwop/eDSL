@@ -69,74 +69,8 @@ def legacyLiteral : X86.Instruction → String
   | .mov32 register value => s!"(.mov32 {registerLiteral register} {value.toNat})"
   | .syscall => ".syscall" | .ret => ".ret"
 
-def instructionLiteral : Sequential.Instruction → String
-  | .logicalReg32 operation destination source prefixed =>
-    Sequential.Literals.instruction (.logicalReg32 operation destination source prefixed)
-  | .logicalImm32 operation destination immediate prefixed =>
-    Sequential.Literals.instruction (.logicalImm32 operation destination immediate prefixed)
-  | .cmpImm64 left immediate => Sequential.Literals.instruction (.cmpImm64 left immediate)
-  | .addImm32 destination immediate prefixed =>
-    Sequential.Literals.instruction (.addImm32 destination immediate prefixed)
-  | .inc32 destination prefixed => Sequential.Literals.instruction (.inc32 destination prefixed)
-  | .negReg32 destination prefixed => Sequential.Literals.instruction (.negReg32 destination prefixed)
-  | .bswapReg64 destination => Sequential.Literals.instruction (.bswapReg64 destination)
-  | .shrOne64 destination => Sequential.Literals.instruction (.shrOne64 destination)
-  | .legacy instruction => s!"(.legacy {legacyLiteral instruction})"
-  | .test32 left right prefixed => Sequential.Literals.instruction (.test32 left right prefixed)
-  | .cmp32 left right prefixed => Sequential.Literals.instruction (.cmp32 left right prefixed)
-  | .cmpReg8 left right prefixed => Sequential.Literals.instruction (.cmpReg8 left right prefixed)
-  | .subReg32 destination source prefixed =>
-    Sequential.Literals.instruction (.subReg32 destination source prefixed)
-  | .movzxReg8 destination source prefixed =>
-    Sequential.Literals.instruction (.movzxReg8 destination source prefixed)
-  | .movzxMem8 destination address prefixed =>
-    Sequential.Literals.instruction (.movzxMem8 destination address prefixed)
-  | .cmpMemImm8 address immediate => Sequential.Literals.instruction (.cmpMemImm8 address immediate)
-  | .cmpMemReg8 address source => Sequential.Literals.instruction (.cmpMemReg8 address source)
-  | .cmpMemReg32 address source => Sequential.Literals.instruction (.cmpMemReg32 address source)
-  | .movSignImm32 destination immediate => Sequential.Literals.instruction (.movSignImm32 destination immediate)
-  | .endbr64IbtDisabled => Sequential.Literals.instruction .endbr64IbtDisabled
-  | .nop encoding => Sequential.Literals.instruction (.nop encoding)
-  | .xorSelf32 register => s!"(.xorSelf32 {registerLiteral register})"
-  | .test64 left right => s!"(.test64 {registerLiteral left} {registerLiteral right})"
-  | .cmp64 left right => s!"(.cmp64 {registerLiteral left} {registerLiteral right})"
-  | .addMem32 destination address =>
-    s!"(.addMem32 {registerLiteral destination} {addressLiteral address})"
-  | .addMem64 destination address =>
-    s!"(.addMem64 {registerLiteral destination} {addressLiteral address})"
-  | .movReg32 destination source =>
-    s!"(.movReg32 {registerLiteral destination} {registerLiteral source})"
-  | .movReg64 destination source =>
-    s!"(.movReg64 {registerLiteral destination} {registerLiteral source})"
-  | .cmovReg64 condition destination source =>
-    s!"(.cmovReg64 {Sequential.Literals.condition condition} " ++
-      s!"{registerLiteral destination} {registerLiteral source})"
-  | .cmovReg32 condition destination source prefixed =>
-    s!"(.cmovReg32 {Sequential.Literals.condition condition} " ++
-      s!"{registerLiteral destination} {registerLiteral source} {prefixed})"
-  | .lea64 destination address =>
-    s!"(.lea64 {registerLiteral destination} {addressLiteral address})"
-  | .addReg64 destination source =>
-    s!"(.addReg64 {registerLiteral destination} {registerLiteral source})"
-  | .logicalReg64 operation destination source =>
-    Sequential.Literals.instruction (.logicalReg64 operation destination source)
-  | .xchgReg64 left right =>
-    s!"(.xchgReg64 {registerLiteral left} {registerLiteral right})"
-  | .xchgRax64 other => s!"(.xchgRax64 {registerLiteral other})"
-  | .loadMem32 destination address =>
-    s!"(.loadMem32 {registerLiteral destination} {addressLiteral address})"
-  | .storeMem32 address source =>
-    s!"(.storeMem32 {addressLiteral address} {registerLiteral source})"
-  | .loadMem64 destination address =>
-    s!"(.loadMem64 {registerLiteral destination} {addressLiteral address})"
-  | .storeMem64 address source =>
-    s!"(.storeMem64 {addressLiteral address} {registerLiteral source})"
-  | .addImm64 register value => s!"(.addImm64 {registerLiteral register} {value.toNat})"
-  | .inc64 register => s!"(.inc64 {registerLiteral register})"
-  | .dec64 register => s!"(.dec64 {registerLiteral register})"
-  | .je value => s!"(.je {value.toNat})"
-  | .jcc condition value => s!"(.jcc {Sequential.Literals.condition condition} {value.toNat})"
-  | .jmp value => s!"(.jmp {value.toNat})"
+def instructionLiteral : Sequential.Instruction → String :=
+  Sequential.Literals.instruction
 
 def nodeLiteral (node : Node) : String :=
   s!"⟨{node.offset}, {instructionLiteral node.instruction}⟩"

@@ -129,6 +129,7 @@ import EDSL.Corpus.V1.ParityCertificates
 import EDSL.Corpus.V1.RotationCertificates
 import EDSL.X86.Sequential.Rotate
 import EDSL.WordMath.Rotation
+import EDSL.X86.Sequential.Low8
 import EDSL.X86.Sequential.ShiftOne
 import EDSL.X86.Sequential.ParityISA
 import EDSL.WordMath.Parity

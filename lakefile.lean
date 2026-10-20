@@ -143,3 +143,15 @@ lean_lib RotationTests where
   roots := #[`tests.SequentialRotate, `tests.RotateAudit, `tests.RotationBodies,
     `tests.RotationResources, `tests.GradingRotation]
   moreLeanArgs := #["-DautoImplicit=false"]
+
+-- Partial-byte results through the shared machine, VCG and current resources.
+lean_lib Low8Tests where
+  roots := #[`tests.SequentialLow8, `tests.Low8Audit]
+  moreLeanArgs := #["-DautoImplicit=false"]
+
+-- Explicit larger bounds and preservation of the original default profile.
+lean_lib CFGProfileTests where
+  roots := #[`tests.CFGProfiles, `tests.CFG, `tests.VCGen, `tests.VCGenCutpoints,
+    `tests.VCGenCompactLoop, `tests.VCGenPolicy, `tests.VCGenReflection,
+    `tests.BufferCallVCGen]
+  moreLeanArgs := #["-DautoImplicit=false"]

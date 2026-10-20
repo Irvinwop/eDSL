@@ -92,13 +92,14 @@ def Plan.cost (plan : Plan) (elements : Nat) : Nat :=
 theorem clearTarget_some {instruction : SeqInstruction} {register : Register}
     (cleared : clearTarget instruction = some register) :
     instruction = .xorSelf32 register ∨ instruction = .legacy (.mov32 register 0) := by
-  cases instruction with
-  | xorSelf32 destination =>
+  cases instruction <;> simp only [clearTarget] at cleared
+  all_goals try { cases cleared }
+  case xorSelf32 destination =>
     have same : destination = register := Option.some.inj cleared
     subst destination
     exact Or.inl rfl
-  | legacy old =>
-    cases old <;> simp only [clearTarget] at cleared
+  case legacy old =>
+    cases old <;> simp only at cleared
     all_goals try { cases cleared }
     split at cleared
     next zero =>
@@ -107,13 +108,6 @@ theorem clearTarget_some {instruction : SeqInstruction} {register : Register}
       subst zero
       exact Or.inr rfl
     next => cases cleared
-  | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
-  | addImm32 _ _ _ | inc32 _ _ | negReg32 _ _ | bswapReg64 _ | shrOne64 _
-  | movzxMem8 _ _ _ | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _
-  | movReg32 _ _ | movReg64 _ _ | movSignImm32 _ _ | cmovReg32 _ _ _ _ | cmovReg64 _ _ _ | lea64 _ _ | addReg64 _ _ | logicalReg64 _ _ _ | xchgReg64 _ _ | xchgRax64 _
-  | loadMem32 _ _ | storeMem32 _ _ | loadMem64 _ _ | storeMem64 _ _ | test32 _ _ _ | cmp32 _ _ _ | cmpMemImm8 _ _ | cmpMemReg8 _ _ | cmpMemReg32 _ _ | endbr64IbtDisabled | nop _ | test64 _ _ | cmp64 _ _
-  | addMem32 _ _ | addMem64 _ _ | addImm64 _ _ | inc64 _ | dec64 _ | je _ | jcc _ _ | jmp _ =>
-    cases cleared
 
 theorem Plan.prologue_rax {plan : Plan} (valid : plan.prologueValid = true) :
     ∃ node ∈ plan.prologue, clearTarget node.instruction = some .rax := by
