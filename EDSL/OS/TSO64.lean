@@ -7,6 +7,7 @@ import EDSL.OS.TSO64.Access
 import EDSL.OS.TSO64.Occurrences
 import EDSL.OS.TSO64.ReadHistory
 import EDSL.OS.TSO64.PublishedHistory
+import EDSL.OS.TSO64.WordProjection
 
 /-!
 Reusable checked fixed-world scheduler for the explicitly admitted Sequential

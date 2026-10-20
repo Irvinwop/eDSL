@@ -177,8 +177,11 @@ reads the newest actual publication/RMW, and installs that exact word.
 An empty initial writer map does not invent a pre-run writer for RAM. Arbitrary
 initial maps and nonempty queues remain explicit boundaries. Current resource
 validity and the original cell descriptor are separate premises; the ghost map
-grants no authority and performs no memory mutation. Source-language memory
-orders, synchronization and physical x86-TSO/Linux refinement remain separate.
+grants no authority and performs no memory mutation. The
+[managed-word trace refinement](word-tso-refinement.md) additionally preserves
+actual read/write labels against an independent uniform64 TSO fragment.
+Source-language orders, synchronization and physical x86-TSO/Linux refinement
+remain separate.
 
 The [instruction regressions](../tests/TSO64SharedCells.lean) execute real MOV,
 LOCK XADD and RET bytes in two checked actor contexts. They cover repeated equal

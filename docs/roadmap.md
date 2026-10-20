@@ -86,8 +86,10 @@ linearizability under interleaving. A callable spinlock with ordinary-store
 release needs ownership transfer and FIFO publication; an XCHG-release proof
 cannot supply that guarantee.
 
-Relate the implemented buffer models to published x86-TSO before claiming that
-correspondence. Add source acquire/release/relaxed orders, compare/exchange and
+The [managed-word trace refinement](word-tso-refinement.md) covers an independent
+uniform64 memory fragment. Extend it to a justified correspondence with the
+complete selected published x86-TSO model before claiming that broader result.
+Add source acquire/release/relaxed orders, compare/exchange and
 fences only with justified mappings. Extend private futex protocols beyond the
 current policies to blocking acquisition, multiple waiters, interruption,
 timeouts, cancellation and process sharing. Separate safety, enabledness,

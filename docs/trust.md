@@ -103,8 +103,10 @@ reservation; mixed histories can permit ordinary stores across zero-handle gaps.
 Separate atomic and mutex wrappers require explicit composition.
 
 FIFO buffers model own-store forwarding, delayed publication, drains and
-locked-operation stalls. They are not a proved refinement to published x86-TSO,
-physical processors or GNU C/C++ atomic orders. The full64 corpus fetch-add
+locked-operation stalls. The [managed-word projection](word-tso-refinement.md)
+proves finite trace inclusion in an independent uniform64 TSO memory fragment.
+Correspondence with the complete published x86-TSO model, physical processors
+or GNU C/C++ atomic orders remains open. The full64 corpus fetch-add
 contract additionally uses a finite closed cohort, excludes foreign RMWs and
 requires current managed resources. Pending calls, arbitrary peers and general
 pending stores are outside that certificate profile.
