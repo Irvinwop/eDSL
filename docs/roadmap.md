@@ -11,15 +11,16 @@ for present support and [coverage](coverage.md) for the relevant APIs.
 
 Expand reusable verification against the unchanged
 [40-function GCC/Clang corpus](compiler-corpus.md). Current conditional coverage
-is **13/40 functions and 26/80 artifacts**, including **one distinct concurrent
+is **16/40 functions and 32/80 artifacts**, including **one distinct concurrent
 function** under the managed closed-batch model. Both compiler outputs must
 meet the independent contract before a function counts. Compilation, extraction,
 decoding and native tests are separate evidence.
 
-The next selected targets are `c_parity_loop` and `c_rotl64`. Neither has accepted
-corpus coverage. Mathematical helpers alone do not certify their bodies: each
-needs exact instruction/count/flag semantics, independent bit mathematics,
-shared VCG proofs, current-resource admission and complete final-file binding.
+The next synchronization targets are `c_atomic_load_acquire64` and
+`c_atomic_store_release64`. The shared machine trace refinement and
+[C23 atomic event constraints](c23-atomic-events.md) are foundations; these
+functions still need actual source-to-machine ordering, coherent read-from
+origins, suitable read/write authority and complete final-file binding.
 The [blocker report](corpus-blockers.md) identifies later instruction, memory
 and synchronization gaps. Keep the frozen inputs and denominator unchanged;
 new configurations require a new corpus version.

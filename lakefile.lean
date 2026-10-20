@@ -101,6 +101,11 @@ lean_lib ManagedQueue64Tests where
   roots := #[`tests.ManagedQueue64, `tests.TSO64SharedCells, `tests.TSO64ReadSource, `tests.TSO64PublishedWriters, `tests.TSOWordProjection]
   moreLeanArgs := #["-DautoImplicit=false"]
 
+-- Source atomic event graphs remain separate from machine scheduling.
+lean_lib C23AtomicTests where
+  roots := #[`tests.C23AtomicEvents, `tests.C23MessagePassing]
+  moreLeanArgs := #["-DautoImplicit=false"]
+
 -- Cache input-traced byte-scan regressions alongside production proofs.
 lean_lib BoundedScanTests where
   roots := #[`tests.SequentialByteComparison, `tests.BufferCallResources,

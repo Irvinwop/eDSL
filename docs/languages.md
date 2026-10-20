@@ -52,6 +52,10 @@ The current x86-64 userspace profiles are described in the
 
 ## 3. GNU C23
 
+The implemented [atomic event-graph fragment](c23-atomic-events.md) provides
+scoped source ordering and coherence constraints. It supplies neither a GNU C
+frontend nor a machine-to-source preservation theorem.
+
 A future GNU C23 domain must pin the language text, compiler revision, extension
 set, layout and semantic options associated with `-std=gnu23`. Its obligations
 include:

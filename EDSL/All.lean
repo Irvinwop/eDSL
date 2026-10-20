@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 import EDSL
 import EDSL.X86.VCGen.Examples
 import EDSL.Semantics
+import EDSL.Concurrency.C23Atomic
 import EDSL.Examples.Increment
 import EDSL.Examples.Compiler.Increment
 import EDSL.Examples.Compiler.MemoryWitness

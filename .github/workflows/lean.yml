@@ -51,7 +51,7 @@ jobs:
       # Always invoke Lake: its input traces invalidate changed modules.
       # Runtime checks, explicit audits and fresh production replay still run.
       - name: Build pinned Lean project
-        run: lake build EDSL.All edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-futex-predicate edsl-certify-sum32 edsl-cfg-import edsl-grade edsl-grade-call-stack edsl-grade-call-memory64 edsl-grade-call-memory-loop64 edsl-proof-export edsl-certify-store-return32 edsl-certify-store-load64 edsl-certify-counted-store64 edsl-certify-counted-store64-clang GradingFixtures VerificationTests UnaryTests PopcountTests AverageTests ParityTests RotationTests Low8Tests ByteEqualityTests CFGProfileTests AtomicAccess64Tests BoundedScanTests IndexSearchTests ByteComparisonTests WholeQWordTests ManagedQueue64Tests
+        run: lake build EDSL.All edsl-certify edsl-certify-process edsl-certify-counter edsl-certify-mutex-worker edsl-certify-futex edsl-certify-futex-client edsl-certify-futex-predicate edsl-certify-sum32 edsl-cfg-import edsl-grade edsl-grade-call-stack edsl-grade-call-memory64 edsl-grade-call-memory-loop64 edsl-proof-export edsl-certify-store-return32 edsl-certify-store-load64 edsl-certify-counted-store64 edsl-certify-counted-store64-clang GradingFixtures VerificationTests UnaryTests PopcountTests AverageTests ParityTests RotationTests Low8Tests ByteEqualityTests CFGProfileTests AtomicAccess64Tests BoundedScanTests IndexSearchTests ByteComparisonTests WholeQWordTests ManagedQueue64Tests C23AtomicTests
       - name: ISA, ELF, OS contracts and rejection properties
         run: |
           lake env lean -DwarningAsError=true tests/X86.lean
