@@ -85,18 +85,26 @@ conditional coverage to **12/40 functions and 24/80 artifacts**.
 The subsequent [unsigned-average milestone](unsigned-average.md) adds both
 unchanged row-08 outputs using shared logical-shift semantics, independent
 unbounded natural arithmetic and the existing scalar VCG/resource constructors.
-The average aggregate gate and fresh replay passed. Current conditional
-coverage is **13/40 functions and 26/80 artifacts**;
-**27 functions / 54 artifacts** remain. One distinct concurrent function
-is certified under the existing managed model. Earlier probe
-counts below describe their labeled historical baselines.
+The average aggregate gate and fresh replay passed. At that checkpoint,
+conditional coverage was **13/40 functions and 26/80 artifacts**, leaving
+**27 functions / 54 artifacts**.
 
-The next sequence is row 12 `c_parity_loop`, then row 09 `c_rotl64`.
-These need further shared integer operations, exact count/flag behavior and
-bit mathematics, followed by proofs of each unchanged GCC/Clang body and its
-task, current-resource and final-file contracts. Mathematical helpers alone
-certify none of these binaries. Reuse the checker, scalar constructors and
-sparse loop bridge where applicable.
+The subsequent [parity](parity.md) and [rotation](rotate.md) milestones add both
+unchanged row-12 `c_parity_loop` and row-09 `c_rotl64` outputs. Their combined
+full-project/corpus gate and fresh kernel replay passed locally. Current locally
+accepted conditional coverage is **15/40 functions and 30/80 artifacts**;
+**25 functions / 50 artifacts** remain. One distinct concurrent function is
+certified under the existing managed model.
+The latest [measurement](../corpus/measurements/parity-rotation-v1/) records these
+results; earlier reports retain their historical counts. Earlier probe counts
+below describe their labeled historical baselines.
+
+The next family is row 20 `c_bytes_equal`, reusing paired-buffer snapshots,
+current input loans and canonical [low8 Boolean results](low8-results.md), with
+explicit [larger CFG bounds](cfg-profiles.md). Complete-list equality must be
+proved for each unchanged GCC/Clang body and composed with its current-resource
+and final-file contracts. No final equality binary certificate is accepted yet.
+Reuse the checker, paired-buffer rules and sparse loop bridge where applicable.
 Further batches include shifts and predicates with independently undefined
 flags, multiplication, vector/struct effects, and atomic load/store/lock
 histories. CFG admission alone certifies none of these contracts.

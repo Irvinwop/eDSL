@@ -13,6 +13,11 @@ for supported capabilities, and [trust](trust.md) for the assumptions behind a
 proof. Source-language frontends and a privileged kernel target remain future
 work.
 
+The latest [parity and rotation measurement](../corpus/measurements/parity-rotation-v1/)
+records locally accepted conditional coverage of **15/40 functions and 30/80
+artifacts**, including one concurrent function. Commit-specific validation is
+available in [GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
+
 ## Verify a program
 
 | Task | Start here |
@@ -70,8 +75,9 @@ These examples reuse the library under their stated profiles:
 
 - Scalar contracts: [comparisons](compiler-comparison-claims.md),
   [arithmetic](compiler-arithmetic.md), [clamp32](compiler-clamp32.md),
-  [unary functions](unary-functions.md), [popcount](popcount.md) and
-  [unsigned average](unsigned-average.md) and [parity](parity.md).
+  [unary functions](unary-functions.md), [popcount](popcount.md),
+  [unsigned average](unsigned-average.md), [parity](parity.md) and
+  [rotation](rotate.md).
 - Read-only loops: [byte scans](bounded-byte-scans.md),
   [first-match searches](first-match-searches.md),
   [paired byte comparison](paired-byte-comparison.md), [sum32](sum32.md),

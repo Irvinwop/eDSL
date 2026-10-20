@@ -1,11 +1,33 @@
-# Register ROL64 by CL foundations
+# Full64 rotation and reusable ROL semantics
+
+The registered `rotateLeft64` task specifies a left rotation independently by
+the origin of each output bit. Full64 RDI supplies the value; low32 RSI modulo
+64 supplies the count, with arbitrary upper32 RSI. Every value and count is
+admitted. The unchanged frozen `c_rotl64` outputs have complete named-file
+certificates through `EDSL.Corpus.V1.RotationCertificates`:
+
+| Artifact | Virtual address | Bytes | Modeled retired instructions |
+| --- | --- | ---: | ---: |
+| GCC | `0x402de0` | 13 | 5 |
+| Clang | `0x401350` | 9 | 4 |
+
+The counts include RET and GCC ENDBR64; they are execution conclusions, not
+physical timing or minimum-cost claims. Shared generated-WP proofs establish
+the independent result for every undefined-flag choice stream. The existing
+scalar and ELF constructors retain full RAM and permissions, the original
+caller, current code authority, ABI obligations and every-prefix read authority.
+`RotationTests` includes body, resource, instruction and grading regressions.
+The [measurement record](../corpus/measurements/parity-rotation-v1/) distinguishes
+the full local gate, installed packet checks and publication CI.
+
+## Shared instruction foundation
 
 `EDSL.X86.Sequential.Rotate` supplies reusable local-machine proofs for
 `Instruction.rolCL64 destination`. The production authenticated decoder,
 executor, shared execution engine, CFG discovery/checking, bounded VCG,
 whole-memory frames, return proofs and current-resource adapters consume this
 same instruction. No program-specific evaluator or second VCG is introduced.
-This is ISA support, with no corpus acceptance or exact-body certificate credit.
+The instruction foundation can be reused without importing a corpus client.
 
 ## Encoding and semantics
 
@@ -121,8 +143,10 @@ production proof dependencies, including the shared resource bridge.
 Lean is pinned to 4.35.0 with warnings as errors. The focused validation
 checks the production import closure and instruction tests, audits theorem
 dependencies, and replays the resulting objects in a fresh Lean kernel.
-This scope does not establish full-corpus acceptance, native conformance,
-or a program-level certificate.
+Those focused checks cover the instruction foundation. The registered client
+and complete-file certificate above additionally require the body, resource,
+packet and aggregate checks recorded in the measurement. Native conformance
+and physical CPU refinement remain separate obligations.
 
 ## Primary references
 

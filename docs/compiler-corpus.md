@@ -71,14 +71,30 @@ record; every earlier measurement retains its historical score and evidence.
 
 The [unsigned-average milestone](unsigned-average.md) adds both unchanged
 row-08 `c_average_u64` outputs. The final aggregate gate and fresh replay passed;
-current conditional coverage is **13/40 functions and 26/80 artifacts**,
+conditional coverage at that milestone reached **13/40 functions and 26/80 artifacts**,
 including one concurrent function. The
 [average measurement](../corpus/measurements/unsigned-average-v1/) retains the
 preceding reports as history. Every
 full64 argument pair is admitted; the contract uses the floor of the unbounded
 natural sum, including machine-word overflow. Shared SHR semantics, mathematical
 identities and the existing scalar VCG/resource/final-file path supply the
-proof. Parity and rotation are the next corpus-selected blockers.
+proof.
+
+The [parity](parity.md) and [rotation](rotate.md) milestones add both unchanged
+row-12 `c_parity_loop` and row-09 `c_rotl64` outputs. The combined
+full-project/corpus gate and fresh kernel replay passed locally. Current locally
+accepted conditional coverage is **15/40 functions and 30/80 artifacts**, including
+one distinct concurrent function; **25 functions / 50 artifacts** remain.
+The latest
+[parity and rotation measurement](../corpus/measurements/parity-rotation-v1/)
+records these results; earlier measurements retain their own counts and evidence.
+
+The next corpus family is row-20 `c_bytes_equal`. It can reuse paired snapshots,
+current input loans and [low8 Boolean results](low8-results.md), with explicit
+[larger CFG bounds](cfg-profiles.md). Final certificates must compose independent
+complete-list equality, proofs of the unchanged compiler bodies, current
+resources and complete-file binding. This family has no accepted final-binary
+coverage.
 
 ## What is frozen
 
