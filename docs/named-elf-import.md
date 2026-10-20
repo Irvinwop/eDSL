@@ -18,8 +18,38 @@ Suffix components must be simple ASCII identifiers; every component is
 validated and quoted under the audited `EDSL.GeneratedCFG` prefix. Raw paths
 and names cannot inject Lean source.
 
-CLI names use UTF8 bytes; `ELF.FunctionCandidate.extract` also accepts arbitrary
-nonempty NUL-free `List Byte` names.
+CLI names use UTF8 bytes; `ELF.FunctionCandidate.extract` and `extractWith`
+also accept arbitrary nonempty NUL-free `List Byte` names.
+
+## Select explicit static bounds
+
+Named imports default to at most 64 function bytes and 32 instructions. Supply
+both bounds when a complete function needs more space:
+
+```sh
+lake exe edsl-cfg-import --elf-symbol function_name --namespace MyProject.Routine \
+  --max-bytes 96 --max-nodes 48 program.elf artifacts/Imported.lean
+```
+
+These options precede the two paths and may appear in any order. Each option
+may occur once; missing values, zero, negative or nondecimal integers, duplicate
+options, and profiles whose byte cap cannot satisfy the decoder's no-wrap
+condition are usage errors. The namespace and profile options require
+`--elf-symbol`; raw imports and the legacy `--elf SPAN_BYTES` mode retain their
+existing behavior and limits.
+
+The caller selects both static caps. Neither the file's declared size nor CFG
+discovery chooses them. Increasing only the byte cap can still fail the node
+cap. A cap never truncates a function at RET or omits its trailing bytes.
+The emitted `observedProfile` records both chosen caps. Named-file checking,
+`binding`, CFG discovery, `checked` and `valid` all use that same profile. See
+[explicit ELF bounds](elf-function-bounds.md) for the library APIs.
+
+Static caps do not increase execution fuel, proof-packet limits or kernel
+budgets. The current `PureCall.ELFCertificate` and caller-resource convenience
+interfaces described below still use the default byte bound; explicit-profile
+imports expose the generalized binding and CFG interfaces without extending
+those certificate constructors.
 
 ## Prove the independent behavior
 
@@ -28,8 +58,9 @@ Follow [Verify a new function](verify-a-function.md) and the
 the generated module through your Lean project's normal module path. Its
 `EDSL.GeneratedCFG.artifacts.Imported` declarations provide:
 
-- `observedBytes`, `observedGraph`, `checked`, `valid`: exact decoded code and
-  the production CFG validity theorem. Reuse these directly with the VCG.
+- `observedProfile`, `observedBytes`, `observedGraph`, `checked`, `valid`: exact
+  decoded code and the production CFG validity theorem under the selected
+  profile. Reuse these directly with the matching VCG profile.
 - `observedELF`, `observedName`, `observedInput`, `inputChecked`: complete-file,
   requested-name and declared-function-extent binding for an ELF certificate.
 - `binding`, `loadedCode`: existing metadata/layout and abstract installed-code
@@ -88,7 +119,8 @@ generated `Named` dependency.
 ## Scope and failure behavior
 
 Every static and dynamic symbol table and its complete linked strings are
-retained and checked by `ELF.FunctionInput.check`. A second requested-name
+retained and checked by `ELF.FunctionInput.checkWith` under the selected cap.
+A second requested-name
 occurrence, even an undefined dynamic alias, rejects. No table, zero-size
 inference or trailing function byte is silently dropped. CFG discovery checks
 the complete declared extent against the existing production checker.
@@ -97,8 +129,10 @@ The current profile is ELF64 little-endian x86-64 ET_EXEC, at most 65,536 file
 bytes and 16 program headers, ordinary section numbering, exactly one static
 symbol table and at most one dynamic table. Selection requires one global
 defined STT_FUNC, an RX PROGBITS section, consistent executable LOAD mapping,
-and a nonzero declared extent of at most 64 bytes. The read-only CFG profile
-permits at most 32 instructions and requires instruction/branch closure.
+and a nonzero complete declared extent. The byte and instruction caps default
+to 64 and 32 respectively; named imports can select explicit caps as above.
+The read-only CFG profile requires instruction/branch closure regardless of
+the selected limits. Whole-file and metadata limits remain unchanged.
 
 Sequential verification assumes stable ordinary RAM, absent asynchronous or
 concurrent interference, supported canonical addresses and CET disabled.
@@ -111,13 +145,21 @@ input; 5 means IO failure; 1 means generated kernel checking failed. Failure,
 timeout and unsupported code establish no defect. A failed kernel check retains
 candidate source for inspection; only exit 0 reports a checked import. The
 command owns its kernel child's shared lock, so do not wrap it in an outer lock.
-Emitted named imports use default proof budgets.
+Emitted named imports use unchanged proof budgets for every static profile.
 
 Run the focused real-ELF regression and fresh-kernel check with
 `bash scripts/check-named-elf-import.sh`. It executes the independent parser and
 return-slot regressions, imports two differently named functions together, checks
 an explicit namespace override, and proves the independent functional/current-call
-contract above. It retains commands, actual statuses, positive and synthetic
-negative results, plus closing source/provider/tool pins under an ignored unique
-evidence directory. Compiler output must fit the documented profile; the gate
-never executes the ELF.
+contract above. It also links a project-owned 68-byte assembly function: the
+default profile rejects it, a larger byte cap alone still rejects its 34 nodes,
+and explicit 68-byte/40-node admission succeeds. The
+[profiled template](../tests/templates/ProfiledNamedELF.lean) checks the exact
+complete text and an independent constant-result/continuation contract for a
+concrete modeled loaded call. Mutating the selected suffix or the literal ELF
+suffix beyond byte 64 rejects the stale generated proof even after an early RET.
+The gate checks invalid and mixed-mode options and replays the combined positive
+generated-module closure in a fresh kernel. It retains commands, actual statuses,
+positive and synthetic negative results, plus closing source/frozen/provider/tool/
+object pins under an ignored unique evidence directory. Compiler output must fit
+the documented profile; the gate never executes native ELF code.

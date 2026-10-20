@@ -23,10 +23,10 @@ private def decodeFailure (offset : Nat) (error : X86.Error) : Failure :=
   | .inaccessibleInstruction _ => malformed s!"incomplete instruction at offset {offset}"
   | _ => unsupported s!"sequential decoder at offset {offset}: {reprStr error}"
 
-private def discoveryFailure : CFG.DiscoveryError → Failure
+private def discoveryFailure (profile : CFG.Profile) : CFG.DiscoveryError → Failure
   | .empty => malformed "empty raw function window"
-  | .byteLimit => unsupported "function span exceeds 64 bytes"
-  | .instructionLimit => unsupported "function span exceeds 32 static instructions"
+  | .byteLimit => unsupported s!"function span exceeds {profile.maxBytes} bytes"
+  | .instructionLimit => unsupported s!"function span exceeds {profile.maxNodes} static instructions"
   | .decode offset error => decodeFailure offset error
   | .truncated offset => malformed s!"incomplete instruction at offset {offset}"
   | .unsupportedInstruction offset => unsupported s!"operation at offset {offset} is outside the read-only CFG profile"
@@ -56,7 +56,7 @@ private def analyze (file : List Byte) (span : Option Nat) : Except Failure Cand
       if !ELF.checkEntry file image bytes then
         throw (unsupported "entry span is not a complete executable file-backed interval")
       pure (bytes, some image)
-  let graph ← (CFG.analyze bytes).mapError discoveryFailure
+  let graph ← (CFG.analyze bytes).mapError (discoveryFailure CFG.defaultProfile)
   let source := match image with
     | none => CFG.Artifact.rawSource bytes graph
     | some image => CFG.Artifact.elfSource file bytes image graph
@@ -71,11 +71,12 @@ private def symbolFailure : ELF.FunctionCandidate.Error → Failure
   | .duplicateName => unsupported "selected symbol has multiple static or dynamic occurrences"
   | .rejected => unsupported "named complete function or ELF metadata failed production admission"
 
-private def analyzeNamed (data : ByteArray) (name namespaceSuffix : String) : Except Failure Candidate := do
+private def analyzeNamed (profile : CFG.Profile) (data : ByteArray)
+    (name namespaceSuffix : String) : Except Failure Candidate := do
   let requested := ELF.FunctionCandidate.fileBytes name.toUTF8
-  let input ← (ELF.FunctionCandidate.extract data requested).mapError symbolFailure
-  let graph ← (CFG.analyze input.bytes).mapError discoveryFailure
-  let source ← (ELF.FunctionCandidate.source namespaceSuffix
+  let input ← (ELF.FunctionCandidate.extractWith profile.maxBytes data requested).mapError symbolFailure
+  let graph ← (CFG.analyzeWith profile input.bytes).mapError (discoveryFailure profile)
+  let source ← (ELF.FunctionCandidate.sourceWithProfile profile namespaceSuffix
     (ELF.FunctionCandidate.fileBytes data) requested input graph).mapError malformed
   return ⟨source, input.bytes.length,
     graph.nodes.length, (graph.nodes.filter (·.cutpoint)).length⟩
@@ -90,30 +91,84 @@ private def inferredNamespace (output : String) : Except Failure String := do
 private inductive Selection where
   | raw
   | entry (span : Nat)
-  | symbol (name : String) (namespaceSuffix : Option String)
+  | symbol (name : String) (namespaceSuffix : Option String) (profile : CFG.Profile)
+
+private structure NamedOptions where
+  name : Option String := none
+  namespaceSuffix : Option String := none
+  maxBytes : Option Nat := none
+  maxNodes : Option Nat := none
+
+private def positiveOption (flag value : String) : Except String Nat := do
+  let some number := value.toNat? | throw s!"{flag} requires a positive decimal integer"
+  if number = 0 then throw s!"{flag} requires a positive decimal integer"
+  return number
+
+/-- Options precede the two paths and may occur in any order. Every selected
+cap is explicit caller configuration; neither the file nor discovery chooses it. -/
+private def namedArguments (options : NamedOptions) : List String →
+    Except String (String × String × Selection)
+  | flag :: value :: rest => do
+    if flag == "--elf-symbol" then
+      if options.name.isSome then throw "duplicate --elf-symbol"
+      if value.startsWith "--" then throw "--elf-symbol requires a name"
+      namedArguments { options with name := some value } rest
+    else if flag == "--namespace" then
+      if options.namespaceSuffix.isSome then throw "duplicate --namespace"
+      if value.startsWith "--" then throw "--namespace requires a suffix"
+      namedArguments { options with namespaceSuffix := some value } rest
+    else if flag == "--max-bytes" then
+      if options.maxBytes.isSome then throw "duplicate --max-bytes"
+      let number ← positiveOption flag value
+      namedArguments { options with maxBytes := some number } rest
+    else if flag == "--max-nodes" then
+      if options.maxNodes.isSome then throw "duplicate --max-nodes"
+      let number ← positiveOption flag value
+      namedArguments { options with maxNodes := some number } rest
+    else
+      if flag.startsWith "--" then throw s!"unsupported named-import option: {flag}"
+      if !rest.isEmpty || value.startsWith "--" then
+        throw "named import requires exactly INPUT OUTPUT after its options"
+      let some name := options.name | throw "profile and namespace options require --elf-symbol NAME"
+      let byteCap := options.maxBytes.getD CFG.defaultProfile.maxBytes
+      let nodeCap := options.maxNodes.getD CFG.defaultProfile.maxNodes
+      if bounded : byteCap + 15 ≤ 2^64 then
+        return (flag, value, .symbol name options.namespaceSuffix ⟨byteCap, nodeCap, bounded⟩)
+      else throw "--max-bytes exceeds the supported nonwrapping profile bound"
+  | _ => .error "named import requires option values and INPUT OUTPUT"
+
+private def selection (arguments : List String) : Except String (String × String × Selection) :=
+  match arguments with
+  | ["--elf", length, input, output] =>
+    match length.toNat? with
+    | some length => .ok (input, output, .entry length)
+    | none => .error "--elf requires a decimal span"
+  | flag :: _ =>
+    if flag ∈ ["--elf-symbol", "--namespace", "--max-bytes", "--max-nodes"] then
+      namedArguments {} arguments
+    else match arguments with
+      | [input, output] => .ok (input, output, .raw)
+      | _ => .error "unrecognized arguments"
+  | _ => .error "INPUT OUTPUT are required"
 
 def main (arguments : List String) : IO UInt32 := do
   let stderr ← IO.getStderr
-  let selected := match arguments with
-    | [input, output] => some (input, output, Selection.raw)
-    | ["--elf", length, input, output] => length.toNat?.map fun length => (input, output, Selection.entry length)
-    | ["--elf-symbol", name, input, output] => some (input, output, Selection.symbol name none)
-    | ["--elf-symbol", name, "--namespace", suffix, input, output] =>
-      some (input, output, Selection.symbol name (some suffix))
-    | _ => none
-  let some (input, output, selection) := selected | do
-    stderr.putStrLn "usage: edsl-cfg-import [--elf SPAN_BYTES | --elf-symbol NAME [--namespace NAME]] INPUT OBLIGATIONS.lean"
+  let selected := selection arguments
+  if let .error message := selected then
+    stderr.putStrLn message
+    stderr.putStrLn "usage: edsl-cfg-import [--elf SPAN_BYTES | --elf-symbol NAME [--namespace NAME] [--max-bytes N] [--max-nodes N]] INPUT OBLIGATIONS.lean"
     return 2
+  let .ok (input, output, selection) := selected | return 2
   try
     let raw ← IO.FS.readBinFile input
     let analyzed := match selection with
       | .raw => analyze (ELF.FunctionCandidate.fileBytes raw) none
       | .entry span => analyze (ELF.FunctionCandidate.fileBytes raw) (some span)
-      | .symbol name suffix => do
+      | .symbol name suffix profile => do
         let selectedNamespace ← match suffix with
           | some selected => pure selected
           | none => inferredNamespace output
-        analyzeNamed raw name selectedNamespace
+        analyzeNamed profile raw name selectedNamespace
     if let .error failure := analyzed then
       stderr.putStrLn failure.message
       return failure.status
