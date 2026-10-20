@@ -4,6 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.Grading.Driver
 import EDSL.Corpus.V1.RotationBodies
+import EDSL.Audit
 
 set_option autoImplicit false
 set_option warningAsError true
