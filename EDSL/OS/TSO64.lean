@@ -12,6 +12,7 @@ import EDSL.OS.TSO64.C23Projection.Origins
 import EDSL.OS.TSO64.C23Projection.StoreTrace
 import EDSL.OS.TSO64.C23Projection.AtomicTrace
 import EDSL.OS.TSO64.Return
+import EDSL.OS.TSO64.DrainClosure
 
 /-!
 Reusable checked fixed-world scheduler for the explicitly admitted Sequential

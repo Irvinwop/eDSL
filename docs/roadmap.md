@@ -19,8 +19,10 @@ decoding and native tests are separate evidence.
 The next synchronization targets are `c_atomic_load_acquire64` and
 `c_atomic_store_release64`. The shared machine trace refinement and
 [C23 atomic event constraints](c23-atomic-events.md) are foundations; these
-functions still need actual source-to-machine ordering, coherent read-from
-origins, suitable read/write authority and complete final-file binding.
+functions still need a complete machine call adapter, universal operational
+ordering and complete final-file binding. [Call contracts, finite publication
+and order weakening](atomic-call-contracts.md) provide reusable foundations;
+the existing trace verifier establishes legality only for checked finite runs.
 The [blocker report](corpus-blockers.md) identifies later instruction, memory
 and synchronization gaps. Keep the frozen inputs and denominator unchanged;
 new configurations require a new corpus version.

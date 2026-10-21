@@ -98,12 +98,13 @@ lean_lib WholeQWordTests where
 
 -- Current-authority publication and persistent per-worker store occurrences.
 lean_lib ManagedQueue64Tests where
-  roots := #[`tests.ManagedQueue64, `tests.TSO64SharedCells, `tests.TSO64ReadSource, `tests.TSO64PublishedWriters, `tests.TSOWordProjection, `tests.TSO64StoreIdentities, `tests.TSO64StoreTrace, `tests.TSO64AtomicTrace, `tests.ManagedRules]
+  roots := #[`tests.ManagedQueue64, `tests.TSO64SharedCells, `tests.TSO64ReadSource, `tests.TSO64PublishedWriters, `tests.TSOWordProjection, `tests.TSO64StoreIdentities, `tests.TSO64StoreTrace, `tests.TSO64AtomicTrace, `tests.ManagedRules, `tests.TSO64DrainClosure]
   moreLeanArgs := #["-DautoImplicit=false"]
 
 -- Source atomic event graphs remain separate from machine scheduling.
 lean_lib C23AtomicTests where
-  roots := #[`tests.C23AtomicEvents, `tests.C23MessagePassing, `tests.C23AtomicCheck]
+  roots := #[`tests.C23AtomicEvents, `tests.C23MessagePassing, `tests.C23AtomicCheck,
+    `tests.C23AtomicWeakening, `tests.AtomicInterface]
   moreLeanArgs := #["-DautoImplicit=false"]
 
 -- Cache input-traced byte-scan regressions alongside production proofs.

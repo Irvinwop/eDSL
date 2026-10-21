@@ -4,6 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.Concurrency.C23Atomic.Coherence
 import EDSL.Concurrency.C23Atomic.Check
+import EDSL.Concurrency.C23Atomic.Weakening
 
 /-!
 Finite atomic-only C23 event-graph constraints for relaxed/acquire/release

@@ -177,8 +177,11 @@ See [handles](atomic-handles.md) and [exchange](atomic-exchange.md).
 
 [Managed full64 loads and publication](managed-atomic-access64.md) recheck
 current handle/cell authority and retain reservation, metadata, permissions,
-unrelated bytes and live loans. This resource API does not yet extend the
-buffered scheduler or certify source acquire/release operations.
+unrelated bytes and live loans. The [buffered scheduler](managed-store-trace.md)
+uses these checks for managed accesses; source acquire/release preservation
+remains a separate obligation. [Atomic method foundations](atomic-call-contracts.md)
+provide independent call contracts, constructive finite queue closure and
+legality under order weakening, without adding a general machine call adapter.
 
 ## Mutable atomic-worker lifecycle
 
