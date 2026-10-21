@@ -5,6 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 import EDSL.Concurrency.CallTrace
 import EDSL.OS.TSO64History
 import EDSL.OS.TSO64.Access
+import EDSL.OS.TSO64.Return
 import EDSL.X86.Sequential.Return
 
 namespace EDSL.OS.FetchAddCalls64
@@ -125,76 +126,30 @@ def returnValue (result : TSO64.State × TSO64.Observation) : Option (Nat × Wor
   | .returned tid => result.1.workers[tid]?.map fun worker => (tid, worker.context.registers .rax)
   | _ => none
 
+private theorem return_origin_legacy {before : TSO64.State} {action : TSO64.Action}
+    {result : TSO64.State × TSO64.Observation} {tid : Nat} {value : Word}
+    (origin : TSO64.Return.ReturnOrigin before action result tid value) :
+    ReturnOrigin before action result tid value := by
+  obtain ⟨af, worker, output, observation, issued, live, running, _code, caller,
+    callerLive, callerRegion, _bounds, fetched, _effect, decoded, executed,
+    stepped, outcome, slot, read, installed, actualValue⟩ := origin
+  exact ⟨af, worker, output, observation, issued, live, running, caller,
+    callerLive, callerRegion, fetched, decoded, executed, stepped, outcome,
+    slot, read, installed, actualValue⟩
+
 theorem returned_origin {before : TSO64.State} {action : TSO64.Action}
     {after : TSO64.State} {tid : Nat} (valid : TSO64.WellFormed before)
     (success : TSO64.step before action = .ok (after, .returned tid)) :
     ∃ value, returnValue (after, .returned tid) = some (tid, value) ∧
       ReturnOrigin before action (after, .returned tid) tid value := by
-  cases TSO64.step_origin success with
-  | @ordinary tid af worker instruction result _ live running code caller fetched effect =>
-    have workerValid := valid.2 _ (List.mem_of_getElem? live)
-    have accesses := effect.accesses
-    cases effect with
-    | @intro pending observation supported bounds decoded reads queue actual finish =>
-      cases finish with
-      | @returned output _ outcome =>
-        have executed := actual
-        rw [Sequential.step_eq_execute _ decoded] at executed
-        have onlyRet := Sequential.execute_returned_only_ret executed outcome
-        subst instruction
-        cases queue with
-        | enqueued intent grant =>
-          simp [TSO64.storeIntent, Sequential.Instruction.storeIntent64,
-            Sequential.Instruction.storeIntent, X86.Instruction.storeIntent] at intent
-        | unchanged intent =>
-          obtain ⟨observed, actualAgain, authorized⟩ := accesses
-          have sameObservation := Except.ok.inj (actualAgain.symm.trans actual)
-          subst observed
-          have listed := Sequential.execute_reads executed
-          have current := authorized ⟨.stack, (TSO64.localCPU before worker).registers .rsp, 8⟩
-            (by rw [listed]; simp [Sequential.Instruction.operandReads])
-          obtain ⟨slot, _, target, borrowed⟩ := current.1
-          change (TSO64.localCPU before worker).registers .rsp = worker.resources.callerAddress at slot
-          have borrowedSlot : Borrowing.loadWord64 before.world.legacy.shared worker.resources.actor
-              worker.resources.caller.identifier worker.resources.callerAddress = .ok target := by
-            change Borrowing.loadWord64 before.world.legacy.shared worker.resources.actor
-              worker.resources.caller.identifier ((TSO64.localCPU before worker).registers .rsp) = .ok target at borrowed
-            rw [slot] at borrowed
-            exact borrowed
-          have loaded := (Borrowing.loadWord64_ok _ _ _ _ _ borrowedSlot).choose_spec.2.2
-          have localRead : readWord (TSO64.localCPU before worker).memory worker.resources.callerAddress = .ok target := by
-            rw [TSO64.local_original_caller valid workerValid]
-            exact readWord_of_loadQWord _ _ _ loaded
-          have installed : (TSO64.install before tid before.world
-              { worker with context := .ofCPU output, phase := .returned }).workers[tid]? =
-              some { worker with context := .ofCPU output, phase := .returned } :=
-            List.getElem?_set_self (List.getElem_of_getElem? live).1
-          refine ⟨output.registers .rax, ?_, af, worker, output, observation, rfl, live, running, caller, workerValid.1.2.1.1,
-            workerValid.1.2.2.1, fetched, decoded, executed, actual, outcome, slot,
-            ⟨target, borrowedSlot, localRead⟩, rfl, rfl⟩
-          change Option.map (fun worker : TSO64.Worker => (tid, worker.context.registers .rax))
-            (TSO64.install before tid before.world
-              { worker with context := .ofCPU output, phase := .returned }).workers[tid]? = _
-          rw [installed]
-          rfl
+  obtain ⟨value, response, origin⟩ := TSO64.Return.returned_origin valid success
+  exact ⟨value, response, return_origin_legacy origin⟩
 
 private theorem returnValue_sound {before : TSO64.State} {action : TSO64.Action}
     {result : TSO64.State × TSO64.Observation} {tid : Nat} {value : Word}
     (valid : TSO64.WellFormed before) (success : TSO64.step before action = .ok result)
     (accepted : returnValue result = some (tid, value)) : ReturnOrigin before action result tid value := by
-  cases observed : result.2 with
-  | returned actualTid =>
-    have shape : result = (result.1, .returned actualTid) := Prod.ext rfl observed
-    have actual : TSO64.step before action = .ok (result.1, .returned actualTid) := by
-      exact success.trans (congrArg Except.ok shape)
-    obtain ⟨actualValue, extracted, origin⟩ := returned_origin valid actual
-    rw [shape] at accepted
-    have same : (actualTid, actualValue) = (tid, value) :=
-      Option.some.inj (extracted.symm.trans accepted)
-    cases same
-    rw [shape]
-    exact origin
-  | ordinary _ | rmw _ _ | blocked _ | drained _ _ => simp [returnValue, observed] at accepted
+  exact return_origin_legacy (TSO64.Return.returnValue_sound valid success accepted)
 
 private theorem quiet_load {target cell} {before after : CheckedState target cell}
     {action : TSO64.Action} {observation : TSO64.Observation}

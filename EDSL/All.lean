@@ -73,6 +73,7 @@ import EDSL.X86.Sequential.CutpointsAccounting
 import EDSL.X86.VCGen
 import EDSL.X86.VCGen.Policy
 import EDSL.X86.VCGen.PureCall
+import EDSL.X86.VCGen.ManagedRules
 import EDSL.X86.VCGen.GradingExamples
 import EDSL.Stride32.Correctness
 import EDSL.Stride32.Accounting

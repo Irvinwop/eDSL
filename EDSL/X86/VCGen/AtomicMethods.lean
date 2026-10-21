@@ -187,7 +187,9 @@ theorem step_loan_read {before : OS.TSO64.State} {action : Action}
     (step_loan_contents valid success live _
       (Borrowing.qword_inside loan regionValid address fits offset bound))).1
 
-private theorem decode_ordinary {state : X86.State} {instruction : Sequential.Instruction}
+/-- Successful ordinary dispatch retains the actual sequential decoder result.
+Shared managed VC rules reuse this inversion without copying the dispatcher. -/
+theorem decode_ordinary {state : X86.State} {instruction : Sequential.Instruction}
     (decoded : OS.TSO64.decode state = .ok (.ordinary instruction)) :
     Sequential.decodeAt state = .ok instruction := by
   obtain ⟨byte, first⟩ := first_fetch decoded
@@ -706,7 +708,8 @@ theorem step_preserves {method : Method} {tid : Nat} {state : OS.TSO64.State} {p
         located, by simp [ownIssue],
         by rw [peer_event (action := .drain thread) different success]; simp, rfl⟩
 
-private theorem filterMap_cons (f : α → Option β) (head : α) (tail : List α) :
+private theorem filterMap_cons {α : Type _} {β : Type _}
+    (f : α → Option β) (head : α) (tail : List α) :
     (head :: tail).filterMap f = (f head).toList ++ tail.filterMap f := by
   cases present : f head <;> simp [present]
 

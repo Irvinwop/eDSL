@@ -11,6 +11,7 @@ import EDSL.OS.TSO64.WordProjection
 import EDSL.OS.TSO64.C23Projection.Origins
 import EDSL.OS.TSO64.C23Projection.StoreTrace
 import EDSL.OS.TSO64.C23Projection.AtomicTrace
+import EDSL.OS.TSO64.Return
 
 /-!
 Reusable checked fixed-world scheduler for the explicitly admitted Sequential
