@@ -76,6 +76,9 @@ import EDSL.X86.VCGen.Policy
 import EDSL.X86.VCGen.PureCall
 import EDSL.X86.VCGen.ManagedRules
 import EDSL.X86.VCGen.PlainMethods
+import EDSL.OS.PlainCallAdmission64
+import EDSL.OS.PlainCallFrames64
+import EDSL.OS.TSO64.Stability
 import EDSL.X86.VCGen.GradingExamples
 import EDSL.Stride32.Correctness
 import EDSL.Stride32.Accounting

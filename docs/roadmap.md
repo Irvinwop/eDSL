@@ -19,16 +19,22 @@ decoding and native tests are separate evidence.
 The next synchronization targets are `c_atomic_load_acquire64` and
 `c_atomic_store_release64`. The shared machine trace refinement and
 [C23 atomic event constraints](c23-atomic-events.md) are foundations; these
-functions still need independently registered concurrent contracts, ABI/resource
-admission and complete final-file binding composed with the shared method APIs.
+functions still need complete registered concurrent behavior contracts and useful
+exact-file resource inhabitants composed with the shared method APIs. Independent
+present-only Plain64 admission and its bridge to actual-slot invocations are now
+available, with separate static code-shape evidence and scalar ABI obligations.
 [Call contracts, finite publication and order weakening](atomic-call-contracts.md)
 provide reusable foundations;
 the existing trace verifier checks each supplied finite graph with the full
 legality checker. The universal no-acquire theorem below is a separate API.
 The [shared load/store method family](managed-plain-methods.md) supplies body
-progress, interference closure, indexed access/RET origins and finite call-cohort
-extraction and whole scanner/call correspondence without per-compiler execution
-proofs.
+progress, interference closure, mixed-cohort completion from an actual prefix,
+indexed access/RET origins, finite call-cohort extraction and whole scanner/call
+correspondence without per-compiler execution proofs. Completion fixes each
+worker's AF choices and exact remaining issue count, skips already-returned
+workers and preserves prior replies. Actual drain closure is a separate phase;
+RET need not publish a store. Full-cell frames preserve all bytes, mappedness
+and permissions outside target qwords and actual incoming FIFO footprints.
 
 Published-position monotonicity, per-worker FIFO issue/publication order
 and [pending selection rank bounds](checked-atomic-traces.md#pending-writers-and-fifo-order)
@@ -90,8 +96,12 @@ totality of that separate checker is not established.
 The shared [load/store history composition](managed-plain-methods.md#construct-the-complete-atomic-history)
 now derives the complete call batch and legal graph together. Represented scalar
 ABI return frames and exact named ELF/code-shape bindings are also available.
-The next obligations are independent registered load/store contracts, useful
-exact-file resources, source/interface annotation justification and repeated invocations. Construction for arbitrary
+The independent Plain64 `Pre` now binds current full64 arguments, executable
+images, original protected callers and selected cell authority without future
+execution or method-cutpoint assumptions. A separate static-shape bridge derives
+the complete initial invocation family. The next obligations are the full
+registered Plain64 `Claim`, useful exact-file resources, source/interface
+annotation justification and repeated invocations. Construction for arbitrary
 incoming managed queues remains open. Full C23/frontend semantics,
 source/compiler preservation, native/kernel correspondence and fairness remain
 separate capabilities.
@@ -120,6 +130,7 @@ new configurations require a new corpus version.
 | More compiler-output functions | Exact ISA rules, shared VCG, independent specifications and resource adapters | Both frozen compiler windows certified with useful admitted inputs |
 | Writable loops and richer calls | Current ownership, actual memory effects, stack/alias frames and loop invariants | All admitted executions satisfy result, safety and return-resource contracts |
 | More concurrent methods | Current actor authority, real event origins and allowed interference | Independent object histories, real-time order and explicit progress scope |
+| Registered plain load/store behavior | Present-only catalog/Pre, static shape admission, mixed-cohort completion, RAM/ABI frames and constructed atomic histories | Complete independent Plain64 Claim, useful exact-ELF resource inhabitants and certification of all four frozen compiler windows |
 | Graph construction with broader incoming queues | Initialized empty-queue construction, exact incoming-entry identities and pre-run issue origins | Define a boundary graph representation and derive complete writer/publication and same-object/value RF correspondence without inventing in-run issues |
 | Native memory-order correspondence | Existing FIFO/locked-operation models plus a defined target relation | Refinement to the selected published machine model; separate source-order proofs |
 | Whole-program OS behavior | Loader/ABI closure, resource identities, failure and asynchronous effects | Composition over all reachable code and declared external contracts |
@@ -161,6 +172,15 @@ separate composition proofs. Compound uninterrupted equivalence does not prove
 linearizability under interleaving. A callable spinlock with ordinary-store
 release needs ownership transfer and FIFO publication; an XCHG-release proof
 cannot supply that guarantee.
+
+Reuse the plain-method cohort rules for current load/store sites: derive entry
+invocations from the independent catalog and actual-state `Pre`, construct a
+finite completion from any actual successful prefix, then add drain closure
+only when the contract needs final publication. Preserve already observed load
+replies independently of later RAM. The full-cell frame must include the actual
+incoming FIFO entries as well as target qwords; empty initial queues supply the
+target-only corollary. This machinery supplies shared foundations rather than
+a completed registered Plain64 behavior contract or new corpus credit.
 
 The [managed-word trace refinement](word-tso-refinement.md) covers an independent
 uniform64 memory fragment. Extend it to a justified correspondence with the

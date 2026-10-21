@@ -20,6 +20,13 @@ set_option autoImplicit false
 namespace EDSL.OS.ScalarCall64
 open X86 TSO64
 
+/-- A complete callable byte image and its entry address, independent of its
+instruction family, behavior contract or artifact provenance. -/
+structure Image where
+  base : Word
+  bytes : List Byte
+  deriving DecidableEq, Repr
+
 /-- Scalar entry alignment, clear DF and a nonwrapping canonical post-pop RSP.
 The original protected caller slot and its value are separate resource facts. -/
 structure Entry (worker : Worker) : Prop where

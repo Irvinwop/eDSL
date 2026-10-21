@@ -9,8 +9,12 @@ instruction count; clients do not repeat an induction for each compiler output.
 The family also extracts indexed machine calls and complete finite call cohorts.
 The complete scanner event list matches those calls under the declared interface
 orders. At an initialized empty-queue boundary, the shared history theorem also
-constructs their legal finite atomic graph. Independent registered final-ELF
-contracts and source-order justification remain separate obligations.
+constructs their legal finite atomic graph. Shared rules construct a returned
+mixed cohort from an actual execution prefix and frame all RAM cells outside
+its target and incoming-queue footprints. A separate, present-state admission
+contract connects registered load/store images to this engine. Full registered
+behavioral contracts, exact-ELF resource inhabitants and source-order
+justification remain separate obligations.
 
 ## Describe and check the code
 
@@ -71,6 +75,53 @@ nonempty queues. It uses the current original caller slot and canonical target,
 preserving the world, authority, FIFO and counter. Its response is the saved
 full-width RAX. A logical store reply is unit, separately from that machine value.
 
+## Admit a registered image independently
+
+`Grading.ConcurrentTask.Plain64` defines a current-state contract independently
+of method cutpoints and future execution. A `Catalog` lists sites, each pairing
+an acquire-load or release-store `Kind` with a complete callable `Image`
+(base and bytes). Each actual initial worker slot selects an `Input` containing
+that image, the persistent target identity and full cell descriptor, a logical
+occurrence label, and a full64 value for stores. Loads have no supplied reply
+and leave their unused RSI unconstrained. The logical occurrence label does not
+stand in for the machine's store-allocation counter.
+
+`Entry` binds the running worker to executable code, RDI and any store RSI,
+current whole-qword authority, the protected original caller and scalar ABI
+entry conditions. These include stack alignment, clear DF, a nonwrapping pop,
+canonical post-pop RSP and a canonical caller continuation. `Pre` covers every
+actual slot, current resource validity, private caller regions and code/caller
+separation. Its resource validity includes each actual incoming FIFO entry;
+nonempty queues and nonzero counters are permitted. `ClosedPre` separately adds
+empty initial queues for whole-graph admission.
+
+`Pre` contains no method, checked shape, cutpoint, desired reply or successful
+future-run premise. `OS.PlainCallAdmission64.StaticShapes catalog` supplies
+separate static proof evidence: the production checker accepts each site's bytes
+and padding for its fixed load from `[RDI]` into RAX or store of RSI to `[RDI]`.
+That evidence is reusable across values, cells, actors and worker slots.
+`admit_slot` combines it with the actual slot's `Pre.entry` to derive an
+`Admitted` invocation:
+
+```lean
+import EDSL.OS.PlainCallAdmission64
+open EDSL
+open Grading.ConcurrentTask.Plain64
+
+example {catalog : Catalog} (static : OS.PlainCallAdmission64.StaticShapes catalog)
+    {initial : OS.TSO64.State} {inputs : Fin initial.workers.length → Input}
+    (pre : Pre catalog initial inputs) (tid : Fin initial.workers.length) :
+    Nonempty (OS.PlainCallAdmission64.Admitted (inputs tid) initial tid.val) :=
+  OS.PlainCallAdmission64.admit_slot static pre tid
+```
+
+`Admitted` retains the exact bytes/base, fixed operation, target descriptor,
+current selected reference, independent request, scalar entry facts and logical
+occurrence. Its `initialQueue` is the actual worker's full FIFO and counter.
+`invocations static pre` supplies the complete initial family for the completion,
+footprint and history APIs below. This is an admission bridge; it does not yet
+define a complete Plain64 `Claim` or certify useful final-ELF resource instances.
+
 ## Reuse the body proofs
 
 `advance` derives the next actual own issue at each unfinished cutpoint.
@@ -99,6 +150,110 @@ The completion theorem constructs one schedule. It implies no scheduler fairness
 or eventual completion of every schedule. Own instructions, drain actions and
 physical elapsed time are different costs; this count is no unrestricted
 minimum-instruction or CPU-timing theorem.
+
+## Complete a mixed cohort from an actual prefix
+
+`cohort_complete_after_prefix` takes one `Invocation` for each actual initial
+worker and an arbitrary successful prefix under `sharedCell`. The methods may
+have different load/store operations, bytes, padding, resources and incoming
+queues. It derives every present cutpoint through `Invocation.cut_after_prefix`;
+the caller supplies no future cutpoint, completed family or successful suffix.
+
+```lean
+import EDSL.X86.VCGen.PlainMethods.Completion
+open EDSL X86.VCGen.PlainMethods
+
+example {initial : OS.TSO64.State}
+    (invocations : (tid : Fin initial.workers.length) → Invocation initial tid.val)
+    {prior : List OS.TSO64.Action}
+    {actual : OS.TSO64.State × List OS.TSO64.Observation}
+    (success : OS.TSO64.schedule initial prior .sharedCell = .ok actual)
+    (choices : Nat → Nat → Bool) :
+    ∃ suffix result, OS.TSO64.schedule actual.1 suffix .sharedCell = .ok result ∧
+      OS.TSO64.Returned result.1 := by
+  obtain ⟨cuts, result, completion, _wholeRun, _batch⟩ :=
+    cohort_complete_after_prefix invocations success choices
+  exact ⟨_, result, completion.scheduled, completion.returned⟩
+```
+
+The constructed suffix is `cohortActions`: increasing worker slots, each with
+exactly its actual cutpoint's remaining own issues. `choices tid offset` fixes
+AF at each worker's suffix-local own-issue offset, with no restriction on those
+choices. `cohortActions_length` gives the sum of remaining counts;
+`CohortCompletion.issueCount` gives each slot's exact count. Already-returned
+workers contribute zero issues. All slots remain present, and every final
+worker has a returned body contract. `prior_reply` and `prefix_reply` retain
+already observed typed replies, even if later peers change RAM. The complete
+prefix observations are retained, and the concatenated run yields `BatchResult`.
+
+Returning the cohort does not drain its stores. `CohortCompletion.close` appends
+the production drain schedule and retains its actual `DrainClosure.Certificate`;
+`cohort_closed_after_prefix` composes that closure with the original prefix and
+issue suffix. The separate well-formed-state premise handles the empty cohort
+as well. The additional drain phase establishes `Finished`: every worker
+returned and all queues empty. It preserves every CPU response, while RAM can
+change through actual publications after RET. These theorems construct a chosen
+finite schedule; they imply no fairness or completion of every schedule.
+
+## Frame complete RAM cells
+
+`Footprint.cells_frame` covers every successful finite interleaving of an
+initial invocation cohort, with no completion or final-quiescence requirement.
+Its fixed affected region is the union of every admitted target qword and the
+exact address/width regions of every **actual initial FIFO entry**. Those
+boundary entries may be ordinary or managed. The frame does not count an
+already-drained prefix described by `Method.initialQueue` as still incoming.
+
+```lean
+import EDSL.X86.VCGen.PlainMethods.Footprint
+open EDSL X86.VCGen.PlainMethods
+
+example {initial : OS.TSO64.State}
+    (invocations : (tid : Fin initial.workers.length) → Invocation initial tid.val)
+    {actions : List OS.TSO64.Action}
+    {result : OS.TSO64.State × List OS.TSO64.Observation}
+    (success : OS.TSO64.schedule initial actions .sharedCell = .ok result)
+    (query : X86.Word) (outside : ¬ Footprint.affected invocations query) :
+    result.1.world.legacy.shared.resources.space.cells query =
+      initial.world.legacy.shared.resources.space.cells query :=
+  Footprint.cells_frame invocations success query outside
+```
+
+The equality preserves complete `Space.cells`, including mappedness,
+permissions and inaccessible byte contents. Actual store-history provenance
+classifies each drain as an incoming entry or an exact store issued by an
+admitted worker; the client supplies no future write set or drain-classification
+oracle. `cells_frame_empty` removes the incoming-entry footprint when the actual
+initial queues are empty, while allowing nonzero counters. Separately,
+`TSO64.schedule_stable` preserves resource metadata and per-address permissions
+under either authority profile; `schedule_current_resources` retains each
+original slot's resource identity and current authority. Metadata stability
+alone does not preserve stored bytes at affected addresses.
+
+`OS.PlainCallFrames64.prefix_frame` composes these rules directly from the
+independent `Pre`, separate static shapes and an actual successful schedule.
+Its independent `Plain64.PrefixFrame` states current target authority, original
+resources, fixed worker population and complete-cell preservation using the
+input cells and actual initial queues. Clients need no method cutpoint:
+
+```lean
+import EDSL.OS.PlainCallFrames64
+
+example {catalog : Grading.ConcurrentTask.Plain64.Catalog}
+    (static : OS.PlainCallAdmission64.StaticShapes catalog)
+    {initial : OS.TSO64.State}
+    {inputs : Fin initial.workers.length → Grading.ConcurrentTask.Plain64.Input}
+    (pre : Grading.ConcurrentTask.Plain64.Pre catalog initial inputs)
+    {actions : List OS.TSO64.Action}
+    {result : OS.TSO64.State × List OS.TSO64.Observation}
+    (success : OS.TSO64.schedule initial actions .sharedCell = .ok result) :
+    Grading.ConcurrentTask.Plain64.PrefixFrame initial result.1 inputs :=
+  OS.PlainCallFrames64.prefix_frame static pre success
+```
+
+`returned_slot` additionally derives the scalar ABI frame for an actual returned
+worker relative to its actual initial slot. `returned_cohort` combines those
+frames when every worker has returned, with pending publications still permitted.
 
 ## Extract calls and match scanner events
 
