@@ -19,10 +19,12 @@ decoding and native tests are separate evidence.
 The next synchronization targets are `c_atomic_load_acquire64` and
 `c_atomic_store_release64`. The shared machine trace refinement and
 [C23 atomic event constraints](c23-atomic-events.md) are foundations; these
-functions still need complete registered concurrent behavior contracts and useful
-exact-file resource inhabitants composed with the shared method APIs. Independent
-present-only Plain64 admission and its bridge to actual-slot invocations are now
-available, with separate static code-shape evidence and scalar ABI obligations.
+functions have a shared full independent `Plain64.Claim`, including chosen
+completion and complete closed output. Present-only admission remains separate
+from checked code-shape evidence and scalar ABI obligations. Whole-ELF resource
+construction is under validation; useful homogeneous and mixed execution
+inhabitants for both compiler files remain open certification gates. These gates
+must cover all four frozen function artifacts before corpus credit changes.
 [Call contracts, finite publication and order weakening](atomic-call-contracts.md)
 provide reusable foundations;
 the existing trace verifier checks each supplied finite graph with the full
@@ -99,10 +101,14 @@ ABI return frames and exact named ELF/code-shape bindings are also available.
 The independent Plain64 `Pre` now binds current full64 arguments, executable
 images, original protected callers and selected cell authority without future
 execution or method-cutpoint assumptions. A separate static-shape bridge derives
-the complete initial invocation family. The next obligations are the full
-registered Plain64 `Claim`, useful exact-file resources, source/interface
-annotation justification and repeated invocations. Construction for arbitrary
-incoming managed queues remains open. Full C23/frontend semantics,
+the complete initial invocation family. `PlainCallClaim64.claim` now composes
+every independent safety, behavior, closed-output, enabledness, chosen-completion,
+actual-closure and boundedness obligation. `ClosedPost` preserves the complete
+actual machine-event list and source identities alongside the same calls'
+constructed History, target-only full-cell frame and final collection.
+The next obligations are useful exact-file populations and executions,
+source/interface annotation justification and repeated invocations. Construction
+for arbitrary incoming managed queues remains open. Full C23/frontend semantics,
 source/compiler preservation, native/kernel correspondence and fairness remain
 separate capabilities.
 The [blocker report](corpus-blockers.md) identifies later instruction, memory
@@ -130,7 +136,7 @@ new configurations require a new corpus version.
 | More compiler-output functions | Exact ISA rules, shared VCG, independent specifications and resource adapters | Both frozen compiler windows certified with useful admitted inputs |
 | Writable loops and richer calls | Current ownership, actual memory effects, stack/alias frames and loop invariants | All admitted executions satisfy result, safety and return-resource contracts |
 | More concurrent methods | Current actor authority, real event origins and allowed interference | Independent object histories, real-time order and explicit progress scope |
-| Registered plain load/store behavior | Present-only catalog/Pre, static shape admission, mixed-cohort completion, RAM/ABI frames and constructed atomic histories | Complete independent Plain64 Claim, useful exact-ELF resource inhabitants and certification of all four frozen compiler windows |
+| Frozen plain load/store certification | Full independent Plain64 Claim, present-only catalog/Pre, static shape admission, mixed-cohort completion, RAM/ABI frames and complete closed outputs | Validate whole-ELF resources and prove useful homogeneous/mixed executions for all four artifacts across the two frozen compiler files |
 | Graph construction with broader incoming queues | Initialized empty-queue construction, exact incoming-entry identities and pre-run issue origins | Define a boundary graph representation and derive complete writer/publication and same-object/value RF correspondence without inventing in-run issues |
 | Native memory-order correspondence | Existing FIFO/locked-operation models plus a defined target relation | Refinement to the selected published machine model; separate source-order proofs |
 | Whole-program OS behavior | Loader/ABI closure, resource identities, failure and asynchronous effects | Composition over all reachable code and declared external contracts |
@@ -179,8 +185,9 @@ finite completion from any actual successful prefix, then add drain closure
 only when the contract needs final publication. Preserve already observed load
 replies independently of later RAM. The full-cell frame must include the actual
 incoming FIFO entries as well as target qwords; empty initial queues supply the
-target-only corollary. This machinery supplies shared foundations rather than
-a completed registered Plain64 behavior contract or new corpus credit.
+target-only corollary. The full independent Plain64 Claim composes these
+obligations without a program-specific execution proof. Useful exact-file
+populations and homogeneous/mixed executions remain necessary for corpus credit.
 
 The [managed-word trace refinement](word-tso-refinement.md) covers an independent
 uniform64 memory fragment. Extend it to a justified correspondence with the

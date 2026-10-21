@@ -126,6 +126,9 @@ import EDSL.Corpus.V1.Arithmetic
 import EDSL.Corpus.V1.Clamps
 import EDSL.Corpus.V1.FetchAddWindows
 import EDSL.Corpus.V1.PlainWindows
+import EDSL.Corpus.V1.PlainClaims
+import EDSL.Corpus.PlainResources
+import EDSL.Corpus.PlainExecution
 import EDSL.Corpus.V1.FetchAddBodies
 import EDSL.Corpus.V1.FetchAddCertificates
 import EDSL.Corpus.V1.ByteScanCertificates

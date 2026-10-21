@@ -12,10 +12,11 @@ orders. At an initialized empty-queue boundary, the shared history theorem also
 constructs their legal finite atomic graph. Shared rules construct a returned
 mixed cohort from an actual execution prefix and frame all RAM cells outside
 its target and incoming-queue footprints. A separate, present-state admission
-contract connects registered load/store images to this engine. Independent
-completed behavior and closed history share the same actual call list. The
-complete registered Claim, exact-ELF resource inhabitants and source-order
-justification remain separate obligations.
+contract connects registered load/store images to this engine. The full
+independent `Plain64.Claim` combines safety, behavior, chosen completion and
+closed history for any supported catalog. Useful exact-ELF resource populations,
+their homogeneous/mixed executions and source-order justification remain
+separate obligations.
 
 ## Describe and check the code
 
@@ -120,8 +121,54 @@ example {catalog : Catalog} (static : OS.PlainCallAdmission64.StaticShapes catal
 current selected reference, independent request, scalar entry facts and logical
 occurrence. Its `initialQueue` is the actual worker's full FIFO and counter.
 `invocations static pre` supplies the complete initial family for the completion,
-footprint and history APIs below. This is an admission bridge; it does not yet
-define a complete Plain64 `Claim` or certify useful final-ELF resource instances.
+footprint and history APIs below. The admission bridge supplies the actual
+invocations used by the full contract; useful final-ELF resource instances
+remain a separate certification gate.
+
+## Use the full independent contract
+
+Import `EDSL.OS.PlainCall64` and apply `OS.PlainCallClaim64.claim static`.
+The result is `Plain64.Claim catalog`, with these obligations proved for every
+current-state `Pre` admitted by that catalog:
+
+| Field | Guarantee |
+| --- | --- |
+| `prefixes` | Every actual successful finite prefix satisfies `SafePrefix` |
+| `completed` | Every actual returned cohort has the complete independent `Post` |
+| `whole` | `ClosedPre` and an actual finished run yield the full `ClosedPost` |
+| `enabled` | Each currently running worker can retire its next instruction for either AF choice |
+| `completion` | Any successful prefix admits an issue-only suffix with chosen AF per thread and every worker returned |
+| `closure` | A returned cohort admits actual production drain closure, `Finished`, the concatenated run and `Post`; an empty initial boundary also yields `ClosedPost` |
+| `bounded` | A positive uniform own-issue upper bound; the shared proof supplies 64 |
+
+For example, the same claim constructs completion for arbitrary admitted sites,
+full64 input words, resources and successful prefixes:
+
+```lean
+import EDSL.OS.PlainCall64
+open EDSL Grading.ConcurrentTask.Plain64
+
+example {catalog : Catalog}
+    (static : OS.PlainCallAdmission64.StaticShapes catalog)
+    {initial : OS.TSO64.State} {inputs : Fin initial.workers.length → Input}
+    (pre : Pre catalog initial inputs) {prior : List OS.TSO64.Action}
+    {actual : OS.TSO64.State × List OS.TSO64.Observation}
+    (success : OS.TSO64.schedule initial prior .sharedCell = .ok actual)
+    (choices : Nat → Nat → Bool) :
+    ∃ suffix finished, ChosenIssues choices suffix ∧
+      OS.TSO64.schedule actual.1 suffix .sharedCell = .ok finished ∧
+      OS.TSO64.Returned finished.1 :=
+  (OS.PlainCallClaim64.claim static).completion
+    initial inputs pre prior actual success choices
+```
+
+Clients supply the separate checked code shapes and independent present
+resources, then reuse the contract. They do not prove a program-specific
+execution induction or supply a desired result, successful future step or
+history. `Claim.mono` restricts a mixed catalog to a subcatalog without repeating
+its behavioral proofs. The claim concerns the modeled finite cohort;
+certification of the frozen ELF artifacts still needs useful populations and
+actual homogeneous/mixed executions from the complete loaded files.
 
 ## Reuse the body proofs
 
@@ -196,6 +243,16 @@ returned and all queues empty. It preserves every CPU response, while RAM can
 change through actual publications after RET. These theorems construct a chosen
 finite schedule; they imply no fairness or completion of every schedule.
 
+The independent `ChosenIssues choices suffix` additionally binds every action's
+AF to `choices tid (issues tid (suffix.take index))` at its original suffix index.
+Peer blocks and the already executed invocation prefix do not increment that
+thread-local suffix count. `OS.PlainCallCompletion64.complete` transports this
+property, exact remaining counts, saved replies and the same-run `Post` from
+the shared cohort engine. `completion` is the independent contract projection;
+`closure` separately returns the actual drain certificate, `Finished`, complete
+concatenated execution, `Post` and equality of every CPU response before/after
+draining. A returned store can still publish during that separate phase.
+
 ## Frame complete RAM cells
 
 `Footprint.cells_frame` covers every successful finite interleaving of an
@@ -258,9 +315,10 @@ frames when every worker has returned, with pending publications still permitted
 
 ## Derive safety and progress
 
-`import EDSL.OS.PlainCall64` exposes the shared admission, frame, safety,
-progress, behavior and history adapters. Once a new byte window has its static shape
-proof and its workers satisfy independent `Pre`, the same rules apply to every
+`import EDSL.OS.PlainCall64` exposes the full claim and its admission, frame,
+safety, progress, behavior, completion and history adapters. Once a new byte
+window has its static shape proof and its workers satisfy independent `Pre`,
+the same rules apply to every
 successful prefix:
 
 ```lean
@@ -303,9 +361,9 @@ incoming FIFOs remain allowed; a returned store need not have published.
 For closed runs, `OS.PlainCallHistory64.behavior_history_of_closed` joins that
 independent Post to the constructed legal atomic History with exactly the same
 call list. Clients do not write dependent casts between observed values and
-logical replies. These shared adapters still need useful exact-file resources
-and the remaining complete Claim composition before the pending compiler
-functions receive corpus credit.
+logical replies. The full Claim composes these adapters. Useful exact-file
+resource populations and their required homogeneous/mixed executions remain
+open gates before the pending compiler functions receive corpus credit.
 
 ## Extract calls and match scanner events
 
@@ -370,6 +428,19 @@ It derives the scan result and enumerates every live initial registered cell
 from current resource validity. The caller supplies no initializer table,
 selected source, `Captured` witness or desired graph. Arbitrary initial machine
 counters remain allowed; the closed boundary requires empty queues.
+
+`OS.PlainCallClosed64.post` packages the full independent `ClosedPost`. It
+retains the same independent `Post`, the actual scanner execution, complete
+live-cell manifest with its original RAM words, per-slot source identities,
+and equality of the entire machine-event list with the outcomes in call order.
+Full references, values, machine allocation counters and original positions
+remain visible, including an arbitrary external scanner offset. The output also
+contains actual builder success, structural correspondence and the same calls'
+atomic `History`, complete-cell preservation outside target qwords and collection
+for each actual final worker. Empty final queues justify collection; neither
+RET nor the general `Post` requires a store to have published.
+`ClosedPost.initialized` and `positioned_events` expose complete initialization
+and event correspondence to clients without another graph or source-key proof.
 
 The generic `AtomicTrace.Graph.captured_of_schedule` supplies the same raw
 capture route for either authority profile, independently of this method family.
@@ -469,6 +540,10 @@ aligned normal-RAM, translation/alias and managed-resource assumptions. They do
 not establish physical x86/Linux correspondence, dynamic resource lifecycle,
 source/compiler preservation, full C23 semantics or a full OS/kernel result.
 Finite atomic-fragment legality is established for the raw history boundary
-above. This family adds no frozen corpus credit until independent registered
-contracts and useful exact-file resources are proved. See [atomic call contracts](atomic-call-contracts.md)
-and [checked finite atomic traces](checked-atomic-traces.md) for the adjacent layers.
+above. The full independent Claim and its completion/closed-output adapters have
+passed scoped strict checks. Whole-ELF resource construction remains under
+validation, and useful homogeneous/mixed execution gates for all four frozen
+load/store artifacts remain open. Coverage remains **16/40 functions and
+32/80 artifacts**, including **one distinct concurrent function**. See
+[atomic call contracts](atomic-call-contracts.md) and
+[checked finite atomic traces](checked-atomic-traces.md) for the adjacent layers.
