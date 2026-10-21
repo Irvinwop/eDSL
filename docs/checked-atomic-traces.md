@@ -178,8 +178,8 @@ actual issue witnesses; incoming queue entries receive no invented instruction
 positions. The RMW's own-empty gate forces preceding stores to publish first.
 This order-only theorem requires no final quiescence.
 
-Release/acquire view transfer, totality of graph construction and universal
-operational C23 legality remain open.
+Connecting these numerical views to declared release/acquire interfaces,
+totality of graph construction and universal operational C23 legality remain open.
 
 ## Actual access and source ranks
 
@@ -226,7 +226,8 @@ load view with the rank of the exact writer selected by its semantic RF edge.
 The load's own graph row retains rank zero. This correspondence requires
 `Graph.Built`; it proves neither graph-construction totality nor C23 legality.
 `load_graph_rank_at` accepts a computed event lookup and derives its index bound.
-Cross-cell release/acquire view transfer remains separate.
+Its graph correspondence does not establish declared-interface synchronization;
+exact-source numerical transfer is described below.
 
 The [access clients](../tests/AccessSourceRanks.lean) use actual annotated scans
 with equal-valued stores and unchanged-value RMWs. The [RMW boundary clients](../tests/RMWSourceRanks.lean)
@@ -290,6 +291,58 @@ Related clients cover [cross-cell views](../tests/PublicationCoverage.lean),
 [actual load sources](../tests/PublicationCoverageLoads.lean). Publication
 coverage is numerical: it does not establish source release/acquire intent,
 cross-thread view transfer, happens-before or full C23 legality.
+
+## Exact-source view transfer
+
+`EventAt.transfers_view` transfers a writer's actual target view immediately
+after its instruction to a load's prestate view when that load reads the exact
+writer. The viewed target may differ from the loaded cell. The proof derives
+instruction order from actual source provenance. A different thread's source
+must already have published; own forwarding instead uses same-thread view
+monotonicity and does not require publication before the load.
+
+`transfers_view_alias` supports different current handles to the same cell.
+Authorization supplies their shared descriptor and address; equal words do not
+identify writers or handles. The reader may have a pending write to the viewed
+cell, so a transferred rank does not imply that its next load returns the
+writer's payload.
+
+`transfers_access_views` constructs both views from actual access authority.
+For a new program, a client can provide scan-derived events and the actual
+instruction/publication witness, without proving a new view-order invariant:
+
+```lean
+import EDSL.OS.TSO64.C23Projection.AtomicTrace.ViewTransfer
+open EDSL.OS.TSO64
+open EDSL.OS.TSO64.C23Projection.AtomicTrace
+
+example {initial : State} {actions : List Action}
+    {result : State × List Observation} {profile : Profile}
+    {event targetEvent : Event} {accessIndex writeIndex targetIndex offset : Nat}
+    {readTarget : Queue.ManagedRef} {word : EDSL.X86.Word} {source : WriterId}
+    {stamp : PublishedHistory.Stamp}
+    (execution : ExecutionViews.Execution initial actions result profile)
+    (actual : EventAt profile event accessIndex initial actions result offset PublishedHistory.empty)
+    (loaded : event.access = .load readTarget word source)
+    (written : PublishedHistory.InstructionWriteAt initial actions result profile offset writeIndex stamp)
+    (readFrom : source = Graph.publicationKey stamp)
+    (targetActual : EventAt profile targetEvent targetIndex initial actions result offset PublishedHistory.empty)
+    (targetThread : targetEvent.tid = stamp.cause.tid) :
+    ∃ target earlierRank laterRank, AccessTarget targetEvent target ∧
+      Nonempty (ExecutionViews.At initial actions result profile (writeIndex + 1)
+        stamp.cause.tid target offset PublishedHistory.empty earlierRank) ∧
+      Nonempty (ExecutionViews.At initial actions result profile accessIndex event.tid
+        target offset PublishedHistory.empty laterRank) ∧ earlierRank ≤ laterRank :=
+  actual.transfers_access_views execution loaded written readFrom targetActual targetThread
+```
+
+The target access authenticates a domain, not a transferred value assertion.
+The incoming publication map starts empty; initial mixed FIFOs may be nonempty,
+but an incoming entry receives no invented instruction origin. These finite
+numerical results supply no source memory-order inference, synchronizes-with or
+happens-before graph, C23 legality, fairness, or native refinement.
+The [execution clients](../tests/ViewTransfer.lean) exercise actual source
+identities and other-cell views through the shared API.
 
 ## Scope
 

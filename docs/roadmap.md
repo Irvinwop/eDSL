@@ -37,9 +37,12 @@ every actual target view of the writing thread at its instruction's successor
 cut. Access authority extends the bound to earlier cuts; the load corollary
 retains the exact source writer identity, including across different cells.
 These execution-level APIs allow nonempty initial mixed FIFOs.
-`AtomicTrace.verify` retains its empty initial-queue boundary. Cross-thread
-release/acquire transfer, universal operational ordering and repeated invocations
-remain open.
+`AtomicTrace.verify` retains its empty initial-queue boundary.
+[Exact-source load transfer](checked-atomic-traces.md#exact-source-view-transfer)
+now propagates these numerical views through actual published reads and own
+forwarding, including other-cell views and current handle aliases. Next justify
+declared release/acquire interface mappings and derive SW/HB/coherence constraints.
+Universal operational legality and repeated invocations remain open.
 The [blocker report](corpus-blockers.md) identifies later instruction, memory
 and synchronization gaps. Keep the frozen inputs and denominator unchanged;
 new configurations require a new corpus version.

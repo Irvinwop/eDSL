@@ -6,6 +6,7 @@ import EDSL.OS.TSO64.C23Projection.AtomicTrace.Graph
 import EDSL.OS.TSO64.C23Projection.AtomicTrace.SourceOrigins
 import EDSL.OS.TSO64.C23Projection.AtomicTrace.GraphRanks
 import EDSL.OS.TSO64.C23Projection.AtomicTrace.PublicationViews
+import EDSL.OS.TSO64.C23Projection.AtomicTrace.ViewTransfer
 
 /-!
 Checked finite atomic graphs from actual executions. The executable interface
