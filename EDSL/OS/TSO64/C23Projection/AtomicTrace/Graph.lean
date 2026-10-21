@@ -174,7 +174,7 @@ instance (inputs : Inputs) (orders : Orders) (table : Table) :
   unfold Built
   infer_instance
 
-private def singletonValue {α : Type} : List α → Option α
+def singletonValue {α : Type} : List α → Option α
   | [item] => some item
   | _ => none
 
@@ -189,18 +189,18 @@ def publicationFor (writes : List PublishedHistory.Stamp) (key : WriterId) :
     Option PublishedHistory.Stamp :=
   singletonValue (writes.filter fun stamp => decide (publicationKey stamp = key))
 
-private def sourceIndex (identities : List (Option WriterId))
+def sourceIndex (identities : List (Option WriterId))
     (event : AtomicTrace.Event) : Option (Option Nat) :=
   match event.source with
   | none => some none
   | some key => (writerIndex identities key).map some
 
-private def publicationRank (writes : List PublishedHistory.Stamp)
+def publicationRank (writes : List PublishedHistory.Stamp)
     (event : AtomicTrace.Event) (key : WriterId) : Option Nat := do
   let stamp ← publicationFor writes key
   if Publication event stamp then some (stamp.position + 1) else none
 
-private def eventRank (writes : List PublishedHistory.Stamp)
+def eventRank (writes : List PublishedHistory.Stamp)
     (event : AtomicTrace.Event) : Option Nat :=
   match event.access with
   | .load .. => some 0

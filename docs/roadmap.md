@@ -19,8 +19,8 @@ decoding and native tests are separate evidence.
 The next synchronization targets are `c_atomic_load_acquire64` and
 `c_atomic_store_release64`. The shared machine trace refinement and
 [C23 atomic event constraints](c23-atomic-events.md) are foundations; these
-functions still need a complete machine call adapter, universal operational
-ordering for acquiring interfaces and complete final-file binding.
+functions still need independently registered concurrent contracts, ABI/resource
+admission and complete final-file binding composed with the shared method APIs.
 [Call contracts, finite publication and order weakening](atomic-call-contracts.md)
 provide reusable foundations;
 the existing trace verifier checks each supplied finite graph with the full
@@ -79,8 +79,17 @@ mapped runs. Generic read transfer covers loads and RMWs, and release-member
 source-prefix induction is available. [Actual view transport](checked-atomic-traces.md#universal-acquiring-fragment-legality)
 through release sequences, synchronization and HB paths derives all four HB
 coherence conditions and `executed.legal` for arbitrary declared annotations.
-The next obligations are constructive graph-build totality, source/interface
-annotation justification and repeated invocations. Full C23/frontend semantics,
+[Initialized graph construction](checked-atomic-traces.md#graph-construction-from-actual-execution)
+now derives every builder requirement, `Graph.build` success, `Executed` and
+finite-fragment legality from raw actual scan evidence. `Graph.Captured` requires
+well-formed initialized resources, empty initial and final queues, an actual scan
+at an arbitrary offset with an empty incoming publication map, and actual
+registry/RAM enumeration. It assumes no graph table, writer/rank/value oracle
+or legality-checker success. The executable verifier retains its full checker;
+totality of that separate checker is not established.
+The next obligations are source/interface annotation justification, registered
+load/store contracts and repeated invocations. Construction for arbitrary
+incoming managed queues remains open. Full C23/frontend semantics,
 source/compiler preservation, native/kernel correspondence and fairness remain
 separate capabilities.
 The [blocker report](corpus-blockers.md) identifies later instruction, memory
@@ -108,7 +117,7 @@ new configurations require a new corpus version.
 | More compiler-output functions | Exact ISA rules, shared VCG, independent specifications and resource adapters | Both frozen compiler windows certified with useful admitted inputs |
 | Writable loops and richer calls | Current ownership, actual memory effects, stack/alias frames and loop invariants | All admitted executions satisfy result, safety and return-resource contracts |
 | More concurrent methods | Current actor authority, real event origins and allowed interference | Independent object histories, real-time order and explicit progress scope |
-| Complete operational graph construction | Conditional mapped-run legality, complete access/publication origins, exact RF keys and registry/RAM enumeration | Constructively build every required row, unique writer key, matching publication and same-object/value RF source for the stated boundary profile |
+| Graph construction with broader incoming queues | Initialized empty-queue construction, exact incoming-entry identities and pre-run issue origins | Define a boundary graph representation and derive complete writer/publication and same-object/value RF correspondence without inventing in-run issues |
 | Native memory-order correspondence | Existing FIFO/locked-operation models plus a defined target relation | Refinement to the selected published machine model; separate source-order proofs |
 | Whole-program OS behavior | Loader/ABI closure, resource identities, failure and asynchronous effects | Composition over all reachable code and declared external contracts |
 | Concrete kernel/runtime components | Exact deployed builds, privileged ISA, interrupts and shared invariants | Implementation proofs discharging the same contracts used by clients |
@@ -157,10 +166,13 @@ The [checked atomic-trace API](checked-atomic-traces.md) extracts complete
 managed accesses, writer identities and publication-based graphs for finite
 successful runs with declared interface orders. Universal mapped-run legality
 now includes acquiring interfaces through actual release-sequence/SW/HB view
-transport and all four HB coherence constraints. Authenticate the initial
-registry/RAM manifest separately, preserve complete publication coverage and
-justify source-to-interface annotations. Graph-build totality remains a
-separate obligation. Add compare/exchange and fences only with justified mappings.
+transport and all four HB coherence constraints. `Graph.Captured` authenticates
+the initial registry/RAM manifest and derives complete graph construction and
+legality for actual scans with empty initial/final queues. Preserve those
+boundaries and complete publication coverage when composing method contracts;
+justify source-to-interface annotations independently. Broader incoming-queue
+construction and legality-checker totality remain open. Add compare/exchange
+and fences only with justified mappings.
 Extend private futex protocols beyond the current policies to blocking
 acquisition, multiple waiters, interruption,
 timeouts, cancellation and process sharing. Separate safety, enabledness,

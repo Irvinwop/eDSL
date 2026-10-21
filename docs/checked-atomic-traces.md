@@ -9,11 +9,11 @@ publication histories, modification ranks, or graph-legality proofs.
 This API connects two existing models: the resource-checked TSO scheduler and
 the [C23 atomic-fragment checker](c23-atomic-checker.md). Its result concerns
 the supplied finite schedule. Alongside the executable verifier, generic
-theorems establish structural well-formedness and sequencing coherence for
-mapped graphs, and [finite-fragment legality without acquiring annotations](#universal-no-acquire-legality)
-for every actual run satisfying the stated execution and mapping premises.
-General acquiring interfaces require further synchronization and happens-before
-proofs.
+theorems [construct a graph from initialized execution evidence](#graph-construction-from-actual-execution)
+and prove its finite-fragment legality for arbitrary declared relaxed, acquire
+and release orders. The construction derives writer identities, exact read
+values and publication coverage from the actual run; a client supplies no
+graph table or legality proof.
 
 ## Inputs and result
 
@@ -68,6 +68,70 @@ the latest real publication or the initialized boundary when no write occurred.
 Equal words do not merge writers. Loads consume graph indices, and buffered
 stores receive ranks from their later publication positions rather than their
 issue positions. Missing or ambiguous identities and omitted publications reject.
+
+## Graph construction from actual execution
+
+`AtomicTrace.GraphConstruction` supplies a reusable proof path independent of
+the executable legality checker. Its input, `Graph.Captured`, records five
+facts about the actual initial state and scan:
+
+| Field | Required evidence |
+| --- | --- |
+| `valid` | `WellFormed initial profile` |
+| `initialEmpty` | Empty initial queues: `Quiescent initial` |
+| `scanned` | `scan initial actions profile offset PublishedHistory.empty = .ok run` |
+| `quiescent` | Empty final queues: `Quiescent run.state` |
+| `enumerated` | Actual initial registry/RAM enumeration: `Initials.enumerate initial.world = .ok initials` |
+
+The scan offset is arbitrary, and initial store-occurrence counters need not
+be zero. The publication map starts empty. Initial resources and cells are
+already initialized and remain stable under the supported execution profile.
+Clients can construct this context directly from their execution evidence:
+
+```lean
+import EDSL.OS.TSO64.C23Projection.AtomicTrace.GraphConstruction
+open EDSL.OS.TSO64
+open EDSL.OS.TSO64.C23Projection.AtomicTrace
+
+example {initial : State} {actions : List Action} {profile : Profile}
+    {offset : Nat} {run : Result} {initials : List Initials.Entry}
+    (orders : Orders)
+    (valid : WellFormed initial profile)
+    (initialEmpty : Quiescent initial)
+    (scanned : scan initial actions profile offset PublishedHistory.empty = .ok run)
+    (quiescent : Quiescent run.state)
+    (enumerated : Initials.enumerate initial.world = .ok initials) :
+    ∃ table, Graph.build (Graph.runInputs initials run offset) orders = some table ∧
+      Graph.Executed initial actions profile offset run initials orders table ∧
+      EDSL.Concurrency.C23Atomic.Legal table.toCandidate := by
+  have captured : Graph.Captured initial actions profile offset run initials :=
+    ⟨valid, initialEmpty, scanned, quiescent, enumerated⟩
+  exact captured.build_legal orders
+```
+
+`captured.inputs_ready orders` derives the builder's `InputsReady` requirements:
+unique writer and publication keys, distinct publication positions, manifest
+boundaries, exact same-object/value RF sources, and both directions of
+writing-event/publication coverage. Initial sources use the actual registry
+descriptor and RAM word. Buffered sources retain the full real store reference,
+value and occurrence; RMWs retain their real action and publication. Equal
+words do not identify writers, and publication-rank gaps remain intact.
+
+`captured.build_complete orders` proves that the existing `Graph.build`
+succeeds and returns a `Graph.Executed` context. `captured.build_legal orders`
+adds finite-fragment legality through `Executed.legal`. These results assume
+neither `InputsReady`, `Built`, `Executed`, key/rank/value metadata nor checker
+success from the caller. New programs reuse the construction and coherence
+proofs once their actual scan, resources and queue boundaries are established.
+
+The executable builder and `AtomicTrace.verify` are unchanged. In particular,
+`verify` still runs its full legality checker; this theorem does not establish
+totality of that separate checker or completion of every schedule. Construction
+for arbitrary incoming managed queues remains open: such entries need explicit
+pre-run issue origins instead of invented in-run events. Source/interface-order
+justification, repeated method invocations, full C23 semantics, compiler
+preservation, native CPU/kernel correspondence and fairness are separate
+obligations.
 
 ## Published position order
 
@@ -184,8 +248,9 @@ This order-only theorem requires no final quiescence.
 
 These views support [universal graph sequencing](#universal-graph-sequencing)
 and [acquiring-fragment legality](#universal-acquiring-fragment-legality) for
-actual mapped runs below. Source/interface annotation justification and
-graph-construction totality remain separate.
+actual mapped runs below. [Graph construction](#graph-construction-from-actual-execution)
+derives the mapping at the empty initial-queue boundary. Source/interface
+annotation justification remains separate.
 
 ## Actual access and source ranks
 
@@ -506,8 +571,10 @@ entries and views outside the graph's access events remain permitted. However,
 `Built` requires every managed publication to be represented by a matching
 in-run write event. Incoming managed entries have no such issue, so this graph
 mapping excludes them; their drains receive no invented instruction origins.
-Successful scans and nonempty-queue view theorems therefore do not establish
-graph-build totality or a graph adapter for incoming managed stores.
+Successful scans and nonempty-queue view theorems alone therefore do not supply
+a graph adapter for incoming managed stores. `Graph.Captured` uses empty initial
+queues to derive every mapping obligation through the
+[construction theorem](#graph-construction-from-actual-execution).
 
 The [operational graph clients](../tests/GraphOperationalCoherence.lean) use the
 real initial registry/RAM manifests obtained through `Initials.enumerate`.
@@ -675,9 +742,10 @@ to use that checker. The no-acquire theorem remains a compatible special case.
 The [acquiring coherence clients](../tests/GraphHBCoherence.lean) reuse actual
 foreign-RMW and own-forwarding runs and a cross-cell publication chain with an
 unchanged-value RMW. Initial registry/RAM provenance remains separately
-authenticated in those clients. Graph construction totality, repeated method
-invocations, full C23/source/compiler semantics, native hardware or kernel
-correspondence and fairness remain separate. The theorem does not infer
+authenticated in those clients. The construction theorem above authenticates
+that manifest and derives the mapping for an empty initial-queue boundary.
+Repeated method invocations, full C23/source/compiler semantics, native hardware
+or kernel correspondence and fairness remain separate. The theorem does not infer
 interface orders from machine bytes or model consume, fences or sequential
 consistency. Frozen compiler-corpus coverage is unchanged.
 
@@ -691,10 +759,13 @@ do not establish relaxed, acquire, or release source intent.
 Successful checking certifies the supplied finite trace. Universal mapped-run
 legality covers every finite run satisfying the actual execution and complete
 structural-mapping premises, with arbitrary declared primitive-interface orders.
-It proves neither graph-construction totality nor completion of every schedule.
+`Graph.Captured.build_legal` derives that mapping, graph-build success and
+legality from raw initialized scan evidence with empty initial and final queues.
+It does not establish construction for arbitrary incoming managed queues,
+legality-checker totality or completion of every schedule.
 Full C23 semantics, a source frontend, justified source/interface annotations and
-source/compiler preservation remain open. Physical CPU, native Linux and kernel correspondence,
-fairness and liveness remain separate obligations.
+source/compiler preservation remain open. Physical CPU, native Linux and kernel
+correspondence, fairness and liveness remain separate obligations.
 
 Frozen compiler-corpus coverage remains **16/40 functions and 32/80 artifacts**,
 including **one distinct concurrent function**. See the

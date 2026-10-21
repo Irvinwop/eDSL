@@ -13,6 +13,7 @@ import EDSL.OS.TSO64.C23Projection.AtomicTrace.Coherence
 import EDSL.OS.TSO64.C23Projection.AtomicTrace.GraphNoAcquire
 import EDSL.OS.TSO64.C23Projection.AtomicTrace.GraphHappensBefore
 import EDSL.OS.TSO64.C23Projection.AtomicTrace.GraphHBCoherence
+import EDSL.OS.TSO64.C23Projection.AtomicTrace.GraphConstruction
 
 /-!
 Checked finite atomic graphs from actual executions. The executable interface
@@ -26,6 +27,9 @@ preservation theorem, a native CPU/Linux model, or a liveness result. World and
 resource well-formedness remain explicit premises of the execution-origin
 theorem. Empty initial/final queues are checked, not silently assumed. Initialization
 is an already-initialized stable-object boundary, not C object lifecycle semantics.
+`Graph.Captured.build_legal` separately derives successful graph construction
+and modeled finite-fragment legality from raw initialized scan evidence. The
+executable verifier retains both its structural and legality checks.
 -/
 
 set_option autoImplicit false
