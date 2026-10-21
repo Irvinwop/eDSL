@@ -7,9 +7,11 @@ import EDSL.OS.TSO64.C23Projection.AtomicTrace.SourceOrigins
 import EDSL.OS.TSO64.C23Projection.AtomicTrace.GraphRanks
 import EDSL.OS.TSO64.C23Projection.AtomicTrace.PublicationViews
 import EDSL.OS.TSO64.C23Projection.AtomicTrace.ViewTransfer
+import EDSL.OS.TSO64.C23Projection.AtomicTrace.ReadTransfer
 import EDSL.OS.TSO64.C23Projection.AtomicTrace.RMWPredecessor
 import EDSL.OS.TSO64.C23Projection.AtomicTrace.Coherence
 import EDSL.OS.TSO64.C23Projection.AtomicTrace.GraphNoAcquire
+import EDSL.OS.TSO64.C23Projection.AtomicTrace.GraphHappensBefore
 
 /-!
 Checked finite atomic graphs from actual executions. The executable interface

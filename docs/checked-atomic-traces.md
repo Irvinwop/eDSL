@@ -358,6 +358,16 @@ happens-before graph, C23 legality, fairness, or native refinement.
 The [execution clients](../tests/ViewTransfer.lean) exercise actual source
 identities and other-cell views through the shared API.
 
+`AtomicTrace.ReadTransfer` supplies the same transfer for either kind of actual
+read side, represented by `ReadAccess`: a load or an RMW. Its
+`EventAt.read_write_order` derives strict source-instruction order from the
+actual read and complete matching publication. Loads may forward their own
+buffered stores; an RMW follows its source's publication even when that source
+belongs to the same worker. The reusable `read_transfers_view`,
+`read_transfers_view_alias` and `read_transfers_access_views` methods then
+transfer views of any authorized persistent target cell, including a cell
+other than the read's object. Equal words never identify source writers.
+
 ## Writer successor views and operational coherence
 
 `PublishedHistory.InstructionWriteAt.self_view` constructs the writing thread's
@@ -555,6 +565,72 @@ from the universal no-acquire result.
 The operational graph clients apply this theorem to both computed graphs;
 acquiring-load and acquiring-RMW controls on the same actual cross-cell scan
 produce false `noAcquire` results.
+
+## Happens-before order for acquiring annotations
+
+`AtomicTrace.GraphActionOrder` computes an action clock for every graph row:
+zero for supplied initializers, and the original scan position plus one for
+actual events. Silent actions and drains retain their positions. A buffered
+store's action clock can precede its publication rank, so these two numbers
+are kept distinct. `executed.seq_clock_lt` and `executed.rf_clock_lt` prove
+strict clock increase along sequencing and from each exact RF writer to its
+reader, including own forwarding and RMW read sides.
+
+`AtomicTrace.GraphHappensBefore` extends these facts to arbitrary declared
+interface annotations on any `Graph.Executed` context:
+
+| API | Conclusion |
+| --- | --- |
+| `executed.release_clock_le membership` | A release head's action clock is at most its member's clock |
+| `executed.sw_clock_lt edge` | Every declared synchronizes-with edge strictly advances the clock |
+| `executed.hb_clock_lt path` | Every nonempty happens-before path strictly advances the clock |
+| `executed.hb_acyclic` | No happens-before cycle exists |
+| `executed.noFutureHB source` | No reader is happens-before its selected RF writer |
+
+The clock comes from the actual scan. Clients supply no clock certificate,
+rank-order oracle, legality proof or graph-checker success. Same-object rank
+uniqueness identifies equal-rank release members; otherwise the release
+sequence's own contiguous-prefix condition provides a same-thread write or an
+RMW. Actual instruction/publication order then bounds the member's clock.
+Combining this bound with the exact RF clock yields synchronization order.
+
+Once an actual run has an `Executed` context, a client can reuse the result
+without proving individual HB edges again:
+
+```lean
+import EDSL.OS.TSO64.C23Projection.AtomicTrace.GraphHappensBefore
+open EDSL.OS.TSO64
+open EDSL.OS.TSO64.C23Projection.AtomicTrace
+
+example {initial : State} {actions : List Action} {profile : Profile}
+    {offset : Nat} {run : Result} {initials : List Initials.Entry}
+    {orders : Orders} {table : Graph.Table}
+    (executed : Graph.Executed initial actions profile offset run initials orders table)
+    {reader writer : Nat}
+    (source : EDSL.Concurrency.C23Atomic.ReadsFrom table.toCandidate reader writer) :
+    ¬ EDSL.Concurrency.C23Atomic.HappensBefore table.toCandidate reader writer :=
+  executed.noFutureHB source
+```
+
+The [integration clients](../tests/GraphHappensBefore.lean) compute graphs from
+actual scans and declared acquiring interfaces. They cover a release sequence
+through a foreign worker's RMW, publication-rank gaps, equal-valued writers and
+own forwarded loads. Their cycle and future-source exclusions use the shared
+universal theorems.
+
+For later view-transport proofs, `C23Atomic.ReleaseSequence` also supplies
+`ReleaseMember.source_prefix` and `ReleaseMember.induction`. An RMW member's
+actual RF source is an earlier member when structural well-formedness and the
+immediate-predecessor condition hold. Induction follows actual modification
+ranks and selected sources; numeric rank gaps and equal-valued writes remain
+distinct. These lemmas do not require the other fields of `C23Atomic.Legal`.
+
+HB acyclicity and no-future RF do not establish the four HB coherence fields of
+`Legal`. Universal acquiring legality still needs view transport through
+release sequences, synchronization and composed HB paths. The executable
+`AtomicTrace.verify` continues to use the full legality checker. Initial
+manifest provenance, graph-build totality, full C23/source/compiler semantics,
+native hardware or kernel correspondence and fairness remain separate.
 
 ## Scope
 
