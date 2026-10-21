@@ -87,8 +87,11 @@ at an arbitrary offset with an empty incoming publication map, and actual
 registry/RAM enumeration. It assumes no graph table, writer/rank/value oracle
 or legality-checker success. The executable verifier retains its full checker;
 totality of that separate checker is not established.
-The next obligations are source/interface annotation justification, registered
-load/store contracts and repeated invocations. Construction for arbitrary
+The shared [load/store history composition](managed-plain-methods.md#construct-the-complete-atomic-history)
+now derives the complete call batch and legal graph together. Represented scalar
+ABI return frames and exact named ELF/code-shape bindings are also available.
+The next obligations are independent registered load/store contracts, useful
+exact-file resources, source/interface annotation justification and repeated invocations. Construction for arbitrary
 incoming managed queues remains open. Full C23/frontend semantics,
 source/compiler preservation, native/kernel correspondence and fairness remain
 separate capabilities.

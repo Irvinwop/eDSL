@@ -8,7 +8,9 @@ instruction count; clients do not repeat an induction for each compiler output.
 
 The family also extracts indexed machine calls and complete finite call cohorts.
 The complete scanner event list matches those calls under the declared interface
-orders. Universal C23 ordering and final-ELF certificates remain separate obligations.
+orders. At an initialized empty-queue boundary, the shared history theorem also
+constructs their legal finite atomic graph. Independent registered final-ELF
+contracts and source-order justification remain separate obligations.
 
 ## Describe and check the code
 
@@ -149,9 +151,64 @@ Clients do not supply the desired call-event equality.
 `Correspondence.realizes` supplies structural `AtomicCalls.Realizes` when a
 candidate is bound to that actual scanner list and its initializer shape is
 established. Neither structural correspondence nor sorting proves reads-from
-legality, coherence or `C23Atomic.Legal`; universal operational legality remains
-a separate layer. Repeated invocations and dynamic worker lifecycle also remain
-outside this adapter.
+legality, coherence or `C23Atomic.Legal`. The history composition below derives
+those facts through the operational graph layer. Repeated invocations and
+dynamic worker lifecycle remain outside this adapter.
+
+## Construct the complete atomic history
+
+`Correspondence.history` joins the admitted initial cohort to
+[`Graph.Captured`](checked-atomic-traces.md#graph-construction-from-actual-execution).
+It constructs both the actual graph and the complete call batch. Initial values,
+writer identities, read values, publication ranks, event equality and legality
+come from that same run. None is a caller-supplied history oracle.
+
+```lean
+open OS.TSO64.C23Projection
+
+example {initial : OS.TSO64.State} {actions : List OS.TSO64.Action}
+    {offset : Nat} {run : AtomicTrace.Result} {initials : List AtomicTrace.Initials.Entry}
+    (captured : AtomicTrace.Graph.Captured initial actions .sharedCell offset run initials)
+    (invocations : (tid : Fin initial.workers.length) → Invocation initial tid.val)
+    (returned : ∀ tid : Fin initial.workers.length, ∃ worker,
+      run.state.workers[tid.val]? = some worker ∧ worker.phase = .returned) :
+    ∃ table,
+      AtomicTrace.Graph.build (AtomicTrace.Graph.runInputs initials run offset)
+        AtomicEvents.orders = some table ∧
+      ∃ batch : BatchResult initial actions run.execution invocations,
+        Concurrency.AtomicCalls.History (initials.map AtomicTrace.Graph.initialEvent)
+          batch.calls table.toCandidate :=
+  Correspondence.history captured invocations returned
+```
+
+`history_of_batch` provides the same composition when `completed_batch` has
+already produced the actual batch. These theorems retain arbitrary scan offsets,
+logical occurrence labels, full words and nonzero initial store counters.
+They cover one invocation per initial worker with empty initial and final
+queues. A store can return before publication; the final queue boundary closes
+its publication history without moving that publication into the call interval.
+The executable verifier retains its full legality checker.
+
+## Represented scalar ABI frames
+
+`OS.ScalarCall64.Entry` independently states scalar stack alignment, clear DF,
+a nonwrapping stack pop and canonical post-pop RSP. These requirements are
+additional to the base method's protected caller and code admission.
+`BodyPost.return_frame` transports the shared engine's entry/body evidence to
+`OS.ScalarCall64.ReturnFrame`: actual returned worker, retained current resources,
+callee-saved GPRs, all flags, stack pop and canonical original caller continuation.
+Both initial and final worker slots are recorded in that independent frame.
+Applications must establish the scalar entry requirements from their admitted
+resources; the adapter does not assume them for every `Method`.
+
+The return frame permits a pending store. Its separate `collect` theorem requires
+an empty own queue because the production collection API observes both return
+and publication. Neither the return frame nor collection releases resources.
+
+`Corpus.V1.PlainWindows` binds both operations to the exact complete named
+GCC/Clang ELF windows and checks their shared decoder shapes. GCC's ENDBR64
+remains present. These file and shape checks establish no behavioral contract
+or useful loaded-resource population by themselves.
 
 ## Scope and validation
 
@@ -181,11 +238,18 @@ dispatches and observations, independently of the adapter's sorting algorithm.
 The [complete scanner client](../tests/PlainEventCorrespondence.lean) derives
 scanner success from that same actual run and checks its full ordered event
 list, including distinct handles, writer identity and a nonzero position offset.
+The [history client](../tests/PlainMethodHistories.lean) starts after a real
+pre-invocation drain, retaining a nonzero store counter. Its peer returns before
+publication; the reader loads the old full word during that interval and retains
+it after RAM changes. Independent expectations check the actual call positions,
+read source and later publication rank against the constructed history. Its
+model caller slots do not supply the separate scalar ABI admission above.
 
 The shared rules inherit the existing long-mode, CET-off, supported-padding,
 aligned normal-RAM, translation/alias and managed-resource assumptions. They do
 not establish physical x86/Linux correspondence, dynamic resource lifecycle,
-source/compiler preservation, universal C23 legality or a full OS/kernel result.
-This family adds no frozen corpus credit until the fixed independent call/order
-contracts and exact final-file gates are proved. See [atomic call contracts](atomic-call-contracts.md)
+source/compiler preservation, full C23 semantics or a full OS/kernel result.
+Finite atomic-fragment legality is established for the raw history boundary
+above. This family adds no frozen corpus credit until independent registered
+contracts and useful exact-file resources are proved. See [atomic call contracts](atomic-call-contracts.md)
 and [checked finite atomic traces](checked-atomic-traces.md) for the adjacent layers.

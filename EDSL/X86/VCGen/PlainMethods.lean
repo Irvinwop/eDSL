@@ -7,10 +7,14 @@ import EDSL.X86.VCGen.PlainMethods.Calls
 import EDSL.X86.VCGen.PlainMethods.AtomicEvents
 import EDSL.X86.VCGen.PlainMethods.Batch
 import EDSL.X86.VCGen.PlainMethods.Correspondence
+import EDSL.X86.VCGen.PlainMethods.History
+import EDSL.X86.VCGen.PlainMethods.ABI
 
 /-!
 Reusable checked padding/MOV64/RET method proofs for managed shared cells.
 See `docs/managed-plain-methods.md` for admission, access origins, queue/caller
 frames, indexed call/response origins, complete finite cohorts, whole scanner
-correspondence and the separate ordering/artifact obligations.
+correspondence, constructed finite atomic histories and represented scalar ABI
+return frames. Exact artifact contracts and source-order justification are
+separate obligations.
 -/
