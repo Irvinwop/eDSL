@@ -10,3 +10,4 @@ import EDSL.OS.TSO64.ExecutionViews.Query
 import EDSL.OS.TSO64.StoreHistory.WriteOrder
 import EDSL.OS.TSO64.ExecutionViews.PublicationCovers
 import EDSL.OS.TSO64.ExecutionViews.Transfer
+import EDSL.OS.TSO64.ExecutionViews.WriteSelf

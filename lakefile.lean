@@ -106,7 +106,7 @@ lean_lib ManagedQueue64Tests where
     `tests.RMWSourceRanks, `tests.AccessGraphRanks, `tests.TSO64CrossCellFixtures,
     `tests.PublicationCoverage, `tests.PublicationCoverageBoundary,
     `tests.PublicationCoverageLoads, `tests.PublicationCoverageAudit,
-    `tests.ViewTransfer]
+    `tests.ViewTransfer, `tests.WriteViewRanks]
   moreLeanArgs := #["-DautoImplicit=false"]
 
 -- Source atomic event graphs remain separate from machine scheduling.

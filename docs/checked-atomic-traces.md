@@ -220,6 +220,14 @@ its original action position. `EventAt.rmw_view_rank` proves that the source
 rank is strictly below its own rank. Gaps are expected because ranks count
 silent actions and other-cell publications too.
 
+`AtomicTrace.RMWPredecessor` strengthens this to an exact same-cell predecessor
+result. `EventAt.rmw_predecessor` retains both writer identities and proves that
+every actual earlier publication to the RMW's cell has rank at most its source
+rank. There is no same-cell publication between that source and the RMW, even
+when their global ranks have gaps. If the source is the initialized boundary,
+`rmw_initial_no_prior_write` excludes every earlier same-cell publication in
+the run. An unchanged value or zero-delta RMW still has its own writer identity.
+
 `AtomicTrace.GraphRanks` connects these actual writer ranks to a finite graph
 that retains the complete publication list. `EventAt.load_graph_rank` equates a
 load view with the rank of the exact writer selected by its semantic RF edge.
@@ -343,6 +351,62 @@ numerical results supply no source memory-order inference, synchronizes-with or
 happens-before graph, C23 legality, fairness, or native refinement.
 The [execution clients](../tests/ViewTransfer.lean) exercise actual source
 identities and other-cell views through the shared API.
+
+## Writer successor views and operational coherence
+
+`PublishedHistory.InstructionWriteAt.self_view` constructs the writing thread's
+view of its written cell immediately after the instruction, at exactly the
+write's publication position plus one. For a buffered store, that rank refers
+to its actual later drain; for an RMW, publication happens in the instruction's
+own step. The result derives the original worker and complete current target
+from the actual instruction. It permits arbitrary incoming publication metadata,
+without a `PublishedOrder.Prior` bound. `post_view_rank` gives the same endpoint
+through a current alias. An alias requires real `Queue.Current` authority;
+an unauthenticated same-cell view alone is insufficient.
+
+`AtomicTrace.Coherence` combines that endpoint with view monotonicity and exact
+load sources. Clients reuse these operational constraints without a new
+instruction-by-instruction proof:
+
+| API | Constraint on actual same-thread accesses |
+| --- | --- |
+| `EventAt.write_read_rank` | A write before a same-cell load has rank at most the load's source rank |
+| `EventAt.read_read_rank` | Ordered same-cell loads have nondecreasing source ranks |
+| `EventAt.read_write_rank_lt` | A load's source rank is strictly below any later instruction write's rank, including a write to another cell |
+
+For example, the strict read/write contract retains the actual source writer:
+
+```lean
+import EDSL.OS.TSO64.C23Projection.AtomicTrace.Coherence
+open EDSL.OS.TSO64
+open EDSL.OS.TSO64.C23Projection.AtomicTrace
+
+example {initial : State} {actions : List Action}
+    {result : State × List Observation} {profile : Profile}
+    {event : Event} {readIndex writeIndex offset : Nat}
+    {target : Queue.ManagedRef} {word : EDSL.X86.Word} {source : WriterId}
+    {stamp : PublishedHistory.Stamp}
+    (execution : ExecutionViews.Execution initial actions result profile)
+    (actual : EventAt profile event readIndex initial actions result offset PublishedHistory.empty)
+    (loaded : event.access = .load target word source)
+    (written : PublishedHistory.InstructionWriteAt initial actions result profile
+      offset writeIndex stamp)
+    (sameThread : event.tid = stamp.cause.tid) (ordered : readIndex ≤ writeIndex) :
+    ∃ rank, WriterRank initial actions result profile offset target.handle.cell source rank ∧
+      rank < stamp.position + 1 :=
+  actual.read_write_rank_lt execution loaded written sameThread ordered
+```
+
+The predecessor and coherence APIs use an empty incoming publication map.
+All these execution-level results allow nonempty initial mixed FIFOs and require
+a finite successful execution, well-formed initial resources, sequenced initial
+queues and final quiescence. Incoming queued writes retain their real later
+publications without invented instruction origins. The
+[writer-rank clients](../tests/WriteViewRanks.lean) include a zero-delta RMW,
+an actual suffix with an incoming queued store, forwarding and published reads.
+These numerical constraints are ingredients for graph coherence; they do not
+establish declared release/acquire mappings, synchronizes-with, happens-before,
+full C23 legality, native refinement or fairness.
 
 ## Scope
 

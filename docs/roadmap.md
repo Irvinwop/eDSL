@@ -40,8 +40,15 @@ These execution-level APIs allow nonempty initial mixed FIFOs.
 `AtomicTrace.verify` retains its empty initial-queue boundary.
 [Exact-source load transfer](checked-atomic-traces.md#exact-source-view-transfer)
 now propagates these numerical views through actual published reads and own
-forwarding, including other-cell views and current handle aliases. Next justify
-declared release/acquire interface mappings and derive SW/HB/coherence constraints.
+forwarding, including other-cell views and current handle aliases.
+[Exact writer successor views and operational coherence](checked-atomic-traces.md#writer-successor-views-and-operational-coherence)
+now give same-cell write/read and read/read rank bounds and strict read/write
+rank order across cells. Actual RMW sources are proved to be same-cell
+publication predecessors, with global rank gaps allowed. These finite numerical
+results permit nonempty incoming FIFOs; coherence and predecessor results start
+the publication map empty, while writer successor views accept arbitrary incoming
+metadata. Next lift these constraints to universal graph coherence, justify
+declared release/acquire interface mappings and derive SW/HB constraints.
 Universal operational legality and repeated invocations remain open.
 The [blocker report](corpus-blockers.md) identifies later instruction, memory
 and synchronization gaps. Keep the frozen inputs and denominator unchanged;
