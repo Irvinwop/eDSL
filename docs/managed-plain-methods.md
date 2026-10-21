@@ -12,8 +12,9 @@ orders. At an initialized empty-queue boundary, the shared history theorem also
 constructs their legal finite atomic graph. Shared rules construct a returned
 mixed cohort from an actual execution prefix and frame all RAM cells outside
 its target and incoming-queue footprints. A separate, present-state admission
-contract connects registered load/store images to this engine. Full registered
-behavioral contracts, exact-ELF resource inhabitants and source-order
+contract connects registered load/store images to this engine. Independent
+completed behavior and closed history share the same actual call list. The
+complete registered Claim, exact-ELF resource inhabitants and source-order
 justification remain separate obligations.
 
 ## Describe and check the code
@@ -255,6 +256,57 @@ example {catalog : Grading.ConcurrentTask.Plain64.Catalog}
 worker relative to its actual initial slot. `returned_cohort` combines those
 frames when every worker has returned, with pending publications still permitted.
 
+## Derive safety and progress
+
+`import EDSL.OS.PlainCall64` exposes the shared admission, frame, safety,
+progress, behavior and history adapters. Once a new byte window has its static shape
+proof and its workers satisfy independent `Pre`, the same rules apply to every
+successful prefix:
+
+```lean
+import EDSL.OS.PlainCall64
+open EDSL Grading.ConcurrentTask.Plain64
+
+example {catalog : Catalog}
+    (static : OS.PlainCallAdmission64.StaticShapes catalog)
+    {initial : OS.TSO64.State}
+    {inputs : Fin initial.workers.length → Input}
+    (pre : Pre catalog initial inputs)
+    {actions : List OS.TSO64.Action}
+    {result : OS.TSO64.State × List OS.TSO64.Observation}
+    (success : OS.TSO64.schedule initial actions .sharedCell = .ok result) :
+    SafePrefix initial result.1 inputs ∧ Enabled result.1 ∧ Bounded 64 actions result.1 :=
+  ⟨OS.PlainCallSafety64.safe_prefix static pre success,
+    OS.PlainCallProgress64.enabled static pre success,
+    OS.PlainCallProgress64.bounded static pre success⟩
+```
+
+`SafePrefix` adds actual FIFO suffix and allocation-counter progress to the
+complete-cell frame. It preserves the same original and current target
+reference, complete flags, callee-saved registers, full code image and original
+protected caller reads. Incoming queues remain actual boundary data.
+
+Enabledness means a currently running worker can retire its next instruction
+for either AF choice. The 64-issue upper bound follows from positive instruction
+lengths and the supported complete 64-byte window; drains consume no own issue.
+It is neither a hardware timing result nor a minimum-operation theorem, and
+neither result assumes scheduler fairness or publication at RET.
+
+`OS.PlainCallBehavior64.post` additionally derives independent `Plain64.Post`
+for any actual successful run in which all workers returned. Each outcome
+records its unique same-run data access and RET, the selected full64 read and
+FIFO/published source or exact store enqueue/reference/counter, and its scalar
+ABI, register and queue frames. The postcondition covers every recognized MOV64
+access and every RET, excluding RMW and blocked observations. Valid nonempty
+incoming FIFOs remain allowed; a returned store need not have published.
+
+For closed runs, `OS.PlainCallHistory64.behavior_history_of_closed` joins that
+independent Post to the constructed legal atomic History with exactly the same
+call list. Clients do not write dependent casts between observed values and
+logical replies. These shared adapters still need useful exact-file resources
+and the remaining complete Claim composition before the pending compiler
+functions receive corpus credit.
+
 ## Extract calls and match scanner events
 
 `completed_call` derives a `CompletedCall` from the same present admission,
@@ -311,6 +363,18 @@ those facts through the operational graph layer. Repeated invocations and
 dynamic worker lifecycle remain outside this adapter.
 
 ## Construct the complete atomic history
+
+`OS.PlainCallHistory64.history_of_closed` is the direct route from independent
+`ClosedPre`, separate static shapes and an actual successful `Finished` run.
+It derives the scan result and enumerates every live initial registered cell
+from current resource validity. The caller supplies no initializer table,
+selected source, `Captured` witness or desired graph. Arbitrary initial machine
+counters remain allowed; the closed boundary requires empty queues.
+
+The generic `AtomicTrace.Graph.captured_of_schedule` supplies the same raw
+capture route for either authority profile, independently of this method family.
+Scanner faults remain exactly the production scheduler faults. It does not
+prove that an arbitrary schedule succeeds or finishes.
 
 `Correspondence.history` joins the admitted initial cohort to
 [`Graph.Captured`](checked-atomic-traces.md#graph-construction-from-actual-execution).
