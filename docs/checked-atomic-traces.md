@@ -235,6 +235,62 @@ with a peer store still pending. The [graph clients](../tests/AccessGraphRanks.l
 compute their initial manifest and graph, then distinguish source writer rows,
 publication ranks, original action cuts and rank-zero load rows.
 
+## Publication coverage
+
+`PublishedHistory.InstructionWriteAt.covers_after` bounds every actual target
+view of the writing thread immediately after its instruction by that write's
+publication position plus one. The target may be a different managed cell.
+Buffered writes retain their actual issue and eventual publication; an RMW
+retains its own action position and empty-queue gate. Coverage uses an actual
+`At` witness and imposes no same-cell restriction.
+
+`EventAt.covered_by_write` derives the view domain from an actual access's full
+authority. For any cut at or before a same-thread write's successor cut, it
+constructs that target's view and bounds it by the write's publication rank.
+The access authenticates the target; its own action index need not be the
+queried cut. Stable resources and the fixed worker universe remain part of
+this scheduler's scope.
+
+For a load, `EventAt.load_source_le_write` also retains the exact source writer
+identity. The following contract applies to any actual load followed by an
+actual instruction write from the same thread, including a write to another
+cell:
+
+```lean
+import EDSL.OS.TSO64.C23Projection.AtomicTrace.PublicationViews
+open EDSL.OS.TSO64
+open EDSL.OS.TSO64.C23Projection.AtomicTrace
+
+example {initial : State} {actions : List Action}
+    {result : State × List Observation} {profile : Profile}
+    {event : Event} {accessIndex writeIndex offset : Nat}
+    {stamp : PublishedHistory.Stamp} {target : Queue.ManagedRef}
+    {word : EDSL.X86.Word} {source : WriterId}
+    (execution : ExecutionViews.Execution initial actions result profile)
+    (actual : EventAt profile event accessIndex initial actions result offset PublishedHistory.empty)
+    (loaded : event.access = .load target word source)
+    (written : PublishedHistory.InstructionWriteAt initial actions result profile
+      offset writeIndex stamp)
+    (sameThread : event.tid = stamp.cause.tid) (ordered : accessIndex ≤ writeIndex) :
+    ∃ rank, WriterRank initial actions result profile offset target.handle.cell source rank ∧
+      rank ≤ stamp.position + 1 :=
+  actual.load_source_le_write execution loaded written sameThread ordered
+```
+
+General view coverage permits arbitrary incoming publication metadata under
+the explicit `PublishedOrder.Prior` position bound. The exact load-source
+corollary starts that map empty, because a numerical bound alone does not
+authenticate incoming writer identities. Both APIs permit nonempty initial
+mixed FIFOs with well-formed resources and sequenced occurrences; incoming
+entries receive no invented issue origins. These execution-level results are
+separate from `AtomicTrace.verify`, which checks an empty initial FIFO boundary.
+
+Related clients cover [cross-cell views](../tests/PublicationCoverage.lean),
+[incoming queues](../tests/PublicationCoverageBoundary.lean) and
+[actual load sources](../tests/PublicationCoverageLoads.lean). Publication
+coverage is numerical: it does not establish source release/acquire intent,
+cross-thread view transfer, happens-before or full C23 legality.
+
 ## Scope
 
 Objects are already initialized and stable for the finite run. The scheduler

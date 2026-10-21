@@ -31,8 +31,15 @@ and [pending selection rank bounds](checked-atomic-traces.md#pending-writers-and
 are shared across arbitrary traces. General own-pending/published view monotonicity
 and same-thread mixed store/RMW publication order are now proved for the finite
 execution model. Actual access authority and source-writer ranks connect those
-views to identity-based RF writer rows. Cross-cell release transfer, universal
-operational ordering and repeated invocations remain open.
+views to identity-based RF writer rows. Reusable
+[publication coverage](checked-atomic-traces.md#publication-coverage) now bounds
+every actual target view of the writing thread at its instruction's successor
+cut. Access authority extends the bound to earlier cuts; the load corollary
+retains the exact source writer identity, including across different cells.
+These execution-level APIs allow nonempty initial mixed FIFOs.
+`AtomicTrace.verify` retains its empty initial-queue boundary. Cross-thread
+release/acquire transfer, universal operational ordering and repeated invocations
+remain open.
 The [blocker report](corpus-blockers.md) identifies later instruction, memory
 and synchronization gaps. Keep the frozen inputs and denominator unchanged;
 new configurations require a new corpus version.
