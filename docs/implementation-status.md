@@ -84,11 +84,11 @@ remains open. They are separate profiles, not one interchangeable backend.
 | Managed qword histories | Complete computed access traces, unique managed publications, full-word load sources and checked finite C23 graph extraction | [Checked atomic traces](checked-atomic-traces.md) retain complete initial objects, actual writer identities and publication ranks; `verify` continues to use the full graph-legality checker with empty initial/final queues |
 | Execution views and writer order | View monotonicity, actual access authority and source-writer ranks, mixed store/RMW publication order, cross-cell publication coverage, exact-source transfer for loads and RMWs, exact writer successor views and generic write/read, read/read and strict read/write rank bounds | [Views and sources](checked-atomic-traces.md#execution-views), [publication coverage](checked-atomic-traces.md#publication-coverage), [exact-source transfer](checked-atomic-traces.md#exact-source-view-transfer) and [generic read sides](checked-atomic-traces.md#read-sides-of-loads-and-rmws); finite successful well-formed/sequenced/final-quiescent runs permit incoming FIFOs |
 | Structural graphs and sequencing | `Built.wellFormed` derives structural well-formedness from mapping alone; `Executed` derives universal all-row sequencing coherence, no-future sequencing and same-cell RMW predecessors | [Graph contracts](checked-atomic-traces.md#universal-graph-sequencing); actual scan, initial invariants, empty incoming publication map, final quiescence and complete structural mapping are explicit; registry/RAM manifest provenance remains separate |
-| Acquiring graph order | Computed actual action clocks order sequencing, RF, release members, synchronization and all HB paths; `Executed.hb_acyclic` and `noFutureHB` hold for arbitrary declared annotations | [HB order](checked-atomic-traces.md#happens-before-order-for-acquiring-annotations); all-HB coherence and universal acquiring legality remain open; no supplied clock or legality-check result |
-| Finite no-acquire legality | `executed.legal_without_acquire checked` proves `C23Atomic.Legal` for every mapped actual finite run with `orders.noAcquire run.events = true`; `relaxed_legal` covers `Orders.relaxed` | [No-acquire fragment](checked-atomic-traces.md#universal-no-acquire-legality); declared annotations exclude synchronizes-with (SW), reducing happens-before (HB) to sequencing without a graph-legality checker; general acquiring/release-sequence mappings and graph-build totality remain open |
+| Acquiring graph order and coherence | Actual clocks order sequencing, RF, release members and HB; actual view transport derives all four HB coherence conditions and `Executed.legal` for arbitrary declared annotations | [HB order](checked-atomic-traces.md#happens-before-order-for-acquiring-annotations) and [acquiring fragment](checked-atomic-traces.md#universal-acquiring-fragment-legality); conditional on actual scan and complete structural mapping; initialization provenance and graph-build totality remain separate |
+| Finite no-acquire legality | `executed.legal_without_acquire checked` proves `C23Atomic.Legal` when `orders.noAcquire run.events = true`; `relaxed_legal` covers `Orders.relaxed` | [No-acquire fragment](checked-atomic-traces.md#universal-no-acquire-legality); a compatible special case that reduces HB to sequencing without a graph-legality checker; graph-build totality remains open |
 | C23 atomic event constraints | Typed relaxed/acquire/release graphs, sound finite admission and generic message-passing rules | [Atomic event model](c23-atomic-events.md), [checker](c23-atomic-checker.md); no full C frontend or machine-to-source preservation |
-| Atomic method foundations | Independent completed-call contracts, constructive finite queue publication and legality under order weakening | [Call contracts](atomic-call-contracts.md); a general machine call adapter and universal operational legality for acquiring interfaces remain open |
-| Managed load/store methods | Shared decoder-backed padding/MOV64/RET proofs, current-resource enabledness, finite interleaving closure, indexed access/response origins, complete finite call cohorts and whole scanner/call correspondence | [Method family](managed-plain-methods.md); one invocation per initial worker; acquiring/release-sequence HB correspondence and final-ELF contracts remain separate |
+| Atomic method foundations | Independent completed-call contracts, constructive finite queue publication and legality under order weakening | [Call contracts](atomic-call-contracts.md); a general machine call adapter and native memory-order correspondence remain open |
+| Managed load/store methods | Shared decoder-backed padding/MOV64/RET proofs, current-resource enabledness, finite interleaving closure, indexed access/response origins, complete finite call cohorts and whole scanner/call correspondence | [Method family](managed-plain-methods.md); one invocation per initial worker; whole-method interface preservation and final-ELF contracts remain separate |
 | Managed-word TSO refinement | Finite classified actual scheduler traces to an independent uniform64 memory fragment | [Projection and boundaries](word-tso-refinement.md); no full HOL4, physical or source-order correspondence |
 | Mutex workers and buffers | Fixed-routine architectural/buffered prefix lifting, totals, resource collection and constructive completion | [Mutex workers](mutex-workers.md), [store buffers](store-buffers.md); existence of completion does not imply every scheduler completes |
 | Concurrent syscalls | Fresh pending IDs, peer execution and resumption against current RAM | [Suspension](concurrent-syscalls.md) requires an empty caller FIFO and external service contracts |
@@ -104,7 +104,9 @@ RAM manifest; structural `Built` does not authenticate it.
 
 `noAcquire` checks declared annotations rather than machine bytes and never
 weakens an acquiring order. A false result leaves synchronization and HB
-obligations open. The universal result concerns the finite C23 atomic fragment;
+obligations outside that special-case theorem; `executed.legal` handles them
+through actual view transport. The universal results concern the finite C23
+atomic fragment;
 full C23 semantics, a source frontend, source/compiler preservation, native or
 kernel correspondence and fairness remain separate. Frozen corpus totals are
 unchanged.
@@ -115,8 +117,8 @@ security analysis, noninterference or whole-OS safety.
 
 ## Planned capabilities
 
-- Release-sequence and SW/HB view transport and all-HB coherence for universal
-  acquiring-fragment legality; actual HB acyclicity and no-future RF are proved.
+- Constructive graph-build totality and source/interface-order justification
+  beyond the current conditional mapped-run atomic-fragment theorem.
 - Broader instruction/effect coverage, general interprocedural automation,
   richer pending histories and interoperable concurrency/resource profiles.
 - Native thread/runtime, Linux loader and syscall refinement; privileged ISA,

@@ -76,10 +76,11 @@ corpus credit is unchanged.
 [Actual action clocks](checked-atomic-traces.md#happens-before-order-for-acquiring-annotations)
 now prove HB acyclicity and no-future RF for arbitrary declared annotations on
 mapped runs. Generic read transfer covers loads and RMWs, and release-member
-source-prefix induction is available. The next universal obligations are
-release-sequence/SW/HB view transport and coherence over all resulting HB paths.
-General acquiring-fragment legality, graph-construction
-totality and repeated invocations remain open. Full C23/frontend semantics,
+source-prefix induction is available. [Actual view transport](checked-atomic-traces.md#universal-acquiring-fragment-legality)
+through release sequences, synchronization and HB paths derives all four HB
+coherence conditions and `executed.legal` for arbitrary declared annotations.
+The next obligations are constructive graph-build totality, source/interface
+annotation justification and repeated invocations. Full C23/frontend semantics,
 source/compiler preservation, native/kernel correspondence and fairness remain
 separate capabilities.
 The [blocker report](corpus-blockers.md) identifies later instruction, memory
@@ -107,7 +108,7 @@ new configurations require a new corpus version.
 | More compiler-output functions | Exact ISA rules, shared VCG, independent specifications and resource adapters | Both frozen compiler windows certified with useful admitted inputs |
 | Writable loops and richer calls | Current ownership, actual memory effects, stack/alias frames and loop invariants | All admitted executions satisfy result, safety and return-resource contracts |
 | More concurrent methods | Current actor authority, real event origins and allowed interference | Independent object histories, real-time order and explicit progress scope |
-| Universal acquiring-fragment legality | Structural graph well-formedness, sequencing coherence, RMW predecessors, generic exact-source transfer, release-source induction, actual HB acyclicity and no-future RF | Release-sequence/SW/HB view transport and all four HB coherence obligations |
+| Complete operational graph construction | Conditional mapped-run legality, complete access/publication origins, exact RF keys and registry/RAM enumeration | Constructively build every required row, unique writer key, matching publication and same-object/value RF source for the stated boundary profile |
 | Native memory-order correspondence | Existing FIFO/locked-operation models plus a defined target relation | Refinement to the selected published machine model; separate source-order proofs |
 | Whole-program OS behavior | Loader/ABI closure, resource identities, failure and asynchronous effects | Composition over all reachable code and declared external contracts |
 | Concrete kernel/runtime components | Exact deployed builds, privileged ISA, interrupts and shared invariants | Implementation proofs discharging the same contracts used by clients |
@@ -154,13 +155,11 @@ uniform64 memory fragment. Extend it to a justified correspondence with the
 complete selected published x86-TSO model before claiming that broader result.
 The [checked atomic-trace API](checked-atomic-traces.md) extracts complete
 managed accesses, writer identities and publication-based graphs for finite
-successful runs with declared interface orders. Extend universal mapped-run
-legality from the no-acquire fragment to acquiring interfaces by proving
-release-sequence/SW/HB view transport and the four HB coherence constraints.
-Actual HB acyclicity and no-future RF are already derived from the scan.
-Authenticate the
-initial registry/RAM manifest separately, preserve complete publication coverage
-and justify source-to-interface annotations. Graph-build totality remains a
+successful runs with declared interface orders. Universal mapped-run legality
+now includes acquiring interfaces through actual release-sequence/SW/HB view
+transport and all four HB coherence constraints. Authenticate the initial
+registry/RAM manifest separately, preserve complete publication coverage and
+justify source-to-interface annotations. Graph-build totality remains a
 separate obligation. Add compare/exchange and fences only with justified mappings.
 Extend private futex protocols beyond the current policies to blocking
 acquisition, multiple waiters, interruption,

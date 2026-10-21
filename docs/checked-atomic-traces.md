@@ -182,10 +182,10 @@ actual issue witnesses; incoming queue entries receive no invented instruction
 positions. The RMW's own-empty gate forces preceding stores to publish first.
 This order-only theorem requires no final quiescence.
 
-These views support the [universal graph sequencing](#universal-graph-sequencing)
-results below. General release/acquire interface mappings and graph-construction
-totality remain open; universal legality is available for the explicit
-[no-acquire fragment](#universal-no-acquire-legality).
+These views support [universal graph sequencing](#universal-graph-sequencing)
+and [acquiring-fragment legality](#universal-acquiring-fragment-legality) for
+actual mapped runs below. Source/interface annotation justification and
+graph-construction totality remain separate.
 
 ## Actual access and source ranks
 
@@ -558,10 +558,10 @@ running the graph-legality checker or assuming its success. `AtomicTrace.verify`
 continues to call the full `C23Atomic.Check.certify` checker and to check empty
 initial and final queues; it does not call this no-acquire theorem as a shortcut.
 
-A false `noAcquire` result leaves the synchronization and HB proof obligations
-open and establishes no program defect. Acquiring semantics are never silently
-lowered. General release/acquire and release-sequence mappings remain separate
-from the universal no-acquire result.
+A false `noAcquire` result falls outside this special-case theorem and
+establishes no program defect. Acquiring semantics are never silently lowered.
+The general mapped-run theorem below handles synchronization through actual
+release-member and HB view transport.
 The operational graph clients apply this theorem to both computed graphs;
 acquiring-load and acquiring-RMW controls on the same actual cross-cell scan
 produce false `noAcquire` results.
@@ -625,12 +625,61 @@ immediate-predecessor condition hold. Induction follows actual modification
 ranks and selected sources; numeric rank gaps and equal-valued writes remain
 distinct. These lemmas do not require the other fields of `C23Atomic.Legal`.
 
-HB acyclicity and no-future RF do not establish the four HB coherence fields of
-`Legal`. Universal acquiring legality still needs view transport through
-release sequences, synchronization and composed HB paths. The executable
-`AtomicTrace.verify` continues to use the full legality checker. Initial
-manifest provenance, graph-build totality, full C23/source/compiler semantics,
-native hardware or kernel correspondence and fairness remain separate.
+HB acyclicity and no-future RF alone do not establish the four HB coherence
+fields of `Legal`. View transport supplies the additional constraints below.
+
+## Universal acquiring-fragment legality
+
+`AtomicTrace.GraphViewTransfer` proves that every release member receives the
+release head's post-instruction views, including views of other cells. An
+actual selected RF source then transfers those views to its synchronizing
+reader. Every HB path transfers views from the first instruction's successor
+cut to the last instruction's prestate. Intermediate workers and views come
+from the actual scan and current authority for the viewed target. Clients
+supply no transfer inequality or intended intermediate rank.
+
+`AtomicTrace.GraphHBCoherence` uses this transport to derive all four atomic
+coherence conditions along HB. Writes have exact successor views at their
+publication ranks; loads and RMW read sides have exact prestate views at their
+selected source ranks. Actual access authority justifies retargeting between
+aliases of the same persistent cell. Rank equality identifies writes only when
+both are independently known writes on that same object. HB acyclicity and
+no-future RF then exclude equality in the two strict coherence conditions.
+
+| API | Conclusion for any `Graph.Executed` context |
+| --- | --- |
+| `executed.hbCoherent` | All four modeled atomic coherence conditions along every HB path |
+| `executed.legal` | Structural WF, HB coherence, acyclicity, no-future RF and RMW immediate predecessors |
+
+The orders can contain acquiring and releasing annotations:
+
+```lean
+import EDSL.OS.TSO64.C23Projection.AtomicTrace.GraphHBCoherence
+open EDSL.OS.TSO64
+open EDSL.OS.TSO64.C23Projection.AtomicTrace
+
+example {initial : State} {actions : List Action} {profile : Profile}
+    {offset : Nat} {run : Result} {initials : List Initials.Entry}
+    {orders : Orders} {table : Graph.Table}
+    (executed : Graph.Executed initial actions profile offset run initials orders table) :
+    EDSL.Concurrency.C23Atomic.Legal table.toCandidate :=
+  executed.legal
+```
+
+This proves the modeled finite relaxed/acquire/release atomic fragment for
+every actual run satisfying the explicit `Executed` and complete `Built`
+contracts. It uses neither a supplied legality proof nor successful execution
+of the graph-legality checker. The executable `AtomicTrace.verify` continues
+to use that checker. The no-acquire theorem remains a compatible special case.
+
+The [acquiring coherence clients](../tests/GraphHBCoherence.lean) reuse actual
+foreign-RMW and own-forwarding runs and a cross-cell publication chain with an
+unchanged-value RMW. Initial registry/RAM provenance remains separately
+authenticated in those clients. Graph construction totality, repeated method
+invocations, full C23/source/compiler semantics, native hardware or kernel
+correspondence and fairness remain separate. The theorem does not infer
+interface orders from machine bytes or model consume, fences or sequential
+consistency. Frozen compiler-corpus coverage is unchanged.
 
 ## Scope
 
@@ -639,12 +688,12 @@ does not model C object initialization/lifecycle or dynamic thread creation.
 Memory orders are declared primitive/interface annotations; MOV bytes alone
 do not establish relaxed, acquire, or release source intent.
 
-Successful checking certifies the supplied finite trace. The universal
-no-acquire theorem additionally covers every finite run satisfying its actual
-execution, structural mapping and annotation premises. It proves neither
-graph-construction totality nor completion of every schedule. General acquiring
-TSO-to-C23 preservation, full C23 semantics, a source frontend and source/compiler
-preservation remain open. Physical CPU, native Linux and kernel correspondence,
+Successful checking certifies the supplied finite trace. Universal mapped-run
+legality covers every finite run satisfying the actual execution and complete
+structural-mapping premises, with arbitrary declared primitive-interface orders.
+It proves neither graph-construction totality nor completion of every schedule.
+Full C23 semantics, a source frontend, justified source/interface annotations and
+source/compiler preservation remain open. Physical CPU, native Linux and kernel correspondence,
 fairness and liveness remain separate obligations.
 
 Frozen compiler-corpus coverage remains **16/40 functions and 32/80 artifacts**,

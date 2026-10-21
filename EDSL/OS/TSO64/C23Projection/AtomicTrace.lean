@@ -12,6 +12,7 @@ import EDSL.OS.TSO64.C23Projection.AtomicTrace.RMWPredecessor
 import EDSL.OS.TSO64.C23Projection.AtomicTrace.Coherence
 import EDSL.OS.TSO64.C23Projection.AtomicTrace.GraphNoAcquire
 import EDSL.OS.TSO64.C23Projection.AtomicTrace.GraphHappensBefore
+import EDSL.OS.TSO64.C23Projection.AtomicTrace.GraphHBCoherence
 
 /-!
 Checked finite atomic graphs from actual executions. The executable interface
