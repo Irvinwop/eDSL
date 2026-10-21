@@ -45,33 +45,6 @@ structure Invocation (state : OS.TSO64.State) (tid : Nat) where
   live : state.workers[tid]? = some initial
   entry : At method (.preamble 0 padding) initial
 
-private theorem batch_step_workers_length {state : OS.TSO64.State} {action : Action}
-    {result : OS.TSO64.State × Observation} {profile : Profile}
-    (success : OS.TSO64.step state action profile = .ok result) :
-    result.1.workers.length = state.workers.length := by
-  cases step_origin success with
-  | ordinary live running code caller fetched effect =>
-    cases effect with
-    | intro supported bounds decoded reads queue executed finish =>
-      cases finish <;> simp only [install, List.length_set]
-  | blocked => rfl
-  | rmw => simp only [install, List.length_set]
-  | drained => simp only [install, List.length_set]
-
-private theorem batch_schedule_workers_length {state : OS.TSO64.State}
-    {actions : List Action} {result : OS.TSO64.State × List Observation} {profile : Profile}
-    (success : schedule state actions profile = .ok result) :
-    result.1.workers.length = state.workers.length := by
-  induction actions generalizing state result with
-  | nil =>
-    have same : (state, []) = result := Except.ok.inj success
-    subst result
-    rfl
-  | cons action rest ih =>
-    obtain ⟨first, tail, actual, following, same⟩ := schedule_cons_ok success
-    rw [same]
-    exact (ih following).trans (batch_step_workers_length actual)
-
 private theorem batch_returned_live {state after : OS.TSO64.State} {action : Action}
     {tid : Nat} {profile : Profile}
     (success : OS.TSO64.step state action profile = .ok (after, .returned tid)) :
@@ -89,7 +62,7 @@ private theorem batch_dispatched_bound {state : OS.TSO64.State} {actions : List 
   obtain ⟨before, action, first, prefixRun, selected, actual, own⟩ := dispatched
   obtain ⟨af, worker, instruction, issuing, live, fetched, access⟩ := own
   have bound := (List.getElem_of_getElem? live).1
-  have length : before.workers.length = state.workers.length := batch_schedule_workers_length prefixRun
+  have length : before.workers.length = state.workers.length := ScheduleTrace.workers_length prefixRun
   omega
 
 private theorem batch_returned_bound {state : OS.TSO64.State} {actions : List Action}
@@ -100,7 +73,7 @@ private theorem batch_returned_bound {state : OS.TSO64.State} {actions : List Ac
     ScheduleTrace.observation_at success observed
   obtain ⟨worker, live⟩ := batch_returned_live actual
   have bound := (List.getElem_of_getElem? live).1
-  have length : before.workers.length = state.workers.length := batch_schedule_workers_length prefixRun
+  have length : before.workers.length = state.workers.length := ScheduleTrace.workers_length prefixRun
   omega
 
 private theorem batch_access_issue {method : Method} {tid index : Nat}

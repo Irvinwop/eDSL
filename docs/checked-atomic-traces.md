@@ -65,6 +65,23 @@ Equal words do not merge writers. Loads consume graph indices, and buffered
 stores receive ranks from their later publication positions rather than their
 issue positions. Missing or ambiguous identities and omitted publications reject.
 
+## Published position order
+
+`EDSL.OS.TSO64.PublishedOrder` proves that published writer positions cannot
+move backward when an observation stream is extended. A suffix either leaves
+the exact stamp unchanged with no same-cell publication, or supplies a strictly
+later stamp tied to an actual suffix observation. Equal-valued writes still
+count, and silent actions retain their positions. Arbitrary incoming stamps must
+predate the stream's offset; this position bound supplies no pre-run provenance.
+
+These lemmas apply across arbitrarily many publications. They do not yet give
+a thread's pending-store view, release/acquire view transfer, or universal C23
+legality. The managed [call adapter](managed-plain-methods.md) separately derives
+whole-list scanner/call correspondence for one invocation per initial worker.
+The [position-view regression](../tests/PublishedPositionViews.lean) follows the
+actual six-action run at offset 37: its view changes at managed publication,
+then survives both returns and the final ordinary drain.
+
 ## Scope
 
 Objects are already initialized and stable for the finite run. The scheduler

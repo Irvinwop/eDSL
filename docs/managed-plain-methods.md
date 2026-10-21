@@ -7,8 +7,8 @@ instruction execution, interference, queue draining, return frames and the own
 instruction count; clients do not repeat an induction for each compiler output.
 
 The family also extracts indexed machine calls and complete finite call cohorts.
-Matching an entire source graph, proving universal C23 ordering and binding
-final-ELF certificates remain separate obligations.
+The complete scanner event list matches those calls under the declared interface
+orders. Universal C23 ordering and final-ELF certificates remain separate obligations.
 
 ## Describe and check the code
 
@@ -139,11 +139,19 @@ example {initial : OS.TSO64.State}
   completed_batch invocations executed returned
 ```
 
-`BatchResult.realizes` supplies structural `AtomicCalls.Realizes` when the
-candidate's complete event-list correspondence and initializer shape are proved.
-The per-access scanner bridge does not by itself establish that whole-list
-equation. Neither call extraction nor sorting proves reads-from, coherence or
-`C23Atomic.Legal`; universal operational legality remains a separate layer.
+`Correspondence.machine_events` derives the complete scanner event list from
+the admitted cohort, retaining every reference, reply, writer key and original
+position. `positioned_events` and `source_events` then match the entire ordered
+list to the independent calls under the declared acquire/release interface.
+These equations are derived from actual execution and both coverage directions.
+Clients do not supply the desired call-event equality.
+
+`Correspondence.realizes` supplies structural `AtomicCalls.Realizes` when a
+candidate is bound to that actual scanner list and its initializer shape is
+established. Neither structural correspondence nor sorting proves reads-from
+legality, coherence or `C23Atomic.Legal`; universal operational legality remains
+a separate layer. Repeated invocations and dynamic worker lifecycle also remain
+outside this adapter.
 
 ## Scope and validation
 
@@ -170,6 +178,9 @@ The [cohort client](../tests/PlainCallBatch.lean) admits both workers before the
 managed accesses and requires chronological call order `[1, 0]`, with access
 positions `[0, 1]` and RET positions `[3, 4]`. These expectations follow the real
 dispatches and observations, independently of the adapter's sorting algorithm.
+The [complete scanner client](../tests/PlainEventCorrespondence.lean) derives
+scanner success from that same actual run and checks its full ordered event
+list, including distinct handles, writer identity and a nonzero position offset.
 
 The shared rules inherit the existing long-mode, CET-off, supported-padding,
 aligned normal-RAM, translation/alias and managed-resource assumptions. They do

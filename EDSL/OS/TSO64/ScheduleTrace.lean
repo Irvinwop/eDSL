@@ -73,4 +73,33 @@ theorem cells {state : State} {actions : List Action}
     rw [same]
     exact (ih following).trans (step_stable stepped).cells
 
+private theorem step_workers_length {state : State} {action : Action}
+    {result : State × Observation} {profile : Profile}
+    (success : step state action profile = .ok result) :
+    result.1.workers.length = state.workers.length := by
+  cases step_origin success with
+  | ordinary live running code caller fetched effect =>
+    cases effect with
+    | intro supported bounds decoded reads queue executed finish =>
+      cases finish <;> simp only [install, List.length_set]
+  | blocked => rfl
+  | rmw => simp only [install, List.length_set]
+  | drained => simp only [install, List.length_set]
+
+/-- Successful steps retain the fixed worker universe. This covers every
+scheduler profile and every intermediate prefix, including drains and RETs. -/
+theorem workers_length {state : State} {actions : List Action}
+    {result : State × List Observation} {profile : Profile}
+    (success : schedule state actions profile = .ok result) :
+    result.1.workers.length = state.workers.length := by
+  induction actions generalizing state result with
+  | nil =>
+    have same : (state, []) = result := Except.ok.inj success
+    subst result
+    rfl
+  | cons action rest ih =>
+    obtain ⟨first, tail, actual, following, same⟩ := schedule_cons_ok success
+    rw [same]
+    exact (ih following).trans (step_workers_length actual)
+
 end EDSL.OS.TSO64.ScheduleTrace
