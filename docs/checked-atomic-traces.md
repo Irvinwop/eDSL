@@ -162,7 +162,7 @@ example {initial : State} {actions : List Action}
 sequenced initial queues and final quiescence. `exists_at` constructs a view for
 an existing worker and a current managed target; the target authority may belong
 to any original resource record. Connecting every actual access to this domain
-and to its exact read-source rank remains a separate bridge.
+and to its exact read-source rank is described below.
 
 `query` computes a view from a prefix state and the complete observation list.
 `query_sound` connects its answer to an actual `At` witness under the execution,
@@ -180,6 +180,60 @@ This order-only theorem requires no final quiescence.
 
 Release/acquire view transfer, totality of graph construction and universal
 operational C23 legality remain open.
+
+## Actual access and source ranks
+
+`AtomicTrace.AccessDomain` derives a managed access's target authority from its
+actual instruction origin. Loads and stores retain their complete selected
+reference. An RMW recovers its checked handle, persistent cell and operand
+address. The successful prefix preserves that authority and the worker's full
+resource record back to the initial state. `EventAt.views` then constructs views
+at arbitrary cuts without a supplied view-domain assumption.
+
+`AtomicTrace.ReadRanks` connects an actual load's source identity to the exact
+writer publication rank of its prestate view. Published reads use the real
+prefix's latest writer or initial boundary. Forwarded reads retain the newest
+selected tag and its unique future publication in the complete execution.
+The incoming publication map starts empty; initial pending queues may be
+nonempty, and their entries receive no invented earlier instruction issues.
+
+```lean
+import EDSL.OS.TSO64.C23Projection.AtomicTrace.ReadRanks
+open EDSL.OS.TSO64
+open EDSL.OS.TSO64.C23Projection.AtomicTrace
+
+example {initial : State} {actions : List Action}
+    {result : State × List Observation} {profile : Profile}
+    {event : Event} {index offset : Nat} {target : Queue.ManagedRef}
+    {word : EDSL.X86.Word} {source : WriterId}
+    (execution : ExecutionViews.Execution initial actions result profile)
+    (actual : EventAt profile event index initial actions result offset PublishedHistory.empty)
+    (loaded : event.access = .load target word source) :
+    ∃ rank, Nonempty (ExecutionViews.At initial actions result profile index event.tid
+      target offset PublishedHistory.empty rank) ∧
+      WriterRank initial actions result profile offset target.handle.cell source rank :=
+  actual.load_view_rank execution loaded
+```
+
+An actual RMW reads a published-prefix writer and publishes its own write at
+its original action position. `EventAt.rmw_view_rank` proves that the source
+rank is strictly below its own rank. Gaps are expected because ranks count
+silent actions and other-cell publications too.
+
+`AtomicTrace.GraphRanks` connects these actual writer ranks to a finite graph
+that retains the complete publication list. `EventAt.load_graph_rank` equates a
+load view with the rank of the exact writer selected by its semantic RF edge.
+The load's own graph row retains rank zero. This correspondence requires
+`Graph.Built`; it proves neither graph-construction totality nor C23 legality.
+`load_graph_rank_at` accepts a computed event lookup and derives its index bound.
+Cross-cell release/acquire view transfer remains separate.
+
+The [access clients](../tests/AccessSourceRanks.lean) use actual annotated scans
+with equal-valued stores and unchanged-value RMWs. The [RMW boundary clients](../tests/RMWSourceRanks.lean)
+also cover an initialized source and a peer action between publication and RMW,
+with a peer store still pending. The [graph clients](../tests/AccessGraphRanks.lean)
+compute their initial manifest and graph, then distinguish source writer rows,
+publication ranks, original action cuts and rank-zero load rows.
 
 ## Scope
 

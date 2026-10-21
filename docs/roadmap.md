@@ -30,8 +30,9 @@ proofs. Published-position monotonicity, per-worker FIFO issue/publication order
 and [pending selection rank bounds](checked-atomic-traces.md#pending-writers-and-fifo-order)
 are shared across arbitrary traces. General own-pending/published view monotonicity
 and same-thread mixed store/RMW publication order are now proved for the finite
-execution model. Access-to-view bridges, release transfer, universal operational
-ordering and repeated invocations remain open.
+execution model. Actual access authority and source-writer ranks connect those
+views to identity-based RF writer rows. Cross-cell release transfer, universal
+operational ordering and repeated invocations remain open.
 The [blocker report](corpus-blockers.md) identifies later instruction, memory
 and synchronization gaps. Keep the frozen inputs and denominator unchanged;
 new configurations require a new corpus version.
