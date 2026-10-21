@@ -49,6 +49,9 @@ example {before : State} {action : Action} {result : State × Observation}
 The fetch-add call adapter uses this common theorem through its existing public
 contract. New load/store call adapters can reuse the same response and caller
 facts instead of proving RET dispatch again.
+The [managed load/store family](managed-plain-methods.md) composes constructive
+primitive access and RET rules for checked padding/MOV64/RET bodies, with valid
+nonempty FIFOs and actual access origins. Full call/order contracts remain separate.
 
 The [regressions](../tests/ManagedRules.lean) execute a managed load, buffered
 store and RET, then publish afterward. They distinguish a saved high-bit return

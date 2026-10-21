@@ -30,6 +30,9 @@ the call; its modification rank may be determined by a later drain. The call
 contract does not require publication inside the invocation/return interval.
 The shared [RET rules](managed-vc-rules.md) provide actual response and caller
 facts for future adapters.
+The [load/store method family](managed-plain-methods.md) adds body progress,
+interference closure and exact access origins. Constructing a complete
+`AtomicCalls.History` still requires its separate call and ordering obligations.
 
 ## Close the current store queues
 

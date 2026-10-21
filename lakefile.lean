@@ -98,7 +98,8 @@ lean_lib WholeQWordTests where
 
 -- Current-authority publication and persistent per-worker store occurrences.
 lean_lib ManagedQueue64Tests where
-  roots := #[`tests.ManagedQueue64, `tests.TSO64SharedCells, `tests.TSO64ReadSource, `tests.TSO64PublishedWriters, `tests.TSOWordProjection, `tests.TSO64StoreIdentities, `tests.TSO64StoreTrace, `tests.TSO64AtomicTrace, `tests.ManagedRules, `tests.TSO64DrainClosure]
+  roots := #[`tests.ManagedQueue64, `tests.TSO64SharedCells, `tests.TSO64ReadSource, `tests.TSO64PublishedWriters, `tests.TSOWordProjection, `tests.TSO64StoreIdentities, `tests.TSO64StoreTrace, `tests.TSO64AtomicTrace, `tests.ManagedRules, `tests.TSO64DrainClosure,
+    `tests.PlainMethods, `tests.PlainMethodAdmission]
   moreLeanArgs := #["-DautoImplicit=false"]
 
 -- Source atomic event graphs remain separate from machine scheduling.
