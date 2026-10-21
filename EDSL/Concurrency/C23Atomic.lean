@@ -3,6 +3,7 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.Concurrency.C23Atomic.Coherence
+import EDSL.Concurrency.C23Atomic.OrderCoherence
 import EDSL.Concurrency.C23Atomic.Check
 import EDSL.Concurrency.C23Atomic.Weakening
 

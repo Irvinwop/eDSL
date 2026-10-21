@@ -8,8 +8,12 @@ publication histories, modification ranks, or graph-legality proofs.
 
 This API connects two existing models: the resource-checked TSO scheduler and
 the [C23 atomic-fragment checker](c23-atomic-checker.md). Its result concerns
-the supplied finite schedule. Proving that every schedule of a program has the
-required behavior remains a separate verification obligation.
+the supplied finite schedule. Alongside the executable verifier, generic
+theorems establish structural well-formedness and sequencing coherence for
+mapped graphs, and [finite-fragment legality without acquiring annotations](#universal-no-acquire-legality)
+for every actual run satisfying the stated execution and mapping premises.
+General acquiring interfaces require further synchronization and happens-before
+proofs.
 
 ## Inputs and result
 
@@ -178,8 +182,10 @@ actual issue witnesses; incoming queue entries receive no invented instruction
 positions. The RMW's own-empty gate forces preceding stores to publish first.
 This order-only theorem requires no final quiescence.
 
-Connecting these numerical views to declared release/acquire interfaces,
-totality of graph construction and universal operational C23 legality remain open.
+These views support the [universal graph sequencing](#universal-graph-sequencing)
+results below. General release/acquire interface mappings and graph-construction
+totality remain open; universal legality is available for the explicit
+[no-acquire fragment](#universal-no-acquire-legality).
 
 ## Actual access and source ranks
 
@@ -404,9 +410,151 @@ queues and final quiescence. Incoming queued writes retain their real later
 publications without invented instruction origins. The
 [writer-rank clients](../tests/WriteViewRanks.lean) include a zero-delta RMW,
 an actual suffix with an incoming queued store, forwarding and published reads.
-These numerical constraints are ingredients for graph coherence; they do not
-establish declared release/acquire mappings, synchronizes-with, happens-before,
-full C23 legality, native refinement or fairness.
+These numerical constraints lift to all-row sequencing coherence through the
+actual structural graph context below. Their execution-level contracts alone
+do not classify source orders or establish synchronizes-with or happens-before
+constraints.
+
+## Read sides of loads and RMWs
+
+`AtomicTrace.ReadAccess event source` identifies either an actual load or the
+read side of an actual RMW, retaining its complete source writer identity.
+A pure store has no such witness. `EventAt.read_view_rank` recovers the current
+target and exact source-rank view at the instruction prestate from the actual
+access and execution; the caller supplies neither a desired rank nor target
+authority.
+
+The generic APIs include RMW reads in all three operational constraints:
+
+| API | Constraint on actual same-thread accesses |
+| --- | --- |
+| `EventAt.write_read_source_rank` | A write before a same-cell load or RMW read has rank at most that read's source rank |
+| `EventAt.read_read_source_rank` | Ordered same-cell read sides have nondecreasing source ranks; either or both may be RMWs |
+| `EventAt.read_write_source_rank_lt` | A read side's source rank is strictly below any later instruction write's rank, including a write to another cell |
+
+These APIs retain the execution-view premises above and an empty incoming
+publication map. Initial queues may contain sequenced entries. Operational
+views may concern current targets without corresponding graph access events;
+view authority and publication ranks alone do not supply source-order intent.
+
+## Structural graph well-formedness
+
+`Graph.Built.wellFormed` proves `C23Atomic.WellFormed table.toCandidate` from
+`Graph.Built inputs orders table` alone. It needs no execution, queue boundary,
+interface-order restriction or graph-legality checker result. The conclusion
+covers all seven structural fields: initializer/thread classification, unique
+and present initializers, initial and noninitial rank bounds, same-object write
+rank uniqueness, valid read sources and absence of sources on nonreads,
+including indices outside the live table.
+
+This is a structural result about supplied data. Registry completeness and
+the actual initial RAM values require a separate successful
+`Initials.enumerate initial.world = .ok initials` and its provenance theorems.
+Neither `Built` nor the execution context below authenticates that manifest.
+Structural well-formedness alone does not establish coherence or `Legal`.
+
+## Universal graph sequencing
+
+`AtomicTrace.GraphAccess` defines `Graph.runInputs initials run offset` as the
+supplied manifest, every event from `run.events`, and the complete managed
+publication list `writes offset run.observations`. `Graph.Executed` connects
+those exact inputs to one actual scan through five explicit premises:
+
+| Field | Required evidence |
+| --- | --- |
+| `valid` | Well-formed initial scheduler resources for the selected profile |
+| `sequenced` | Sequenced initial queue occurrences |
+| `scanned` | Successful `scan initial actions profile offset PublishedHistory.empty = .ok run` |
+| `quiescent` | Empty final queues: `Quiescent run.state` |
+| `mapped` | `Graph.Built (Graph.runInputs initials run offset) orders table` |
+
+The scan certificate supplies actual event origins and their original action
+order, including positions occupied by silent actions and drains. The complete
+publication list supplies actual write origins; matching a buffered publication
+to its real store event recovers the instruction issue. Initializer rows retain
+their supplied manifest identities and rank zero. No coherence or legality
+proof is an input to this context.
+
+`AtomicTrace.GraphCoherence` derives universal constraints over all mapped rows:
+
+| API | Conclusion |
+| --- | --- |
+| `executed.sequencedCoherent` | All four same-object coherence constraints along `SeqBefore`: write/write ranks increase strictly, read/read source ranks do not decrease, read/write source ranks precede the write strictly, and a write's rank is at most a later read's source rank |
+| `executed.noFutureSequenced source` | An RF source cannot be sequenced after its reader |
+| `executed.rmwPredecessor rmw source` | Every RMW reads the immediately preceding modification of its object, with no intervening same-object graph write |
+
+RMWs participate in both read and write roles. The predecessor may be an
+initializer or an actual write; global publication ranks may have gaps.
+These theorems cover every related graph-row pair, rather than a selected list
+of pairs. `C23Atomic.CoherentAlong` records the four constraints for a specified
+relation, and `SequencedCoherent` specializes it to sequencing. General
+synchronizes-with (SW) edges and composed happens-before (HB) paths require
+additional obligations.
+
+Initial quiescence is not an `Executed` premise. Ordinary incoming queue
+entries and views outside the graph's access events remain permitted. However,
+`Built` requires every managed publication to be represented by a matching
+in-run write event. Incoming managed entries have no such issue, so this graph
+mapping excludes them; their drains receive no invented instruction origins.
+Successful scans and nonempty-queue view theorems therefore do not establish
+graph-build totality or a graph adapter for incoming managed stores.
+
+The [operational graph clients](../tests/GraphOperationalCoherence.lean) use the
+real initial registry/RAM manifests obtained through `Initials.enumerate`.
+They reuse the computed equal-valued-store graph and construct a graph with
+initial A/B, a store to A, a zero-delta RMW of B and peer loads of B/A. Literal
+source rows, ranks, objects and threads distinguish writers despite equal words.
+Generic read-side clients also retain initialized RMW sources and source-rank
+gaps. Their universal conclusions use the production `Executed` methods and
+`Built.wellFormed`.
+
+## Universal no-acquire legality
+
+`AtomicTrace.GraphNoAcquire` proves `C23Atomic.Legal` for every `Graph.Executed`
+context whose declared event annotations satisfy
+`orders.noAcquire run.events = true`. This Boolean inspects each actual event's
+declared interface order, not machine bytes. It checks for the absence of an
+acquiring access and performs no order weakening. Release annotations can remain
+when no event acquires. `Orders.relaxed` declares every primitive relaxed;
+`Orders.noAcquire_relaxed` proves that it passes for any event list, and
+`executed.relaxed_legal` supplies the corresponding legality theorem.
+
+The proof excludes every acquiring row, so no SW edge exists. In
+`C23Atomic.OrderCoherence`, `HappensBefore.sequenced_of_no_synchronization`
+reduces every nonempty HB path to sequencing because sequencing is transitive.
+`legal_of_no_synchronization` then combines structural well-formedness,
+sequencing coherence, no-future sequencing and RMW predecessors into all fields
+of `Legal`: well-formedness, all four HB coherence constraints, HB acyclicity,
+no-future-HB reads and immediate RMW predecessors.
+
+The same contract applies to any actual structurally mapped finite run:
+
+```lean
+import EDSL.OS.TSO64.C23Projection.AtomicTrace.GraphNoAcquire
+open EDSL.OS.TSO64
+open EDSL.OS.TSO64.C23Projection.AtomicTrace
+
+example {initial : State} {actions : List Action} {profile : Profile}
+    {offset : Nat} {run : Result} {initials : List Initials.Entry}
+    {orders : Orders} {table : Graph.Table}
+    (executed : Graph.Executed initial actions profile offset run initials orders table)
+    (checked : orders.noAcquire run.events = true) :
+    EDSL.Concurrency.C23Atomic.Legal table.toCandidate :=
+  executed.legal_without_acquire checked
+```
+
+This theorem uses execution constraints and structural correspondence without
+running the graph-legality checker or assuming its success. `AtomicTrace.verify`
+continues to call the full `C23Atomic.Check.certify` checker and to check empty
+initial and final queues; it does not call this no-acquire theorem as a shortcut.
+
+A false `noAcquire` result leaves the synchronization and HB proof obligations
+open and establishes no program defect. Acquiring semantics are never silently
+lowered. General release/acquire and release-sequence mappings remain separate
+from the universal no-acquire result.
+The operational graph clients apply this theorem to both computed graphs;
+acquiring-load and acquiring-RMW controls on the same actual cross-cell scan
+produce false `noAcquire` results.
 
 ## Scope
 
@@ -415,8 +563,15 @@ does not model C object initialization/lifecycle or dynamic thread creation.
 Memory orders are declared primitive/interface annotations; MOV bytes alone
 do not establish relaxed, acquire, or release source intent.
 
-Successful checking is conditional finite trace certification. It does not
-establish universal TSO-to-C23 preservation, source/compiler preservation,
-physical CPU or native Linux correspondence, fairness, or liveness. It adds no
-frozen compiler-corpus function credit. See the [store-history API](managed-store-trace.md)
-and [trust model](trust.md) for the supporting boundaries.
+Successful checking certifies the supplied finite trace. The universal
+no-acquire theorem additionally covers every finite run satisfying its actual
+execution, structural mapping and annotation premises. It proves neither
+graph-construction totality nor completion of every schedule. General acquiring
+TSO-to-C23 preservation, full C23 semantics, a source frontend and source/compiler
+preservation remain open. Physical CPU, native Linux and kernel correspondence,
+fairness and liveness remain separate obligations.
+
+Frozen compiler-corpus coverage remains **16/40 functions and 32/80 artifacts**,
+including **one distinct concurrent function**. See the
+[store-history API](managed-store-trace.md) and [trust model](trust.md) for the
+supporting boundaries.

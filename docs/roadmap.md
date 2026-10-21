@@ -20,36 +20,65 @@ The next synchronization targets are `c_atomic_load_acquire64` and
 `c_atomic_store_release64`. The shared machine trace refinement and
 [C23 atomic event constraints](c23-atomic-events.md) are foundations; these
 functions still need a complete machine call adapter, universal operational
-ordering and complete final-file binding. [Call contracts, finite publication
-and order weakening](atomic-call-contracts.md) provide reusable foundations;
-the existing trace verifier establishes legality only for checked finite runs.
+ordering for acquiring interfaces and complete final-file binding.
+[Call contracts, finite publication and order weakening](atomic-call-contracts.md)
+provide reusable foundations;
+the existing trace verifier checks each supplied finite graph with the full
+legality checker. The universal no-acquire theorem below is a separate API.
 The [shared load/store method family](managed-plain-methods.md) supplies body
 progress, interference closure, indexed access/RET origins and finite call-cohort
 extraction and whole scanner/call correspondence without per-compiler execution
-proofs. Published-position monotonicity, per-worker FIFO issue/publication order
+proofs.
+
+Published-position monotonicity, per-worker FIFO issue/publication order
 and [pending selection rank bounds](checked-atomic-traces.md#pending-writers-and-fifo-order)
 are shared across arbitrary traces. General own-pending/published view monotonicity
-and same-thread mixed store/RMW publication order are now proved for the finite
+and same-thread mixed store/RMW publication order are proved for the finite
 execution model. Actual access authority and source-writer ranks connect those
 views to identity-based RF writer rows. Reusable
-[publication coverage](checked-atomic-traces.md#publication-coverage) now bounds
+[publication coverage](checked-atomic-traces.md#publication-coverage) bounds
 every actual target view of the writing thread at its instruction's successor
 cut. Access authority extends the bound to earlier cuts; the load corollary
 retains the exact source writer identity, including across different cells.
 These execution-level APIs allow nonempty initial mixed FIFOs.
 `AtomicTrace.verify` retains its empty initial-queue boundary.
 [Exact-source load transfer](checked-atomic-traces.md#exact-source-view-transfer)
-now propagates these numerical views through actual published reads and own
+propagates these numerical views through actual published reads and own
 forwarding, including other-cell views and current handle aliases.
 [Exact writer successor views and operational coherence](checked-atomic-traces.md#writer-successor-views-and-operational-coherence)
-now give same-cell write/read and read/read rank bounds and strict read/write
-rank order across cells. Actual RMW sources are proved to be same-cell
-publication predecessors, with global rank gaps allowed. These finite numerical
-results permit nonempty incoming FIFOs; coherence and predecessor results start
-the publication map empty, while writer successor views accept arbitrary incoming
-metadata. Next lift these constraints to universal graph coherence, justify
-declared release/acquire interface mappings and derive SW/HB constraints.
-Universal operational legality and repeated invocations remain open.
+and [generic read sides](checked-atomic-traces.md#read-sides-of-loads-and-rmws)
+give same-cell write/read and read/read source-rank bounds and strict read/write
+rank order across cells, including RMW reads. Actual RMW sources are same-cell
+publication predecessors, with global rank gaps allowed. These operational
+coherence and predecessor results start the publication map empty; writer
+successor views accept arbitrary incoming metadata.
+
+[Structural well-formedness](checked-atomic-traces.md#structural-graph-well-formedness)
+follows from `Built` alone. An actual scan with initial resource invariants,
+sequenced queues, final quiescence and complete structural mapping forms
+`Graph.Executed`, which supplies [universal all-row sequencing coherence](checked-atomic-traces.md#universal-graph-sequencing),
+no-future sequencing and RMW predecessors. Initial quiescence is not a premise:
+ordinary incoming entries and views outside graph access events remain permitted.
+Every managed publication must still have an in-run event. This mapping excludes
+incoming managed entries and gives their drains no invented instruction origins.
+Actual initial registry/RAM enumeration remains separate from structural `Built`.
+
+[Universal finite-fragment legality](checked-atomic-traces.md#universal-no-acquire-legality)
+is proved for every `Executed` context with `orders.noAcquire run.events = true`,
+including `Orders.relaxed`. Absence of acquiring annotations excludes
+synchronizes-with (SW), so happens-before (HB) reduces to sequencing.
+This uses execution constraints and structural mapping
+without a graph-legality checker. The Boolean checks declared annotations, not
+machine bytes; a false result leaves HB obligations open. Acquiring semantics
+are never silently lowered. `verify` retains its full-checker behavior, and
+corpus credit is unchanged.
+
+The next universal obligations are justified declared release/acquire and
+release-sequence mappings, coherence over all resulting HB paths, HB acyclicity
+and no-future-HB reads. General acquiring-fragment legality, graph-construction
+totality and repeated invocations remain open. Full C23/frontend semantics,
+source/compiler preservation, native/kernel correspondence and fairness remain
+separate capabilities.
 The [blocker report](corpus-blockers.md) identifies later instruction, memory
 and synchronization gaps. Keep the frozen inputs and denominator unchanged;
 new configurations require a new corpus version.
@@ -75,6 +104,7 @@ new configurations require a new corpus version.
 | More compiler-output functions | Exact ISA rules, shared VCG, independent specifications and resource adapters | Both frozen compiler windows certified with useful admitted inputs |
 | Writable loops and richer calls | Current ownership, actual memory effects, stack/alias frames and loop invariants | All admitted executions satisfy result, safety and return-resource contracts |
 | More concurrent methods | Current actor authority, real event origins and allowed interference | Independent object histories, real-time order and explicit progress scope |
+| Universal acquiring-fragment legality | Structural graph well-formedness, all-row sequencing coherence, RMW predecessors and exact-source view transfer | Justified release/acquire and release-sequence mappings; all HB coherence, acyclicity and no-future-HB obligations |
 | Native memory-order correspondence | Existing FIFO/locked-operation models plus a defined target relation | Refinement to the selected published machine model; separate source-order proofs |
 | Whole-program OS behavior | Loader/ABI closure, resource identities, failure and asynchronous effects | Composition over all reachable code and declared external contracts |
 | Concrete kernel/runtime components | Exact deployed builds, privileged ISA, interrupts and shared invariants | Implementation proofs discharging the same contracts used by clients |
@@ -121,10 +151,14 @@ uniform64 memory fragment. Extend it to a justified correspondence with the
 complete selected published x86-TSO model before claiming that broader result.
 The [checked atomic-trace API](checked-atomic-traces.md) extracts complete
 managed accesses, writer identities and publication-based graphs for finite
-successful runs with declared interface orders. Prove universal preservation
-across schedules and justify source-to-interface annotations. Add compare/exchange
-and fences only with justified mappings. Extend private futex protocols beyond the
-current policies to blocking acquisition, multiple waiters, interruption,
+successful runs with declared interface orders. Extend universal mapped-run
+legality from the no-acquire fragment to acquiring interfaces by proving the
+release-sequence/SW mapping and every resulting HB obligation. Authenticate the
+initial registry/RAM manifest separately, preserve complete publication coverage
+and justify source-to-interface annotations. Graph-build totality remains a
+separate obligation. Add compare/exchange and fences only with justified mappings.
+Extend private futex protocols beyond the current policies to blocking
+acquisition, multiple waiters, interruption,
 timeouts, cancellation and process sharing. Separate safety, enabledness,
 constructive completion and eventual progress assumptions.
 

@@ -81,16 +81,32 @@ remains open. They are separate profiles, not one interchangeable backend.
 | --- | --- | --- |
 | Read and atomic workers | Actual instruction dispatch, current shared cells, retained results and resource revocation through join | [Managed lifecycles](threads.md) and [atomic workers](atomic-workers.md) assume logical actors and guarded histories |
 | Counters and atomic sets | Modular/ordered histories, managed finite cohorts and selected complete-call contracts | [Counters](counter-workers.md), [mixed set workers](atomic-set-workers.md), [full64 fetch-add](managed-fetch-add64.md); no general source-order mapping |
-| Managed qword histories | Complete computed access traces, unique managed publications, full-word load sources and checked finite C23 graph extraction | [Checked atomic traces](checked-atomic-traces.md) retain complete initial objects, actual writer identities and publication ranks; interface orders are explicit inputs, universal preservation and native correspondence remain open |
-| Execution views and writer order | View monotonicity, actual access authority and source-writer ranks, mixed store/RMW publication order, cross-cell publication coverage, exact-source load transfer, exact writer successor views, RMW same-cell predecessors and operational write/read, read/read and strict read/write rank bounds | [Views and sources](checked-atomic-traces.md#execution-views), [publication coverage](checked-atomic-traces.md#publication-coverage), [exact-source transfer](checked-atomic-traces.md#exact-source-view-transfer) and [operational coherence](checked-atomic-traces.md#writer-successor-views-and-operational-coherence); finite successful well-formed/sequenced/quiescent runs allow incoming FIFOs; declared release/acquire mappings, SW/HB and universal graph coherence remain open |
+| Managed qword histories | Complete computed access traces, unique managed publications, full-word load sources and checked finite C23 graph extraction | [Checked atomic traces](checked-atomic-traces.md) retain complete initial objects, actual writer identities and publication ranks; `verify` continues to use the full graph-legality checker with empty initial/final queues |
+| Execution views and writer order | View monotonicity, actual access authority and source-writer ranks, mixed store/RMW publication order, cross-cell publication coverage, exact-source load transfer, exact writer successor views and generic write/read, read/read and strict read/write rank bounds including RMW read sides | [Views and sources](checked-atomic-traces.md#execution-views), [publication coverage](checked-atomic-traces.md#publication-coverage), [exact-source transfer](checked-atomic-traces.md#exact-source-view-transfer) and [generic read sides](checked-atomic-traces.md#read-sides-of-loads-and-rmws); finite successful well-formed/sequenced/final-quiescent runs permit incoming FIFOs |
+| Structural graphs and sequencing | `Built.wellFormed` derives structural well-formedness from mapping alone; `Executed` derives universal all-row sequencing coherence, no-future sequencing and same-cell RMW predecessors | [Graph contracts](checked-atomic-traces.md#universal-graph-sequencing); actual scan, initial invariants, empty incoming publication map, final quiescence and complete structural mapping are explicit; registry/RAM manifest provenance remains separate |
+| Finite no-acquire legality | `executed.legal_without_acquire checked` proves `C23Atomic.Legal` for every mapped actual finite run with `orders.noAcquire run.events = true`; `relaxed_legal` covers `Orders.relaxed` | [No-acquire fragment](checked-atomic-traces.md#universal-no-acquire-legality); declared annotations exclude synchronizes-with (SW), reducing happens-before (HB) to sequencing without a graph-legality checker; general acquiring/release-sequence mappings and graph-build totality remain open |
 | C23 atomic event constraints | Typed relaxed/acquire/release graphs, sound finite admission and generic message-passing rules | [Atomic event model](c23-atomic-events.md), [checker](c23-atomic-checker.md); no full C frontend or machine-to-source preservation |
-| Atomic method foundations | Independent completed-call contracts, constructive finite queue publication and legality under order weakening | [Call contracts](atomic-call-contracts.md); a general machine call adapter and universal operational C23 legality remain open |
-| Managed load/store methods | Shared decoder-backed padding/MOV64/RET proofs, current-resource enabledness, finite interleaving closure, indexed access/response origins, complete finite call cohorts and whole scanner/call correspondence | [Method family](managed-plain-methods.md); one invocation per initial worker; universal ordering and final-ELF contracts remain separate |
+| Atomic method foundations | Independent completed-call contracts, constructive finite queue publication and legality under order weakening | [Call contracts](atomic-call-contracts.md); a general machine call adapter and universal operational legality for acquiring interfaces remain open |
+| Managed load/store methods | Shared decoder-backed padding/MOV64/RET proofs, current-resource enabledness, finite interleaving closure, indexed access/response origins, complete finite call cohorts and whole scanner/call correspondence | [Method family](managed-plain-methods.md); one invocation per initial worker; acquiring/release-sequence HB correspondence and final-ELF contracts remain separate |
 | Managed-word TSO refinement | Finite classified actual scheduler traces to an independent uniform64 memory fragment | [Projection and boundaries](word-tso-refinement.md); no full HOL4, physical or source-order correspondence |
 | Mutex workers and buffers | Fixed-routine architectural/buffered prefix lifting, totals, resource collection and constructive completion | [Mutex workers](mutex-workers.md), [store buffers](store-buffers.md); existence of completion does not imply every scheduler completes |
 | Concurrent syscalls | Fresh pending IDs, peer execution and resumption against current RAM | [Suspension](concurrent-syscalls.md) requires an empty caller FIFO and external service contracts |
 | Private futex clients | Restricted WAIT/WAKE1 service, publication, notification and predicate rechecking | [Futex](futex.md), [predicate loop](futex-predicate.md); explicit client policies and no native kernel proof |
 | Standalone processes | Exit42 and bounded stream-write/exit ELF certificates | [Exit](process-exit.md), [write](process-write.md); progress, loader and syscall implementation contracts remain explicit |
+
+`Executed` does not require initial quiescence. Ordinary incoming queues and
+views outside the graph's access events remain permitted, but `Built` still
+requires an in-run event for every managed publication. This graph mapping
+excludes incoming managed entries and gives their drains no invented instruction
+origins. Clients separately enumerate the actual initial registry and
+RAM manifest; structural `Built` does not authenticate it.
+
+`noAcquire` checks declared annotations rather than machine bytes and never
+weakens an acquiring order. A false result leaves synchronization and HB
+obligations open. The universal result concerns the finite C23 atomic fragment;
+full C23 semantics, a source frontend, source/compiler preservation, native or
+kernel correspondence and fairness remain separate. Frozen corpus totals are
+unchanged.
 
 Current resource and synchronization proofs can express specific access,
 lifetime, framing and protocol safety properties. They do not establish general
@@ -98,6 +114,8 @@ security analysis, noninterference or whole-OS safety.
 
 ## Planned capabilities
 
+- Justified release/acquire and release-sequence mappings, all-HB coherence,
+  HB acyclicity and no-future-HB reads for universal acquiring-fragment legality.
 - Broader instruction/effect coverage, general interprocedural automation,
   richer pending histories and interoperable concurrency/resource profiles.
 - Native thread/runtime, Linux loader and syscall refinement; privileged ISA,
