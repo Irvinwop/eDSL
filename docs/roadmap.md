@@ -24,8 +24,9 @@ ordering and complete final-file binding. [Call contracts, finite publication
 and order weakening](atomic-call-contracts.md) provide reusable foundations;
 the existing trace verifier establishes legality only for checked finite runs.
 The [shared load/store method family](managed-plain-methods.md) supplies body
-progress, interference closure and actual access origins without per-compiler
-execution proofs. Complete call-history and ordering guarantees are still needed.
+progress, interference closure, indexed access/RET origins and finite call-cohort
+extraction without per-compiler execution proofs. Whole-graph correspondence,
+universal operational ordering and repeated invocations remain open.
 The [blocker report](corpus-blockers.md) identifies later instruction, memory
 and synchronization gaps. Keep the frozen inputs and denominator unchanged;
 new configurations require a new corpus version.

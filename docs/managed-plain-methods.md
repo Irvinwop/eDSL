@@ -6,8 +6,9 @@ operation descriptor, padding and current OS resources. The shared proofs handle
 instruction execution, interference, queue draining, return frames and the own
 instruction count; clients do not repeat an induction for each compiler output.
 
-This is a machine-body interface. Complete call-history matching, universal C23
-ordering and final-ELF certificates remain separate obligations.
+The family also extracts indexed machine calls and complete finite call cohorts.
+Matching an entire source graph, proving universal C23 ordering and binding
+final-ELF certificates remain separate obligations.
 
 ## Describe and check the code
 
@@ -97,6 +98,53 @@ or eventual completion of every schedule. Own instructions, drain actions and
 physical elapsed time are different costs; this count is no unrestricted
 minimum-instruction or CPU-timing theorem.
 
+## Extract calls and match scanner events
+
+`completed_call` derives a `CompletedCall` from the same present admission,
+actual successful schedule and returned final worker. The witness retains that
+complete execution, the actual access and unique actual RET, and the strict
+ordering between their original action positions. `ResponseAt` includes the
+real prefix, selected action and observation, saved RAX and production
+`ReturnOrigin`; a final-state value alone cannot establish it.
+
+`CompletedCall.call occurrence` produces the independent typed atomic call.
+Invocation position zero denotes the admitted machine entry. It does not assert
+a source or native invocation event. Its logical occurrence label is distinct
+from the buffered-store allocation counter.
+
+`AtomicEvents` connects those access origins to the existing production atomic
+scanner in both directions. It retains the exact reference, full value, writer
+source and store occurrence, advancing the writer map over every action,
+including drains. Its declared interface uses acquire loads and release stores;
+decoding MOV does not establish a source program's memory order. Supplied writer
+maps and initial queue entries remain explicit provenance boundaries.
+
+`Invocation` supplies present admission for one initial worker slot.
+`completed_batch` extracts all such calls from an actual run in which every slot
+has returned. `BatchResult.calls` orders them by actual access position and
+proves complete coverage of independently recognized MOV64 accesses and observed
+RETs, unique keys and valid intervals. This adapter covers one invocation per
+initial worker in the scheduler's fixed resource universe. It does not yet
+model repeated invocations or worker creation.
+
+```lean
+example {initial : OS.TSO64.State}
+    (invocations : (tid : Fin initial.workers.length) → Invocation initial tid.val)
+    {actions : List OS.TSO64.Action}
+    {result : OS.TSO64.State × List OS.TSO64.Observation}
+    (executed : OS.TSO64.schedule initial actions .sharedCell = .ok result)
+    (returned : ∀ tid : Fin initial.workers.length, ∃ worker,
+      result.1.workers[tid.val]? = some worker ∧ worker.phase = .returned) :
+    Nonempty (BatchResult initial actions result invocations) :=
+  completed_batch invocations executed returned
+```
+
+`BatchResult.realizes` supplies structural `AtomicCalls.Realizes` when the
+candidate's complete event-list correspondence and initializer shape are proved.
+The per-access scanner bridge does not by itself establish that whole-list
+equation. Neither call extraction nor sorting proves reads-from, coherence or
+`C23Atomic.Legal`; universal operational legality remains a separate layer.
+
 ## Scope and validation
 
 The [regressions](../tests/PlainMethods.lean) use the four frozen GCC/Clang windows
@@ -110,6 +158,18 @@ worker attachment. Both MOV directions use `enabled`, exact-AF `complete` and
 `all_completed` from that entry, without assuming a future successful run or
 returned cutpoint. These examples start with empty FIFOs and no peer; the
 separate execution regressions exercise mixed queues and interference.
+
+The [call-origin clients](../tests/PlainCallOrigins.lean) connect both admitted
+MOV directions to the actual scanner and check literal full64 events and RET
+values. The [admitted interference client](../tests/PlainCallInterference.lean)
+creates its ordinary own FIFO and managed peer FIFO through actual instructions,
+then instantiates the shared method and call proofs. It checks the retained old
+reply after a peer publishes a different value, with the intervening drain kept
+between access and response positions.
+The [cohort client](../tests/PlainCallBatch.lean) admits both workers before their
+managed accesses and requires chronological call order `[1, 0]`, with access
+positions `[0, 1]` and RET positions `[3, 4]`. These expectations follow the real
+dispatches and observations, independently of the adapter's sorting algorithm.
 
 The shared rules inherit the existing long-mode, CET-off, supported-padding,
 aligned normal-RAM, translation/alias and managed-resource assumptions. They do

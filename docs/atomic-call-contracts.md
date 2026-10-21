@@ -31,8 +31,10 @@ contract does not require publication inside the invocation/return interval.
 The shared [RET rules](managed-vc-rules.md) provide actual response and caller
 facts for future adapters.
 The [load/store method family](managed-plain-methods.md) adds body progress,
-interference closure and exact access origins. Constructing a complete
-`AtomicCalls.History` still requires its separate call and ordering obligations.
+interference closure, indexed access/RET origins and complete finite call-cohort
+extraction. Constructing `AtomicCalls.History` still requires complete graph
+correspondence and operational legality; its machine adapter currently covers
+one invocation per initial worker slot.
 
 ## Close the current store queues
 
