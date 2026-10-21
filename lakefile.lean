@@ -101,7 +101,7 @@ lean_lib ManagedQueue64Tests where
   roots := #[`tests.ManagedQueue64, `tests.TSO64SharedCells, `tests.TSO64ReadSource, `tests.TSO64PublishedWriters, `tests.TSOWordProjection, `tests.TSO64StoreIdentities, `tests.TSO64StoreTrace, `tests.TSO64AtomicTrace, `tests.ManagedRules, `tests.TSO64DrainClosure,
     `tests.PlainMethods, `tests.PlainMethodAdmission, `tests.PlainCallOrigins,
     `tests.PlainCallInterference, `tests.PlainCallBatch, `tests.PublishedPositionViews,
-    `tests.PlainEventCorrespondence]
+    `tests.PlainEventCorrespondence, `tests.PendingPublicationViews]
   moreLeanArgs := #["-DautoImplicit=false"]
 
 -- Source atomic event graphs remain separate from machine scheduling.

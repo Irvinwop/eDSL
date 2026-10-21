@@ -26,9 +26,11 @@ the existing trace verifier establishes legality only for checked finite runs.
 The [shared load/store method family](managed-plain-methods.md) supplies body
 progress, interference closure, indexed access/RET origins and finite call-cohort
 extraction and whole scanner/call correspondence without per-compiler execution
-proofs. Published-position monotonicity is shared across arbitrary traces;
-pending-own views, release transfer, universal operational ordering and repeated
-invocations remain open.
+proofs. Published-position monotonicity, per-worker FIFO issue/publication order
+and [pending selection rank bounds](checked-atomic-traces.md#pending-writers-and-fifo-order)
+are shared across arbitrary traces. Complete pending/published view monotonicity,
+release transfer, universal operational ordering and repeated invocations remain
+open.
 The [blocker report](corpus-blockers.md) identifies later instruction, memory
 and synchronization gaps. Keep the frozen inputs and denominator unchanged;
 new configurations require a new corpus version.

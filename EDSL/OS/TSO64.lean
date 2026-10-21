@@ -8,6 +8,7 @@ import EDSL.OS.TSO64.Occurrences
 import EDSL.OS.TSO64.ReadHistory
 import EDSL.OS.TSO64.PublishedHistory
 import EDSL.OS.TSO64.PublishedOrder
+import EDSL.OS.TSO64.PendingViews
 import EDSL.OS.TSO64.WordProjection
 import EDSL.OS.TSO64.C23Projection.Origins
 import EDSL.OS.TSO64.C23Projection.StoreTrace

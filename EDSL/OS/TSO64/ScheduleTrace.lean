@@ -24,6 +24,53 @@ theorem length {state : State} {actions : List Action}
     rw [same]
     exact congrArg Nat.succ (ih following)
 
+/-- Every cut of an actual successful run has the actual prefix state and a
+successful remaining suffix. Both lists retain all scheduler actions and
+observations, including drains and blocked attempts. Indices past the end use
+the final state and empty suffix; no new action position is manufactured. -/
+theorem cut {state : State} {actions : List Action}
+    {result : State × List Observation} {profile : Profile}
+    (success : schedule state actions profile = .ok result) (index : Nat) :
+    ∃ before,
+      schedule state (actions.take index) profile = .ok (before, result.2.take index) ∧
+      schedule before (actions.drop index) profile = .ok (result.1, result.2.drop index) := by
+  induction actions generalizing state result index with
+  | nil =>
+    have same : (state, []) = result := Except.ok.inj success
+    subst result
+    refine ⟨state, ?_, ?_⟩ <;> simp only [List.take_nil, List.drop_nil, schedule]
+  | cons action rest ih =>
+    obtain ⟨first, tail, stepped, following, same⟩ := schedule_cons_ok success
+    cases index with
+    | zero =>
+      refine ⟨state, rfl, ?_⟩
+      simpa only [List.drop_zero] using success
+    | succ index =>
+      obtain ⟨before, prefixRun, suffixRun⟩ := ih following index
+      refine ⟨before, ?_, ?_⟩
+      · simp only [same, List.take_succ_cons, schedule, stepped, ok_bind, prefixRun, pure_ok]
+      · simpa only [same, List.drop_succ_cons] using suffixRun
+
+/-- An independently supplied successful prefix is the prefix of the same
+full run. Determinism recovers both its observations and the real suffix,
+without accepting a caller's intended intermediate or final state as fact. -/
+theorem suffix {state before : State} {actions : List Action}
+    {result : State × List Observation} {observations : List Observation}
+    {profile : Profile} {index : Nat}
+    (success : schedule state actions profile = .ok result)
+    (prefixRun : schedule state (actions.take index) profile = .ok (before, observations)) :
+    observations = result.2.take index ∧
+      schedule before (actions.drop index) profile = .ok (result.1, result.2.drop index) := by
+  obtain ⟨middle, actualPrefix, actualSuffix⟩ := cut success index
+  have same : (before, observations) = (middle, result.2.take index) :=
+    Except.ok.inj (prefixRun.symm.trans actualPrefix)
+  have stateEq := congrArg Prod.fst same
+  have observationsEq := congrArg Prod.snd same
+  refine ⟨observationsEq, ?_⟩
+  change before = middle at stateEq
+  rw [stateEq]
+  exact actualSuffix
+
 /-- An actual observation at a supplied index exposes the real prefix run,
 its selected action and the actual step that produced that observation. No
 trace is reconstructed from values or from a desired successor state. -/

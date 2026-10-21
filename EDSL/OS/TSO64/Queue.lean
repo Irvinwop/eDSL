@@ -4,6 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.OS.TSO64.Queue.Publication
 import EDSL.OS.TSO64.Queue.Sequence
+import EDSL.OS.TSO64.Queue.SelectionOrder
 
 /-!
 Checked tagged FIFO policy and occurrence accounting for integration with the
