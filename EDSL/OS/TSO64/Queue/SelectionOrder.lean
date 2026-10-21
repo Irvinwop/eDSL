@@ -48,6 +48,17 @@ private theorem missing_no_qword {buffer : Buffer} {address value : Word} {index
       simp [newestQWord, tailMissing] at missing
     | succ index => exact ih tailMissing selected
 
+/-- Absence of the production exact-address selector excludes any retained
+managed qword at that start. This is metadata lookup, not byte-load framing. -/
+theorem missing_excludes_managed {cursor : Cursor} {address : Word}
+    (missing : newestQWord (payload cursor.pending) address = none)
+    {index occurrence : Nat} {reference : ManagedRef} {value : Word}
+    (selected : cursor.pending[index]? = some (.managed reference value occurrence))
+    (sameAddress : reference.cell.address = address) : False := by
+  have encoded : (payload cursor.pending)[index]? = some ⟨address, .qword value⟩ := by
+    simpa only [Entry.store, sameAddress] using payload_at selected
+  exact missing_no_qword missing encoded
+
 /-- Strict FIFO index order induces strict persistent occurrence order across
 managed entries, even when ordinary entries occur between them. -/
 private theorem managed_index_lt {entries : List Entry}

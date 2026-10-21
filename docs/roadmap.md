@@ -28,9 +28,10 @@ progress, interference closure, indexed access/RET origins and finite call-cohor
 extraction and whole scanner/call correspondence without per-compiler execution
 proofs. Published-position monotonicity, per-worker FIFO issue/publication order
 and [pending selection rank bounds](checked-atomic-traces.md#pending-writers-and-fifo-order)
-are shared across arbitrary traces. Complete pending/published view monotonicity,
-release transfer, universal operational ordering and repeated invocations remain
-open.
+are shared across arbitrary traces. General own-pending/published view monotonicity
+and same-thread mixed store/RMW publication order are now proved for the finite
+execution model. Access-to-view bridges, release transfer, universal operational
+ordering and repeated invocations remain open.
 The [blocker report](corpus-blockers.md) identifies later instruction, memory
 and synchronization gaps. Keep the frozen inputs and denominator unchanged;
 new configurations require a new corpus version.

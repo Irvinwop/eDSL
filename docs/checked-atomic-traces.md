@@ -125,9 +125,61 @@ already nonzero and the selected own writer remains pending.
 These ranks describe actual future publications in the supplied finite run;
 they do not promise that every scheduler completes. Exact-address queue selection
 alone does not establish a byte load's value under partial overlaps: the existing
-resource and whole-qword compatibility premises still apply. Monotonicity through
-all pending/published transitions, release/acquire transfer and universal C23
-legality remain open.
+resource and whole-qword compatibility premises still apply.
+
+## Execution views
+
+`EDSL.OS.TSO64.ExecutionViews` proves that a thread's own-pending/published view
+cannot decrease across any two ordered cuts of one actual finite execution.
+Views measure publication positions; the stored words remain unconstrained by
+this order. A view retains the newest own pending writer's actual future rank,
+or the published-prefix rank when no own writer is pending for that target.
+
+The proof uses exact-entry conservation over the intervening execution. A writer
+that remains pending is dominated by the later newest selection. A writer that
+drains is covered by the later published history and precedes every publication
+still pending at that cut. The result covers arbitrarily many accesses per
+worker, equal payloads, different handles, mixed ordinary entries, RMWs, peer
+interleavings, returns and cuts past the end.
+
+```lean
+import EDSL.OS.TSO64.ExecutionViews
+open EDSL.OS.TSO64
+
+example {initial : State} {actions : List Action}
+    {result : State × List Observation} {profile : Profile}
+    {first last tid offset a b : Nat} {target : Queue.ManagedRef}
+    (execution : ExecutionViews.Execution initial actions result profile)
+    (ordered : first ≤ last)
+    (earlier : ExecutionViews.At initial actions result profile first tid target offset
+      PublishedHistory.empty a)
+    (later : ExecutionViews.At initial actions result profile last tid target offset
+      PublishedHistory.empty b) : a ≤ b :=
+  earlier.monotone execution (PublishedOrder.prior_empty offset) ordered later
+```
+
+`Execution` retains actual scheduler success, well-formed initial resources,
+sequenced initial queues and final quiescence. `exists_at` constructs a view for
+an existing worker and a current managed target; the target authority may belong
+to any original resource record. Connecting every actual access to this domain
+and to its exact read-source rank remains a separate bridge.
+
+`query` computes a view from a prefix state and the complete observation list.
+`query_sound` connects its answer to an actual `At` witness under the execution,
+prefix and current-target premises. The pending branch searches for the complete
+writer tag, preserving thread, reference, value and occurrence. Missing or
+inexact publications and ordinary selected entries reject. The raw metadata
+function supplies no execution or authority certificate by itself.
+
+`PublishedHistory.InstructionWriteAt` also proves that same-thread instruction
+writes and their publication ranks have the same strict order across all
+store/store, store/RMW, RMW/store and RMW/RMW combinations. Buffered writes need
+actual issue witnesses; incoming queue entries receive no invented instruction
+positions. The RMW's own-empty gate forces preceding stores to publish first.
+This order-only theorem requires no final quiescence.
+
+Release/acquire view transfer, totality of graph construction and universal
+operational C23 legality remain open.
 
 ## Scope
 
