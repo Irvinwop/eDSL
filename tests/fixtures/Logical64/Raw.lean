@@ -34,10 +34,86 @@ def instruction (operation : Operation) : Stage → Sequential.Instruction
 theorem inside (operation : Operation) (stage : Stage) : offset stage < (bytes operation).length := by
   cases operation <;> cases stage <;> decide
 
+/-- Keep literal fetch computations separate from decoder continuations. A
+reference packet includes each auxiliary proof, not just the final reference. -/
+private theorem static_copy_fetches (operation : Operation) :
+    let state := codeState (bytes operation) (offset .copy)
+    fetchByte state.memory state.rip = .ok 0x48 ∧
+      fetchByte state.memory (state.rip + 1) = .ok 0x89 ∧
+      fetchByte state.memory (state.rip + 2) = .ok 0xf8 := by
+  cases operation <;> refine ⟨?_,?_,?_⟩ <;> cbv
+
+private def logicalByte : Operation → Byte
+  | .intersection => 0x21 | .union => 0x09 | .symmetricDifference => 0x31
+
+private theorem static_logical_fetches (operation : Operation) :
+    let state := codeState (bytes operation) (offset .logical)
+    fetchByte state.memory state.rip = .ok 0x48 ∧
+      fetchByte state.memory (state.rip + 1) = .ok (logicalByte operation) ∧
+      fetchByte state.memory (state.rip + 2) = .ok 0xf0 := by
+  cases operation <;> refine ⟨?_,?_,?_⟩ <;> cbv
+
+private theorem static_ret_fetch (operation : Operation) :
+    let state := codeState (bytes operation) (offset .ret)
+    fetchByte state.memory state.rip = .ok 0xc3 := by
+  cases operation <;> cbv
+
+private theorem legacy_rex_error {state : State}
+    (fetched : fetchByte state.memory state.rip = .ok 0x48) :
+    X86.decodeAt state = .error (.unsupportedOpcode 0x48) := by
+  unfold X86.decodeAt
+  rw [fetched,ok_bind]
+  cbv
+
+private theorem new_rex_dispatch {state : State} (fault : Error)
+    (fetched : fetchByte state.memory state.rip = .ok 0x48) :
+    decodeNewAt state fault = decodeREXWAt state 0x48 := by
+  unfold decodeNewAt
+  rw [fetched,ok_bind]
+  simp [rex32Prefix,rexWPrefix]
+
+private theorem decode_rex {state : State} {decoded : Sequential.Instruction}
+    (fetched : fetchByte state.memory state.rip = .ok 0x48)
+    (tail : decodeREXWAt state 0x48 = .ok decoded) :
+    Sequential.decodeAt state = .ok decoded := by
+  simp only [Sequential.decodeAt,legacy_rex_error fetched]
+  rw [new_rex_dispatch _ fetched]
+  exact tail
+
+private theorem rex_copy {state : State}
+    (operationFetch : fetchByte state.memory (state.rip + 1) = .ok 0x89)
+    (modrmFetch : fetchByte state.memory (state.rip + 2) = .ok 0xf8) :
+    decodeREXWAt state 0x48 = .ok (.movReg64 .rax .rdi) := by
+  unfold decodeREXWAt
+  rw [operationFetch,ok_bind]
+  simp only [↓reduceIte]
+  rw [modrmFetch,ok_bind]
+  cbv
+
+private theorem rex_logical {state : State} (operation : Operation)
+    (operationFetch : fetchByte state.memory (state.rip + 1) = .ok (logicalByte operation))
+    (modrmFetch : fetchByte state.memory (state.rip + 2) = .ok 0xf0) :
+    decodeREXWAt state 0x48 = .ok (.logicalReg64 (opcode operation) .rax .rsi) := by
+  cases operation <;> simp only [logicalByte] at operationFetch <;>
+    unfold decodeREXWAt <;> rw [operationFetch,ok_bind] <;>
+    dsimp only <;> rw [modrmFetch,ok_bind] <;> cbv
+
 theorem static_decode (operation : Operation) (stage : Stage) :
     Sequential.decodeAt (codeState (bytes operation) (offset stage)) =
       .ok (instruction operation stage) := by
-  cases operation <;> cases stage <;> cbv
+  cases stage with
+  | copy =>
+    exact decode_rex (static_copy_fetches operation).1
+      (rex_copy (static_copy_fetches operation).2.1 (static_copy_fetches operation).2.2)
+  | logical =>
+    exact decode_rex (static_logical_fetches operation).1
+      (rex_logical operation (static_logical_fetches operation).2.1
+        (static_logical_fetches operation).2.2)
+  | ret =>
+    apply decodeAt_legacy
+    unfold X86.decodeAt
+    rw [static_ret_fetch operation,ok_bind]
+    cbv
 
 theorem decode {operation} {state : State} {base : Word}
     (code : CodeAt state.memory base (bytes operation))
@@ -162,15 +238,32 @@ theorem final_post {operation input initial} (pre : Pre (bytes operation) input 
     simpa only [finalState,finish,State.writeRegister,notStack,ite_false] using
       frame.registers register notResult
 
+/-- The RET continuation retains the entry context and the AF already chosen
+by the logical instruction; RET's own choice remains arbitrary. -/
+private theorem executes_ret {operation input initial} (pre : Pre (bytes operation) input initial)
+    (logicalAF : Bool) (choices : Choices) :
+    Sequential.Executes choices (secondState operation initial logicalAF)
+      ⟨finalState operation initial input.returnAddress logicalAF,1,
+        [⟨.stack,initial.registers .rsp,8⟩]⟩ :=
+  Sequential.Executes.ret (step_stage pre .ret logicalAF (choices 0))
+
+private theorem executes_logical {operation input initial} (pre : Pre (bytes operation) input initial)
+    (choices : Choices) :
+    Sequential.Executes choices (copy initial)
+      ⟨finalState operation initial input.returnAddress (choices 0),2,
+        [⟨.stack,initial.registers .rsp,8⟩]⟩ := by
+  have execution := Sequential.Executes.next (step_stage pre .logical false (choices 0))
+    (executes_ret pre (choices 0) (choices.drop 1))
+  simpa only [stageState,observation,Result.prepend,List.nil_append,ChoiceStream.drop,Nat.add_zero]
+    using execution
+
 /-- Three actual retirements for these seven bytes, for every AF stream.
 The logical instruction consumes stream index 1; MOV and RET ignore theirs. -/
 theorem executions {operation input initial} (pre : Pre (bytes operation) input initial) (choices : Choices) :
     Sequential.Executes choices initial
       ⟨finalState operation initial input.returnAddress (choices 1),3,[⟨.stack,initial.registers .rsp,8⟩]⟩ := by
   have execution := Sequential.Executes.next (step_stage pre .copy false (choices 0))
-    (Sequential.Executes.next (step_stage pre .logical false ((choices.drop 1) 0))
-      (Sequential.Executes.ret (step_stage pre .ret ((choices.drop 1) 0)
-        (((choices.drop 1).drop 1) 0))))
+    (executes_logical pre (choices.drop 1))
   simpa only [stageState,observation,Result.prepend,List.nil_append,ChoiceStream.drop,Nat.add_zero]
     using execution
 
@@ -191,12 +284,10 @@ They do not assume a future successful run. -/
 def Prefix (operation : Operation) (initial before : State) : Prop :=
   ∃ stage af, before = stageState operation stage initial af
 
-theorem prefix_continues {operation input initial before after af outcome reads}
-    (pre : Pre (bytes operation) input initial) (inside : Prefix operation initial before)
-    (actual : Sequential.step af before = .ok ⟨outcome,reads⟩)
+private theorem prefix_after_observation {operation initial after outcome reads}
+    (stage : Stage) (logicalAF af : Bool) (target : Word)
+    (same : observation operation stage initial target logicalAF af = ⟨outcome,reads⟩)
     (next : nextState outcome = some after) : Prefix operation initial after := by
-  obtain ⟨stage,logicalAF,rfl⟩ := inside
-  have same := Except.ok.inj ((step_stage pre stage logicalAF af).symm.trans actual)
   cases stage with
   | copy =>
     cases same
@@ -209,6 +300,14 @@ theorem prefix_continues {operation input initial before after af outcome reads}
   | ret =>
     cases same
     cases next
+
+theorem prefix_continues {operation input initial before after af outcome reads}
+    (pre : Pre (bytes operation) input initial) (inside : Prefix operation initial before)
+    (actual : Sequential.step af before = .ok ⟨outcome,reads⟩)
+    (next : nextState outcome = some after) : Prefix operation initial after := by
+  obtain ⟨stage,logicalAF,rfl⟩ := inside
+  have same := Except.ok.inj ((step_stage pre stage logicalAF af).symm.trans actual)
+  exact prefix_after_observation stage logicalAF af input.returnAddress same next
 
 theorem prefix_block {operation input initial before final choices count reads}
     (pre : Pre (bytes operation) input initial) (inside : Prefix operation initial before)
@@ -223,28 +322,46 @@ theorem prefix_reachable {operation input initial before} (pre : Pre (bytes oper
   obtain ⟨_,_,_,block⟩ := reachable
   exact prefix_block pre ⟨.copy,false,rfl⟩ block
 
+private theorem stage_readOnly (operation : Operation) (stage : Stage) :
+    CFG.readOnly (instruction operation stage) = true := by
+  cases stage <;> rfl
+
+private theorem observation_reads {operation input initial} (pre : Pre (bytes operation) input initial)
+    (stage : Stage) (logicalAF af : Bool) :
+    ∀ read ∈ (observation operation stage initial input.returnAddress logicalAF af).reads,
+      (read.kind = .stack ∧ read.address = initial.registers .rsp ∧ read.bytes = 8) ∧
+        OperandReadSucceeds (stageState operation stage initial logicalAF) read := by
+  intro read member
+  cases stage with
+  | copy | logical => cases member
+  | ret =>
+    simp only [observation,List.mem_singleton] at member
+    subst read
+    refine ⟨⟨rfl,rfl,rfl⟩,rfl,input.returnAddress,?_⟩
+    rw [(stage_frame operation .ret initial logicalAF).memory]
+    exact pre.stack
+
+private theorem observation_memory (operation : Operation) (stage : Stage) (initial : State)
+    (target : Word) (logicalAF af : Bool) :
+    match (observation operation stage initial target logicalAF af).result with
+    | .next after | .returned after =>
+      after.memory = (stageState operation stage initial logicalAF).memory
+    | .atomic _ _ | .syscall _ => False := by
+  have frame := stage_frame operation stage initial logicalAF
+  cases stage with
+  | copy => exact (stage_frame operation .logical initial false).memory.trans frame.memory.symm
+  | logical => exact (stage_frame operation .ret initial af).memory.trans frame.memory.symm
+  | ret => rfl
+
 theorem raw_policy {operation input initial} (pre : Pre (bytes operation) input initial) : RawPolicy initial := by
   intro before reachable
   obtain ⟨stage,logicalAF,rfl⟩ := prefix_reachable pre reachable
-  have frame := stage_frame operation stage initial logicalAF
-  refine ⟨frame.memory,⟨instruction operation stage,stage_decoded pre stage logicalAF,?_⟩,?_⟩
-  · cases stage <;> rfl
-  · intro af
-    refine ⟨observation operation stage initial input.returnAddress logicalAF af,
-      step_stage pre stage logicalAF af,?_,?_⟩
-    · intro read member
-      cases stage with
-      | copy | logical => cases member
-      | ret =>
-        simp only [observation,List.mem_singleton] at member
-        subst read
-        refine ⟨⟨rfl,rfl,rfl⟩,rfl,input.returnAddress,?_⟩
-        rw [frame.memory]
-        exact pre.stack
-    · cases stage with
-      | copy => exact (stage_frame operation .logical initial false).memory.trans frame.memory.symm
-      | logical => exact (stage_frame operation .ret initial af).memory.trans frame.memory.symm
-      | ret => rfl
+  refine ⟨(stage_frame operation stage initial logicalAF).memory,
+    ⟨instruction operation stage,stage_decoded pre stage logicalAF,stage_readOnly operation stage⟩,?_⟩
+  intro af
+  exact ⟨observation operation stage initial input.returnAddress logicalAF af,
+    step_stage pre stage logicalAF af,observation_reads pre stage logicalAF af,
+    observation_memory operation stage initial input.returnAddress logicalAF af⟩
 
 /-- Correctness and current-resource policy follow from the independently
 specified result and the actual reachable-prefix proof. The trusted registry
