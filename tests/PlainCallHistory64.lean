@@ -388,6 +388,107 @@ theorem independent_closed_history :
     positioned.symm.trans literal, congrArg Prod.fst exactMetadata,
     congrArg Prod.snd exactMetadata, store, member, thread, returned⟩
 
+-- Vary the real store argument while retaining the actual code, initialized
+-- world, current authority, caller slots and nonzero machine counters. Equal
+-- values cannot distinguish INITIAL from the buffered writer's identity.
+private def equalWordWriter : Worker :=
+  let prior := writer 11
+  { prior with context := { prior.context with registers := fun reg =>
+      if reg = .rsi then PlainCallAdmission64.oldWord else prior.context.registers reg } }
+
+private def equalWordInitial : OS.TSO64.State :=
+  { initial with workers := [reader 7, equalWordWriter] }
+
+private def publishBeforeRead : List Action :=
+  [.issue 1 true, .issue 1 false, .drain 1, .issue 0 false, .issue 0 true]
+
+/-- The actual scanner must select the published store's allocated counter 11,
+not logical occurrence 93, successor counter 12, or any action position. -/
+theorem equal_words_select_published_writer :
+    (AtomicTrace.scan equalWordInitial publishBeforeRead .sharedCell 37 PublishedHistory.empty
+      ).toOption.map AtomicTrace.Result.events = some
+      [⟨37, 1, .store writerReference PlainCallAdmission64.oldWord 11⟩,
+       ⟨40, 0, .load readerReference PlainCallAdmission64.oldWord (.store 1 11)⟩] := by
+  decide +kernel
+
+/-- Move only publication after the read. The unchanged returned word must now
+carry INITIAL, despite the writer's earlier RET and its equal stored value. -/
+theorem equal_words_before_publication_select_initial :
+    (AtomicTrace.scan equalWordInitial actions .sharedCell 37 PublishedHistory.empty
+      ).toOption.map AtomicTrace.Result.events = some
+      [⟨37, 1, .store writerReference PlainCallAdmission64.oldWord 11⟩,
+       ⟨39, 0, .load readerReference PlainCallAdmission64.oldWord
+         (.initial PlainCallAdmission64.target)⟩] := by
+  decide +kernel
+
+private def equalWordExecution (program : List Action) :
+    Option (List Observation × Except Fault Word × Except Fault Word) := do
+  let run ← (AtomicTrace.scan equalWordInitial program .sharedCell 37
+    PublishedHistory.empty).toOption
+  pure (run.observations, collect run.state 0, collect run.state 1)
+
+/-- Both schedules execute the actual store and both RETs, with the same
+full64 replies. Only the drain's position relative to the read changes. -/
+theorem equal_words_return_observations :
+    equalWordExecution publishBeforeRead = some
+      ([.ordinary 1, .returned 1,
+        .drained 1 (.managed writerReference PlainCallAdmission64.oldWord 11),
+        .ordinary 0, .returned 0], .ok PlainCallAdmission64.oldWord, .ok 5) ∧
+    equalWordExecution actions = some
+      ([.ordinary 1, .returned 1, .ordinary 0,
+        .drained 1 (.managed writerReference PlainCallAdmission64.oldWord 11),
+        .returned 0], .ok PlainCallAdmission64.oldWord, .ok 5) := by
+  constructor <;> decide +kernel
+
+-- Exercise the real graph builder with the actual scanner and initializer
+-- output. A mutation substitutes only the load's source key. This does not
+-- assert provenance for the mutated data, nor use structural building as an
+-- alternative to the certificate's same-run Captured/ClosedPost obligations.
+private def equalWordGraph (program : List Action) (replacement : Option AtomicTrace.WriterId) :
+    Option AtomicTrace.Graph.Table := do
+  let run ← (AtomicTrace.scan equalWordInitial program .sharedCell 37
+    PublishedHistory.empty).toOption
+  let initials ← (AtomicTrace.Initials.enumerate equalWordInitial.world).toOption
+  let events := run.events.map fun event =>
+    match replacement, event.access with
+    | some key, .load reference value _ => { event with access := .load reference value key }
+    | _, _ => event
+  AtomicTrace.Graph.build ⟨initials, events, writes 37 run.observations⟩ AtomicEvents.orders
+
+/-- The source row is the writer at index 1. Its modification rank follows
+publication at position 39, independently of issue 37 and reader access 40. -/
+theorem equal_word_graph_uses_publication :
+    (equalWordGraph publishBeforeRead none).map
+      (fun table => (table.events, table.sources, table.ranks)) = some
+      ([⟨none, PlainCallAdmission64.target, .initialize PlainCallAdmission64.oldWord⟩,
+        ⟨some 1, PlainCallAdmission64.target, .store .release PlainCallAdmission64.oldWord⟩,
+        ⟨some 0, PlainCallAdmission64.target, .load .acquire PlainCallAdmission64.oldWord⟩],
+        [none, none, some 1], [0, 40, 0]) := by
+  decide +kernel
+
+/-- The same equal-valued graph rows select initializer row 0 when the read
+precedes publication. The later drain at position 40 gives writer rank 41. -/
+theorem equal_word_graph_before_publication :
+    (equalWordGraph actions none).map
+      (fun table => (table.events, table.sources, table.ranks)) = some
+      ([⟨none, PlainCallAdmission64.target, .initialize PlainCallAdmission64.oldWord⟩,
+        ⟨some 1, PlainCallAdmission64.target, .store .release PlainCallAdmission64.oldWord⟩,
+        ⟨some 0, PlainCallAdmission64.target, .load .acquire PlainCallAdmission64.oldWord⟩],
+        [none, none, some 0], [0, 41, 0]) := by
+  decide +kernel
+
+/-- A valid replacement takes the same mutation path and retains the writer's
+source row and publication rank. The remaining keys name no writer in this
+run; a value-only fallback would incorrectly accept their equal words. -/
+theorem substituted_writer_keys_rejected :
+    (equalWordGraph publishBeforeRead (some (.store 1 11))).map
+      (fun table => (table.sources, table.ranks)) =
+        some ([none, none, some 1], [0, 40, 0]) ∧
+    [0, 12, 93, 37, 39].all
+      (fun counter => (equalWordGraph publishBeforeRead (some (.store 1 counter))).isNone) = true ∧
+    (equalWordGraph publishBeforeRead (some (.store 0 11))).isNone = true := by
+  refine ⟨?_, ?_, ?_⟩ <;> decide +kernel
+
 end EDSL.Tests.PlainCallHistory64
 
 #print axioms EDSL.Tests.PlainCallHistory64.independentClosedPreWith
@@ -396,4 +497,10 @@ end EDSL.Tests.PlainCallHistory64
 #print axioms EDSL.Tests.PlainCallHistory64.actual_abi
 #print axioms EDSL.Tests.PlainCallHistory64.literal_scan
 #print axioms EDSL.Tests.PlainCallHistory64.independent_closed_history
+#print axioms EDSL.Tests.PlainCallHistory64.equal_words_select_published_writer
+#print axioms EDSL.Tests.PlainCallHistory64.equal_words_before_publication_select_initial
+#print axioms EDSL.Tests.PlainCallHistory64.equal_words_return_observations
+#print axioms EDSL.Tests.PlainCallHistory64.equal_word_graph_uses_publication
+#print axioms EDSL.Tests.PlainCallHistory64.equal_word_graph_before_publication
+#print axioms EDSL.Tests.PlainCallHistory64.substituted_writer_keys_rejected
 #audit_edsl

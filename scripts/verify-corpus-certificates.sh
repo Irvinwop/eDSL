@@ -15,7 +15,7 @@ case "$#:${1:-}" in
     1:--full-project) full_project=true ;;
     1:--help)
         echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]'
-        echo 'Builds twenty scalar, two managed concurrent fetch-add, two bounded byte-scan, four first-match search, two byte-comparison and two byte-equality certificates, audits axioms and checks file binding.'
+        echo 'Builds twenty scalar, two managed concurrent fetch-add, two bounded byte-scan, four first-match search, two byte-comparison, two byte-equality and four managed plain load/store certificates, audits axioms and checks file binding.'
         echo 'Default: fresh-replays corpus.Certify. --full-project: also builds the full catalogue and verification, unary, popcount, average, parity, rotation, low-byte and CFG-profile tests; fresh-replays them together.'
         exit 0 ;;
     *) echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]' >&2; exit 2 ;;
@@ -197,6 +197,9 @@ record popcount-certificate-api test -f EDSL/Corpus/V1/PopcountCertificates.lean
 record average-certificate-api test -f EDSL/Corpus/V1/AverageCertificates.lean
 record parity-certificate-api test -f EDSL/Corpus/V1/ParityCertificates.lean
 record rotation-certificate-api test -f EDSL/Corpus/V1/RotationCertificates.lean
+record plain-certificate-api test -f EDSL/Corpus/PlainCertificate.lean
+record plain-witness-api test -f EDSL/Corpus/PlainWitnesses.lean
+record plain-mixed-witness-api test -f EDSL/Corpus/PlainMixedWitnesses.lean
 record lean-version "${lean_lock[@]}" lean --version
 
 if [[ $full_project == true ]]; then
@@ -252,6 +255,11 @@ import tests.GradingByteEquality
 import tests.ByteEqualityCertificates
 import tests.CFGProfiles
 import tests.VCGenScratchFrame
+import tests.PlainMethods
+import tests.PlainCallClaim64
+import tests.CorpusPlainResources
+import tests.PlainWitnessAudit64
+import tests.PlainCallHistory64
 LEAN
     printf 'import CorpusFullReplay\n' > "$output/Audit.lean"
 else
@@ -509,6 +517,43 @@ example (compiler : EDSL.Corpus.V1.FetchAddWindows.Compiler) :
     EDSL.Corpus.V1.FetchAddWindows.file compiler =
       EDSL.Corpus.V1.Comparisons.file compiler := rfl
 
+-- Both original CohortCertificate gates are mandatory, independently of the
+-- four named receipt rows. Singleton NamedCertificate values cannot fill this.
+example :
+    Nonempty (EDSL.Corpus.Plain.CohortCertificate
+      (EDSL.Corpus.V1.Comparisons.file .defaultGCC)) ∧
+    Nonempty (EDSL.Corpus.Plain.CohortCertificate
+      (EDSL.Corpus.V1.Comparisons.file .defaultClang)) :=
+  EDSL.Corpus.Reporting.acceptedPlainCertificates
+example (compiler : EDSL.Corpus.V1.PlainInputs.Compiler) :
+    EDSL.Grading.ConcurrentTask.Plain64.Claim
+      (EDSL.Corpus.V1.PlainInputs.catalog compiler) :=
+  (EDSL.Corpus.Reporting.plainCohortCertificate compiler).claim
+example (compiler : EDSL.Corpus.V1.PlainInputs.Compiler)
+    (kind : EDSL.Grading.ConcurrentTask.Plain64.Kind) :
+    Nonempty (EDSL.Corpus.Plain.UsefulNamed
+      (EDSL.Corpus.V1.PlainInputs.named compiler kind)) :=
+  (EDSL.Corpus.Reporting.plainCohortCertificate compiler).homogeneous kind
+example (compiler : EDSL.Corpus.V1.PlainInputs.Compiler) :
+    Nonempty (EDSL.Corpus.Plain.UsefulMixed
+      (EDSL.Corpus.V1.PlainInputs.images compiler)) :=
+  (EDSL.Corpus.Reporting.plainCohortCertificate compiler).mixed
+-- Literal names pin the registry independently; these checks authenticate the
+-- unique complete named extent against the very same file read by matchFile.
+example (compiler : EDSL.Corpus.V1.PlainInputs.Compiler) :
+    (EDSL.Corpus.Reporting.plainNamedCertificate compiler .loadAcquire).named.input.check
+      (EDSL.Corpus.V1.Comparisons.file compiler)
+      [99,95,97,116,111,109,105,99,95,108,111,97,100,95,97,99,113,117,105,114,101,54,52] = true :=
+  (EDSL.Corpus.Reporting.plainNamedCertificate compiler .loadAcquire).named.checked
+example (compiler : EDSL.Corpus.V1.PlainInputs.Compiler) :
+    (EDSL.Corpus.Reporting.plainNamedCertificate compiler .storeRelease).named.input.check
+      (EDSL.Corpus.V1.Comparisons.file compiler)
+      [99,95,97,116,111,109,105,99,95,115,116,111,114,101,95,114,101,108,101,97,115,101,54,52] = true :=
+  (EDSL.Corpus.Reporting.plainNamedCertificate compiler .storeRelease).named.checked
+
+#print axioms EDSL.Corpus.Reporting.plainCohortCertificate
+#print axioms EDSL.Corpus.Reporting.plainNamedCertificate
+#print axioms EDSL.Corpus.Reporting.acceptedPlainCertificates
 #print axioms EDSL.Corpus.Reporting.acceptedCertificates
 #print axioms EDSL.Corpus.Reporting.acceptedConcurrentCertificates
 #print axioms EDSL.Corpus.Reporting.acceptedBufferCertificates
@@ -561,6 +606,14 @@ def certificate($manifest; $operation; $symbol; $proof):
     .model == "sequential-read-only-x86-buffer-callable-v1" and
     ([$manifest.functions[] | select(.symbol == $symbol)][0] |
       .definition_id == "18" and .contract_id == "v1:18:c_strnlen_bytes")
+   elif $operation == "full64_load_acquire_concurrent" then
+    .model == "managed-tso64-plain64-cohort-v1" and
+    ([$manifest.functions[] | select(.symbol == $symbol)][0] |
+      .definition_id == "35" and .contract_id == "v1:35:c_atomic_load_acquire64")
+   elif $operation == "full64_store_release_concurrent" then
+    .model == "managed-tso64-plain64-cohort-v1" and
+    ([$manifest.functions[] | select(.symbol == $symbol)][0] |
+      .definition_id == "36" and .contract_id == "v1:36:c_atomic_store_release64")
    elif $operation == "first_matching_byte_index" then
     .model == "sequential-read-only-x86-buffer-callable-v1" and
     ([$manifest.functions[] | select(.symbol == $symbol)][0] |
@@ -625,11 +678,20 @@ def unary_extent($compiler; $operation):
      elif $compiler == "gcc" and $operation == "swap" then [11760, 4206064, 11]
      elif $compiler == "clang" and $operation == "swap" then [4960, 4199264, 7]
      else [] end);
+def plain_extent($compiler; $kind):
+  [.file_offset, .address, .size] ==
+    (if $compiler == "gcc" and $kind == "load" then [12944, 4207248, 8]
+     elif $compiler == "gcc" and $kind == "store" then [12960, 4207264, 8]
+     elif $compiler == "clang" and $kind == "load" then [6848, 4201152, 4]
+     elif $compiler == "clang" and $kind == "store" then [6864, 4201168, 4]
+     else [] end);
+def plain_cohort($enum):
+  .cohort_proof == "EDSL.Corpus.Reporting.plainCohortCertificate " + $enum;
 def artifact($compiler; $path; $bytes; $manifest; $enum):
   type == "object" and .compiler == $compiler and .path == $path and
   .bytes == $bytes and $manifest.elf_size == $bytes and
   .match == "complete_byte_equality" and
-  (.certificates | type == "array" and length == 16) and
+  (.certificates | type == "array" and length == 18) and
   (.certificates[0] | certificate($manifest; "unsigned_minimum64"; "c_min_u64";
     "EDSL.Corpus.V1.Comparisons.certificate " + $enum + " minimum")) and
   (.certificates[1] | certificate($manifest; "unsigned_maximum64"; "c_max_u64";
@@ -662,6 +724,12 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
     "c_rotl64"; "EDSL.Corpus.V1.RotationCertificates.certificate " + $enum)) and
   (.certificates[15] | certificate($manifest; "canonical_low8_byte_equality";
     "c_bytes_equal"; "EDSL.Corpus.V1.ByteEqualityCertificates.certificate " + $enum)) and
+  (.certificates[16] | certificate($manifest; "full64_load_acquire_concurrent";
+    "c_atomic_load_acquire64"; "EDSL.Corpus.Reporting.plainNamedCertificate " + $enum + " loadAcquire")) and
+  (.certificates[17] | certificate($manifest; "full64_store_release_concurrent";
+    "c_atomic_store_release64"; "EDSL.Corpus.Reporting.plainNamedCertificate " + $enum + " storeRelease")) and
+  (.certificates[16] | plain_extent($compiler; "load") and plain_cohort($enum)) and
+  (.certificates[17] | plain_extent($compiler; "store") and plain_cohort($enum)) and
   (.certificates[6] | search_extent($compiler; "byte")) and
   (.certificates[7] | search_extent($compiler; "u32")) and
   (.certificates[8] | byte_comparison_extent($compiler)) and
@@ -683,9 +751,9 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
     (if $compiler == "gcc" then [12240, 4206544, 46, 64, 32]
      elif $compiler == "clang" then [5376, 4199680, 68, 128, 32] else [] end)) and
   all(.certificates[]; .file_offset + .size <= $bytes) and
-  ([.certificates[].symbol] | unique | length == 16) and
-  ([.certificates[].operation] | unique | length == 16) and
-  ([.certificates[] | [.file_offset, .address, .size]] | unique | length == 16) and
+  ([.certificates[].symbol] | unique | length == 18) and
+  ([.certificates[].operation] | unique | length == 18) and
+  ([.certificates[] | [.file_offset, .address, .size]] | unique | length == 18) and
   (.certificates as $certificates | all($certificates[]; . as $a |
     all($certificates[]; . as $b | $a.symbol == $b.symbol or
       (($a.file_offset + $a.size <= $b.file_offset or
@@ -700,26 +768,29 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
 length == 1 and (.[0] |
   type == "object" and .schema == "edsl.compiler-corpus.certificates.v1" and
   .status == "certified_under_recorded_model_assumptions" and
-  .score == {functions_certified_end_to_end: 16,
+  .score == {functions_certified_end_to_end: 18,
     functions_total: ($gccNames | length),
-    compiler_artifacts_certified_end_to_end: 32,
+    compiler_artifacts_certified_end_to_end: 36,
     compiler_artifacts_total: (($gccNames | length) + ($clangNames | length)),
-    concurrency_contracts_proved: 1} and
+    concurrency_contracts_proved: 3} and
   (.files | type == "array" and length == 2) and
   (.files[0] | artifact("gcc"; $gcc; $gccBytes; $gccManifest[0]; "defaultGCC")) and
   (.files[1] | artifact("clang"; $clang; $clangBytes; $clangManifest[0]; "defaultClang")) and
   ([.files[] | .compiler as $compiler | .certificates[] |
-      [$compiler, .operation, .symbol]] | unique | length == 32) and
-  ([.files[].certificates[].proof] | unique | length == 32) and
-  ([.files[].certificates[].symbol] | unique | length == 16) and
-  ([.files[].certificates[].operation] | unique | length == 16) and
+      [$compiler, .operation, .symbol]] | unique | length == 36) and
+  ([.files[].certificates[].proof] | unique | length == 36) and
+  ([.files[].certificates[].symbol] | unique | length == 18) and
+  ([.files[].certificates[].operation] | unique | length == 18) and
   ([.files[].certificates[] | select(.operation == "full64_fetch_add_concurrent")] |
     length == 2 and (map(.symbol) | unique | length == 1)) and
+  ([.files[].certificates[16:18][].cohort_proof] | unique | length == 2) and
   (.score.functions_certified_end_to_end ==
     ([.files[].certificates[].symbol] | unique | length)) and
   (.score.compiler_artifacts_certified_end_to_end == ([.files[].certificates[]] | length)) and
   (.score.concurrency_contracts_proved ==
-    ([.files[].certificates[] | select(.operation == "full64_fetch_add_concurrent") |
+    ([.files[].certificates[] | select(.operation == "full64_fetch_add_concurrent" or
+      .operation == "full64_load_acquire_concurrent" or
+      .operation == "full64_store_release_concurrent") |
       [.operation, .symbol, .model]] | unique | length)) and
   .profile.long_mode == true and .profile.cet_ibt_enabled == false and
   .profile.shadow_stack_enabled == false and .profile.multi_byte_nop == true and
@@ -736,6 +807,7 @@ length == 1 and (.[0] |
       .byte_equality_semantics, .byte_equality_resources, .byte_equality_progress,
       .concurrent_semantics, .concurrent_progress,
       .concurrent_resources, .concurrent_useful_domain,
+      .plain_semantics, .plain_resources, .plain_progress, .plain_useful_domain,
       .caller_resources, .useful_domain, .certificate_axioms; text)) and
   ([.stages.complete_file_identity, .stages.elf_symbol_binding, .stages.cfg,
     .stages.symbolic_vc, .stages.registered_semantics, .stages.caller_resources,
@@ -748,8 +820,13 @@ length == 1 and (.[0] |
     .stages.byte_comparison_semantics,
     .stages.byte_comparison_resources, .stages.byte_comparison_progress,
     .stages.byte_equality_semantics, .stages.byte_equality_resources,
-    .stages.byte_equality_progress] |
-      unique | length == 28) and
+    .stages.byte_equality_progress, .stages.plain_semantics, .stages.plain_resources,
+    .stages.plain_progress, .stages.plain_useful_domain] |
+      unique | length == 32) and
+  .stages.plain_semantics == "managed closed cohort full64 acquire loads into RAX and release stores from RSI at RDI; arbitrary full64 initial and stored words; every successful finite returned schedule has one actual access and RET per original worker, exact call/event coverage and ABI frames; closed runs construct initialized legal atomic histories with actual writer keys from nextStore counters, distinct from logical occurrence labels; acquire/release orders are registered interface annotations" and
+  .stages.plain_resources == "current original code/caller/managed authority at every successful prefix; full cell descriptors and persistent cell identities; complete installed ELF cells and permissions retained; targets fresh from the entire loaded image; original caller and callee-save registers retained; RSP advances by 8 at return; all flags retained; collection requires an empty own queue" and
+  .stages.plain_progress == "every running worker has an enabled actual issue for every AF value; completion after every successful finite prefix for every choice stream; return may precede store publication; drain closure and a positive own-issue upper bound are proved outputs; no fairness, physical timing or minimum-cost claim" and
+  .stages.plain_useful_domain == "two-worker high-word homogeneous loaded executions for each kind with both accesses before either return; same-file mixed writer RET strictly before publication strictly before acquiring reader access; selected read-from edge belongs to that same ClosedPost" and
   (.stages.population_count_semantics | contains("full64 input bit-position cardinality") and
     contains("unsigned low32") and contains("all inputs including zero and all-ones admitted") and
     contains("every AF stream terminates") and contains("strict remaining-cardinality rank") and
@@ -866,6 +943,7 @@ length == 1 and (.[0] |
     any(.[]; contains("modeled managed profile") and contains("no published physical x86-TSO") and
       contains("Linux/GNU memory-order") and contains("scheduling fairness") and
       contains("hardware-minimum progress bound")) and
+    any(.[]; . == "Plain acquire/release uses managed-tso64-plain64-cohort-v1 with stable scalar RAM, stable translations/no hidden aliases, fixed worker population and CET off; closed histories require initially and finally empty FIFOs; no source/compiler ordering preservation, physical x86-TSO/Linux refinement or fairness is proved.") and
     any(.[]; contains("Byte comparison") and contains("current borrowed sequential callable profile") and
       contains("stable ordinary RAM") and contains("absent asynchronous interference") and
       contains("CET off") and contains("no source/LLVM preservation") and
@@ -891,9 +969,9 @@ certificate_targets=(EDSL.Corpus.V1.Comparisons EDSL.Corpus.V1.Arithmetic EDSL.C
     EDSL.Corpus.V1.ByteEqualityCertificates
     EDSL.Corpus.V1.UnaryCertificates EDSL.Corpus.V1.PopcountCertificates
     EDSL.Corpus.V1.AverageCertificates EDSL.Corpus.V1.ParityCertificates
-    EDSL.Corpus.V1.RotationCertificates)
+    EDSL.Corpus.V1.RotationCertificates EDSL.Corpus.PlainMixedWitnesses)
 if [[ $full_project == true ]]; then
-    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests ParityTests RotationTests Low8Tests ByteEqualityTests CFGProfileTests \
+    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests ParityTests RotationTests Low8Tests ByteEqualityTests CFGProfileTests ManagedQueue64Tests \
         edsl-proof-export edsl-grade "${certificate_targets[@]}"
 else
     record build "${lean_lock[@]}" lake build "${certificate_targets[@]}"
@@ -1021,6 +1099,9 @@ reject_report reject-report-pre-rotation-function-count '.score.functions_certif
 reject_report reject-report-pre-rotation-artifact-count '.score.compiler_artifacts_certified_end_to_end = 28'
 reject_report reject-report-pre-equality-function-count '.score.functions_certified_end_to_end = 15'
 reject_report reject-report-pre-equality-artifact-count '.score.compiler_artifacts_certified_end_to_end = 30'
+reject_report reject-report-pre-plain-function-count '.score.functions_certified_end_to_end = 16'
+reject_report reject-report-pre-plain-artifact-count '.score.compiler_artifacts_certified_end_to_end = 32'
+reject_report reject-report-pre-plain-concurrency-count '.score.concurrency_contracts_proved = 1'
 reject_report reject-report-concurrency-count '.score.concurrency_contracts_proved = 2'
 reject_report reject-report-cet-ibt '.profile.cet_ibt_enabled = true'
 reject_report reject-report-shadow-stack '.profile.shadow_stack_enabled = true'
@@ -1121,6 +1202,29 @@ duplicate	.files[$index].certificates[8] = .files[$index].certificates[15]
 missing-row	del(.files[$index].certificates[15])
 doubled-row	.files[$index].certificates += [.files[$index].certificates[15]]
 MUTATIONS
+    for entry in 16 17; do
+        while IFS=$'\t' read -r mutation filter; do
+            reject_report "reject-$label-plain-$entry-$mutation" "$filter" \
+                --argjson index "$index" --argjson entry "$entry"
+        done <<'MUTATIONS'
+missing-model	del(.files[$index].certificates[$entry].model)
+model	.files[$index].certificates[$entry].model = "managed-tso64-closed-batch-v1"
+operation	.files[$index].certificates[$entry].operation = "full64_fetch_add_concurrent"
+symbol	.files[$index].certificates[$entry].symbol = .files[$index].certificates[33 - $entry].symbol
+compiler-proof	.files[$index].certificates[$entry].proof = .files[1 - $index].certificates[$entry].proof
+kind-proof	.files[$index].certificates[$entry].proof = .files[$index].certificates[33 - $entry].proof
+named-only-proof	.files[$index].certificates[$entry].proof = "EDSL.Corpus.PlainWitnesses.namedCertificate"
+missing-cohort	del(.files[$index].certificates[$entry].cohort_proof)
+wrong-cohort	.files[$index].certificates[$entry].cohort_proof = .files[1 - $index].certificates[$entry].cohort_proof
+file	.files[$index].path = .files[1 - $index].path
+offset	.files[$index].certificates[$entry].file_offset += 1
+address	.files[$index].certificates[$entry].address += 1
+size	.files[$index].certificates[$entry].size -= 1
+missing-row	del(.files[$index].certificates[$entry])
+duplicate	.files[$index].certificates[33 - $entry] = .files[$index].certificates[$entry]
+doubled-row	.files[$index].certificates += [.files[$index].certificates[$entry]]
+MUTATIONS
+    done
     for entry in 9 10 11 12 13 14; do
         case "$entry" in
             9) operation=absolute ;;
@@ -1156,6 +1260,30 @@ popcount-proof	.files[$index].certificates[13].proof = .files[$index].certificat
 duplicate	.files[$index].certificates[12] = .files[$index].certificates[13]
 MUTATIONS
 done
+read -r filter <<'JQ'
+.files[0].certificates[16:18] as $gcc | .files[0].certificates[16:18] = .files[1].certificates[16:18] | .files[1].certificates[16:18] = $gcc
+JQ
+reject_report reject-plain-compiler-swap "$filter"
+while IFS=$'\t' read -r mutation filter; do
+    reject_report "reject-plain-$mutation" "$filter"
+done <<'MUTATIONS'
+missing-claim	del(.stages.plain_semantics)
+load-width	.stages.plain_semantics |= sub("full64 acquire loads"; "low32 acquire loads")
+store-width	.stages.plain_semantics |= sub("release stores from RSI"; "release stores from ESI")
+writer-key	.stages.plain_semantics |= sub("actual writer keys from nextStore counters"; "writer keys from logical occurrence labels")
+claim-domain	.stages.plain_semantics |= sub("every successful finite returned schedule"; "one selected completed schedule")
+orders	.stages.plain_semantics |= sub("registered interface annotations"; "inferred hardware guarantees")
+resources	del(.stages.plain_resources)
+flags	.stages.plain_resources |= sub("all flags retained"; "flags discarded")
+authority	.stages.plain_resources |= sub("current original code/caller/managed authority"; "formerly loaded authority")
+whole-image	.stages.plain_resources |= sub("complete installed ELF cells and permissions retained"; "selected code bytes retained")
+progress	del(.stages.plain_progress)
+premature-publication	.stages.plain_progress |= sub("return may precede store publication"; "return requires publication")
+mixed	del(.stages.plain_useful_domain)
+publication	.stages.plain_useful_domain |= sub("writer RET strictly before publication strictly before acquiring reader access"; "writer issue before reader return")
+read-from	.stages.plain_useful_domain |= sub("selected read-from edge belongs to that same ClosedPost"; "equal word values identify the source")
+limits	del(.limits[] | select(startswith("Plain acquire/release")))
+MUTATIONS
 reject_report reject-unary-stage-missing 'del(.stages.unary_semantics)'
 reject_report reject-unary-domain-weakened \
     '.stages.unary_semantics |= sub("excludes INT32_MIN"; "includes every signed input")'
@@ -1294,7 +1422,7 @@ MUTATIONS
 # Keep the report valid while mutating the selected frozen registration, so a
 # validator that accepts the wrong independent task identity is also caught.
 for label in gcc clang; do
-    for symbol in c_memchr_index c_linear_search_u32 c_memcmp_bytes c_abs_i32 c_byteswap64 c_average_u64 c_parity_loop c_rotl64 c_bytes_equal; do
+    for symbol in c_memchr_index c_linear_search_u32 c_memcmp_bytes c_abs_i32 c_byteswap64 c_average_u64 c_parity_loop c_rotl64 c_bytes_equal c_atomic_load_acquire64 c_atomic_store_release64; do
         while IFS=$'\t' read -r mutation filter; do
             name=reject-$label-$symbol-manifest-$mutation
             record "$name-mutate" jq --arg symbol "$symbol" "$filter" \
@@ -1326,13 +1454,15 @@ JQ
 read -r manifest_extent_mutation <<'JQ'
 (.functions[] | select(.symbol == $symbol))[$field] += $delta
 JQ
-for operation in byte-comparison average parity rotation byte-equality; do
+for operation in byte-comparison average parity rotation byte-equality plain-load plain-store; do
     case "$operation" in
         byte-comparison) entry=8 symbol=c_memcmp_bytes ;;
         average) entry=12 symbol=c_average_u64 ;;
         parity) entry=13 symbol=c_parity_loop ;;
         rotation) entry=14 symbol=c_rotl64 ;;
         byte-equality) entry=15 symbol=c_bytes_equal ;;
+        plain-load) entry=16 symbol=c_atomic_load_acquire64 ;;
+        plain-store) entry=17 symbol=c_atomic_store_release64 ;;
     esac
     for index in 0 1; do
         label=${report_compilers[$index]}
@@ -1555,6 +1685,37 @@ reject 1 reject-gcc-byte-equality-code --gcc "$gcc_byte_equality"
 flip_byte clang-byte-equality "$clang_file" "${byte_equality_offsets[1]}" "$clang_byte_equality"
 reject 1 reject-clang-byte-equality-code --clang "$clang_byte_equality"
 
+# Independently frozen symbol extents, not offsets supplied by the report.
+# Exercise ENDBR/entry, final RET and the actual MOV width in all four artifacts.
+while IFS=$'\t' read -r compiler kind offset size rex_offset; do
+    for byte_offset in "$offset" "$((offset + size - 1))"; do
+        name=$compiler-plain-$kind-byte-$byte_offset
+        changed=$output/mutations/$name.elf
+        flip_byte "$name" "corpus/v1/$compiler/final.elf" "$byte_offset" "$changed"
+        reject 1 "reject-$name" "--$compiler" "$changed"
+    done
+    name=$compiler-plain-$kind-width
+    changed=$output/mutations/$name.elf
+    record "$name-original-byte" od -An -tu1 -j "$rex_offset" -N 1 "corpus/v1/$compiler/final.elf"
+    read -r original_byte < "$output/commands/$name-original-byte.stdout"
+    record "$name-original-rex-w" test "$original_byte" -eq 72
+    record "$name-copy" cp -- "corpus/v1/$compiler/final.elf" "$changed"
+    record "$name-replacement" printf '\100'
+    record "$name-write" dd "if=$output/commands/$name-replacement.stdout" \
+        "of=$changed" bs=1 "seek=$rex_offset" conv=notrunc status=none
+    expect_status 1 "$name-diff" cmp -l -- "corpus/v1/$compiler/final.elf" "$changed"
+    mapfile -t width_differences < "$output/commands/$name-diff.stdout"
+    record "$name-one-difference" test "${#width_differences[@]}" -eq 1
+    read -r position _ < "$output/commands/$name-diff.stdout"
+    record "$name-difference-position" test "$position" -eq "$((rex_offset + 1))"
+    reject 1 "reject-$name" "--$compiler" "$changed"
+done <<'PLAIN_EXTENTS'
+gcc	load	12944	8	12948
+gcc	store	12960	8	12964
+clang	load	6848	4	6848
+clang	store	6864	4	6864
+PLAIN_EXTENTS
+
 # ELF identification byte 8 is inside each complete file but outside every
 # certified function. Keep this header-field control alongside the opaque
 # .comment control below, which exercises complete-file identity independently.
@@ -1661,6 +1822,7 @@ expect_status 1 appended-diff cmp -s -- "$gcc_file" "$gcc_appended"
 reject 1 reject-gcc-appended --gcc "$gcc_appended"
 expect_status 1 wrong-compiler-diff cmp -s -- "$gcc_file" "$valid_clang"
 reject 1 reject-wrong-compiler --gcc "$valid_clang"
+reject 1 reject-wrong-clang-compiler --clang "$valid_gcc"
 
 record missing-path-absent test ! -e "$output/mutations/missing.elf"
 reject 3 reject-missing-file --gcc "$output/mutations/missing.elf"

@@ -15,6 +15,7 @@ import EDSL.Corpus.V1.PopcountCertificates
 import EDSL.Corpus.V1.AverageCertificates
 import EDSL.Corpus.V1.ParityCertificates
 import EDSL.Corpus.V1.RotationCertificates
+import EDSL.Corpus.PlainMixedWitnesses
 import Lean
 
 namespace EDSL.Corpus.Reporting
@@ -163,6 +164,24 @@ theorem acceptedRotationCertificates :
   ⟨⟨V1.RotationCertificates.gcc_certificate⟩,
     ⟨V1.RotationCertificates.clang_certificate⟩⟩
 
+/-- Registration retains the original mixed and homogeneous certificate gates. -/
+def plainCohortCertificate (compiler : V1.PlainInputs.Compiler) :
+    Plain.CohortCertificate (V1.PlainWindows.file compiler) :=
+  PlainMixedWitnesses.cohortCertificate compiler 17 29 101 202
+
+/-- A receipt row is a projection of the accepted same-file mixed cohort. -/
+def plainNamedCertificate (compiler : V1.PlainInputs.Compiler)
+    (kind : Grading.ConcurrentTask.Plain64.Kind) :
+    Plain.NamedCertificate kind (V1.PlainWindows.file compiler) :=
+  (plainCohortCertificate compiler).namedCertificate kind
+
+/-- Both complete files retain universal Claim, both useful homogeneous
+populations, and the actual delayed-publication/selected-source mixed run. -/
+theorem acceptedPlainCertificates :
+    Nonempty (Plain.CohortCertificate (V1.Comparisons.file .defaultGCC)) ∧
+    Nonempty (Plain.CohortCertificate (V1.Comparisons.file .defaultClang)) :=
+  ⟨⟨plainCohortCertificate .defaultGCC⟩, ⟨plainCohortCertificate .defaultClang⟩⟩
+
 -- Keep successful CLI stdout machine-readable, while rejecting an unapproved
 -- transitive certificate dependency before main can run. The verification gate
 -- additionally audits the full imported EDSL namespace and fresh-replays it.
@@ -178,7 +197,8 @@ run_cmd do
       ``EDSL.Corpus.Reporting.acceptedPopcountCertificates,
       ``EDSL.Corpus.Reporting.acceptedAverageCertificates,
       ``EDSL.Corpus.Reporting.acceptedParityCertificates,
-      ``EDSL.Corpus.Reporting.acceptedRotationCertificates] do
+      ``EDSL.Corpus.Reporting.acceptedRotationCertificates,
+      ``EDSL.Corpus.Reporting.acceptedPlainCertificates] do
     for dependency in ← Lean.collectAxioms family do
       unless allowed.contains dependency do
         throwError "Corpus certificate family {family} depends on unapproved axiom {dependency}"
@@ -429,13 +449,37 @@ private def rotationJson (compiler : Corpus.V1.RotationCode.Compiler) : Json :=
     ("size", toJson input.bytes.length),
     ("proof", toJson proof)]
 
+private def plainJson (compiler : Corpus.V1.PlainInputs.Compiler)
+    (kind : Grading.ConcurrentTask.Plain64.Kind) : Json :=
+  let input := (Corpus.Reporting.plainNamedCertificate compiler kind).named.input
+  let symbol := String.ofList ((Corpus.Plain.name kind).map fun byte => Char.ofNat byte.toNat)
+  let compilerName := match compiler with
+    | .defaultGCC => "defaultGCC"
+    | .defaultClang => "defaultClang"
+  let kindName := match kind with
+    | .loadAcquire => "loadAcquire"
+    | .storeRelease => "storeRelease"
+  let operation := match kind with
+    | .loadAcquire => "full64_load_acquire_concurrent"
+    | .storeRelease => "full64_store_release_concurrent"
+  Json.mkObj [
+    ("symbol", toJson symbol),
+    ("operation", toJson operation),
+    ("model", toJson Grading.ConcurrentTask.Plain64.model),
+    ("file_offset", toJson input.function.window.offset),
+    ("address", toJson input.function.window.address),
+    ("size", toJson input.bytes.length),
+    ("proof", toJson ("EDSL.Corpus.Reporting.plainNamedCertificate " ++ compilerName ++ " " ++ kindName)),
+    ("cohort_proof", toJson ("EDSL.Corpus.Reporting.plainCohortCertificate " ++ compilerName))]
+
 private def certificateRows (compiler : Corpus.V1.Comparisons.Compiler) : Array Json :=
   #[artifactJson compiler .minimum, artifactJson compiler .maximum,
     additionJson compiler, clampJson compiler, concurrentJson compiler, bufferJson compiler,
     indexSearchJson compiler .byte, indexSearchJson compiler .u32,
     byteComparisonJson compiler, unaryJson compiler .absSigned32,
     unaryJson compiler .byteSwap64, popcountJson compiler, averageJson compiler,
-    parityJson compiler, rotationJson compiler, byteEqualityJson compiler]
+    parityJson compiler, rotationJson compiler, byteEqualityJson compiler,
+    plainJson compiler .loadAcquire, plainJson compiler .storeRelease]
 
 private def fileJson (compiler : Corpus.V1.Comparisons.Compiler) (path : System.FilePath)
     (bytes : Nat) : Json := Json.mkObj [
@@ -455,7 +499,9 @@ private def report (request : Request) (gccBytes clangBytes : Nat) : Json :=
   let symbols := artifacts.filterMap fun artifact =>
     (artifact.getObjValAs? String "symbol").toOption
   let concurrentSymbols := artifacts.filterMap fun artifact =>
-    if (artifact.getObjValAs? String "operation").toOption == some "full64_fetch_add_concurrent" then
+    if ["full64_fetch_add_concurrent", "full64_load_acquire_concurrent",
+        "full64_store_release_concurrent"].contains
+        ((artifact.getObjValAs? String "operation").toOption.getD "") then
       (artifact.getObjValAs? String "symbol").toOption
     else none
   Json.mkObj [
@@ -493,6 +539,10 @@ private def report (request : Request) (gccBytes clangBytes : Nat) : Json :=
       ("concurrent_progress", toJson ("every successful finite prefix preserves safety and current authority; every running context has an enabled actual issue for every AF value; global completion exists and a positive own-issue bound is proved as output" : String)),
       ("concurrent_resources", toJson ("represented return continuation, callee-save registers, stack, DF and collect; original resources and byte frames outside the selected cell; full installed ELF retained under current authority" : String)),
       ("concurrent_useful_domain", toJson ("kernel-checked actual loaded overlapping completed execution with two useful nonzero-delta calls to the selected cell, both RMWs before the first call returns" : String)),
+      ("plain_semantics", toJson ("managed closed cohort full64 acquire loads into RAX and release stores from RSI at RDI; arbitrary full64 initial and stored words; every successful finite returned schedule has one actual access and RET per original worker, exact call/event coverage and ABI frames; closed runs construct initialized legal atomic histories with actual writer keys from nextStore counters, distinct from logical occurrence labels; acquire/release orders are registered interface annotations" : String)),
+      ("plain_resources", toJson ("current original code/caller/managed authority at every successful prefix; full cell descriptors and persistent cell identities; complete installed ELF cells and permissions retained; targets fresh from the entire loaded image; original caller and callee-save registers retained; RSP advances by 8 at return; all flags retained; collection requires an empty own queue" : String)),
+      ("plain_progress", toJson ("every running worker has an enabled actual issue for every AF value; completion after every successful finite prefix for every choice stream; return may precede store publication; drain closure and a positive own-issue upper bound are proved outputs; no fairness, physical timing or minimum-cost claim" : String)),
+      ("plain_useful_domain", toJson ("two-worker high-word homogeneous loaded executions for each kind with both accesses before either return; same-file mixed writer RET strictly before publication strictly before acquiring reader access; selected read-from edge belongs to that same ClosedPost" : String)),
       ("caller_resources", toJson ("modeled current authority, actual return hook, every-prefix policy and ABI contract" : String)),
       ("useful_domain", toJson ("kernel-checked nonempty useful calls at each selected file address" : String)),
       ("certificate_axioms", toJson ("transitively audited at elaboration: propext, Quot.sound, Classical.choice only" : String)),
@@ -515,6 +565,7 @@ private def report (request : Request) (gccBytes clangBytes : Nat) : Json :=
       "Dynamic linker, relocation, TLS and external calls receive no certificate here; asynchronous interference and concurrency outside the fixed managed closed cohort/profile are unsupported.",
       "Scalar certificates retain their registered caller/resource assumptions and exclude concurrent interference.",
       "The concurrent result establishes only the modeled managed profile: no published physical x86-TSO refinement, Linux/GNU memory-order contract, scheduling fairness or hardware-minimum progress bound is proved.",
+      "Plain acquire/release uses managed-tso64-plain64-cohort-v1 with stable scalar RAM, stable translations/no hidden aliases, fixed worker population and CET off; closed histories require initially and finally empty FIFOs; no source/compiler ordering preservation, physical x86-TSO/Linux refinement or fairness is proved.",
       "Byte comparison uses the current borrowed sequential callable profile with stable ordinary RAM, absent asynchronous interference and CET off; no source/LLVM preservation, native Linux behavior or concurrent-buffer claim is proved.",
       "Byte equality uses that same borrowed sequential callable profile and additionally assumes CPU support for the exact NOP15 encoding recorded in profile; this is an environmental assumption, not a native CPU capability check.",
       "The report concerns bytes observed in this read, not future filesystem or process mappings.",
