@@ -97,6 +97,8 @@ remains open. They are separate profiles, not one interchangeable backend.
 | Full independent plain-call contract | `PlainCallClaim64.claim` supplies every `Plain64.Claim` obligation: prefix safety, completed behavior, closed output, enabledness, chosen completion, real drain closure and a derived positive uniform bound | [Shared claim](managed-plain-methods.md#use-the-full-independent-contract); strict scoped checks passed; static shapes remain separate from present-only Pre; useful frozen-ELF populations/executions remain open |
 | Independent chosen completion and closure | Every original suffix AF matches the thread's own-prefix count; actual remaining counts, already-returned skipping and saved replies; separate actual drains retain CPU responses | [Completion](managed-plain-methods.md#complete-a-mixed-cohort-from-an-actual-prefix); constructs one finite schedule, not fairness or forced publication before RET |
 | Full closed output from independent admission | Actual finished schedule derives full `ClosedPost`: same Post, scanner, initialized live registry, exact complete machine events and source keys, actual builder/History, target-only full-cell frame and collection | [Closed output](managed-plain-methods.md#construct-the-complete-atomic-history); empty endpoint queues and arbitrary counters/offset; no supplied graph/source/initializer oracle |
+| Partial method execution and positions | Chosen finite prefixes, stopping before RET, literal peer preservation, exact preceding own-issue counts at accesses/returns and unique issue positions | [Shared prefix APIs](managed-plain-methods.md#use-the-full-independent-contract); actual production schedules and arbitrary admitted cutpoints; no algorithmic optimality or physical cost claim |
+| Whole-ELF plain-call resources | Actual managed setup and two-worker attachment, preserved caller reads, complete loaded-cell/permission frames, fresh targets and constructed closed executions | [Loaded ELF batches](managed-plain-methods.md#admit-the-complete-loaded-elf); arbitrary full64 data/counters; overlap and selected-writer read-from witnesses still gate corpus credit |
 | Managed-word TSO refinement | Finite classified actual scheduler traces to an independent uniform64 memory fragment | [Projection and boundaries](word-tso-refinement.md); no full HOL4, physical or source-order correspondence |
 | Mutex workers and buffers | Fixed-routine architectural/buffered prefix lifting, totals, resource collection and constructive completion | [Mutex workers](mutex-workers.md), [store buffers](store-buffers.md); existence of completion does not imply every scheduler completes |
 | Concurrent syscalls | Fresh pending IDs, peer execution and resumption against current RAM | [Suspension](concurrent-syscalls.md) requires an empty caller FIFO and external service contracts |
@@ -131,8 +133,8 @@ security analysis, noninterference or whole-OS safety.
 
 ## Planned capabilities
 
-- Validate whole-ELF resource construction and prove useful homogeneous/mixed
-  execution inhabitants for acquire-load and release-store corpus functions.
+- Prove overlapping homogeneous executions and mixed return/publication/acquire
+  read-from witnesses for the acquire-load and release-store corpus functions.
 - Source/interface-order justification, repeated method invocation composition,
   and graph construction for broader incoming-queue boundaries.
 - Broader instruction/effect coverage, general interprocedural automation,

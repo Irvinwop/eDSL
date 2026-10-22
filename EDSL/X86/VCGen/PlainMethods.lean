@@ -10,6 +10,8 @@ import EDSL.X86.VCGen.PlainMethods.Correspondence
 import EDSL.X86.VCGen.PlainMethods.History
 import EDSL.X86.VCGen.PlainMethods.ABI
 import EDSL.X86.VCGen.PlainMethods.Completion
+import EDSL.X86.VCGen.PlainMethods.Prefix
+import EDSL.X86.VCGen.PlainMethods.Positions
 import EDSL.X86.VCGen.PlainMethods.Footprint
 
 /-!

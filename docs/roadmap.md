@@ -21,9 +21,9 @@ The next synchronization targets are `c_atomic_load_acquire64` and
 [C23 atomic event constraints](c23-atomic-events.md) are foundations; these
 functions have a shared full independent `Plain64.Claim`, including chosen
 completion and complete closed output. Present-only admission remains separate
-from checked code-shape evidence and scalar ABI obligations. Whole-ELF resource
-construction is under validation; useful homogeneous and mixed execution
-inhabitants for both compiler files remain open certification gates. These gates
+from checked code-shape evidence and scalar ABI obligations. Whole-ELF current
+resources and constructed closed executions have scoped checks. Useful overlapping
+homogeneous and selected-writer mixed executions remain open certification gates. These gates
 must cover all four frozen function artifacts before corpus credit changes.
 [Call contracts, finite publication and order weakening](atomic-call-contracts.md)
 provide reusable foundations;
@@ -136,7 +136,7 @@ new configurations require a new corpus version.
 | More compiler-output functions | Exact ISA rules, shared VCG, independent specifications and resource adapters | Both frozen compiler windows certified with useful admitted inputs |
 | Writable loops and richer calls | Current ownership, actual memory effects, stack/alias frames and loop invariants | All admitted executions satisfy result, safety and return-resource contracts |
 | More concurrent methods | Current actor authority, real event origins and allowed interference | Independent object histories, real-time order and explicit progress scope |
-| Frozen plain load/store certification | Full independent Plain64 Claim, present-only catalog/Pre, static shape admission, mixed-cohort completion, RAM/ABI frames and complete closed outputs | Validate whole-ELF resources and prove useful homogeneous/mixed executions for all four artifacts across the two frozen compiler files |
+| Frozen plain load/store certification | Full independent Claim, whole-ELF resources, partial execution/position lemmas, constructed completion and closed outputs | Overlapping homogeneous accesses and mixed return/publication/acquire RF witnesses for all four artifacts across the two frozen compiler files |
 | Graph construction with broader incoming queues | Initialized empty-queue construction, exact incoming-entry identities and pre-run issue origins | Define a boundary graph representation and derive complete writer/publication and same-object/value RF correspondence without inventing in-run issues |
 | Native memory-order correspondence | Existing FIFO/locked-operation models plus a defined target relation | Refinement to the selected published machine model; separate source-order proofs |
 | Whole-program OS behavior | Loader/ABI closure, resource identities, failure and asynchronous effects | Composition over all reachable code and declared external contracts |

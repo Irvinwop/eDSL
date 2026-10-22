@@ -197,46 +197,12 @@ theorem selection (compiler : Compiler) (first second : Kind) (old valueA valueB
   rcases cases with rfl | rfl <;> cases compiler <;> cases first <;> cases second <;>
     buffer_resource_kernel_rfl
 
-/- The following decomposition concerns the same actual setup and caller.
-Each whole-file reduction checks either one authorization or one actual byte;
-the qword read is then composed through existing production theorems. -/
-private theorem caller_authorized (compiler : Compiler) (first second : Kind) (old : Word)
-    (tid : Fin 2) :
-    Borrowing.authorize (resources compiler first second old).managed.world.legacy.shared
-      (actor tid) (tid.val + 2) =
-      .ok ⟨⟨1 + extra first second + tid.val, 0⟩, 21 + tid.val,
-        actor tid, ⟨stack tid, 8⟩⟩ := by
-  rcases tid with ⟨tid, bound⟩
-  have cases : tid = 0 ∨ tid = 1 := by omega
-  rcases cases with rfl | rfl <;> cases compiler <;> cases first <;> cases second <;>
-    buffer_resource_kernel_rfl
-
-/-- Only a small memory projection used for read congruence. All actual
-authority and the complete installed ELF remain in `resources`. -/
-private def callerSpace (tid : Fin 2) : Space :=
-  BufferResources.freshQWord empty (stack tid) (continuation tid)
-
-private theorem caller_space_read (tid : Fin 2) :
-    loadQWord (toMemory (callerSpace tid)) (stack tid) = .ok (continuation tid) := by
-  rcases tid with ⟨tid, bound⟩
-  have cases : tid = 0 ∨ tid = 1 := by omega
-  rcases cases with rfl | rfl <;> buffer_resource_kernel_rfl
-
-/-- Authenticate each actual setup byte separately, before composing the
-eight-byte read. This retains arbitrary target bits and both complete files. -/
-private theorem caller_memory_byte (compiler : Compiler) (first second : Kind) (old : Word)
-    (tid : Fin 2) (offset : Fin 8) :
-    (TSO64.published (resources compiler first second old).managed.world).read
-        (stack tid + BitVec.ofNat 64 offset.val) =
-      (toMemory (callerSpace tid)).read (stack tid + BitVec.ofNat 64 offset.val) := by
-  rcases tid with ⟨tid, bound⟩
-  have workerCases : tid = 0 ∨ tid = 1 := by omega
-  rcases offset with ⟨offset, byteBound⟩
-  have byteCases : offset = 0 ∨ offset = 1 ∨ offset = 2 ∨ offset = 3 ∨
-      offset = 4 ∨ offset = 5 ∨ offset = 6 ∨ offset = 7 := by omega
-  rcases workerCases with rfl | rfl <;>
-    rcases byteCases with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
-    cases compiler <;> cases first <;> cases second <;> buffer_resource_kernel_rfl
+/-- The original caller identifiers are derived once from the actual setup's
+loan frontier. Caller data and the complete installed space remain arbitrary. -/
+theorem resources_callers (compiler : Compiler) (first second : Kind) (old : Word) :
+    (resources compiler first second old).callerA = 2 ∧
+      (resources compiler first second old).callerB = 3 :=
+  setup_callerIds (resources_setup compiler first second old)
 
 theorem caller_read (compiler : Compiler) (first second : Kind) (old valueA valueB : Word)
     (counterA counterB : Nat) (tid : Fin 2) :
@@ -245,18 +211,17 @@ theorem caller_read (compiler : Compiler) (first second : Kind) (old valueA valu
       (workerView compiler first second valueA valueB counterA counterB tid).resources.caller.identifier
       (workerView compiler first second valueA valueB counterA counterB tid).resources.callerAddress =
       .ok (continuation tid) := by
-  apply Borrowing.loadWord64_success _ _ _ _ _
-    (workerView compiler first second valueA valueB counterA counterB tid).resources.caller.loan
-  · exact caller_authorized compiler first second old tid
-  · change Borrowing.Subregion ⟨stack tid, 8⟩ ⟨stack tid, 8⟩
-    exact ⟨Nat.le_refl _, Nat.le_refl _⟩
-  · change loadQWord (TSO64.published (resources compiler first second old).managed.world)
-      (stack tid) = .ok (continuation tid)
-    apply (loadQWord_congr
-      (TSO64.published (resources compiler first second old).managed.world)
-      (toMemory (callerSpace tid)) (stack tid)
-      (fun offset bound => caller_memory_byte compiler first second old tid ⟨offset, bound⟩)).trans
-    exact caller_space_read tid
+  rcases tid with ⟨tid, bound⟩
+  have cases : tid = 0 ∨ tid = 1 := by omega
+  rcases cases with rfl | rfl
+  · change Borrowing.loadWord64 (resources compiler first second old).managed.world.legacy.shared
+      11 2 standard.stackA = .ok standard.returnA
+    simpa only [(resources_callers compiler first second old).1] using
+      (resources compiler first second old).callerReadA
+  · change Borrowing.loadWord64 (resources compiler first second old).managed.world.legacy.shared
+      12 3 standard.stackB = .ok standard.returnB
+    simpa only [(resources_callers compiler first second old).2] using
+      (resources compiler first second old).callerReadB
 
 theorem caller_protected (compiler : Compiler) (first second : Kind) (old valueA valueB : Word)
     (counterA counterB : Nat) (tid : Fin 2) :

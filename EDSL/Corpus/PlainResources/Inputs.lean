@@ -132,7 +132,7 @@ theorem text_named (compiler : Compiler) (first second kind : Kind) (old valueA 
       counterA counterB occurrenceA occurrenceB address original live
   have text := BufferResources.text_of_retainedWith (V1.PlainInputs.named compiler kind).checked
     (Frozen.executable_permissions compiler) retained
-  simpa only [installedEq] using text
+  simpa only [installedEq, TSO64.published] using text
 
 /-- A present batch for any two registered kinds over the full mixed catalog.
 No returned workers, completion, method shape or execution result is assumed. -/
@@ -145,7 +145,8 @@ def loadedBatch (compiler : Compiler) (first second : Kind) (old valueA valueB :
     intro selected member
     have alternatives : selected = V1.PlainInputs.named compiler .loadAcquire ∨
         selected = V1.PlainInputs.named compiler .storeRelease := by
-      simpa only [V1.PlainInputs.images, List.mem_cons, List.mem_singleton] using member
+      simpa only [V1.PlainInputs.images, List.mem_cons, List.mem_singleton,
+        List.not_mem_nil, or_false] using member
     rcases alternatives with rfl | rfl <;> exact admitted_named compiler _
   before := (cohort compiler first second old valueA valueB counterA counterB occurrenceA occurrenceB).state
   inputs := (cohort compiler first second old valueA valueB counterA counterB occurrenceA occurrenceB).inputs
@@ -157,7 +158,8 @@ def loadedBatch (compiler : Compiler) (first second : Kind) (old valueA valueB :
     intro selected member
     have alternatives : selected = V1.PlainInputs.named compiler .loadAcquire ∨
         selected = V1.PlainInputs.named compiler .storeRelease := by
-      simpa only [V1.PlainInputs.images, List.mem_cons, List.mem_singleton] using member
+      simpa only [V1.PlainInputs.images, List.mem_cons, List.mem_singleton,
+        List.not_mem_nil, or_false] using member
     rcases alternatives with rfl | rfl <;>
       exact text_named compiler first second _ old valueA valueB
         counterA counterB occurrenceA occurrenceB

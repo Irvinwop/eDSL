@@ -170,6 +170,21 @@ its behavioral proofs. The claim concerns the modeled finite cohort;
 certification of the frozen ELF artifacts still needs useful populations and
 actual homogeneous/mixed executions from the complete loaded files.
 
+`PlainMethods.execute_prefix` constructs any chosen number of own instructions
+within the actual current remaining count. Its `Prefix` retains the actual
+schedule, final worker and cutpoint, exact remaining count and access trace.
+`prefix_to_ret` executes padding and the memory access while leaving the worker
+at RET. `Prefix.peer` preserves another worker exactly, and `Prefix.append`
+retains both runs' actions and observations. These APIs let clients construct
+overlapping accesses without repeating instruction proofs for each program.
+
+`Invocation.dispatched_ownIssues` and `Invocation.returned_ownIssues` locate
+accesses and returns within an arbitrary successful interleaving: the preceding
+own-issue counts are respectively the original padding length and that length
+plus one. `own_issue_index_unique` identifies original action positions from
+those counts. These are exact counts for the checked method shape; optimality
+across different implementations and physical execution cost remain separate.
+
 ## Reuse the body proofs
 
 `advance` derives the next actual own issue at each unfinished cutpoint.
@@ -500,6 +515,33 @@ GCC/Clang ELF windows and checks their shared decoder shapes. GCC's ENDBR64
 remains present. These file and shape checks establish no behavioral contract
 or useful loaded-resource population by themselves.
 
+## Admit the complete loaded ELF
+
+`Corpus.PlainResources.Inputs.homogeneous` and `mixed` construct two-worker
+current resource batches for the unchanged compiler files. The setup uses real
+allocation, qword initialization, read-only caller protection, borrowing,
+atomic enrollment and worker attachment. Initial RAM, both input words,
+counters and occurrence labels remain arbitrary. Every original loaded cell
+retains its byte and permissions, including data outside the function windows;
+targets are fresh from the entire loaded image.
+
+The shared setup saves each actual caller read and preserves it through later
+checked resource operations. It uses the borrowing history and derived loan
+liveness, so each file does not need a new caller-memory reduction proof.
+
+Import `EDSL.Corpus.PlainResources`, `EDSL.Corpus.PlainExecution` and
+`EDSL.Corpus.V1.PlainClaims` to connect those batches to the full contract.
+`LoadedBatch.execute batch claim choices` constructs an actual issue schedule,
+then the production drain schedule, a finished state and the same run's complete
+`ClosedPost`. `Execution.retainedImage` proves that all original loaded cells
+survive that finished execution.
+
+This completion visits slots in blocks. The separate `UsefulNamed` certificate
+requires overlapping accesses before either return, and `UsefulMixed` requires
+the writer's return, its later actual publication, and an acquiring load that
+selects that writer. Those witnesses remain necessary before awarding the four
+pending compiler artifacts.
+
 ## Scope and validation
 
 The [regressions](../tests/PlainMethods.lean) use the four frozen GCC/Clang windows
@@ -541,9 +583,10 @@ not establish physical x86/Linux correspondence, dynamic resource lifecycle,
 source/compiler preservation, full C23 semantics or a full OS/kernel result.
 Finite atomic-fragment legality is established for the raw history boundary
 above. The full independent Claim and its completion/closed-output adapters have
-passed scoped strict checks. Whole-ELF resource construction remains under
-validation, and useful homogeneous/mixed execution gates for all four frozen
-load/store artifacts remain open. Coverage remains **16/40 functions and
+passed scoped strict checks. Whole-ELF resource construction and closed execution
+composition clients also pass those checks. Overlap and selected-writer
+read-from gates for all four frozen load/store artifacts remain open.
+Coverage remains **16/40 functions and
 32/80 artifacts**, including **one distinct concurrent function**. See
 [atomic call contracts](atomic-call-contracts.md) and
 [checked finite atomic traces](checked-atomic-traces.md) for the adjacent layers.
