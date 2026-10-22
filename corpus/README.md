@@ -2,12 +2,15 @@
 
 The [corpus guide](../docs/compiler-corpus.md) defines the fixed 40 functions
 and 80 default GCC/Clang final-ELF windows. Current conditional certificate
-coverage is **16/40 functions, 32/80 artifacts**, including **one concurrent
-function**; **24 functions / 48 artifacts** remain. Both compiler outputs must
-pass for function credit. The latest
-[byte-equality measurement](measurements/byte-equality-v1/) records the validated
-certificate gate on source `383d1f1ef928f551b89a8424ae46c8bb019ce2e2`. See
-[commit-specific CI results in GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
+coverage is **18/40 functions, 36/80 artifacts**, including **three distinct
+concurrent functions**; **22 functions / 44 artifacts** remain. Both compiler
+outputs must pass for function credit. The latest
+[managed plain64 measurement](measurements/managed-plain64-v1/) records the
+accepted source and full-gate evidence. Fetch-add retains
+`managed-tso64-closed-batch-v1`; load/store use
+`managed-tso64-plain64-cohort-v1`. Acquire/release are declared interface
+annotations; plain closed histories require initialized resources and empty
+initial and final queues.
 
 | Path | Purpose |
 | --- | --- |

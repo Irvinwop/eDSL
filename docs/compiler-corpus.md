@@ -98,12 +98,29 @@ inputs. GCC's 46-byte window uses the default 64-byte cap; Clang's complete
 68-byte window requires the explicit [128-byte profile](cfg-profiles.md), both
 with a 32-node cap. The default path rejects the entire Clang window.
 The full-project/corpus certificate gate and external fresh replay passed on
-source `383d1f1ef928f551b89a8424ae46c8bb019ce2e2`. Current validated conditional
-coverage is **16/40 functions and 32/80 artifacts**, including **one distinct
-concurrent function**; **24 functions / 48 artifacts** remain. The latest
+source `383d1f1ef928f551b89a8424ae46c8bb019ce2e2`. At that milestone, validated
+conditional coverage was **16/40 functions and 32/80 artifacts**, including
+**one distinct concurrent function**; **24 functions / 48 artifacts** remained.
+The byte-equality
 [measurement](../corpus/measurements/byte-equality-v1/) records these scopes.
 See [commit-specific CI results in GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
 Earlier measurements retain their counts and evidence.
+
+The [managed plain64 milestone](managed-plain-methods.md) adds both unchanged
+row-35 `c_atomic_load_acquire64` and row-36 `c_atomic_store_release64` outputs.
+One checked method family supplies the independent universal Claim, current
+resources and progress for both compilers. Whole-image high-word homogeneous
+witnesses place both accesses before either return; a same-file mixed run retains
+`writer RET < publication < reader access` and the actual selected-writer RF edge
+in that same closed history. The
+[measurement](../corpus/measurements/managed-plain64-v1/) records the accepted
+source and full-gate evidence. Conditional coverage is **18/40 functions and
+36/80 artifacts**, including **three distinct concurrent functions**;
+**22 functions / 44 artifacts** remain. Fetch-add retains
+`managed-tso64-closed-batch-v1`; plain load/store use
+`managed-tso64-plain64-cohort-v1`. Acquire/release are declared interface
+annotations; closed legal histories require initialized resources and empty
+initial and final queues.
 
 ## What is frozen
 
@@ -251,16 +268,14 @@ An existing or new theorem for 32-bit `LOCK XADD` does not certify these frozen
 64-bit artifacts. The width, decoded instruction, exact bytes, and OS-resource
 contracts must match; a synthetic 32-bit stress witness remains separate.
 
-The [full64 foundations](atomic-fetch-add64.md) now include current-authority
-LOCK XADD and a checked named-window adapter for both unchanged frozen files.
-File/symbol identity and logical history checking add no corpus credit without
-their execution/resource and complete-call correspondence proofs.
-The [managed full64 scheduler and history projection](managed-fetch-add64.md)
-now supply actual instruction/OS origins and independent selected-cell arithmetic.
-Its restricted memory model is explicit. A shared atomic-method checker now
-proves universal body/argument/return frames and bounded own progress for both
-unchanged frozen byte sequences. Actual-address resource construction, complete
-call/ABI composition and nonvacuity still determine frozen concurrent acceptance.
+The [fetch-add certificates](concurrent-fetch-add-certificates.md) compose the
+shared full64 instruction checker, actual-address resources, overlapping calls,
+independent histories and bounded own progress for both frozen outputs. The
+[plain load/store certificates](managed-plain-methods.md) similarly compose one
+checked method family with the independent universal Claim, complete loaded-image
+resources and homogeneous/mixed execution witnesses. Each CLI plain row projects
+from its compiler's same-file cohort certificate, retaining every original gate.
+File/symbol identity or graph checking alone supplies no corpus credit.
 
 The spinlock additionally transfers an invariant with acquire/release ordering;
 its liveness needs scheduling assumptions. The futex loop additionally needs
@@ -287,7 +302,12 @@ external calls, errno/TLS, and process resources add actual machine obligations.
 Acquire/release labels alone do not create an inter-thread synchronization
 edge. The matching reads-from/release-sequence conditions must hold. An acquire
 load may legally read an initial or relaxed value without synchronizing with a
-release. These obligations remain unproved for the frozen concurrent entries.
+release. The managed plain64 contract constructs legal closed histories and
+retains the selected release writer for its mixed acquiring reader. Its interface
+annotations are declared, and closed histories require initialized resources and
+empty initial and final queues. Source-to-interface and compiler-ordering
+preservation, physical x86-TSO and native Linux correspondence remain separate
+obligations.
 
 The native futex checks cover predicate mismatch and positive kernel wake,
 recheck, and requeue observations. They do not deliberately exercise EINTR,

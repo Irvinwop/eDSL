@@ -13,12 +13,11 @@ for supported capabilities, and [trust](trust.md) for the assumptions behind a
 proof. Source-language frontends and a privileged kernel target remain future
 work.
 
-The latest [byte-equality measurement](../corpus/measurements/byte-equality-v1/)
-records validated conditional coverage of **16/40 functions and 32/80
-artifacts**, including one concurrent function; **24 functions / 48 artifacts**
-remain. Its certificate gate passed on source
-`383d1f1ef928f551b89a8424ae46c8bb019ce2e2`. See
-[commit-specific CI results in GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
+The latest [managed plain64 measurement](../corpus/measurements/managed-plain64-v1/)
+records the accepted source and full-gate evidence for validated conditional
+coverage of **18/40 functions and 36/80 artifacts**, including **three distinct
+concurrent functions**; **22 functions / 44 artifacts** remain. Fetch-add and
+plain load/store retain their separate managed models.
 
 ## Verify a program
 
@@ -57,9 +56,9 @@ and lower-bound claims.
 | Writable calls and private stacks | [Call stack](call-stack.md), [DATA8 calls](call-memory64.md), [counted helper calls](call-memory-loop64.md) |
 | Threads and shared atomics | [Threads](threads.md), [exchange](atomic-exchange.md), [atomic handles](atomic-handles.md), [fetch-add](fetch-add.md) |
 | Full64 managed concurrency | [Atomic foundations](atomic-fetch-add64.md), [scheduler and histories](managed-fetch-add64.md), [frozen certificates](concurrent-fetch-add-certificates.md) |
-| Source atomic ordering | [C23 event graphs](c23-atomic-events.md), [sound finite admission](c23-atomic-checker.md), and [checked graphs from actual finite executions](checked-atomic-traces.md) |
+| Declared atomic interface graphs | [C23 event graphs](c23-atomic-events.md), [sound finite admission](c23-atomic-checker.md), and [checked graphs from actual finite executions](checked-atomic-traces.md) |
 | Scheduler proof rules | [Instruction admission, buffered execution and shared RET facts](managed-vc-rules.md) |
-| Managed load/store bodies | [One checked method family, interference and actual access origins](managed-plain-methods.md) |
+| Managed load/store bodies | [One checked method family, resources and useful execution witnesses](managed-plain-methods.md), [accepted corpus measurement](../corpus/measurements/managed-plain64-v1/) |
 | Atomic method foundations | [Independent call contracts, finite queue closure and order weakening](atomic-call-contracts.md) |
 | Weak memory and call histories | [Managed store traces](managed-store-trace.md), [managed-word TSO refinement](word-tso-refinement.md), [mixed-width store buffers](mixed-store-buffer.md), [TSO counter](tso-counter.md), [linearizability](counter-call-linearizability.md) |
 | Locks and blocking | [Mutexes](mutex.md), [buffered mutex](store-buffers.md), [syscall boundaries](concurrent-syscalls.md), [futexes](futex.md), [predicate rechecking](futex-predicate.md) |

@@ -14,9 +14,16 @@ mixed cohort from an actual execution prefix and frame all RAM cells outside
 its target and incoming-queue footprints. A separate, present-state admission
 contract connects registered load/store images to this engine. The full
 independent `Plain64.Claim` combines safety, behavior, chosen completion and
-closed history for any supported catalog. Useful exact-ELF resource populations,
-their homogeneous/mixed executions and source-order justification remain
-separate obligations.
+closed history for any supported catalog. Separate shared adapters implement
+useful whole-ELF resources and homogeneous/mixed execution witnesses for both
+frozen compilers. The CLI retains these required gates through same-file cohort
+certificates. Source-order justification remains open.
+
+Plain load/store use `managed-tso64-plain64-cohort-v1`; fetch-add retains
+`managed-tso64-closed-batch-v1`. Acquire/release are declared interface
+annotations. Closed legal histories require initialized resources and initially
+and finally empty queues; general prefix/return results permit valid incoming
+queues and pending stores at RET.
 
 ## Describe and check the code
 
@@ -122,8 +129,8 @@ current selected reference, independent request, scalar entry facts and logical
 occurrence. Its `initialQueue` is the actual worker's full FIFO and counter.
 `invocations static pre` supplies the complete initial family for the completion,
 footprint and history APIs below. The admission bridge supplies the actual
-invocations used by the full contract; useful final-ELF resource instances
-remain a separate certification gate.
+invocations used by the full contract. `PlainResources` and the shared
+homogeneous/mixed witness adapters implement the separate useful final-ELF gates.
 
 ## Use the full independent contract
 
@@ -167,8 +174,8 @@ resources, then reuse the contract. They do not prove a program-specific
 execution induction or supply a desired result, successful future step or
 history. `Claim.mono` restricts a mixed catalog to a subcatalog without repeating
 its behavioral proofs. The claim concerns the modeled finite cohort;
-certification of the frozen ELF artifacts still needs useful populations and
-actual homogeneous/mixed executions from the complete loaded files.
+certification also retains the useful complete-loaded-file populations and
+homogeneous/mixed executions supplied by the shared adapters below.
 
 `PlainMethods.execute_prefix` constructs any chosen number of own instructions
 within the actual current remaining count. Its `Prefix` retains the actual
@@ -376,9 +383,11 @@ incoming FIFOs remain allowed; a returned store need not have published.
 For closed runs, `OS.PlainCallHistory64.behavior_history_of_closed` joins that
 independent Post to the constructed legal atomic History with exactly the same
 call list. Clients do not write dependent casts between observed values and
-logical replies. The full Claim composes these adapters. Useful exact-file
-resource populations and their required homogeneous/mixed executions remain
-open gates before the pending compiler functions receive corpus credit.
+logical replies. The full Claim composes these adapters. The shared loaded-image
+adapters construct the required homogeneous and mixed witnesses. Corpus
+registration retains those gates through each same-file cohort certificate;
+accepted gate evidence is recorded in the
+[managed plain64 measurement](../corpus/measurements/managed-plain64-v1/).
 
 ## Extract calls and match scanner events
 
@@ -597,9 +606,16 @@ adapters for both unchanged frozen compiler files, with arbitrary data and
 allocation counters. The homogeneous certificate samples use words above
 `2^32`; mixed witnesses also permit equal initial and stored words.
 `PlainMixedWitnesses.cohortCertificate` combines both kinds' homogeneous
-witnesses, the mixed witness and the unchanged universal claim. All original
-certificate requirements remain in force. Corpus CLI admission and coverage
-receipts are tracked separately.
+witnesses, the mixed witness and the unchanged universal claim. The high-word
+samples use `0x100000001`, `0x200000003` and `0x300000005` without restricting
+the universal full64 domain. `UsefulMixed.delayed` ties publication to the actual
+selected writer through `AtomicTrace.Graph.Publication`; `selectedRF` retains
+that writer's RF edge in the same `ClosedPost`.
+
+The [corpus CLI](../corpus/Certify.lean) derives each `plainNamedCertificate` row
+from its compiler's complete `plainCohortCertificate`, retaining both homogeneous
+kinds and the mixed selected-writer witness. All original certificate gates apply
+to both compilers. The measurement records the accepted full-gate scope.
 
 For any closed execution of a loaded batch,
 `LoadedBatch.retainedImage_after post live` preserves every original loaded
@@ -640,17 +656,22 @@ publication; the reader loads the old full word during that interval and retains
 it after RAM changes. Independent expectations check the actual call positions,
 read source and later publication rank against the constructed history. Its
 model caller slots do not supply the separate scalar ABI admission above.
+The [independent equal-word source regressions](../tests/PlainCallHistory64.lean)
+check literal writer/initializer RF rows and publication ranks before and after
+publication despite equal payloads, and reject substituted thread/counter keys.
+These kernel-checked Lean regressions are distinct from native observations.
 
 The shared rules inherit the existing long-mode, CET-off, supported-padding,
 aligned normal-RAM, translation/alias and managed-resource assumptions. They do
 not establish physical x86/Linux correspondence, dynamic resource lifecycle,
 source/compiler preservation, full C23 semantics or a full OS/kernel result.
 Finite atomic-fragment legality is established for the raw history boundary
-above. The full independent Claim and its completion/closed-output adapters have
-passed scoped strict checks. Whole-ELF resource construction and closed execution
-composition clients also pass those checks. Overlap and selected-writer
-read-from gates for all four frozen load/store artifacts remain open.
-Coverage remains **16/40 functions and
-32/80 artifacts**, including **one distinct concurrent function**. See
+above. The full independent Claim, whole-loaded-image resources, overlapping
+high-word homogeneous executions and delayed-publication mixed selected-writer
+execution are implemented for both frozen compiler files. The
+[managed plain64 measurement](../corpus/measurements/managed-plain64-v1/)
+records the accepted final source and full-gate evidence. Validated conditional
+coverage is **18/40 functions and 36/80 artifacts**, including **three distinct
+concurrent functions**; **22 functions / 44 artifacts** remain. See
 [atomic call contracts](atomic-call-contracts.md) and
 [checked finite atomic traces](checked-atomic-traces.md) for the adjacent layers.

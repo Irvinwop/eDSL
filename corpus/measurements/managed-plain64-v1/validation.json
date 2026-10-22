@@ -1,0 +1,193 @@
+{
+  "schema": "ediesel-corpus-measurement-v1",
+  "source_commit": "958e099bf34e55108920c11d63ce5edae8611ff4",
+  "source_tree": "63906bfed55d628f1202a8e9dd27d11b39dad419",
+  "score": {
+    "compiler_artifacts_certified_end_to_end": 36,
+    "compiler_artifacts_total": 80,
+    "concurrency_contracts_proved": 3,
+    "functions_certified_end_to_end": 18,
+    "functions_total": 40
+  },
+  "toolchain": "leanprover/lean4:v4.35.0",
+  "warnings_as_errors": true,
+  "allowed_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "certificate_gate": {
+    "workflow_run": 39845526164,
+    "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39845526164",
+    "attempt": 1,
+    "receipt_run": "run.20261022T200504Z.Kt86RugU",
+    "scope": "full-project-and-corpus-cli",
+    "build_jobs": 1298,
+    "audited_declarations": 36524,
+    "command_expectations": 3183,
+    "fresh": {
+      "target": "CorpusFullReplay",
+      "started": "2026-10-22T20:32:13Z",
+      "finished": "2026-10-22T20:40:13Z",
+      "exit": 0
+    },
+    "source_files_verified": 1530,
+    "frozen_files_verified": 2,
+    "receipt_files_independently_verified": 20490,
+    "hashes": {
+      "report": "919230af3778af3cb5e626b52d5a4df479531af0883f868c497a814e9ffd8ae9",
+      "proofSources": "38a4c82798b456c211fca83c2168f04f3a73442f1a068796e2ebe71b5c6f6442",
+      "frozenFiles": "871135d7ae286968f3a76188085d45be940ae5e35e04b6e5c6f3368406c7f7a1",
+      "receiptManifest": "07ccb6b7006e6ead3a0d0200eee59d2e2289665f0af2d3f930929845c3882ec2"
+    },
+    "artifact": {
+      "id": 12457327920,
+      "archive_bytes": 16465731,
+      "archive_sha256": "9416ae99591bbbe43eebe7eee943deecd1ae28d4e9444b3eb4e8f8336a05a7ed",
+      "provider_digest": "sha256:9416ae99591bbbe43eebe7eee943deecd1ae28d4e9444b3eb4e8f8336a05a7ed"
+    }
+  },
+  "original_ci_batch": {
+    "branch": "codex/plain-cli-20261022",
+    "event": "push",
+    "attempt": 1,
+    "workflows": 14,
+    "jobs": 23,
+    "original_manifest_sha256": "8d3bcb80e7f53753c48c656bb901e6902d858423826465adc74fbbc977f22cb8",
+    "runs": [
+      {
+        "id": 39845525832,
+        "name": "ArrayMaximum64 compiler clients",
+        "path": ".github/workflows/array-maximum64.yml",
+        "conclusion": "success"
+      },
+      {
+        "id": 39845525923,
+        "name": "Lean proofs",
+        "path": ".github/workflows/lean.yml",
+        "conclusion": "success"
+      },
+      {
+        "id": 39845525948,
+        "name": "Owned nested-call compiler contracts",
+        "path": ".github/workflows/call-stack.yml",
+        "conclusion": "success"
+      },
+      {
+        "id": 39845525961,
+        "name": "Predicate WAIT Linux conformance",
+        "path": ".github/workflows/futex-predicate.yml",
+        "conclusion": "success"
+      },
+      {
+        "id": 39845526038,
+        "name": "Native dialect probes",
+        "path": ".github/workflows/toolchain.yml",
+        "conclusion": "success"
+      },
+      {
+        "id": 39845526095,
+        "name": "AtomicLogical64 compiler contracts",
+        "path": ".github/workflows/atomic-logical64.yml",
+        "conclusion": "success"
+      },
+      {
+        "id": 39845526104,
+        "name": "Logical64 compiler clients",
+        "path": ".github/workflows/logical64-clients.yml",
+        "conclusion": "success"
+      },
+      {
+        "id": 39845526124,
+        "name": "Logical64 native conformance",
+        "path": ".github/workflows/logical64.yml",
+        "conclusion": "success"
+      },
+      {
+        "id": 39845526143,
+        "name": "ArraySum64 compiler clients",
+        "path": ".github/workflows/array-sum64.yml",
+        "conclusion": "success"
+      },
+      {
+        "id": 39845526164,
+        "name": "Frozen compiler corpus",
+        "path": ".github/workflows/compiler-corpus.yml",
+        "conclusion": "success"
+      },
+      {
+        "id": 39845526167,
+        "name": "Comparison64 compiler clients",
+        "path": ".github/workflows/comparison64.yml",
+        "conclusion": "success"
+      },
+      {
+        "id": 39845526191,
+        "name": "AtomicSet64 compiler contracts",
+        "path": ".github/workflows/atomic-set64.yml",
+        "conclusion": "success"
+      },
+      {
+        "id": 39845526201,
+        "name": "AtomicSet64 proof grading",
+        "path": ".github/workflows/atomic-set64-grading.yml",
+        "conclusion": "success"
+      },
+      {
+        "id": 39845526254,
+        "name": "AtomicLogical64 proof grading",
+        "path": ".github/workflows/atomic-logical64-grading.yml",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "production_ci": {
+    "workflow_run": 39845525923,
+    "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39845525923",
+    "checkout": "958e099bf34e55108920c11d63ce5edae8611ff4",
+    "build_jobs": 1661,
+    "audited_declarations": 34496,
+    "rejected_control": "unapproved transitive dependency rejected",
+    "actually_built_roots": [
+      "tests.CorpusPlainResources",
+      "tests.PlainCallClaim64",
+      "tests.PlainWitnessAudit64",
+      "tests.PlainCallHistory64"
+    ],
+    "fresh": {
+      "target": "EDSL.All",
+      "start": "2026-10-22T20:23:40Z",
+      "end": "2026-10-22T20:29:55Z",
+      "outcome": "completed/success actual CI step; no local replay"
+    }
+  },
+  "separate_local_gate": {
+    "receipt_run": "run.20261022T195502Z.dsf2rzYc",
+    "scope": "full-project-and-corpus-cli",
+    "source_contents_match_commit": "958e099bf34e55108920c11d63ce5edae8611ff4",
+    "build_jobs": 1298,
+    "audited_declarations": 36524,
+    "command_expectations": 3183,
+    "fresh": {
+      "target": "CorpusFullReplay",
+      "started": "2026-10-22T20:20:22Z",
+      "finished": "2026-10-22T20:33:48Z",
+      "exit": 0
+    },
+    "independently_verified": {
+      "source-before.sha256": 1530,
+      "frozen-before.sha256": 2,
+      "modules-before.sha256": 984,
+      "gate-inputs.sha256": 6,
+      "cli-binaries-before.sha256": 2,
+      "commands/receipt-manifest.stdout": 20490
+    },
+    "receipt_manifest_sha256": "7965307a28da473c8d832470c9939a648fc28849f4b9b224580166403fff3516"
+  },
+  "limitations": [
+    "Conditional callable results under the recorded managed models; no physical CPU/Linux/source/compiler-order or fairness refinement",
+    "Downloaded commands and proof objects were not executed locally",
+    "Hosted .lake/build objects were not included in the artifact; independent receipt verification does not rehash those provider objects",
+    "Later documentation edits do not extend this exact source snapshot"
+  ]
+}

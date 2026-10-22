@@ -104,16 +104,33 @@ read-only call transport. The complete-list contract requires canonical low8
 0/1 and leaves upper56 unconstrained. GCC's 46-byte window uses a 64-byte cap;
 Clang's complete 68-byte window uses an explicit 128-byte cap, both with a 32-node cap.
 The full-project/corpus certificate gate and external fresh replay passed on
-source `383d1f1ef928f551b89a8424ae46c8bb019ce2e2`. Current validated conditional
-coverage is **16/40 functions and 32/80 artifacts**, including **one distinct
-concurrent function**; **24 functions / 48 artifacts** remain. The latest
+source `383d1f1ef928f551b89a8424ae46c8bb019ce2e2`. At that milestone, validated
+conditional coverage was **16/40 functions and 32/80 artifacts**, including
+**one distinct concurrent function**; **24 functions / 48 artifacts** remained.
+The byte-equality
 [measurement](../corpus/measurements/byte-equality-v1/) records these scopes and
 [commit-specific CI results in GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
 Earlier probe counts below retain their historical scope.
 
+The [managed plain64 milestone](managed-plain-methods.md) adds both unchanged
+row-35 `c_atomic_load_acquire64` and row-36 `c_atomic_store_release64` outputs.
+One checked method family supplies the independent universal Claim, current
+resources and progress for both compilers. Whole-image high-word homogeneous
+witnesses place both accesses before either return; a same-file mixed run retains
+`writer RET < publication < reader access` and the actual selected-writer RF edge
+in that same closed history. The
+[measurement](../corpus/measurements/managed-plain64-v1/) records the accepted
+source and full-gate evidence. Conditional coverage is **18/40 functions and
+36/80 artifacts**, including **three distinct concurrent functions**;
+**22 functions / 44 artifacts** remain. Fetch-add retains
+`managed-tso64-closed-batch-v1`; plain load/store use
+`managed-tso64-plain64-cohort-v1`. Acquire/release are declared interface
+annotations; closed legal histories require initialized resources and empty
+initial and final queues.
+
 Planned shared extensions include shifts and predicates with independently
-undefined flags, multiplication, vector/struct effects, atomic load/store/lock
-histories, and further OS/resource composition. Source load/store and
+undefined flags, multiplication, vector/struct effects, richer atomic methods
+and lock histories, and further OS/resource composition. Source load/store and
 acquire/release correspondence remain unproved. CFG admission alone certifies
 none of these contracts.
 
@@ -148,10 +165,10 @@ Use the following order for subsequent work:
    search/comparison rows, while proving their independent results. Review the small
    CFG limits separately from semantic coverage; increasing a limit alone is
    no proof of safety, scalability or termination.
-4. Connect actual counter RMW histories to callable invocation/response
-   contracts, OS ownership and the required memory-model refinement. Then
-   handle lock invariant transfer and futex wait/recheck contracts. Keep
-   concurrency entries in the score while these obligations are unresolved.
+4. Extend beyond the implemented fetch-add and plain load/store cohorts to
+   richer invocation/response histories and ownership composition. Handle lock
+   invariant transfer and futex wait/recheck contracts, retaining explicit
+   memory-model and progress assumptions. Keep concurrent entries in the score.
 
 Every later milestone should report both certification denominators, the delta
 from this baseline, first remaining blockers, and any new environmental

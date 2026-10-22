@@ -11,20 +11,24 @@ for present support and [coverage](coverage.md) for the relevant APIs.
 
 Expand reusable verification against the unchanged
 [40-function GCC/Clang corpus](compiler-corpus.md). Current conditional coverage
-is **16/40 functions and 32/80 artifacts**, including **one distinct concurrent
-function** under the managed closed-batch model. Both compiler outputs must
+is **18/40 functions and 36/80 artifacts**, including **three distinct concurrent
+functions**; **22 functions / 44 artifacts** remain. The
+[managed plain64 measurement](../corpus/measurements/managed-plain64-v1/)
+records the accepted source and full-gate evidence. Both compiler outputs must
 meet the independent contract before a function counts. Compilation, extraction,
 decoding and native tests are separate evidence.
 
-The next synchronization targets are `c_atomic_load_acquire64` and
-`c_atomic_store_release64`. The shared machine trace refinement and
-[C23 atomic event constraints](c23-atomic-events.md) are foundations; these
-functions have a shared full independent `Plain64.Claim`, including chosen
-completion and complete closed output. Present-only admission remains separate
-from checked code-shape evidence and scalar ABI obligations. Whole-ELF current
-resources and constructed closed executions have scoped checks. Useful overlapping
-homogeneous and selected-writer mixed executions remain open certification gates. These gates
-must cover all four frozen function artifacts before corpus credit changes.
+The implemented plain64 milestone covers `c_atomic_load_acquire64` and
+`c_atomic_store_release64` for both frozen compilers. One checked method family
+supplies the independent universal `Plain64.Claim`, whole-image resources,
+overlapping high-word homogeneous witnesses and a mixed selected-writer witness
+with `writer RET < publication < reader access`. The CLI projects each named row
+from its same-file cohort certificate, retaining all these gates. Plain uses
+`managed-tso64-plain64-cohort-v1`; fetch-add retains
+`managed-tso64-closed-batch-v1`. Acquire/release are declared interface
+annotations; closed legal histories require initialized resources and empty
+initial and final queues. Present-only admission remains separate from static
+code shapes and scalar ABI obligations.
 [Call contracts, finite publication and order weakening](atomic-call-contracts.md)
 provide reusable foundations;
 the existing trace verifier checks each supplied finite graph with the full
@@ -79,7 +83,7 @@ This uses execution constraints and structural mapping
 without a graph-legality checker. The Boolean checks declared annotations, not
 machine bytes; a false result leaves HB obligations open. Acquiring semantics
 are never silently lowered. `verify` retains its full-checker behavior, and
-corpus credit is unchanged.
+these graph theorems alone add no corpus credit.
 
 [Actual action clocks](checked-atomic-traces.md#happens-before-order-for-acquiring-annotations)
 now prove HB acyclicity and no-future RF for arbitrary declared annotations on
@@ -109,10 +113,10 @@ constructed History, target-only full-cell frame and final collection.
 Exact-file resources now support constructed overlapping homogeneous executions
 and mixed writer-return/publication/reader executions with an actual persistent
 source and exact RF edge. The same shared proof serves both frozen compilers;
-the original certificate gates remain unchanged. Corpus CLI admission and
-coverage receipts, source/interface annotation justification and repeated
-invocations remain separate obligations. Construction
-for arbitrary incoming managed queues remains open. Full C23/frontend semantics,
+CLI registration retains the original universal, homogeneous and mixed gates,
+with accepted evidence in the managed plain64 measurement. Source/interface
+annotation justification and repeated invocations remain separate obligations.
+Construction for arbitrary incoming managed queues remains open. Full C23/frontend semantics,
 source/compiler preservation, native/kernel correspondence and fairness remain
 separate capabilities.
 The [blocker report](corpus-blockers.md) identifies later instruction, memory
@@ -140,7 +144,6 @@ new configurations require a new corpus version.
 | More compiler-output functions | Exact ISA rules, shared VCG, independent specifications and resource adapters | Both frozen compiler windows certified with useful admitted inputs |
 | Writable loops and richer calls | Current ownership, actual memory effects, stack/alias frames and loop invariants | All admitted executions satisfy result, safety and return-resource contracts |
 | More concurrent methods | Current actor authority, real event origins and allowed interference | Independent object histories, real-time order and explicit progress scope |
-| Frozen plain load/store certification | Full independent Claim, whole-ELF resources, partial execution/position lemmas, constructed completion and closed outputs | Overlapping homogeneous accesses and mixed return/publication/acquire RF witnesses for all four artifacts across the two frozen compiler files |
 | Graph construction with broader incoming queues | Initialized empty-queue construction, exact incoming-entry identities and pre-run issue origins | Define a boundary graph representation and derive complete writer/publication and same-object/value RF correspondence without inventing in-run issues |
 | Native memory-order correspondence | Existing FIFO/locked-operation models plus a defined target relation | Refinement to the selected published machine model; separate source-order proofs |
 | Whole-program OS behavior | Loader/ABI closure, resource identities, failure and asynchronous effects | Composition over all reachable code and declared external contracts |
@@ -191,7 +194,9 @@ replies independently of later RAM. The full-cell frame must include the actual
 incoming FIFO entries as well as target qwords; empty initial queues supply the
 target-only corollary. The full independent Plain64 Claim composes these
 obligations without a program-specific execution proof. Useful exact-file
-populations and homogeneous/mixed executions remain necessary for corpus credit.
+populations and homogeneous/mixed executions remain necessary for corpus credit;
+the [shared constructors](managed-plain-methods.md#reuse-the-witnesses-for-another-checked-image)
+supply them for the supported family.
 
 The [managed-word trace refinement](word-tso-refinement.md) covers an independent
 uniform64 memory fragment. Extend it to a justified correspondence with the

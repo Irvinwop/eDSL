@@ -2,13 +2,12 @@
 
 This is the capability index for eDieSeL's implemented verification profiles.
 Use [implementation status](implementation-status.md) for the current
-**16/40-function, 32/80-artifact** validated conditional frozen-corpus total,
-including **one managed concurrent function**. Other callable fixtures and model proofs remain useful
+**18/40-function, 36/80-artifact** validated conditional frozen-corpus total,
+including **three distinct managed concurrent functions**; **22 functions /
+44 artifacts** remain. Other callable fixtures and model proofs remain useful
 without adding corpus coverage. The latest
-[byte-equality measurement](../corpus/measurements/byte-equality-v1/) records the
-certificate gate on source `383d1f1ef928f551b89a8424ae46c8bb019ce2e2`;
-**24 functions / 48 artifacts** remain. See
-[commit-specific CI results in GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
+[managed plain64 measurement](../corpus/measurements/managed-plain64-v1/)
+records the accepted source and full-gate evidence.
 
 Every entry below has a restricted contract. Follow its reference for exact
 encodings, APIs, hypotheses and rejection behavior; instruction support is not
@@ -181,7 +180,20 @@ unrelated bytes and live loans. The [buffered scheduler](managed-store-trace.md)
 uses these checks for managed accesses; source acquire/release preservation
 remains a separate obligation. [Atomic method foundations](atomic-call-contracts.md)
 provide independent call contracts, constructive finite queue closure and
-legality under order weakening, without adding a general machine call adapter.
+legality under order weakening. The implemented fetch-add/plain finite-cohort
+adapters do not supply a general machine call adapter beyond those profiles.
+
+[Plain load/store certification](managed-plain-methods.md) reuses one checked
+padding/MOV64/RET method family for GCC and Clang, the independent universal
+`Plain64.Claim`, whole-loaded-image resources and homogeneous/mixed witnesses.
+The CLI retains these gates through each same-file cohort certificate. Plain uses
+`managed-tso64-plain64-cohort-v1`, distinct from fetch-add's model below.
+Acquire/release are declared interface annotations; constructed closed legal
+histories require initialized resources and initially and finally empty queues.
+General prefix/returned-call results permit valid incoming FIFOs and stores
+pending at RET. The shared bound is 64 own issues per worker, with witness AF
+indices local to each block; it supplies no timing, minimum-cost or fairness
+claim. See the [measurement](../corpus/measurements/managed-plain64-v1/).
 
 ## Mutable atomic-worker lifecycle
 
@@ -237,6 +249,8 @@ publication and resource collection. Constructive completion asserts an availabl
 path. [Mixed-width buffers](mixed-store-buffer.md) and [managed full64
 execution](managed-fetch-add64.md) are separately scoped extensions. None
 establishes physical/published x86-TSO or source memory-order refinement.
+The [plain cohort adapter](managed-plain-methods.md) separates returned calls
+from drain closure and retains actual writer identities in closed histories.
 See [store buffers](store-buffers.md).
 
 ## Concurrent syscall lifecycle

@@ -747,7 +747,7 @@ that manifest and derives the mapping for an empty initial-queue boundary.
 Repeated method invocations, full C23/source/compiler semantics, native hardware
 or kernel correspondence and fairness remain separate. The theorem does not infer
 interface orders from machine bytes or model consume, fences or sequential
-consistency. Frozen compiler-corpus coverage is unchanged.
+consistency. These graph theorems alone add no corpus credit.
 
 ## Scope
 
@@ -767,7 +767,15 @@ Full C23 semantics, a source frontend, justified source/interface annotations an
 source/compiler preservation remain open. Physical CPU, native Linux and kernel
 correspondence, fairness and liveness remain separate obligations.
 
-Frozen compiler-corpus coverage remains **16/40 functions and 32/80 artifacts**,
-including **one distinct concurrent function**. See the
+The [plain64 closed-history client](managed-plain-methods.md) composes these
+results with its independent Claim, whole-image resources and actual useful
+homogeneous/mixed executions. Its acquire/release annotations are declared;
+closed legal histories retain initialized resources and empty endpoint queues.
+Fetch-add uses `managed-tso64-closed-batch-v1`; plain load/store use
+`managed-tso64-plain64-cohort-v1`. Validated conditional corpus coverage is
+**18/40 functions and 36/80 artifacts**, including **three distinct concurrent
+functions**; **22 functions / 44 artifacts** remain. The
+[managed plain64 measurement](../corpus/measurements/managed-plain64-v1/)
+records the accepted source and full-gate evidence. See the
 [store-history API](managed-store-trace.md) and [trust model](trust.md) for the
 supporting boundaries.

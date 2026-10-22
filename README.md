@@ -70,14 +70,12 @@ program can be certified.
 | Languages | Lean models and design work for GNU C23, GNU C++26, LLVM IR, and assembly; complete source frontends and compiler-preservation proofs remain incomplete |
 
 The fixed GCC/Clang `-O2` evaluation corpus has validated conditional
-certificates for **16 of 40 functions across both compilers: 32 of 80 artifacts**,
-including one concurrent fetch-add function; **24 functions / 48 artifacts**
-remain. See the
-[corpus results](docs/compiler-corpus.md) and
-[byte-equality measurement](corpus/measurements/byte-equality-v1/).
-Byte equality passed the combined certificate gate and fresh kernel replay.
-Commit-specific CI results are available in
-[GitHub Actions](https://github.com/Irvinwop/eDieSeL/actions).
+certificates for **18/40 functions and 36/80 compiler artifacts**, including
+**three distinct concurrent functions**: fetch-add, acquire-load and release-store
+under their recorded managed models. **22 functions / 44 artifacts** remain.
+See the [corpus results](docs/compiler-corpus.md) and
+[managed plain64 measurement](corpus/measurements/managed-plain64-v1/)
+for the accepted source, proof scope and environmental assumptions.
 
 A certificate records the machine and resource assumptions under which its
 contract holds. Connecting these models to native Linux, physical CPUs, and
