@@ -150,10 +150,14 @@ theorem unprefixed_and_unknown_prefix :
     rejects [0xf2,0x48,0xd3,0xc0] (.unsupportedOpcode 0xf2) = true := by
   exact ⟨by decide +kernel, by decide +kernel, by decide +kernel⟩
 
-/-- IMUL cannot be admitted with four undefined flags correlated through one
-Bool. This remains outside the single-flag production profile. -/
-theorem imul_stays_unsupported :
-    rejects [0x48,0x0f,0xaf,0xc1] = true := by decide +kernel
+/-- Shared decoding admits register IMUL, while the Bool profile must reject
+it because one Boolean cannot represent four independently undefined flags. -/
+theorem imul_rejected_by_bool_executor :
+    (match Sequential.decodeAt (entry [0x48,0x0f,0xaf,0xc1]) with
+      | .ok (.imulReg64 .rax .rcx) => true | _ => false) = true ∧
+    [false,true].all (fun choice =>
+      fault (Sequential.step choice (entry [0x48,0x0f,0xaf,0xc1])) .unsupportedEncoding) = true := by
+  exact ⟨by decide +kernel, by decide +kernel⟩
 
 private def fetchFailures (rex : Byte) : Bool :=
   let initial := entry [rex,0xd3,0xc7]
