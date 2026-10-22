@@ -120,7 +120,7 @@ private theorem sequential_rex_stack {state : State} {opcode : Byte}
   have notJcc : ¬(0x70 ≤ opcode.toNat ∧ opcode.toNat ≤ 0x7f ∧ opcode ≠ 0x75#8) := by omega
   have notImm8 : ¬(0xb0 ≤ opcode.toNat ∧ opcode.toNat ≤ 0xb7) := by omega
   rw [Sequential.decodeAt, legacy_rejects_rex_stack fetched lower upper]
-  simp [Sequential.decodeNewAt, fetched, notImm8, notJcc, no32,
+  simp [Sequential.decodeNewAt, Sequential.decodeTailAt, fetched, notImm8, notJcc, no32,
     outside (by decide : 0xb9 < 256) (by decide),
     outside (by decide : 0xbb < 256) (by decide),
     outside (by decide : 0xbc < 256) (by decide),
@@ -176,7 +176,7 @@ private theorem rex32_rejects_stack {state : State} {rex opcode : Byte}
   rcases (Sequential.rex32Prefix_eq_true rex).mp recognized with
     rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
     simp [Sequential.decodeAt, X86.decodeAt, Sequential.decodeNewAt,
-      Sequential.decodeCompare32At, fetched, operation, notImm8,
+      Sequential.decodeREX32At, Sequential.decodeCompare32At, fetched, operation, notImm8,
       outside (by decide : 0xf7 < 256) (by decide),
     outside (by decide : 0xff < 256) (by decide),
     outside (by decide : 0x83 < 256) (by decide),
@@ -248,7 +248,7 @@ theorem decodeNewAt_rejects_sequential {state : State} {fallback : Error} {instr
   | ok opcode =>
     by_cases call : opcode = 0xe8#8
     · subst opcode
-      simp [Sequential.decodeAt, X86.decodeAt, Sequential.decodeNewAt, fetched]
+      simp [Sequential.decodeAt, X86.decodeAt, Sequential.decodeNewAt, Sequential.decodeTailAt, fetched]
     · by_cases stack : stackOpcode opcode = true
       · have range : 0x50 ≤ opcode.toNat ∧ opcode.toNat ≤ 0x5f := of_decide_eq_true stack
         exact Or.inr ⟨opcode, by

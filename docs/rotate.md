@@ -84,9 +84,10 @@ also accepts arbitrary choice domains; the additive [vector interface](flag-choi
 retains the complete behavior of this original instruction profile.
 Existing binders named `af` are retained to avoid breaking named arguments;
 the Bool's general meaning is now the flag selected by `choiceFlag`.
-Fresh schedule positions are consumed even when ignored. IMUL stays
-unsupported: its undefined SF/ZF/AF/PF require four independent bits (16
-combinations), which one Bool cannot express.
+Fresh schedule positions are consumed even when ignored. Register-only IMUL
+uses the separate vector executor and VCG, covering all sixteen SF/ZF/AF/PF
+combinations. The Bool executor rejects it. See [independent flag choices](flag-choices.md)
+for the compatibility premises and grading boundary.
 
 The old theorem
 

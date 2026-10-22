@@ -2,56 +2,89 @@
 
 Some x86 instructions leave several status flags undefined. A verifier must
 admit every permitted combination: assigning all undefined bits the same
-Boolean would omit executions. The shared execution engine now accepts an
-arbitrary `ChoiceStream Choice`, with one fresh element per retired instruction.
+Boolean would omit executions. The shared engine accepts an arbitrary
+`ChoiceStream Choice`, with one fresh element per retired instruction.
 Returning executions record the complete final state, exact instruction count
-and ordered operand reads. Continuing blocks and fault-prefix relations record
-their finite costs and reads; divergence uses indexed continuing states and
-per-step read witnesses. A failed bounded run returns only `Error`.
+and ordered operand reads. Continuing blocks and fault prefixes record their
+finite costs and reads; a failed bounded run returns only `Error`.
 
-## Available interfaces
+## Vector execution and checking
 
 [`FlagChoices`](../EDSL/X86/Sequential/FlagChoices.lean) contains independent
-CF, PF, AF, ZF, SF and OF components. `representatives active` enumerates the
-combinations of a declared active list. Its coverage theorem proves that every
-valuation agrees with a representative on those bits. A list of four distinct
-flags has sixteen representatives; inactive bits need not be enumerated.
-
-`FlagChoices.check_eq_true_iff` equates finite checking with universal
-quantification only when the client proves `Invariant active predicate`.
-This premise prevents a checker from discarding a flag its actual predicate
-observes. Duplicate active entries are accepted and can repeat representatives.
+CF, PF, AF, ZF, SF and OF components. `representatives active` enumerates a
+declared list of active bits. Every valuation agrees with a representative
+on those bits; four distinct bits have sixteen representatives. Finite checking
+implies universal quantification only with `Invariant active predicate`, which
+proves that inactive bits cannot affect the predicate. Duplicate list entries
+can repeat representatives.
 
 [`MachineChoices`](../EDSL/X86/Sequential/MachineChoices.lean) provides
-`executeWith` and `stepWith` for the existing instruction profile. Selection
-uses the actual instruction and prestate: AF for logical instructions and
-SHR-by-one, OF for a rotate count greater than one, and no choice for instructions
-whose flags are defined. `stepWith` decodes current executable memory and
-preserves all errors and checked operand reads.
+`executeWith` and `stepWith`. Each actual instruction and prestate determine
+the active bits. `stepWith` decodes current executable memory and retains
+fetch faults, operand-access checks and complete observations.
+[`ExecutionChoices`](../EDSL/X86/Sequential/ExecutionChoices.lean) provides
+`runWith`, `ExecutesWith`, `BlockWith` and `AllExecutionsWith`.
 
-[`ExecutionChoices`](../EDSL/X86/Sequential/ExecutionChoices.lean) specializes
-the generic engine as `runWith`, `ExecutesWith`, `BlockWith` and
-`AllExecutionsWith`. Existing `execute`, `step`, `Choices`, `run` and VCG APIs
-retain their Bool signatures. Two-way simulation proves equality of possible
-finite outcomes, including faults, exhaustion, final memory and permissions,
-flags, costs and reads. Uniformly bounded existing total-correctness proofs
-transfer with `allExecutionsWith_of_allExecutions`; they do not need a separate
-per-program execution proof for this adapter.
+[`VCGen.Choices`](../EDSL/X86/VCGen/Choices.lean) provides bounded `wpWith`,
+`decidableWPWith`, `checkChoices` and byte-bound soundness. The decision procedure
+enumerates only active bits, using a proof of equality of the entire observation
+when the active bits agree. `CheckedTraceWith` records actual decoded reads,
+their permission and successful memory access at their original states.
+Zero fuel, faults, missing successors, syscalls and atomic boundaries fail closed.
+[`TacticsWith`](../EDSL/X86/VCGen/TacticsWith.lean) supplies reusable graph-based
+proof reduction; proposed graphs still require the production byte check.
 
-## Support boundary
+## Register-only IMUL
 
-The vector adapter currently supports exactly the existing opcode profile.
-It does **not** add IMUL or extend the Bool VCG to multi-flag instructions.
-The generic simulation library proves finite behavior transfer and does not
-silently infer unbounded termination from a fixed-fuel observation.
+The vector path supports the four-byte REX.W `0F AF /r` form with register
+operands. REX.R/B extend the registers and REX.X is ignored. Other widths,
+LOCK, repeated prefixes and memory operands remain unsupported. Required bytes
+must be executable; a missing byte reports its actual fetch address.
 
-[`WordMath.Multiplication`](../EDSL/WordMath/Multiplication.lean) separately
-proves multiplication modulo the word size against unbounded natural arithmetic,
-uniqueness, and signed overflow against integer bounds. These facts have no
-machine or OS assumptions. They are groundwork for instruction support, not
-certificates for an additional corpus entry. Published coverage is unchanged.
+[`Multiply`](../EDSL/X86/Sequential/Multiply.lean) captures both prestate
+operands, writes the low64 product and sets CF=OF from signed overflow.
+PF/AF/ZF/SF are independently undefined, including for a zero result.
+Other registers, nonarithmetic flags and complete memory permissions are framed.
+The flag contract follows [Intel SDM volume 2A, IMUL](https://cdrdv2-public.intel.com/812383/253666-sdm-vol-2a.pdf),
+PDF pages 610–612, revision 253666-082US. These abstract choices conservatively
+cover unspecified flag values; they do not assert that hardware realizes every pattern.
 
-A decoded XOR/rotate/RET regression exercises independent AF and OF selection
-across instruction boundaries, with literal expected flags, the actual return
-stack read, and exact instruction cost. Production proofs and regressions are
-included in the axiom audit and fresh-replay targets.
+[`WordMath.Multiplication`](../EDSL/WordMath/Multiplication.lean) defines the
+result using unbounded natural multiplication modulo the word size, and
+characterizes signed overflow using integer arithmetic. The independent
+contract names no instruction or successful execution.
+[`MultiplyBodies`](../EDSL/Corpus/V1/MultiplyBodies.lean) applies the shared vector
+VCG to both unchanged frozen `c_mul_mod64` bodies, including GCC's ENDBR64.
+The body contract covers every full64 argument pair and vector stream, the
+original return-slot read, ABI and complete memory frames, and modeled counts
+of GCC4/Clang3 instructions. [`MultiplyWindows`](../EDSL/Corpus/V1/MultiplyWindows.lean)
+separately authenticates each complete named extent in its frozen ELF file.
+These examples supply small graph records checked against the bytes. Automatic
+term-based graph discovery for these bodies exceeds the strict elaboration
+limit; it is not required by the soundness theorem.
+
+## Compatibility and remaining work
+
+Existing `execute`, `step`, `Choices`, `run` and Bool VCG APIs retain their
+signatures. The Bool executor rejects IMUL. Equality of possible finite Bool
+and vector outcomes requires the explicit old-prefix `Safe` premise; there is
+no global simulation of the extended ISA by one Bool. Existing uniformly
+bounded total-correctness proofs transfer without new admission assumptions,
+because their universal totality supplies that safety. Finite simulation
+alone does not imply unbounded termination.
+
+The grading registry and its end-to-end resource certificates still use the
+Bool execution profile. The multiply body and ELF-binding theorems do not yet
+constitute a registered corpus certificate. Published coverage remains
+**18/40 functions and 36/80 artifacts**. Extending the shared execution-indexed
+resource/policy and registry bridges is required before those totals increase.
+Native CPU/Linux correspondence, concurrency and source/compiler preservation
+remain separate obligations. The callable target assumes stable ordinary RAM,
+64-bit mode, disabled CET/IBT/shadow stacks and no asynchronous interference.
+
+The [IMUL regressions](../tests/SequentialMultiply.lean) exercise sixteen literal
+flag words, signed boundaries, aliases, register banks and precise faults.
+A decoded IMUL/JZ/JP program returns all four values 0,1,2,3: the vector checker
+accepts their union and rejects the diagonal-only {0,3} contract that a correlated
+Bool model would wrongly accept. It also rejects denied return-read permission
+despite readable RAM. These checks accompany axiom audits and fresh kernel replay.

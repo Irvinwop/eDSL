@@ -85,6 +85,7 @@ def execute (state : State) (instruction : Instruction) (af : Bool) : Except Err
   let reads := instruction.operandReads state
   match instruction with
   | .legacy old => return ⟨← X86.executeInstruction state old, reads⟩
+  | .imulReg64 _ _ => throw .unsupportedEncoding
   | .endbr64IbtDisabled | .nop _ =>
     return ⟨.next { state with rip := state.rip + BitVec.ofNat 64 instruction.length }, reads⟩
   | .logicalReg32 operation destination source _ =>
@@ -968,7 +969,7 @@ theorem execute_storeIntent {state : State} {instruction : Instruction} {address
     simp only [Instruction.storeIntent, Option.some.injEq, Prod.mk.injEq] at intent
     rcases intent with ⟨rfl, rfl⟩
     exact execute_storeMem32 state operand source af
-  | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
+  | imulReg64 _ _ | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | addImm32 _ _ _ | inc32 _ _
   | negReg32 _ _ | bswapReg64 _ | shrOne64 _ | rolCL64 _
   | movzxMem8 _ _ _ | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _
@@ -1248,6 +1249,7 @@ theorem execute_reads {state : State} {instruction : Instruction} {af : Bool}
     {observation : Observation} (success : execute state instruction af = .ok observation) :
     observation.reads = instruction.operandReads state := by
   cases instruction with
+  | imulReg64 _ _ => simp [execute] at success
   | movzxMem8 destination address prefixed =>
     obtain ⟨value, _, rfl⟩ := execute_movzxMem8_success_iff.mp success
     rfl
@@ -1370,6 +1372,7 @@ theorem execute_reads_succeed {state : State} {instruction : Instruction} {af : 
     ∀ read ∈ observation.reads, OperandReadSucceeds state read := by
   rw [execute_reads success]
   cases instruction with
+  | imulReg64 _ _ => simp [execute] at success
   | movzxMem8 destination address prefixed =>
     obtain ⟨value, loaded, _⟩ := execute_movzxMem8_success_iff.mp success
     intro read member
@@ -1439,6 +1442,7 @@ theorem execute_new_memory {state final : State} {instruction : Instruction} {af
     (success : execute state instruction af = .ok observation)
     (next : observation.result = .next final) : final.memory = state.memory := by
   cases instruction with
+  | imulReg64 _ _ => simp [execute] at success
   | movzxMem8 destination address prefixed =>
     obtain ⟨value, _, rfl⟩ := execute_movzxMem8_success_iff.mp success
     cases next
@@ -1529,19 +1533,22 @@ is not a sufficient premise. -/
 theorem execute_choice_independent (state : State) (instruction : Instruction) (left right : Bool)
     (noChoice : instruction.choiceFlag state = none) :
     execute state instruction left = execute state instruction right := by
-  cases instruction <;> first
-    | rfl
-    | simp [Instruction.choiceFlag, Instruction.choosesAF] at noChoice
-  rename_i destination
-  have defined : rolCount64 (state.registers .rcx) ≤ 1 := by omega
-  simp only [execute]
-  rw [rolFlags64_independent _ _ _ left right defined]
+  cases instruction with
+  | rolCL64 destination =>
+    simp only [Instruction.choiceFlag] at noChoice
+    have defined : rolCount64 (state.registers .rcx) ≤ 1 := by
+      split at noChoice <;> simp_all <;> omega
+    simp only [execute]
+    rw [rolFlags64_independent _ _ _ left right defined]
+  | _ =>
+    simp [Instruction.choiceFlag, Instruction.choosesAF] at noChoice <;> rfl
 
 theorem execute_new_next {state : State} {instruction : Instruction} {af : Bool}
     {observation : Observation} (newInstruction : instruction.isNew = true)
     (success : execute state instruction af = .ok observation) :
     ∃ final, observation.result = .next final := by
   cases instruction with
+  | imulReg64 _ _ => simp [execute] at success
   | movzxMem8 destination address prefixed =>
     obtain ⟨value, _, rfl⟩ := execute_movzxMem8_success_iff.mp success
     exact ⟨_, rfl⟩
@@ -1629,6 +1636,7 @@ theorem execute_new_flags {state final : State} {instruction : Instruction} {af 
     (next : observation.result = .next final) :
     final.flags &&& ~~~arithmeticFlagMask = state.flags &&& ~~~arithmeticFlagMask := by
   cases instruction with
+  | imulReg64 _ _ => simp [execute] at success
   | movzxMem8 destination address prefixed =>
     obtain ⟨value, _, rfl⟩ := execute_movzxMem8_success_iff.mp success
     cases next

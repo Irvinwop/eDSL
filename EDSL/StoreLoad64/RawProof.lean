@@ -38,11 +38,11 @@ theorem stageOne_code {input initial} (pre : Pre bytes input initial) :
 
 theorem first_decoded {input initial} (pre : Pre bytes input initial) :
     Sequential.decodeAt initial = .ok (.storeMem64 (.base .rdi) .rsi) :=
-  decode_from_code pre.code 0 (by decide) rfl (by simp) rfl
+  decode_from_code pre.code 0 (by decide) rfl (by simp) (by cbv)
 
 theorem second_decoded {input initial} (pre : Pre bytes input initial) :
     Sequential.decodeAt (stageOne initial) = .ok (.loadMem64 .rax (.base .rdi)) :=
-  decode_from_code (stageOne_code pre) 3 (by decide) rfl rfl rfl
+  decode_from_code (stageOne_code pre) 3 (by decide) rfl rfl (by cbv)
 
 theorem ret_decoded {input initial} (pre : Pre bytes input initial) :
     Sequential.decodeAt (stageTwo initial) = .ok (.legacy .ret) :=

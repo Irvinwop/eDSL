@@ -390,6 +390,29 @@ private theorem decode0FREX32At_refines {source destination : State} (rex : Byte
     · exact decodeSetccAt_refines rex true transport
     · exact decodeCmov32At_refines rex true transport
 
+private theorem decodeREX32At_refines {source destination : State} (rex : Byte)
+    (transport : SuccessfulFetchTransport source destination) :
+    SuccessRefines (decodeREX32At source rex) (decodeREX32At destination rex) := by
+  have t1 := transport 1 (by decide)
+  have t2 := transport 2 (by decide)
+  unfold decodeREX32At
+  repeat first
+    | with_reducible exact SuccessRefines.refl _
+    | exact t1
+    | exact t2
+    | with_reducible exact decodeMovImm8At_refines _ _ _ transport
+    | with_reducible exact decode0FREX32At_refines _ transport
+    | with_reducible exact decodeCmpRegMem8At_refines _ _ transport
+    | with_reducible exact decodeCmpReg8At_refines _ _ _ transport
+    | with_reducible exact decodeSubReg32At_refines _ _ _ transport
+    | with_reducible exact decodeLogicalReg32At_refines _ _ _ transport
+    | with_reducible exact decodeNegReg32At_refines _ _ transport
+    | with_reducible exact decodeCounter32At_refines _ _ _ transport
+    | with_reducible exact decodeCompare32At_refines _ _ _ transport
+    | apply SuccessRefines.ite
+    | apply SuccessRefines.bind
+    | intro value
+
 private theorem fetchExactAt_refines {source destination : State} (bytes : List Byte)
     (transport : SuccessfulFetchTransport source destination) (offset : Nat)
     (bound : offset + bytes.length ≤ 15) :
@@ -461,6 +484,24 @@ private theorem decode0F32At_refines {source destination : State}
     | apply SuccessRefines.bind
     | intro value
 
+private theorem decodeTailAt_refines {source destination : State} (opcode : Byte) (fault : Error)
+    (transport : SuccessfulFetchTransport source destination) :
+    SuccessRefines (decodeTailAt source opcode fault) (decodeTailAt destination opcode fault) := by
+  have t1 := transport 1 (by decide)
+  unfold decodeTailAt
+  repeat first
+    | with_reducible exact SuccessRefines.refl _
+    | exact t1
+    | with_reducible exact decodeAddressAt_refines _ transport
+    | with_reducible exact (show SuccessRefines (decodeJccAt source _) (decodeJccAt destination _) from by
+        unfold decodeJccAt
+        apply SuccessRefines.bind t1
+        intro displacement
+        exact SuccessRefines.refl _)
+    | apply SuccessRefines.ite
+    | apply SuccessRefines.bind
+    | intro value
+
 /-- New decoding, including LEA/ADD's SIB fetch, both register ADD directions,
 CMOV's condition opcode and register operands, and short Jcc displacements,
 preserves success under the same fetch transport. A fixed fallback error
@@ -471,8 +512,6 @@ theorem decodeNewAt_transport {source destination : State} {instruction : Instru
     decodeNewAt destination fault = .ok instruction := by
   have t0 := transport 0 (by decide)
   have t1 := transport 1 (by decide)
-  have t2 := transport 2 (by decide)
-  have t3 := transport 3 (by decide)
   simp only [BitVec.add_zero] at t0
   have refinement : SuccessRefines (decodeNewAt source fault) (decodeNewAt destination fault) := by
     unfold decodeNewAt
@@ -480,18 +519,21 @@ theorem decodeNewAt_transport {source destination : State} {instruction : Instru
       | with_reducible exact SuccessRefines.refl _
       | exact t0
       | exact t1
-      | exact t2
-      | exact t3
+      | with_reducible exact (show SuccessRefines (decodeJccAt source _) (decodeJccAt destination _) from by
+          unfold decodeJccAt
+          apply SuccessRefines.bind t1
+          intro displacement
+          exact SuccessRefines.refl _)
+      | with_reducible exact decodeTailAt_refines _ _ transport
       | with_reducible exact decodeAddressAt_refines _ transport
       | with_reducible exact decodeCmpMemImm8At_refines transport
       | with_reducible exact decodeCmpMemRegAt_refines _ transport
       | with_reducible exact decodeCmpRegMem8At_refines _ _ transport
       | with_reducible exact decodeREXWAt_refines _ transport
+      | with_reducible exact decodeREX32At_refines _ transport
       | with_reducible exact decodeCompare32At_refines _ _ _ transport
-      | with_reducible exact decodeCmov32At_refines _ _ transport
       | with_reducible exact decodeMovImm8At_refines _ _ _ transport
       | with_reducible exact decodeMovImm32At_refines _ transport
-      | with_reducible exact decode0FREX32At_refines _ transport
       | with_reducible exact decodeCmpReg8At_refines _ _ _ transport
       | with_reducible exact decodeSubReg32At_refines _ _ _ transport
       | with_reducible exact decodeLogicalReg32At_refines _ _ _ transport
@@ -572,7 +614,7 @@ private theorem decodeNewAt_opcode {state : State} {instruction : Instruction} {
       rcases hbatch with ⟨himm8, h33, h80, h38, h3a, h29, h2b, hf7, hff, ⟨h39, h3b, h85⟩, h32, h90, h66, hf3⟩
       rw [rex32Prefix_eq_true] at h32
       change ¬(0x70 ≤ opcode.toNat ∧ opcode.toNat ≤ 0x7f ∧ opcode ≠ 0x75#8) at hjcc
-      simp [decodeNewAt, fetched, himm8, h33, h80, h38, h3a, h29, h2b, hf7, hff, h39, h3b, h85, h32, h90, h66, hf3, h0f, h83,
+      simp [decodeNewAt, decodeTailAt, fetched, himm8, h33, h80, h38, h3a, h29, h2b, hf7, hff, h39, h3b, h85, h32, h90, h66, hf3, h0f, h83,
         hb9, hbb, hbc, hbd, h31, h03, h74, heb, hrex, h89, h8b, hjcc] at decoded
 
 private theorem old_rejects_new_opcode {state : State} {opcode : Byte}
@@ -623,7 +665,7 @@ private theorem decodeNewAt_shared_second {state : State} {opcode : Byte}
   rcases mov with rfl | rfl | rfl | rfl
   all_goals
     cases fetchedModrm : fetchByte state.memory (state.rip + 1#64) with
-    | error error => simp [decodeNewAt, decode0F32At, decodeCounter32At, fetched, fetchedModrm] at decoded
+    | error error => simp [decodeNewAt, decodeTailAt, decode0F32At, decodeCounter32At, fetched, fetchedModrm] at decoded
     | ok modrm =>
       refine ⟨modrm, rfl, ?_⟩
       intro same

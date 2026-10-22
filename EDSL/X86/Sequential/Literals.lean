@@ -71,6 +71,7 @@ def instruction : Instruction → String
   | .negReg32 destination prefixed => s!"(.negReg32 {register destination} {prefixed})"
   | .bswapReg64 destination => s!"(.bswapReg64 {register destination})"
   | .shrOne64 destination => s!"(.shrOne64 {register destination})"
+  | .imulReg64 destination source => s!"(.imulReg64 {register destination} {register source})"
   | .rolCL64 destination => s!"(.rolCL64 {register destination})"
   | .movzxReg8 destination source prefixed =>
     s!"(.movzxReg8 {register destination} {register source} {prefixed})"

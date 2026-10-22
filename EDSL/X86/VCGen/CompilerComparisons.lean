@@ -71,7 +71,7 @@ def graph (compiler : Compiler) (op : Operation) : CFG.Graph :=
 
 theorem valid (compiler : Compiler) (op : Operation) :
     CFG.Valid (bytes compiler op) (graph compiler op) := by
-  cases compiler <;> cases op <;> exact CFG.check_sound (by decide)
+  cases compiler <;> cases op <;> exact CFG.check_sound (by decide +kernel)
 
 def entry (compiler : Compiler) (op : Operation) : (graph compiler op).Index :=
   ⟨0, by cases compiler <;> cases op <;> decide⟩

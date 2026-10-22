@@ -19,7 +19,7 @@ def entry (code : List Byte) (registers : Register → Word := fun _ => 0)
     executable := fun address => decide (4096 ≤ address.toNat ∧ address.toNat < 4096 + code.length)
     writable := fun _ => false }
 
-def nextView (af : Bool) (state : State) (view : State → List X86.Sequential.Read → α) : Except Error α := do
+def nextView {α : Type} (af : Bool) (state : State) (view : State → List X86.Sequential.Read → α) : Except Error α := do
   let observation ← X86.Sequential.step af state
   match observation.result with
   | .next final => return view final observation.reads
@@ -29,10 +29,10 @@ def nextView (af : Bool) (state : State) (view : State → List X86.Sequential.R
 while IF/DF and the abstract reserved bit survive. -/
 example : nextView false (entry [0x31, 0xc0] (fun _ => 0xffffffffffffffff))
     (fun s reads => (s.registers .rax, s.registers .rcx, s.rip, s.flags, reads)) =
-    .ok (0, 0xffffffffffffffff, 4098, 0x646, []) := by rfl
+    .ok (0, 0xffffffffffffffff, 4098, 0x646, []) := by cbv
 example : nextView true (entry [0x31, 0xc9] (fun _ => 0xffffffffffffffff))
     (fun s reads => (s.registers .rcx, s.registers .rax, s.rip, s.flags, reads)) =
-    .ok (0, 0xffffffffffffffff, 4098, 0x656, []) := by rfl
+    .ok (0, 0xffffffffffffffff, 4098, 0x656, []) := by cbv
 
 /-- The high sign bit makes a 32-bit implementation get both SF and ZF wrong.
 TEST also preserves both operand registers, including their high halves. -/
@@ -42,42 +42,42 @@ example (af : Bool) : nextView af
       s.flags.getLsbD 0, s.flags.getLsbD 2, s.flags.getLsbD 4,
       s.flags.getLsbD 6, s.flags.getLsbD 7, s.flags.getLsbD 11)) =
     .ok (0x8000000000000000, 0xffffffffffffffff, 4099, false, true, af, false, true, false) := by
-  cases af <;> rfl
+  cases af <;> cbv
 
 /-- Direction is RSI minus RCX, and subtraction uses all 64 bits. -/
 example : nextView false
     (entry [0x48, 0x39, 0xce] (fun r => if r = .rcx then 1 else 0))
     (fun s _ => (s.registers .rsi, s.registers .rcx, s.flags, s.rip)) =
-    .ok (0, 1, 0x697, 4099) := by rfl
+    .ok (0, 1, 0x697, 4099) := by cbv
 example : nextView true
     (entry [0x48, 0x39, 0xce] (fun r => if r = .rsi then 0x8000000000000000 else 1))
-    (fun s _ => s.flags) = .ok 0xe16 := by rfl
+    (fun s _ => s.flags) = .ok 0xe16 := by cbv
 
 /-- Sign extension of FF is minus one, not plus 255. -/
 example : nextView false (entry [0x48, 0x83, 0xc7, 0xff])
     (fun s _ => (s.registers .rdi, s.flags, s.rip)) =
-    .ok (0xffffffffffffffff, 0x686, 4100) := by rfl
+    .ok (0xffffffffffffffff, 0x686, 4100) := by cbv
 example : nextView true
     (entry [0x48, 0x83, 0xc3, 1] (fun _ => 0xffffffffffffffff))
-    (fun s _ => (s.registers .rbx, s.flags)) = .ok (0, 0x657) := by rfl
+    (fun s _ => (s.registers .rbx, s.flags)) = .ok (0, 0x657) := by cbv
 example : nextView false
     (entry [0x48, 0x83, 0xc2, 1] (fun _ => 0x7fffffffffffffff))
-    (fun s _ => (s.registers .rdx, s.flags)) = .ok (0x8000000000000000, 0xe96) := by rfl
+    (fun s _ => (s.registers .rdx, s.flags)) = .ok (0x8000000000000000, 0xe96) := by cbv
 
 /-- INC/DEC update signed overflow but preserve CF at both values, even on
 unsigned wrap/borrow. These are independent arithmetic boundary vectors. -/
 example : nextView false
     (entry [0x48, 0xff, 0xc1] (fun _ => 0x7fffffffffffffff) 0x603)
     (fun s _ => (s.registers .rcx, s.flags, s.rip)) =
-    .ok (0x8000000000000000, 0xe97, 4099) := by rfl
+    .ok (0x8000000000000000, 0xe97, 4099) := by cbv
 example : nextView true
     (entry [0x48, 0xff, 0xce] (fun _ => 0x8000000000000000) 0x603)
-    (fun s _ => (s.registers .rsi, s.flags)) = .ok (0x7fffffffffffffff, 0xe17) := by rfl
+    (fun s _ => (s.registers .rsi, s.flags)) = .ok (0x7fffffffffffffff, 0xe17) := by cbv
 example : nextView true
     (entry [0x48, 0xff, 0xc0] (fun _ => 0xffffffffffffffff))
-    (fun s _ => (s.registers .rax, s.flags)) = .ok (0, 0x656) := by rfl
+    (fun s _ => (s.registers .rax, s.flags)) = .ok (0, 0x656) := by cbv
 example : nextView false (entry [0x48, 0xff, 0xc8])
-    (fun s _ => (s.registers .rax, s.flags)) = .ok (0xffffffffffffffff, 0x696) := by rfl
+    (fun s _ => (s.registers .rax, s.flags)) = .ok (0xffffffffffffffff, 0x696) := by cbv
 
 /-- Little-endian four-byte input, low-width addition and full destination
 zero extension; successful input bytes have neither write nor execute permission. -/
@@ -87,7 +87,7 @@ def addInput (address : Word) : Option Byte :=
 example : nextView false
     (entry [3, 7] (fun r => if r = .rdi then 8192 else 0xfffffffffffffffe) 0x602 addInput)
     (fun s reads => (s.registers .rax, s.flags, s.rip, reads)) =
-    .ok (1, 0x613, 4098, [⟨.data, 8192, 4⟩]) := by rfl
+    .ok (1, 0x613, 4098, [⟨.data, 8192, 4⟩]) := by cbv
 
 /-- A scale of four uses BOTH full 64-bit base/index values; only the resulting
 high address is mapped, so truncation or an incorrect scale would fault. -/
@@ -98,54 +98,54 @@ example : nextView true
     (entry [3, 4, 0x8f] (fun r =>
       if r = .rdi then 0x200000000 else if r = .rcx then 0x100000001 else 2) 0x602 indexedInput)
     (fun s reads => (s.registers .rax, s.rip, s.flags, reads)) =
-    .ok (11, 4099, 0x602, [⟨.data, 0x600000004, 4⟩]) := by rfl
+    .ok (11, 4099, 0x602, [⟨.data, 0x600000004, 4⟩]) := by cbv
 
 /-- Missing final byte faults there, after the first three readable bytes.
 A permission query or successful decoder cannot replace the actual operand load. -/
 example : nextView false
     (entry [3, 7] (fun _ => 8192) 0x602
       (fun a => if a = 8192 ∨ a = 8193 ∨ a = 8194 then some 0 else none))
-    (fun s _ => s.registers .rax) = .error (.inaccessibleData 8195) := by rfl
+    (fun s _ => s.registers .rax) = .error (.inaccessibleData 8195) := by cbv
 
 /-- rel8 is signed and measured from the next instruction; branches keep all flags. -/
 example : nextView false (entry [0x74, 0xfe] (flags := 0x642))
-    (fun s reads => (s.rip, s.flags, reads)) = .ok (4096, 0x642, []) := by rfl
+    (fun s reads => (s.rip, s.flags, reads)) = .ok (4096, 0x642, []) := by cbv
 example : nextView true (entry [0x74, 0x7f])
-    (fun s _ => (s.rip, s.flags)) = .ok (4098, 0x602) := by rfl
+    (fun s _ => (s.rip, s.flags)) = .ok (4098, 0x602) := by cbv
 example : nextView true (entry [0xeb, 0xf0])
-    (fun s _ => (s.rip, s.flags)) = .ok (4082, 0x602) := by rfl
+    (fun s _ => (s.rip, s.flags)) = .ok (4082, 0x602) := by cbv
 example : X86.Sequential.execute { entry [] with rip := 0x7ffffffffffe } (.jmp 0) false =
-    .error (.noncanonicalBranch 0x800000000000) := by rfl
+    .error (.noncanonicalBranch 0x800000000000) := by cbv
 example : X86.Sequential.execute { entry [] (flags := 0x642) with rip := 0x7ffffffffffe } (.je 0) true =
-    .error (.noncanonicalBranch 0x800000000000) := by rfl
+    .error (.noncanonicalBranch 0x800000000000) := by cbv
 
 /-- Non-self XOR32 uses the shared logical instruction and correct operand order. -/
 example : X86.Sequential.decodeAt (entry [0x31, 0xc1]) =
-    .ok (.logicalReg32 .bxor .rcx .rax false) := by rfl
+    .ok (.logicalReg32 .bxor .rcx .rax false) := by cbv
 
 /-- Deliberate decoding boundary: wrong register mode,
 address/operand overrides, extended REX, displacements, missing-index/base SIB. -/
-example : X86.Sequential.decodeAt (entry [0x48, 0x85, 0x36]) = .error .unsupportedEncoding := by rfl
-example : X86.Sequential.decodeAt (entry [3, 0x47, 0xfc]) = .error .unsupportedEncoding := by rfl
-example : X86.Sequential.decodeAt (entry [3, 4, 0x27]) = .error .unsupportedEncoding := by rfl
-example : X86.Sequential.decodeAt (entry [3, 4, 0x0d]) = .error .unsupportedEncoding := by rfl
-example : X86.Sequential.decodeAt (entry [0x67, 3, 7]) = .error (.unsupportedOpcode 0x67) := by rfl
-example : X86.Sequential.decodeAt (entry [0x66, 0x31, 0xc0]) = .error .unsupportedEncoding := by rfl
-example : X86.Sequential.decodeAt (entry [0x49, 0x85, 0xf6]) = .error .unsupportedEncoding := by rfl
-example : X86.Sequential.decodeAt (entry [0x48, 0xff]) = .error (.inaccessibleInstruction 4098) := by rfl
+example : X86.Sequential.decodeAt (entry [0x48, 0x85, 0x36]) = .error .unsupportedEncoding := by cbv
+example : X86.Sequential.decodeAt (entry [3, 0x47, 0xfc]) = .error .unsupportedEncoding := by cbv
+example : X86.Sequential.decodeAt (entry [3, 4, 0x27]) = .error .unsupportedEncoding := by cbv
+example : X86.Sequential.decodeAt (entry [3, 4, 0x0d]) = .error .unsupportedEncoding := by cbv
+example : X86.Sequential.decodeAt (entry [0x67, 3, 7]) = .error (.unsupportedOpcode 0x67) := by cbv
+example : X86.Sequential.decodeAt (entry [0x66, 0x31, 0xc0]) = .error .unsupportedEncoding := by cbv
+example : X86.Sequential.decodeAt (entry [0x49, 0x85, 0xf6]) = .error .unsupportedEncoding := by cbv
+example : X86.Sequential.decodeAt (entry [0x48, 0xff]) = .error (.inaccessibleInstruction 4098) := by cbv
 
 /-- All nine added families remain rejected by the old profile used by TSO.
 This tests the admission boundary directly, without altering any old decoder. -/
 example : ([ [0x31, 0xc0], [0x48, 0x85, 0xf6], [0x48, 0x39, 0xce], [3, 7],
     [0x48, 0x83, 0xc7, 4], [0x48, 0xff, 0xc1], [0x48, 0xff, 0xce], [0x74, 0], [0xeb, 0] ]
-    : List (List Byte)).all (fun bytes => (match X86.decodeAt (entry bytes) with | .error _ => true | .ok _ => false)) = true := by rfl
+    : List (List Byte)).all (fun bytes => (match X86.decodeAt (entry bytes) with | .error _ => true | .ok _ => false)) = true := by cbv
 
 /-- The final legacy RET needs only its one executable byte. It retains its
 actual stack read and full incoming flags at both AF choices. -/
 def stackInput (address : Word) : Option Byte :=
   if address = 32768 then some 0x34 else if address = 32769 then some 0x12
   else if 32770 ≤ address.toNat ∧ address.toNat < 32776 then some 0 else none
-example : X86.Sequential.decodeAt (entry [0xc3]) = .ok (.legacy .ret) := by rfl
+example : X86.Sequential.decodeAt (entry [0xc3]) = .ok (.legacy .ret) := by cbv
 example (af : Bool) :
     (X86.Sequential.step af (entry [0xc3] (fun _ => 32768) 0xabcdef stackInput)).map
       (fun observation => match observation.result with
@@ -161,30 +161,30 @@ example : nextView false
       if r = .rbx then 8186 else if r = .rcx then 3
       else if r = .rdx then 0xfffffffffffffffe else 0x55) 0x602 addInput)
     (fun s reads => (s.registers .rdx, s.registers .rax, s.rip, s.flags, reads)) =
-    .ok (1, 0x55, 4099, 0x613, [⟨.data, 8192, 4⟩]) := by rfl
+    .ok (1, 0x55, 4099, 0x613, [⟨.data, 8192, 4⟩]) := by cbv
 example : X86.Sequential.decodeAt (entry [3, 0x1c, 0x1a]) =
-    .ok (.addMem32 .rbx (.indexed .rdx .rbx 0)) := by rfl
+    .ok (.addMem32 .rbx (.indexed .rdx .rbx 0)) := by cbv
 example : X86.Sequential.decodeAt (entry [3, 0x14, 0xcf]) =
-    .ok (.addMem32 .rdx (.indexed .rdi .rcx 3)) := by rfl
-example : X86.Sequential.decodeAt (entry [0x31, 0xff]) = .ok (.xorSelf32 .rdi) := by rfl
-example : X86.Sequential.decodeAt (entry [0x48, 0xff, 0xc3]) = .ok (.inc64 .rbx) := by rfl
+    .ok (.addMem32 .rdx (.indexed .rdi .rcx 3)) := by cbv
+example : X86.Sequential.decodeAt (entry [0x31, 0xff]) = .ok (.xorSelf32 .rdi) := by cbv
+example : X86.Sequential.decodeAt (entry [0x48, 0xff, 0xc3]) = .ok (.inc64 .rbx) := by cbv
 
 /-- A mapped byte value alone does not grant permission to fetch instructions. -/
 example : X86.Sequential.step false { entry [0x31, 0xc0] with
       memory := { (entry [0x31, 0xc0]).memory with executable := fun _ => false } } =
-    .error (.inaccessibleInstruction 4096) := by rfl
+    .error (.inaccessibleInstruction 4096) := by cbv
 example : nextView false
     (entry [3, 7] (fun _ => 0x7ffffffffffe) 0x602 (fun _ => some 0))
-    (fun s _ => s.registers .rax) = .error (.inaccessibleData 0x800000000000) := by rfl
+    (fun s _ => s.registers .rax) = .error (.inaccessibleData 0x800000000000) := by cbv
 example : nextView false
     (entry [3, 7] (fun _ => 0xffffffffffffffff) 0x602 (fun _ => some 0))
-    (fun s _ => s.registers .rax) = .error (.inaccessibleData 0xffffffffffffffff) := by rfl
+    (fun s _ => s.registers .rax) = .error (.inaccessibleData 0xffffffffffffffff) := by cbv
 
 /-- A finite one-byte candidate can be moved to ANY CodeAt memory/base,
 without padding or assuming permissions beyond that one-byte function. -/
 example (destination : State) (code : CodeAt destination.memory destination.rip [0xc3]) :
     X86.Sequential.decodeAt destination = .ok (.legacy .ret) := by
-  apply X86.Sequential.decodeAt_transport (source := entry [0xc3]) ?_ (by rfl)
+  apply X86.Sequential.decodeAt_transport (source := entry [0xc3]) ?_ (by cbv)
   intro offset bound byte fetched
   have totalSmall : 4096 + offset < 2^64 := by omega
   have zero : offset = 0 := by
@@ -195,7 +195,7 @@ example (destination : State) (code : CodeAt destination.memory destination.rip 
   subst offset
   change Except.ok (0xc3 : Byte) = .ok byte at fetched
   cases fetched
-  simpa only [BitVec.add_zero] using code.2 0 0xc3 (by rfl)
+  simpa only [BitVec.add_zero] using code.2 0 0xc3 (by cbv)
 
 end EDSL.Tests.SequentialISA
 

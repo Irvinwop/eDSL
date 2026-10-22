@@ -160,3 +160,5 @@ import EDSL.Examples.Verification.Double
 import EDSL.Examples.Verification.DoubleELF
 import EDSL.X86.Sequential.ExecutionChoices
 import EDSL.WordMath.Multiplication
+import EDSL.Corpus.V1.MultiplyWindows
+import EDSL.Corpus.V1.MultiplyBodies

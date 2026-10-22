@@ -45,8 +45,7 @@ theorem populationCount_useful_iff (input : Word) :
 
 /-- Separated low and high set bits give an asymmetric useful input. -/
 theorem populationCount_useful_asymmetric : populationCount.useful (0x81 : Word) := by
-  change 0 < WordMath.cardinality (0x81 : Word) ∧ WordMath.cardinality (0x81 : Word) < 64
-  decide
+  cbv
 
 theorem populationCount_cardinality_le (input : Word) : WordMath.cardinality input ≤ 64 :=
   WordMath.cardinality_le_width input

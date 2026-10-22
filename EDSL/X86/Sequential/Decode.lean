@@ -50,7 +50,7 @@ def Instruction.length : Instruction → Nat
     3 + address.suffixBytes
   | .logicalImm32 _ _ _ prefixed | .addImm32 _ _ prefixed => if prefixed then 4 else 3
   | .inc32 _ prefixed => if prefixed then 3 else 2
-  | .cmpImm64 _ _ | .addImm64 _ _ | .cmovReg64 _ _ _ => 4
+  | .imulReg64 _ _ | .cmpImm64 _ _ | .addImm64 _ _ | .cmovReg64 _ _ _ => 4
 
 def Instruction.isNew : Instruction → Bool
   | .legacy _ => false
@@ -345,6 +345,13 @@ def decode0F32At (state : State) : Except Error Instruction := do
   else if 0x90 ≤ second.toNat ∧ second.toNat ≤ 0x9f then decodeSetccAt state 0 false
   else decodeCmov32At state 0 false
 
+/-- Decode a rel8 conditional-branch operand after its opcode was authenticated
+and classified by the enclosing decoder. This helper alone does not check it. -/
+def decodeJccAt (state : State) (opcode : Byte) : Except Error Instruction := do
+  let displacement ← fetchByte state.memory (state.rip + 1)
+  return .jcc (Condition.ofNibble ⟨opcode.toNat % 16, Nat.mod_lt _ (by decide)⟩)
+    displacement
+
 /-- The common mod=00 address subset. SIB has a real base and index; prefixes,
 displacements, RIP-relative and absent-base/index forms remain unsupported. -/
 def decodeAddressAt (state : State) (modrm : Byte) : Except Error Address := do
@@ -432,6 +439,25 @@ def decodeMovImm32At (state : State) (opcode : Byte) : Except Error Instruction 
   return .legacy (.mov32 (lowRegister ⟨opcode.toNat % 8, Nat.mod_lt _ (by decide)⟩)
     (joinDWord b0 b1 b2 b3))
 
+/-- Continue after the enclosing decoder has recognized one non-W REX prefix.
+The operation is fetched once at offset one. Each selected family retains its
+own operand and prefix restrictions; this helper does not authenticate `rex`.
+Separating prefix dispatch keeps the main decoder's elaboration bounded. -/
+def decodeREX32At (state : State) (rex : Byte) : Except Error Instruction := do
+  let operation ← fetchByte state.memory (state.rip + 1)
+  if 0xb0 ≤ operation.toNat ∧ operation.toNat ≤ 0xb7 then decodeMovImm8At state operation rex true
+  else if operation = 0x0f then decode0FREX32At state rex
+  else if operation = 0x3a then
+    let modrm ← fetchByte state.memory (state.rip + 2)
+    if modrm.toNat / 64 = 0 then decodeCmpRegMem8At state rex true
+    else decodeCmpReg8At state operation rex true
+  else if operation = 0x38 then decodeCmpReg8At state operation rex true
+  else if operation = 0x29 ∨ operation = 0x2b then decodeSubReg32At state operation rex true
+  else if operation = 0x31 ∨ operation = 0x33 then decodeLogicalReg32At state operation rex true
+  else if operation = 0xf7 then decodeNegReg32At state rex true
+  else if operation = 0x83 ∨ operation = 0xff then decodeCounter32At state operation rex true
+  else decodeCompare32At state operation rex true
+
 /-- Continue after the enclosing decoder has recognized one REX.W prefix.
 All addressing restrictions, ADD operand direction and register-only CMOV
 checks remain explicit. -/
@@ -452,6 +478,10 @@ def decodeREXWAt (state : State) (opcode : Byte) : Except Error Instruction := d
     if 0xc8 ≤ conditionOpcode.toNat ∧ conditionOpcode.toNat ≤ 0xcf then
       if opcode ≠ 0x48 ∧ opcode ≠ 0x49 then throw .unsupportedEncoding
       return .bswapReg64 (rexModRMRM opcode conditionOpcode)
+    if conditionOpcode = 0xaf then
+      let modrm ← fetchByte state.memory (state.rip + 3)
+      if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
+      return .imulReg64 (rexModRMReg opcode modrm) (rexModRMRM opcode modrm)
     if conditionOpcode.toNat < 0x40 ∨ 0x4f < conditionOpcode.toNat then
       throw .unsupportedEncoding
     let modrm ← fetchByte state.memory (state.rip + 3)
@@ -518,6 +548,30 @@ def decodeREXWAt (state : State) (opcode : Byte) : Except Error Instruction := d
     else if modrm.toNat / 8 % 8 = 1 then return .dec64 (modRMRM modrm)
     else throw .unsupportedEncoding
   else throw .unsupportedEncoding
+
+/-- Remaining unprefixed memory and short-branch dispatch, after the enclosing
+legacy-first decoder has authenticated and classified the first byte. This
+helper retains exact suffix fetches and the caller's fallback error. -/
+def decodeTailAt (state : State) (opcode : Byte) (oldError : Error) : Except Error Instruction := do
+  if opcode = 0x03 then
+    let modrm ← fetchByte state.memory (state.rip + 1)
+    return .addMem32 (modRMReg modrm) (← decodeAddressAt state modrm)
+  else if opcode = 0x89 ∨ opcode = 0x8b then
+    let modrm ← fetchByte state.memory (state.rip + 1)
+    if modrm.toNat / 64 = 3 then
+      return if opcode = 0x89 then .movReg32 (modRMRM modrm) (modRMReg modrm)
+        else .movReg32 (modRMReg modrm) (modRMRM modrm)
+    else
+      let address ← decodeAddressAt state modrm
+      return if opcode = 0x89 then .storeMem32 address (modRMReg modrm)
+        else .loadMem32 (modRMReg modrm) address
+  else if opcode = 0x74 then
+    return .je (← fetchByte state.memory (state.rip + 1))
+  else if 0x70 ≤ opcode.toNat ∧ opcode.toNat ≤ 0x7f ∧ opcode ≠ 0x75 then
+    decodeJccAt state opcode
+  else if opcode = 0xeb then
+    return .jmp (← fetchByte state.memory (state.rip + 1))
+  else throw oldError
 
 /-- NEW subset only. SHR64 by one admits REX.W D1 /5, mod=3, length three.
 REX.B extends the destination; REX.R is ignored for the opcode-extension field
@@ -593,45 +647,13 @@ def decodeNewAt (state : State) (oldError : Error) : Except Error Instruction :=
     else decodeCompare32At state opcode 0 false
   else if opcode = 0x3b ∨ opcode = 0x85 then
     decodeCompare32At state opcode 0 false
-  else if rex32Prefix opcode then
-    let operation ← fetchByte state.memory (state.rip + 1)
-    if 0xb0 ≤ operation.toNat ∧ operation.toNat ≤ 0xb7 then decodeMovImm8At state operation opcode true
-    else if operation = 0x0f then decode0FREX32At state opcode
-    else if operation = 0x3a then
-      let modrm ← fetchByte state.memory (state.rip + 2)
-      if modrm.toNat / 64 = 0 then decodeCmpRegMem8At state opcode true
-      else decodeCmpReg8At state operation opcode true
-    else if operation = 0x38 then decodeCmpReg8At state operation opcode true
-    else if operation = 0x29 ∨ operation = 0x2b then decodeSubReg32At state operation opcode true
-    else if operation = 0x31 ∨ operation = 0x33 then decodeLogicalReg32At state operation opcode true
-    else if operation = 0xf7 then decodeNegReg32At state opcode true
-    else if operation = 0x83 ∨ operation = 0xff then decodeCounter32At state operation opcode true
-    else decodeCompare32At state operation opcode true
+  else if rex32Prefix opcode then decodeREX32At state opcode
   else if opcode = 0x0f then decode0F32At state
   else if opcode = 0x90 ∨ opcode = 0x66 ∨ opcode = 0xf3 then
     decodePaddingAt state opcode
   else if rexWPrefix opcode then
     decodeREXWAt state opcode
-  else if opcode = 0x03 then
-    let modrm ← fetchByte state.memory (state.rip + 1)
-    return .addMem32 (modRMReg modrm) (← decodeAddressAt state modrm)
-  else if opcode = 0x89 ∨ opcode = 0x8b then
-    let modrm ← fetchByte state.memory (state.rip + 1)
-    if modrm.toNat / 64 = 3 then
-      return if opcode = 0x89 then .movReg32 (modRMRM modrm) (modRMReg modrm)
-        else .movReg32 (modRMReg modrm) (modRMRM modrm)
-    else
-      let address ← decodeAddressAt state modrm
-      return if opcode = 0x89 then .storeMem32 address (modRMReg modrm)
-        else .loadMem32 (modRMReg modrm) address
-  else if opcode = 0x74 then
-    return .je (← fetchByte state.memory (state.rip + 1))
-  else if 0x70 ≤ opcode.toNat ∧ opcode.toNat ≤ 0x7f ∧ opcode ≠ 0x75 then
-    return .jcc (Condition.ofNibble ⟨opcode.toNat % 16, Nat.mod_lt _ (by decide)⟩)
-      (← fetchByte state.memory (state.rip + 1))
-  else if opcode = 0xeb then
-    return .jmp (← fetchByte state.memory (state.rip + 1))
-  else throw oldError
+  else decodeTailAt state opcode oldError
 
 /-- The legacy decoder is tried FIRST. Its every success embeds exactly; only
 an error attempts the separate sequential subset. Unknown forms retain the
@@ -681,7 +703,7 @@ theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.len
   | storeMem64 address destination =>
     cases address <;> simp [Instruction.length, Address.suffixBytes]
   | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | addReg64 _ _ | logicalReg64 _ _ _ | xchgReg64 _ _ | xchgRax64 _
-  | test64 _ _ | cmp64 _ _ | cmpImm64 _ _ | addImm64 _ _ | movSignImm32 _ _
+  | imulReg64 _ _ | test64 _ _ | cmp64 _ _ | cmpImm64 _ _ | addImm64 _ _ | movSignImm32 _ _
   | inc64 _ | dec64 _ | bswapReg64 _ | shrOne64 _ | rolCL64 _ | je _ | jcc _ _ | jmp _ => simp [Instruction.length]
 
 theorem Instruction.length_le_fifteen (instruction : Instruction) : instruction.length ≤ 15 := by
@@ -703,7 +725,7 @@ theorem Instruction.length_le_fifteen (instruction : Instruction) : instruction.
   | storeMem64 address destination =>
     cases address <;> simp [Instruction.length, Address.suffixBytes]
   | xorSelf32 _ | movReg32 _ _ | movReg64 _ _ | cmovReg64 _ _ _ | addReg64 _ _ | logicalReg64 _ _ _ | xchgReg64 _ _ | xchgRax64 _
-  | test64 _ _ | cmp64 _ _ | cmpImm64 _ _ | addImm64 _ _ | movSignImm32 _ _
+  | imulReg64 _ _ | test64 _ _ | cmp64 _ _ | cmpImm64 _ _ | addImm64 _ _ | movSignImm32 _ _
   | inc64 _ | dec64 _ | bswapReg64 _ | shrOne64 _ | rolCL64 _ | je _ | jcc _ _ | jmp _ => simp [Instruction.length]
 
 /-- Admission of a NEW instruction never admits it in the old sequential/TSO

@@ -9,3 +9,5 @@ import EDSL.X86.VCGen.Artifact
 import EDSL.X86.VCGen.Tactics
 import EDSL.X86.VCGen.Unary
 import EDSL.X86.VCGen.ScratchFrame
+import EDSL.X86.VCGen.Choices
+import EDSL.X86.VCGen.TacticsWith

@@ -105,6 +105,10 @@ inductive Instruction where
   flags (including AF) are defined by subtraction from zero. Prefix presence
   records the canonical optional 40/41 REX byte, not a different operation. -/
   | negReg32 (destination : Register) (prefixed : Bool)
+  /-- Register-only two-operand REX.W IMUL. The full vector executor chooses
+  PF/AF/ZF/SF independently; the single-Bool executor rejects this opcode.
+  Both operands are captured before the destination is overwritten. -/
+  | imulReg64 (destination source : Register)
   /-- Register-only full64 byte reversal, with every modeled flag preserved.
   Canonical bytes are 48/49 0F C8+rd; REX.B selects the high register bank. -/
   | bswapReg64 (destination : Register)

@@ -46,6 +46,7 @@ theorem execute_next_target {initial final : State} {instruction : Instruction} 
     (next : observation.result = .next final) :
     final.rip ∈ Targets initial.rip instruction := by
   cases instruction with
+  | imulReg64 _ _ => simp [execute] at success
   | movzxMem8 destination address prefixed =>
     obtain ⟨value, _, rfl⟩ := execute_movzxMem8_success_iff.mp success
     cases next
@@ -158,6 +159,7 @@ theorem execute_next_memory {initial final : State} {instruction : Instruction} 
     (success : execute initial instruction af = .ok observation)
     (next : observation.result = .next final) : final.memory = initial.memory := by
   cases instruction with
+  | imulReg64 _ _ => simp [execute] at success
   | legacy old =>
     have noStore : old.storeIntent initial = none := by
       cases old <;> simp_all [readOnly, X86.Instruction.storeIntent]
@@ -182,6 +184,7 @@ theorem execute_result {initial : State} {instruction : Instruction} {af : Bool}
     ∃ final, observation.result = .next final ∨
       (observation.result = .returned final ∧ instruction = .legacy .ret) := by
   cases instruction with
+  | imulReg64 _ _ => simp [execute] at success
   | legacy old =>
     cases old with
     | storeEsiRdi | storeEaxRsi | exchangeEaxRdi | fetchAddEaxRdi | syscall =>
@@ -266,6 +269,8 @@ theorem targets_translate (node : Node) (base : Word) :
     Targets (base + BitVec.ofNat 64 node.offset) node.instruction =
       node.successors.map (fun target => base + target) := by
   cases instruction : node.instruction with
+  | imulReg64 _ _ =>
+    simp [Targets, Node.successors, instruction, Instruction.length, BitVec.ofNat_add, BitVec.add_assoc]
   | legacy old => cases old <;>
       simp [Targets, Node.successors, instruction, BitVec.ofNat_add, BitVec.add_assoc]
   | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _

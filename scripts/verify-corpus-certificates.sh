@@ -209,6 +209,7 @@ if [[ $full_project == true ]]; then
     cat > "$output/source/CorpusFullReplay.lean" <<'LEAN'
 import EDSL.All
 import tests.FlagChoiceExecution
+import tests.SequentialMultiply
 import corpus.Certify
 import tests.VerificationImports
 import tests.VerifyFunction
