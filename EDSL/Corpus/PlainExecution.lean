@@ -47,6 +47,21 @@ theorem LoadedBatch.execute {file : List X86.Byte} {named : List (NamedImage fil
   exact ⟨⟨issues, issued, chosen, scheduledIssues, returned, drained, scheduledDrains,
     certificate, finished, scheduled, post⟩⟩
 
+/-- Any independently certified closed execution preserves every original loaded
+cell and permission when all admitted targets are fresh from the whole image.
+This does not constrain the schedule to a particular completion plan. -/
+theorem LoadedBatch.retainedImage_after {file : List X86.Byte}
+    {named : List (NamedImage file)} (batch : LoadedBatch file named)
+    {actions : List Action} {actual : TSO64.State × List Observation}
+    (post : ClosedPost batch.before batch.inputs actions actual 0)
+    {address : X86.Word} {original : AddressSpace.Cell}
+    (live : batch.loaded.space.cells address = some original) :
+    actual.1.world.legacy.shared.resources.space.cells address = some original := by
+  have away : ¬Targets batch.inputs address := by
+    rintro ⟨tid, inside⟩
+    exact batch.targetsFresh tid address original live inside
+  exact (post.memory address away).trans (batch.retainedImage address original live)
+
 /-- Complete original ELF cells survive the actual finished run. Freshness is
 checked against the entire loaded space, so this covers nontext contents and
 permissions as well as executable code. -/
@@ -54,11 +69,8 @@ theorem Execution.retainedImage {file : List X86.Byte} {named : List (NamedImage
     {batch : LoadedBatch file named} {choices : Nat → Nat → Bool}
     (execution : Execution batch choices) {address : X86.Word}
     {original : AddressSpace.Cell} (live : batch.loaded.space.cells address = some original) :
-    execution.drained.1.world.legacy.shared.resources.space.cells address = some original := by
-  have away : ¬Targets batch.inputs address := by
-    rintro ⟨tid, inside⟩
-    exact batch.targetsFresh tid address original live inside
-  exact (execution.post.memory address away).trans (batch.retainedImage address original live)
+    execution.drained.1.world.legacy.shared.resources.space.cells address = some original :=
+  batch.retainedImage_after execution.post live
 
 end EDSL.Corpus.Plain
 

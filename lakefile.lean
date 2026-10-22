@@ -104,6 +104,7 @@ lean_lib ManagedQueue64Tests where
     `tests.PlainEventCorrespondence, `tests.PlainMethodHistories,
     `tests.PlainCohortCompletion, `tests.PlainCallAdmission64, `tests.PlainCallHistory64,
     `tests.PlainCallBehavior64, `tests.PlainCallClaim64, `tests.CorpusPlainResources,
+    `tests.PlainWitnessAudit64,
     `tests.PendingPublicationViews,
     `tests.ExecutionViews, `tests.MixedWriteOrder, `tests.AccessSourceRanks,
     `tests.RMWSourceRanks, `tests.AccessGraphRanks, `tests.TSO64CrossCellFixtures,

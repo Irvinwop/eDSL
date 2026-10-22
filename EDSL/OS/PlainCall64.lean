@@ -13,6 +13,7 @@ import EDSL.OS.PlainCallClosed64
 import EDSL.OS.PlainCallClaim64
 import EDSL.X86.VCGen.PlainMethods.Prefix
 import EDSL.X86.VCGen.PlainMethods.Positions
+import EDSL.OS.PlainCallWitness64
 
 /-!
 Reusable managed acquire-load/release-store call adapters. Import this module

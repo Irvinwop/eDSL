@@ -536,11 +536,75 @@ then the production drain schedule, a finished state and the same run's complete
 `ClosedPost`. `Execution.retainedImage` proves that all original loaded cells
 survive that finished execution.
 
-This completion visits slots in blocks. The separate `UsefulNamed` certificate
-requires overlapping accesses before either return, and `UsefulMixed` requires
-the writer's return, its later actual publication, and an acquiring load that
-selects that writer. Those witnesses remain necessary before awarding the four
-pending compiler artifacts.
+## Construct overlapping and delayed-publication executions
+
+`EDSL.OS.PlainCallWitness64` supplies execution witnesses for the independent
+plain64 contract. They use the original admitted invocations and the production
+scheduler; callers supply current resources and static byte shapes, rather than
+a successful future schedule or a desired result.
+
+`closed_overlap static pre initialEmpty population choices` constructs two
+access blocks, each ending at its actual RET, then completes and drains the
+cohort. Its `ClosedOverlap` contains the finished run and the same run's
+independent `ClosedPost`. The Post's own dispatch and response observations
+establish that both MOV64 accesses occur before either return. Padding lengths
+and per-block AF choices remain arbitrary.
+
+`closed_mixed` first executes the writer's padding, store and RET. It then runs
+production drain closure on that actual state before the reader starts. The
+result retains an actual buffered publication with the strict ordering
+`writer RET < publication < reader access`. RET alone does not publish a store.
+
+For a load and the sole store to the same persistent target,
+`ClosedPost.published_load_source` derives the reader's source from its actual
+empty FIFO and the actual publication map. The source records the writer's
+machine allocation counter, separately from the call's logical occurrence
+label. It does not identify a writer by comparing stored values.
+`ClosedPost.readsFrom_two_workers` derives the exact RF edge from graph row
+`initials.length + 0` to row `initials.length + 1`. Initializer rows remain
+present; graph rows are obtained from actual access order, not thread numbers.
+
+These constructors require the existing initially empty FIFO boundary and two
+admitted workers. They produce one finite execution, with no fairness claim.
+AF indices are local to each prefix/completion block. The contracts retain
+managed authority, scalar RAM, stable translation/no hidden aliases, protected
+original code/callers, long mode and CET off. Interface acquire/release orders
+are declared annotations; source-language and physical-machine preservation
+remain separate obligations.
+
+## Reuse the witnesses for another checked image
+
+Import `EDSL.Corpus.PlainWitnesses` and `EDSL.Corpus.PlainMixedWitnesses` for the
+loaded-image adapters:
+
+1. Bind each registered operation to a checked `NamedImage` from the complete
+   final ELF, and establish `StaticShapes` for its original bytes and padding.
+2. Construct a `LoadedBatch` with current arguments, protected code/callers and
+   selected managed cells. Retain the complete loaded image and prove targets
+   fresh from every original loaded cell.
+3. Apply `Plain.usefulNamed` to a homogeneous batch, or `Plain.usefulMixed` to a
+   writer/load batch. Their extra premises concern current population, persistent
+   target identity, input kinds, and the named certificate's high-word data.
+
+The shared proofs construct actions, finished states, independent outputs,
+overlap, publication timing and the actual RF edge. A new image in this method
+family needs no new instruction-step proof or compiler-specific schedule proof.
+Instructions outside the checked method family require extending the shared
+semantics and checker first.
+
+`PlainWitnesses.homogeneous` and `PlainMixedWitnesses.mixed` instantiate these
+adapters for both unchanged frozen compiler files, with arbitrary data and
+allocation counters. The homogeneous certificate samples use words above
+`2^32`; mixed witnesses also permit equal initial and stored words.
+`PlainMixedWitnesses.cohortCertificate` combines both kinds' homogeneous
+witnesses, the mixed witness and the unchanged universal claim. All original
+certificate requirements remain in force. Corpus CLI admission and coverage
+receipts are tracked separately.
+
+For any closed execution of a loaded batch,
+`LoadedBatch.retainedImage_after post live` preserves every original loaded
+cell and its permissions, independently of which successful schedule produced
+that Post.
 
 ## Scope and validation
 

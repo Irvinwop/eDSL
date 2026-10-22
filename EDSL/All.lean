@@ -128,6 +128,8 @@ import EDSL.Corpus.V1.FetchAddWindows
 import EDSL.Corpus.V1.PlainWindows
 import EDSL.Corpus.V1.PlainClaims
 import EDSL.Corpus.PlainResources
+import EDSL.Corpus.PlainWitnesses
+import EDSL.Corpus.PlainMixedWitnesses
 import EDSL.Corpus.PlainExecution
 import EDSL.Corpus.V1.FetchAddBodies
 import EDSL.Corpus.V1.FetchAddCertificates

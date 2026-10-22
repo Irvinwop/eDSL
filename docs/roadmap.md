@@ -106,8 +106,12 @@ every independent safety, behavior, closed-output, enabledness, chosen-completio
 actual-closure and boundedness obligation. `ClosedPost` preserves the complete
 actual machine-event list and source identities alongside the same calls'
 constructed History, target-only full-cell frame and final collection.
-The next obligations are useful exact-file populations and executions,
-source/interface annotation justification and repeated invocations. Construction
+Exact-file resources now support constructed overlapping homogeneous executions
+and mixed writer-return/publication/reader executions with an actual persistent
+source and exact RF edge. The same shared proof serves both frozen compilers;
+the original certificate gates remain unchanged. Corpus CLI admission and
+coverage receipts, source/interface annotation justification and repeated
+invocations remain separate obligations. Construction
 for arbitrary incoming managed queues remains open. Full C23/frontend semantics,
 source/compiler preservation, native/kernel correspondence and fairness remain
 separate capabilities.
