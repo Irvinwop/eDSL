@@ -136,7 +136,7 @@ theorem CoveredHistory.then_execution
   induction history with
   | nil => simpa [Sequential.Result.prepend] using tail
   | @next choices shared nextShared evolved before nextCpu middle count firstReads rest step fetch _ ih =>
-    have finish := ih (by simpa [Sequential.Choices.drop, Nat.add_comm] using tail)
+    have finish := ih (by simpa [Sequential.ChoiceStream.drop, Nat.add_comm] using tail)
     simpa [Sequential.Result.prepend, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm,
       List.append_assoc] using CoveredExecution.next step fetch finish
 

@@ -204,13 +204,13 @@ theorem ExecutesFrom.terminal_origin {originalSlot : Word} {choices : Choices} {
     obtain ⟨count, before, prior, last, cost, preceding, slot, raw, trace⟩ := ih
     exact ⟨count + 1, before, reads ++ prior, last,
       by simp only [Sequential.Result.prepend]; omega,
-      .next step preceding, slot, by simpa [Sequential.Choices.drop, Sequential.Result.prepend, Nat.add_comm] using raw,
+      .next step preceding, slot, by simpa [Sequential.ChoiceStream.drop, Sequential.Result.prepend, Nat.add_comm] using raw,
       by simp [Sequential.Result.prepend, trace, List.append_assoc]⟩
   | @atomic choices initial middle result reads event step tail ih =>
     obtain ⟨count, before, prior, last, cost, preceding, slot, raw, trace⟩ := ih
     exact ⟨count + 1, before, reads ++ prior, last,
       by simp only [Sequential.Result.prepend]; omega,
-      .atomic step preceding, slot, by simpa [Sequential.Choices.drop, Sequential.Result.prepend, Nat.add_comm] using raw,
+      .atomic step preceding, slot, by simpa [Sequential.ChoiceStream.drop, Sequential.Result.prepend, Nat.add_comm] using raw,
       by simp [Sequential.Result.prepend, trace, List.append_assoc]⟩
 
 /-- The explicit boundary stays fixed through a continuing preceding. -/
