@@ -4,8 +4,10 @@ Some x86 instructions leave several status flags undefined. A verifier must
 admit every permitted combination: assigning all undefined bits the same
 Boolean would omit executions. The shared execution engine now accepts an
 arbitrary `ChoiceStream Choice`, with one fresh element per retired instruction.
-Its returning, continuing, fault and divergence proofs retain the complete
-state, exact instruction count and ordered operand-read trace.
+Returning executions record the complete final state, exact instruction count
+and ordered operand reads. Continuing blocks and fault-prefix relations record
+their finite costs and reads; divergence uses indexed continuing states and
+per-step read witnesses. A failed bounded run returns only `Error`.
 
 ## Available interfaces
 

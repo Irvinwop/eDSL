@@ -63,7 +63,8 @@ theorem independent_instruction_choices :
   exact ⟨by decide +kernel, by decide +kernel, by decide +kernel, by decide +kernel⟩
 
 /-- Two instructions are insufficient to execute the third instruction RET. -/
-theorem short_fuel_rejected : observe false true 2 = none := by rfl
+theorem short_fuel_rejected :
+    runWith (choices false true) 2 initial = .error .exhaustedFuel := by cbv
 
 /-- A vector adapter must preserve failed actual byte fetches too. -/
 theorem missing_code_rejected :

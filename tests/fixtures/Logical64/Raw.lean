@@ -37,7 +37,7 @@ theorem inside (operation : Operation) (stage : Stage) : offset stage < (bytes o
 theorem static_decode (operation : Operation) (stage : Stage) :
     Sequential.decodeAt (codeState (bytes operation) (offset stage)) =
       .ok (instruction operation stage) := by
-  cases operation <;> cases stage <;> rfl
+  cases operation <;> cases stage <;> cbv
 
 theorem decode {operation} {state : State} {base : Word}
     (code : CodeAt state.memory base (bytes operation))
@@ -171,7 +171,7 @@ theorem executions {operation input initial} (pre : Pre (bytes operation) input 
     (Sequential.Executes.next (step_stage pre .logical false ((choices.drop 1) 0))
       (Sequential.Executes.ret (step_stage pre .ret ((choices.drop 1) 0)
         (((choices.drop 1).drop 1) 0))))
-  simpa only [stageState,observation,Result.prepend,List.nil_append,Choices.drop,Nat.add_zero]
+  simpa only [stageState,observation,Result.prepend,List.nil_append,ChoiceStream.drop,Nat.add_zero]
     using execution
 
 theorem raw_semantics {operation input initial} (pre : Pre (bytes operation) input initial) :
