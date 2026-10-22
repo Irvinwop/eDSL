@@ -50,7 +50,7 @@ theorem executable_accepts (choices : Choices) :
     ∃ result, Sequential.run choices 2 initial = .ok result ∧ Post result ∧
       result.state.memory = initial.memory ∧ result.instructions ≤ 2 ∧
       CheckedTrace Allowed choices initial result := by
-  have accepted : certify bytes graph 4096 Allowed 2 entry initial Post = true := by decide
+  have accepted : certify bytes graph 4096 Allowed 2 entry initial Post = true := by decide +kernel
   exact certify_sound_frame accepted choices
 
 def staleMemory : Memory where
@@ -67,7 +67,7 @@ instance : Decidable (wp graph 4096 Allowed 2 entry staleInitial Post) :=
 /-- A successful formula about the proposed XOR-EAX cannot certify actual RAM
 containing XOR-ECX. This catches accidental omission of the actual-byte guard. -/
 example : check graph 4096 Allowed 2 entry staleInitial Post = true ∧
-    certify bytes graph 4096 Allowed 2 entry staleInitial Post = false := by decide
+    certify bytes graph 4096 Allowed 2 entry staleInitial Post = false := by decide +kernel
 
 def FixedAF (result : Result) : Prop := result.state.flags.getLsbD 4 = false
 
@@ -80,7 +80,7 @@ instance : Decidable (wp graph 4096 Allowed 2 entry initial FixedAF) :=
 
 /-- Refuting the universal AF contract checks that reflection did not silently
 choose just one execution's undefined flag. -/
-example : check graph 4096 Allowed 2 entry initial FixedAF = false := by decide
+example : check graph 4096 Allowed 2 entry initial FixedAF = false := by decide +kernel
 
 def WrongCost (result : Result) : Prop := result.instructions = 1
 
@@ -91,7 +91,7 @@ instance : Decidable (wp graph 4096 Allowed 2 entry initial WrongCost) :=
   decidableWP graph 4096 Allowed (fun _ _ => inferInstance) 2 entry initial WrongCost
     (fun _ => inferInstance)
 
-example : check graph 4096 Allowed 2 entry initial WrongCost = false := by decide
+example : check graph 4096 Allowed 2 entry initial WrongCost = false := by decide +kernel
 
 end EDSL.Tests.VCGenReflection
 

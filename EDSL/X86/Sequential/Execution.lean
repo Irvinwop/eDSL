@@ -29,44 +29,44 @@ abbrev FaultTrace := Engine.FaultTrace step
 
 theorem run_zero (choices : Choices) (state : State) :
     run choices 0 state = .error .exhaustedFuel :=
-  @Engine.run_zero EDSL.X86.Sequential.step choices state
+  @Engine.run_zero Bool EDSL.X86.Sequential.step choices state
 theorem run_return {choices : Choices} {fuel : Nat} {initial final : State} {reads : List Read}
     (step : step (choices 0) initial = .ok ⟨.returned final, reads⟩) :
     run choices (fuel + 1) initial = .ok ⟨final, 1, reads⟩ :=
-  @Engine.run_return EDSL.X86.Sequential.step choices fuel initial final reads step
+  @Engine.run_return Bool EDSL.X86.Sequential.step choices fuel initial final reads step
 theorem run_next {choices : Choices} {fuel : Nat} {initial middle : State} {reads : List Read}
     (step : step (choices 0) initial = .ok ⟨.next middle, reads⟩) :
     run choices (fuel + 1) initial =
       (run (choices.drop 1) fuel middle).map (Result.prepend 1 reads) :=
-  @Engine.run_next EDSL.X86.Sequential.step choices fuel initial middle reads step
+  @Engine.run_next Bool EDSL.X86.Sequential.step choices fuel initial middle reads step
 theorem run_atomic {choices : Choices} {fuel : Nat} {initial middle : State}
     {event : AtomicEvent} {reads : List Read}
     (step : step (choices 0) initial = .ok ⟨.atomic event middle, reads⟩) :
     run choices (fuel + 1) initial =
       (run (choices.drop 1) fuel middle).map (Result.prepend 1 reads) :=
-  @Engine.run_atomic EDSL.X86.Sequential.step choices fuel initial middle event reads step
+  @Engine.run_atomic Bool EDSL.X86.Sequential.step choices fuel initial middle event reads step
 theorem run_fault {choices : Choices} {fuel : Nat} {initial : State} {error : Error}
     (step : step (choices 0) initial = .error error) :
     run choices (fuel + 1) initial = .error error :=
-  @Engine.run_fault EDSL.X86.Sequential.step choices fuel initial error step
+  @Engine.run_fault Bool EDSL.X86.Sequential.step choices fuel initial error step
 theorem run_syscall {choices : Choices} {fuel : Nat} {initial : State}
     {request : SyscallRequest} {reads : List Read}
     (step : step (choices 0) initial = .ok ⟨.syscall request, reads⟩) :
     run choices (fuel + 1) initial = .error .syscallBoundary :=
-  @Engine.run_syscall EDSL.X86.Sequential.step choices fuel initial request reads step
+  @Engine.run_syscall Bool EDSL.X86.Sequential.step choices fuel initial request reads step
 theorem run_sound {choices : Choices} {fuel : Nat} {initial : State} {result : Result}
     (success : run choices fuel initial = .ok result) :
     Executes choices initial result :=
-  @Engine.run_sound EDSL.X86.Sequential.step choices fuel initial result success
+  @Engine.run_sound Bool EDSL.X86.Sequential.step choices fuel initial result success
 theorem run_complete {choices : Choices} {initial : State} {result : Result} {fuel : Nat}
     (execution : Executes choices initial result) (enough : result.instructions ≤ fuel) :
     run choices fuel initial = .ok result :=
-  @Engine.run_complete EDSL.X86.Sequential.step choices initial result fuel execution enough
+  @Engine.run_complete Bool EDSL.X86.Sequential.step choices initial result fuel execution enough
 theorem run_complete_prefix {choices other : Choices} {initial : State} {result : Result} {fuel : Nat}
     (execution : Executes choices initial result)
     (agree : choices.Agree other result.instructions) (enough : result.instructions ≤ fuel) :
     run other fuel initial = .ok result :=
-  @Engine.run_complete_prefix EDSL.X86.Sequential.step choices other initial result fuel execution agree enough
+  @Engine.run_complete_prefix Bool EDSL.X86.Sequential.step choices other initial result fuel execution agree enough
 
 namespace Executes
 theorem ret {choices : Choices} {initial final : State} {reads : List Read}
@@ -87,35 +87,35 @@ theorem atomic {choices : Choices} {initial middle : State} {result : Result}
 theorem positive {choices : Choices} {initial : State} {result : Result}
     (execution : Executes choices initial result) :
     0 < result.instructions :=
-  @Engine.Executes.positive EDSL.X86.Sequential.step choices initial result execution
+  @Engine.Executes.positive Bool EDSL.X86.Sequential.step choices initial result execution
 theorem exhausted {choices : Choices} {initial : State} {result : Result} {fuel : Nat}
     (execution : Executes choices initial result) (short : fuel < result.instructions) :
     run choices fuel initial = .error .exhaustedFuel :=
-  @Engine.Executes.exhausted EDSL.X86.Sequential.step choices initial result fuel execution short
+  @Engine.Executes.exhausted Bool EDSL.X86.Sequential.step choices initial result fuel execution short
 theorem run_eq {choices : Choices} {initial : State} {result : Result} (fuel : Nat)
     (execution : Executes choices initial result) :
     run choices fuel initial =
       if result.instructions ≤ fuel then .ok result else .error .exhaustedFuel :=
-  @Engine.Executes.run_eq EDSL.X86.Sequential.step choices initial result fuel execution
+  @Engine.Executes.run_eq Bool EDSL.X86.Sequential.step choices initial result fuel execution
 theorem no_fault_prefix {choices : Choices} {initial : State} {result : Result}
     (execution : Executes choices initial result) {fuel : Nat} {error : Error}
     (fault : run choices fuel initial = .error error) :
     error = .exhaustedFuel :=
-  @Engine.Executes.no_fault_prefix EDSL.X86.Sequential.step choices initial result execution fuel error fault
+  @Engine.Executes.no_fault_prefix Bool EDSL.X86.Sequential.step choices initial result execution fuel error fault
 theorem fixed_choices_unique {choices : Choices} {initial : State} {left right : Result}
     (first : Executes choices initial left)
     (second : Executes choices initial right) :
     left = right :=
-  @Engine.Executes.fixed_choices_unique EDSL.X86.Sequential.step choices initial left right first second
+  @Engine.Executes.fixed_choices_unique Bool EDSL.X86.Sequential.step choices initial left right first second
 theorem restrict_choices {choices other : Choices} {initial : State} {result : Result}
     (execution : Executes choices initial result)
     (agree : choices.Agree other result.instructions) :
     Executes other initial result :=
-  @Engine.Executes.restrict_choices EDSL.X86.Sequential.step choices other initial result execution agree
+  @Engine.Executes.restrict_choices Bool EDSL.X86.Sequential.step choices other initial result execution agree
 theorem no_divergence_with {choices : Choices} {initial : State} {result : Result}
     (execution : Executes choices initial result) :
     ¬ DivergesWith choices initial :=
-  @Engine.Executes.no_divergence_with EDSL.X86.Sequential.step choices initial result execution
+  @Engine.Executes.no_divergence_with Bool EDSL.X86.Sequential.step choices initial result execution
 end Executes
 
 namespace Block
@@ -137,24 +137,24 @@ theorem append {choices : Choices} {initial middle final : State} {left right : 
     (first : Block choices initial middle left leftReads)
     (second : Block (choices.drop left) middle final right rightReads) :
     Block choices initial final (left + right) (leftReads ++ rightReads) :=
-  @Engine.Block.append EDSL.X86.Sequential.step choices initial middle final left right leftReads rightReads first second
+  @Engine.Block.append Bool EDSL.X86.Sequential.step choices initial middle final left right leftReads rightReads first second
 theorem then_executes {choices : Choices} {initial middle : State} {count : Nat}
     {reads : List Read} {result : Result}
     (block : Block choices initial middle count reads)
     (tail : Executes (choices.drop count) middle result) :
     Executes choices initial (result.prepend count reads) :=
-  @Engine.Block.then_executes EDSL.X86.Sequential.step choices initial middle count reads result block tail
+  @Engine.Block.then_executes Bool EDSL.X86.Sequential.step choices initial middle count reads result block tail
 theorem run_append {choices : Choices} {initial middle : State} {count fuel : Nat}
     {reads : List Read} {result : Result}
     (block : Block choices initial middle count reads)
     (tail : run (choices.drop count) fuel middle = .ok result) :
     run choices (count + fuel) initial = .ok (result.prepend count reads) :=
-  @Engine.Block.run_append EDSL.X86.Sequential.step choices initial middle count fuel reads result block tail
+  @Engine.Block.run_append Bool EDSL.X86.Sequential.step choices initial middle count fuel reads result block tail
 theorem restrict_choices {choices other : Choices} {initial final : State} {count : Nat}
     {reads : List Read} (block : Block choices initial final count reads)
     (agree : choices.Agree other count) :
     Block other initial final count reads :=
-  @Engine.Block.restrict_choices EDSL.X86.Sequential.step choices other initial final count reads block agree
+  @Engine.Block.restrict_choices Bool EDSL.X86.Sequential.step choices other initial final count reads block agree
 end Block
 
 namespace AllExecutions
@@ -162,21 +162,21 @@ theorem project {initial : State} {contract : Result → Prop}
     (correct : AllExecutions initial contract) {result : Result}
     (execution : NondetExecutes initial result) :
     contract result :=
-  @Engine.AllExecutions.project EDSL.X86.Sequential.step initial contract correct result execution
+  @Engine.AllExecutions.project Bool EDSL.X86.Sequential.step initial contract correct result execution
 theorem no_fault_prefix {initial : State} {contract : Result → Prop}
     (correct : AllExecutions initial contract) (choices : Choices)
     {fuel : Nat} {error : Error} (fault : run choices fuel initial = .error error) :
     error = .exhaustedFuel :=
-  @Engine.AllExecutions.no_fault_prefix EDSL.X86.Sequential.step initial contract correct choices fuel error fault
+  @Engine.AllExecutions.no_fault_prefix Bool EDSL.X86.Sequential.step initial contract correct choices fuel error fault
 theorem no_divergence {initial : State} {contract : Result → Prop}
     (correct : AllExecutions initial contract) :
     ¬ Diverges initial :=
-  @Engine.AllExecutions.no_divergence EDSL.X86.Sequential.step initial contract correct
+  @Engine.AllExecutions.no_divergence Bool EDSL.X86.Sequential.step initial contract correct
 theorem run {initial : State} {contract : Result → Prop} {cost : Nat}
     (correct : AllExecutions initial contract)
     (exactCost : ∀ result, contract result → result.instructions = cost) (choices : Choices) :
     ∃ result, run choices cost initial = .ok result ∧ contract result :=
-  @Engine.AllExecutions.run EDSL.X86.Sequential.step initial contract cost correct exactCost choices
+  @Engine.AllExecutions.run Bool EDSL.X86.Sequential.step initial contract cost correct exactCost choices
 end AllExecutions
 
 namespace Ranked
@@ -185,43 +185,43 @@ theorem execution {invariant : State → Prop} {rank : State → Nat} {post : St
     (choices : Choices) :
     ∃ result, Executes choices initial result ∧
       post result.state ∧ result.instructions ≤ rank initial + 1 :=
-  @Engine.Ranked.execution EDSL.X86.Sequential.step invariant rank post progress initial valid choices
+  @Engine.Ranked.execution Bool EDSL.X86.Sequential.step invariant rank post progress initial valid choices
 theorem total {invariant : State → Prop} {rank : State → Nat} {post : State → Prop}
     (progress : Ranked invariant rank post) {initial : State} (valid : invariant initial)
     (choices : Choices) :
     ∃ result,
       run choices (rank initial + 1) initial = .ok result ∧ post result.state :=
-  @Engine.Ranked.total EDSL.X86.Sequential.step invariant rank post progress initial valid choices
+  @Engine.Ranked.total Bool EDSL.X86.Sequential.step invariant rank post progress initial valid choices
 theorem all_executions {invariant : State → Prop} {rank : State → Nat} {post : State → Prop}
     (progress : Ranked invariant rank post) {initial : State} (valid : invariant initial) :
     AllExecutions initial (fun result => post result.state ∧ result.instructions ≤ rank initial + 1) :=
-  @Engine.Ranked.all_executions EDSL.X86.Sequential.step invariant rank post progress initial valid
+  @Engine.Ranked.all_executions Bool EDSL.X86.Sequential.step invariant rank post progress initial valid
 theorem continues {invariant : State → Prop} {rank : State → Nat} {post : State → Prop}
     (progress : Ranked invariant rank post) {initial final : State}
     (valid : invariant initial) {af : Bool} {outcome : StepResult} {reads : List Read}
     (step : step af initial = .ok ⟨outcome, reads⟩) (next : nextState outcome = some final) :
     invariant final ∧ rank final < rank initial :=
-  @Engine.Ranked.continues EDSL.X86.Sequential.step invariant rank post progress initial final valid af outcome reads step next
+  @Engine.Ranked.continues Bool EDSL.X86.Sequential.step invariant rank post progress initial final valid af outcome reads step next
 theorem block_invariant {invariant : State → Prop} {rank : State → Nat} {post : State → Prop}
     (progress : Ranked invariant rank post) {initial final : State}
     (valid : invariant initial) {choices : Choices} {count : Nat} {reads : List Read}
     (block : Block choices initial final count reads) :
     invariant final ∧ rank final + count ≤ rank initial :=
-  @Engine.Ranked.block_invariant EDSL.X86.Sequential.step invariant rank post progress initial final valid choices count reads block
+  @Engine.Ranked.block_invariant Bool EDSL.X86.Sequential.step invariant rank post progress initial final valid choices count reads block
 theorem safe {invariant : State → Prop} {rank : State → Nat} {post : State → Prop}
     (progress : Ranked invariant rank post) {initial : State} (valid : invariant initial) :
     Safe initial :=
-  @Engine.Ranked.safe EDSL.X86.Sequential.step invariant rank post progress initial valid
+  @Engine.Ranked.safe Bool EDSL.X86.Sequential.step invariant rank post progress initial valid
 theorem no_fault_prefix {invariant : State → Prop} {rank : State → Nat} {post : State → Prop}
     (progress : Ranked invariant rank post) {initial : State} (valid : invariant initial)
     (choices : Choices) {fuel : Nat} {error : Error}
     (fault : run choices fuel initial = .error error) :
     error = .exhaustedFuel :=
-  @Engine.Ranked.no_fault_prefix EDSL.X86.Sequential.step invariant rank post progress initial valid choices fuel error fault
+  @Engine.Ranked.no_fault_prefix Bool EDSL.X86.Sequential.step invariant rank post progress initial valid choices fuel error fault
 theorem no_divergence {invariant : State → Prop} {rank : State → Nat} {post : State → Prop}
     (progress : Ranked invariant rank post) {initial : State} (valid : invariant initial) :
     ¬ Diverges initial :=
-  @Engine.Ranked.no_divergence EDSL.X86.Sequential.step invariant rank post progress initial valid
+  @Engine.Ranked.no_divergence Bool EDSL.X86.Sequential.step invariant rank post progress initial valid
 end Ranked
 
 theorem loop_executes (invariant : Nat → State → Prop) (post : State → Prop)
@@ -236,7 +236,7 @@ theorem loop_executes (invariant : Nat → State → Prop) (post : State → Pro
     (remaining : Nat) (choices : Choices) (initial : State) (valid : invariant remaining initial) :
     ∃ result, Executes choices initial result ∧ post result.state ∧
       result.instructions = cost remaining ∧ result.reads = reads remaining initial :=
-  @Engine.loop_executes EDSL.X86.Sequential.step invariant post cost reads finish iterate remaining choices initial valid
+  @Engine.loop_executes Bool EDSL.X86.Sequential.step invariant post cost reads finish iterate remaining choices initial valid
 theorem loop_total (invariant : Nat → State → Prop) (post : State → Prop)
     (cost : Nat → Nat) (reads : Nat → State → List Read)
     (finish : ∀ choices initial, invariant 0 initial → ∃ result,
@@ -249,7 +249,7 @@ theorem loop_total (invariant : Nat → State → Prop) (post : State → Prop)
     (remaining : Nat) (choices : Choices) (initial : State) (valid : invariant remaining initial) :
     ∃ result, run choices (cost remaining) initial = .ok result ∧ post result.state ∧
       result.instructions = cost remaining ∧ result.reads = reads remaining initial :=
-  @Engine.loop_total EDSL.X86.Sequential.step invariant post cost reads finish iterate remaining choices initial valid
+  @Engine.loop_total Bool EDSL.X86.Sequential.step invariant post cost reads finish iterate remaining choices initial valid
 theorem loop_all_executions (invariant : Nat → State → Prop) (post : State → Prop)
     (cost : Nat → Nat) (reads : Nat → State → List Read)
     (finish : ∀ choices initial, invariant 0 initial → ∃ result,
@@ -262,7 +262,7 @@ theorem loop_all_executions (invariant : Nat → State → Prop) (post : State �
     (remaining : Nat) (initial : State) (valid : invariant remaining initial) :
     AllExecutions initial (fun result => post result.state ∧
       result.instructions = cost remaining ∧ result.reads = reads remaining initial) :=
-  @Engine.loop_all_executions EDSL.X86.Sequential.step invariant post cost reads finish iterate remaining initial valid
+  @Engine.loop_all_executions Bool EDSL.X86.Sequential.step invariant post cost reads finish iterate remaining initial valid
 
 theorem run_choices_congr {left right : Choices} {fuel : Nat} {initial : State}
     (agree : left.Agree right fuel) : run left fuel initial = run right fuel initial :=

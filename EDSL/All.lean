@@ -158,3 +158,5 @@ import EDSL.Process.WriteExit
 import EDSL.Audit
 import EDSL.Examples.Verification.Double
 import EDSL.Examples.Verification.DoubleELF
+import EDSL.X86.Sequential.ExecutionChoices
+import EDSL.WordMath.Multiplication

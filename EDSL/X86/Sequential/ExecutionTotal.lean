@@ -12,27 +12,27 @@ def nextState : StepResult → Option State
 
 namespace Engine
 
-variable (transition : Bool → State → Except Error Observation)
+variable {Choice : Type} (transition : Choice → State → Except Error Observation)
 
 /-- A single chosen transition, including an error outcome. -/
-def Step (af : Bool) (initial : State) (outcome : Except Error Observation) : Prop :=
+def Step (af : Choice) (initial : State) (outcome : Except Error Observation) : Prop :=
   transition af initial = outcome
 
 def ChosenStep (initial : State) (outcome : Except Error Observation) : Prop :=
   ∃ af, Step transition af initial outcome
 
-def Continues (af : Bool) (initial final : State) (reads : List Read) : Prop :=
+def Continues (af : Choice) (initial final : State) (reads : List Read) : Prop :=
   ∃ outcome, transition af initial = .ok ⟨outcome, reads⟩ ∧ nextState outcome = some final
 
 /-- An infinite sequence of actual continuing chosen steps. Its choices may
-vary on every instruction, including instructions that ignore their AF choice. -/
-def DivergesWith (choices : Choices) (initial : State) : Prop :=
+vary on every instruction, including instructions that ignore their choice. -/
+def DivergesWith (choices : ChoiceStream Choice) (initial : State) : Prop :=
   ∃ states : Nat → State, states 0 = initial ∧
     ∀ index, ∃ reads, Continues transition (choices index) (states index) (states (index + 1)) reads
 
 def Diverges (initial : State) : Prop := ∃ choices, DivergesWith transition choices initial
 
-theorem continuation_of_step {af : Bool} {initial final : State}
+theorem continuation_of_step {af : Choice} {initial final : State}
     {observation : Observation} {reads : List Read}
     (step : transition af initial = .ok observation)
     (continued : Continues transition af initial final reads) :
@@ -42,7 +42,7 @@ theorem continuation_of_step {af : Bool} {initial final : State}
   cases same
   exact next
 
-theorem DivergesWith.tail {choices : Choices} {initial middle : State}
+theorem DivergesWith.tail {choices : ChoiceStream Choice} {initial middle : State}
     {observation : Observation} (step : transition (choices 0) initial = .ok observation)
     (next : nextState observation.result = some middle)
     (divergence : DivergesWith transition choices initial) :
@@ -53,9 +53,9 @@ theorem DivergesWith.tail {choices : Choices} {initial middle : State}
   have middleState : states 1 = middle := Option.some.inj (same.symm.trans next)
   refine ⟨fun index => states (1 + index), by simpa using middleState, ?_⟩
   intro index
-  simpa [Choices.drop, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using steps (1 + index)
+  simpa [ChoiceStream.drop, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using steps (1 + index)
 
-theorem Executes.no_divergence_with {choices : Choices} {initial : State} {result : Result}
+theorem Executes.no_divergence_with {choices : ChoiceStream Choice} {initial : State} {result : Result}
     (execution : Executes transition choices initial result) :
     ¬ DivergesWith transition choices initial := by
   induction execution with
@@ -85,7 +85,7 @@ theorem AllExecutions.project {initial : State} {contract : Result → Prop}
   rwa [same]
 
 theorem AllExecutions.no_fault_prefix {initial : State} {contract : Result → Prop}
-    (correct : AllExecutions transition initial contract) (choices : Choices)
+    (correct : AllExecutions transition initial contract) (choices : ChoiceStream Choice)
     {fuel : Nat} {error : Error} (fault : run transition choices fuel initial = .error error) :
     error = .exhaustedFuel := by
   obtain ⟨result, execution, _⟩ := correct choices
@@ -99,12 +99,12 @@ theorem AllExecutions.no_divergence {initial : State} {contract : Result → Pro
 
 theorem AllExecutions.run {initial : State} {contract : Result → Prop} {cost : Nat}
     (correct : AllExecutions transition initial contract)
-    (exactCost : ∀ result, contract result → result.instructions = cost) (choices : Choices) :
+    (exactCost : ∀ result, contract result → result.instructions = cost) (choices : ChoiceStream Choice) :
     ∃ result, run transition choices cost initial = .ok result ∧ contract result := by
   obtain ⟨result, execution, post⟩ := correct choices
   exact ⟨result, run_complete transition execution (by simp [exactCost result post]), post⟩
 
-/-- Every AF choice has a successful return or a smaller invariant state.
+/-- Every choice has a successful return or a smaller invariant state.
 Syscalls are external boundaries, and cannot discharge this progress contract. -/
 def Ranked (invariant : State → Prop) (rank : State → Nat) (post : State → Prop) : Prop :=
   ∀ initial, invariant initial → ∀ af, ∃ observation,
@@ -116,7 +116,7 @@ def Ranked (invariant : State → Prop) (rank : State → Nat) (post : State →
 
 theorem Ranked.execution {invariant : State → Prop} {rank : State → Nat} {post : State → Prop}
     (progress : Ranked transition invariant rank post) {initial : State} (valid : invariant initial)
-    (choices : Choices) : ∃ result, Executes transition choices initial result ∧
+    (choices : ChoiceStream Choice) : ∃ result, Executes transition choices initial result ∧
       post result.state ∧ result.instructions ≤ rank initial + 1 := by
   have ranked : ∀ bound, ∀ initial, rank initial = bound → invariant initial → ∀ choices,
       ∃ result, Executes transition choices initial result ∧ post result.state ∧
@@ -143,7 +143,7 @@ theorem Ranked.execution {invariant : State → Prop} {rank : State → Nat} {po
 
 theorem Ranked.total {invariant : State → Prop} {rank : State → Nat} {post : State → Prop}
     (progress : Ranked transition invariant rank post) {initial : State} (valid : invariant initial)
-    (choices : Choices) : ∃ result,
+    (choices : ChoiceStream Choice) : ∃ result,
       run transition choices (rank initial + 1) initial = .ok result ∧ post result.state := by
   obtain ⟨result, execution, post, cost⟩ := progress.execution transition valid choices
   exact ⟨result, run_complete transition execution cost, post⟩
@@ -157,7 +157,7 @@ theorem Ranked.all_executions {invariant : State → Prop} {rank : State → Nat
 
 theorem Ranked.continues {invariant : State → Prop} {rank : State → Nat} {post : State → Prop}
     (progress : Ranked transition invariant rank post) {initial final : State}
-    (valid : invariant initial) {af : Bool} {outcome : StepResult} {reads : List Read}
+    (valid : invariant initial) {af : Choice} {outcome : StepResult} {reads : List Read}
     (step : transition af initial = .ok ⟨outcome, reads⟩) (next : nextState outcome = some final) :
     invariant final ∧ rank final < rank initial := by
   obtain ⟨observation, actual, after⟩ := progress initial valid af
@@ -172,7 +172,7 @@ theorem Ranked.continues {invariant : State → Prop} {rank : State → Nat} {po
 
 theorem Ranked.block_invariant {invariant : State → Prop} {rank : State → Nat} {post : State → Prop}
     (progress : Ranked transition invariant rank post) {initial final : State}
-    (valid : invariant initial) {choices : Choices} {count : Nat} {reads : List Read}
+    (valid : invariant initial) {choices : ChoiceStream Choice} {count : Nat} {reads : List Read}
     (block : Block transition choices initial final count reads) :
     invariant final ∧ rank final + count ≤ rank initial := by
   induction block with
@@ -185,7 +185,7 @@ theorem Ranked.block_invariant {invariant : State → Prop} {rank : State → Na
 def Reachable (initial final : State) : Prop :=
   ∃ choices count reads, Block transition choices initial final count reads
 
-/-- Safety of every reachable continuing prefix, for both choices at its next
+/-- Safety of every reachable continuing prefix, for every choice at its next
 instruction. Successful atomic events remain valid continuing outcomes. -/
 def Safe (initial : State) : Prop :=
   ∀ before, Reachable transition initial before → ∀ af, ∃ observation,
@@ -205,7 +205,7 @@ theorem Ranked.safe {invariant : State → Prop} {rank : State → Nat} {post : 
 
 theorem Ranked.no_fault_prefix {invariant : State → Prop} {rank : State → Nat} {post : State → Prop}
     (progress : Ranked transition invariant rank post) {initial : State} (valid : invariant initial)
-    (choices : Choices) {fuel : Nat} {error : Error}
+    (choices : ChoiceStream Choice) {fuel : Nat} {error : Error}
     (fault : run transition choices fuel initial = .error error) : error = .exhaustedFuel :=
   (progress.all_executions transition valid).no_fault_prefix transition choices fault
 
@@ -228,7 +228,7 @@ theorem loop_executes (invariant : Nat → State → Prop) (post : State → Pro
       ∃ middle count accesses, Block transition choices initial middle count accesses ∧
         invariant remaining middle ∧ cost (remaining + 1) = count + cost remaining ∧
           reads (remaining + 1) initial = accesses ++ reads remaining middle)
-    (remaining : Nat) (choices : Choices) (initial : State) (valid : invariant remaining initial) :
+    (remaining : Nat) (choices : ChoiceStream Choice) (initial : State) (valid : invariant remaining initial) :
     ∃ result, Executes transition choices initial result ∧ post result.state ∧
       result.instructions = cost remaining ∧ result.reads = reads remaining initial := by
   induction remaining generalizing choices initial with
@@ -251,7 +251,7 @@ theorem loop_total (invariant : Nat → State → Prop) (post : State → Prop)
       ∃ middle count accesses, Block transition choices initial middle count accesses ∧
         invariant remaining middle ∧ cost (remaining + 1) = count + cost remaining ∧
           reads (remaining + 1) initial = accesses ++ reads remaining middle)
-    (remaining : Nat) (choices : Choices) (initial : State) (valid : invariant remaining initial) :
+    (remaining : Nat) (choices : ChoiceStream Choice) (initial : State) (valid : invariant remaining initial) :
     ∃ result, run transition choices (cost remaining) initial = .ok result ∧ post result.state ∧
       result.instructions = cost remaining ∧ result.reads = reads remaining initial := by
   obtain ⟨result, execution, post, exactCost, exactReads⟩ :=

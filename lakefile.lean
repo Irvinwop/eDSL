@@ -197,3 +197,8 @@ lean_lib CFGProfileTests where
     `tests.VCGenCompactLoop, `tests.VCGenPolicy, `tests.VCGenReflection,
     `tests.BufferCallVCGen]
   moreLeanArgs := #["-DautoImplicit=false"]
+
+-- Independent flag components, decoded schedules and generic choice refinement.
+lean_lib ChoiceTests where
+  roots := #[`tests.FlagChoiceExecution]
+  moreLeanArgs := #["-DautoImplicit=false", "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]

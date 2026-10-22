@@ -6,40 +6,69 @@ import EDSL.X86.Sequential.Model
 
 namespace EDSL.X86.Sequential
 
-/-- One undefined-flag choice for each retired instruction. The sequential
-metadata names AF or OF; instructions without a choice ignore the Bool.
-Positions are never reused for a later instruction. Four independently
-undefined flags (e.g. IMUL) cannot be represented by this schedule. -/
-abbrev Choices := Nat → Bool
+/-- One choice value for each retired instruction. The choice domain can encode
+several independent undefined flags. Positions are never reused for a later
+instruction; a transition may ignore choices that do not affect it. -/
+abbrev ChoiceStream (Choice : Type) := Nat → Choice
 
-def Choices.drop (choices : Choices) (count : Nat) : Choices :=
+def ChoiceStream.drop {Choice : Type} (choices : ChoiceStream Choice) (count : Nat) : ChoiceStream Choice :=
   fun index => choices (count + index)
 
-@[simp] theorem Choices.drop_zero (choices : Choices) : choices.drop 0 = choices := by
+@[simp] theorem ChoiceStream.drop_zero {Choice : Type} (choices : ChoiceStream Choice) : choices.drop 0 = choices := by
   funext index
-  simp [Choices.drop]
+  simp [ChoiceStream.drop]
 
-@[simp] theorem Choices.drop_drop (choices : Choices) (left right : Nat) :
+@[simp] theorem ChoiceStream.drop_drop {Choice : Type} (choices : ChoiceStream Choice) (left right : Nat) :
     (choices.drop left).drop right = choices.drop (left + right) := by
   funext index
-  simp [Choices.drop, Nat.add_assoc]
+  simp [ChoiceStream.drop, Nat.add_assoc]
 
 /-- Only a finite prefix matters to a finite execution. -/
-def Choices.Agree (left right : Choices) (count : Nat) : Prop :=
+def ChoiceStream.Agree {Choice : Type} (left right : ChoiceStream Choice) (count : Nat) : Prop :=
   ∀ index, index < count → left index = right index
 
-theorem Choices.Agree.refl (choices : Choices) (count : Nat) : choices.Agree choices count :=
+theorem ChoiceStream.Agree.refl {Choice : Type} (choices : ChoiceStream Choice) (count : Nat) : choices.Agree choices count :=
   fun _ _ => rfl
 
-theorem Choices.Agree.mono {left right : Choices} {short long : Nat}
+theorem ChoiceStream.Agree.mono {Choice : Type} {left right : ChoiceStream Choice} {short long : Nat}
     (agree : left.Agree right long) (bound : short ≤ long) : left.Agree right short :=
   fun index before => agree index (by omega)
 
-theorem Choices.Agree.drop {left right : Choices} {count : Nat}
+theorem ChoiceStream.Agree.drop {Choice : Type} {left right : ChoiceStream Choice} {count : Nat}
     (agree : left.Agree right (count + 1)) :
     (left.drop 1).Agree (right.drop 1) count := by
   intro index before
   exact agree (1 + index) (by omega)
+
+/-- The existing single-bit machine interface. Its metadata names AF or OF;
+instructions with several independent undefined flags need a larger choice
+domain and are not represented by this Bool schedule. -/
+abbrev Choices := ChoiceStream Bool
+
+abbrev Choices.drop (choices : Choices) (count : Nat) : Choices :=
+  ChoiceStream.drop choices count
+
+theorem Choices.drop_zero (choices : Choices) : choices.drop 0 = choices :=
+  ChoiceStream.drop_zero choices
+
+theorem Choices.drop_drop (choices : Choices) (left right : Nat) :
+    (choices.drop left).drop right = choices.drop (left + right) :=
+  ChoiceStream.drop_drop choices left right
+
+abbrev Choices.Agree (left right : Choices) (count : Nat) : Prop :=
+  ChoiceStream.Agree left right count
+
+theorem Choices.Agree.refl (choices : Choices) (count : Nat) : choices.Agree choices count :=
+  ChoiceStream.Agree.refl choices count
+
+theorem Choices.Agree.mono {left right : Choices} {short long : Nat}
+    (agree : left.Agree right long) (bound : short ≤ long) : left.Agree right short :=
+  ChoiceStream.Agree.mono agree bound
+
+theorem Choices.Agree.drop {left right : Choices} {count : Nat}
+    (agree : left.Agree right (count + 1)) :
+    (left.drop 1).Agree (right.drop 1) count :=
+  ChoiceStream.Agree.drop agree
 
 structure Result where
   state : State
@@ -65,9 +94,9 @@ API in `Execution.lean` instantiates this parameter with the actual decoder and
 executor, rather than a client-provided opcode or program-counter gate. -/
 namespace Engine
 
-variable (transition : Bool → State → Except Error Observation)
+variable {Choice : Type} (transition : Choice → State → Except Error Observation)
 
-def run (choices : Choices) : Nat → State → Except Error Result
+def run (choices : ChoiceStream Choice) : Nat → State → Except Error Result
   | 0, _ => .error .exhaustedFuel
   | fuel + 1, state => do
     let observation ← transition (choices 0) state
@@ -78,22 +107,22 @@ def run (choices : Choices) : Nat → State → Except Error Result
       let result ← run (choices.drop 1) fuel middle
       return result.prepend 1 observation.reads
 
-@[simp] theorem run_zero (choices : Choices) (state : State) :
+@[simp] theorem run_zero (choices : ChoiceStream Choice) (state : State) :
     run transition choices 0 state = .error .exhaustedFuel := rfl
 
-theorem run_return {choices : Choices} {fuel : Nat} {initial final : State} {reads : List Read}
+theorem run_return {choices : ChoiceStream Choice} {fuel : Nat} {initial final : State} {reads : List Read}
     (step : transition (choices 0) initial = .ok ⟨.returned final, reads⟩) :
     run transition choices (fuel + 1) initial = .ok ⟨final, 1, reads⟩ := by
   simp [run, step]
 
-theorem run_next {choices : Choices} {fuel : Nat} {initial middle : State} {reads : List Read}
+theorem run_next {choices : ChoiceStream Choice} {fuel : Nat} {initial middle : State} {reads : List Read}
     (step : transition (choices 0) initial = .ok ⟨.next middle, reads⟩) :
     run transition choices (fuel + 1) initial =
       (run transition (choices.drop 1) fuel middle).map (Result.prepend 1 reads) := by
   simp [run, step]
   cases run transition (choices.drop 1) fuel middle <;> rfl
 
-theorem run_atomic {choices : Choices} {fuel : Nat} {initial middle : State}
+theorem run_atomic {choices : ChoiceStream Choice} {fuel : Nat} {initial middle : State}
     {event : AtomicEvent} {reads : List Read}
     (step : transition (choices 0) initial = .ok ⟨.atomic event middle, reads⟩) :
     run transition choices (fuel + 1) initial =
@@ -101,12 +130,12 @@ theorem run_atomic {choices : Choices} {fuel : Nat} {initial middle : State}
   simp [run, step]
   cases run transition (choices.drop 1) fuel middle <;> rfl
 
-theorem run_fault {choices : Choices} {fuel : Nat} {initial : State} {error : Error}
+theorem run_fault {choices : ChoiceStream Choice} {fuel : Nat} {initial : State} {error : Error}
     (step : transition (choices 0) initial = .error error) :
     run transition choices (fuel + 1) initial = .error error := by
   simp [run, step]
 
-theorem run_syscall {choices : Choices} {fuel : Nat} {initial : State}
+theorem run_syscall {choices : ChoiceStream Choice} {fuel : Nat} {initial : State}
     {request : SyscallRequest} {reads : List Read}
     (step : transition (choices 0) initial = .ok ⟨.syscall request, reads⟩) :
     run transition choices (fuel + 1) initial = .error .syscallBoundary := by
@@ -114,7 +143,7 @@ theorem run_syscall {choices : Choices} {fuel : Nat} {initial : State}
 
 /-- Finite returning executions preserve their choices, complete final state,
 exact retired instruction count and actual successful operand-read trace. -/
-inductive Executes : Choices → State → Result → Prop where
+inductive Executes : ChoiceStream Choice → State → Result → Prop where
   | ret {choices initial final reads}
       (step : transition (choices 0) initial = .ok ⟨.returned final, reads⟩) :
       Executes choices initial ⟨final, 1, reads⟩
@@ -129,7 +158,7 @@ inductive Executes : Choices → State → Result → Prop where
 
 /-- Finite continuing traces, including the empty trace. Return and syscall are
 boundaries, so neither is a continuing block instruction. -/
-inductive Block : Choices → State → State → Nat → List Read → Prop where
+inductive Block : ChoiceStream Choice → State → State → Nat → List Read → Prop where
   | nil {choices state} : Block choices state state 0 []
   | next {choices initial middle final count reads rest}
       (step : transition (choices 0) initial = .ok ⟨.next middle, reads⟩)
@@ -140,7 +169,7 @@ inductive Block : Choices → State → State → Nat → List Read → Prop whe
       (tail : Block (choices.drop 1) middle final count rest) :
       Block choices initial final (count + 1) (reads ++ rest)
 
-theorem run_sound {choices : Choices} {fuel : Nat} {initial : State} {result : Result}
+theorem run_sound {choices : ChoiceStream Choice} {fuel : Nat} {initial : State} {result : Result}
     (success : run transition choices fuel initial = .ok result) :
     Executes transition choices initial result := by
   induction fuel generalizing choices initial result with
@@ -171,11 +200,11 @@ theorem run_sound {choices : Choices} {fuel : Nat} {initial : State} {result : R
           cases success
           exact .atomic step (induction tail)
 
-theorem Executes.positive {choices : Choices} {initial : State} {result : Result}
+theorem Executes.positive {choices : ChoiceStream Choice} {initial : State} {result : Result}
     (execution : Executes transition choices initial result) : 0 < result.instructions := by
   cases execution <;> simp only [Result.prepend] <;> omega
 
-theorem run_complete {choices : Choices} {initial : State} {result : Result} {fuel : Nat}
+theorem run_complete {choices : ChoiceStream Choice} {initial : State} {result : Result} {fuel : Nat}
     (execution : Executes transition choices initial result) (enough : result.instructions ≤ fuel) :
     run transition choices fuel initial = .ok result := by
   induction execution generalizing fuel with
@@ -200,7 +229,7 @@ theorem run_complete {choices : Choices} {initial : State} {result : Result} {fu
         omega
       simp [run_atomic transition step, induction bound, Except.map]
 
-theorem Executes.exhausted {choices : Choices} {initial : State} {result : Result} {fuel : Nat}
+theorem Executes.exhausted {choices : ChoiceStream Choice} {initial : State} {result : Result} {fuel : Nat}
     (execution : Executes transition choices initial result) (short : fuel < result.instructions) :
     run transition choices fuel initial = .error .exhaustedFuel := by
   induction execution generalizing fuel with
@@ -225,7 +254,7 @@ theorem Executes.exhausted {choices : Choices} {initial : State} {result : Resul
         omega
       simp [run_atomic transition step, induction bound, Except.map]
 
-theorem Executes.run_eq {choices : Choices} {initial : State} {result : Result} (fuel : Nat)
+theorem Executes.run_eq {choices : ChoiceStream Choice} {initial : State} {result : Result} (fuel : Nat)
     (execution : Executes transition choices initial result) :
     run transition choices fuel initial =
       if result.instructions ≤ fuel then .ok result else .error .exhaustedFuel := by
@@ -233,7 +262,7 @@ theorem Executes.run_eq {choices : Choices} {initial : State} {result : Result} 
   · exact run_complete transition execution ‹_›
   · exact execution.exhausted _ (by omega)
 
-theorem Executes.no_fault_prefix {choices : Choices} {initial : State} {result : Result}
+theorem Executes.no_fault_prefix {choices : ChoiceStream Choice} {initial : State} {result : Result}
     (execution : Executes transition choices initial result) {fuel : Nat} {error : Error}
     (fault : run transition choices fuel initial = .error error) : error = .exhaustedFuel := by
   rw [execution.run_eq transition fuel] at fault
@@ -242,14 +271,14 @@ theorem Executes.no_fault_prefix {choices : Choices} {initial : State} {result :
   · exact (Except.error.inj fault).symm
 
 /-- Determinism only after fixing the complete choice stream. -/
-theorem Executes.fixed_choices_unique {choices : Choices} {initial : State} {left right : Result}
+theorem Executes.fixed_choices_unique {choices : ChoiceStream Choice} {initial : State} {left right : Result}
     (first : Executes transition choices initial left)
     (second : Executes transition choices initial right) : left = right := by
   have leftRun := run_complete transition first (fuel := left.instructions + right.instructions) (by omega)
   have rightRun := run_complete transition second (fuel := left.instructions + right.instructions) (by omega)
   exact Except.ok.inj (leftRun.symm.trans rightRun)
 
-theorem Executes.restrict_choices {choices other : Choices} {initial : State} {result : Result}
+theorem Executes.restrict_choices {choices other : ChoiceStream Choice} {initial : State} {result : Result}
     (execution : Executes transition choices initial result)
     (agree : choices.Agree other result.instructions) : Executes transition other initial result := by
   induction execution generalizing other with
@@ -263,13 +292,13 @@ theorem Executes.restrict_choices {choices other : Choices} {initial : State} {r
     have head := agree 0 (by simp only [Result.prepend]; omega)
     exact .atomic (by simpa [head] using step) (induction ((by simpa [Result.prepend, Nat.add_comm] using agree : choices.Agree other (result.instructions + 1)).drop))
 
-theorem run_complete_prefix {choices other : Choices} {initial : State} {result : Result} {fuel : Nat}
+theorem run_complete_prefix {choices other : ChoiceStream Choice} {initial : State} {result : Result} {fuel : Nat}
     (execution : Executes transition choices initial result)
     (agree : choices.Agree other result.instructions) (enough : result.instructions ≤ fuel) :
     run transition other fuel initial = .ok result :=
   run_complete transition (execution.restrict_choices transition agree) enough
 
-theorem Block.append {choices : Choices} {initial middle final : State} {left right : Nat}
+theorem Block.append {choices : ChoiceStream Choice} {initial middle final : State} {left right : Nat}
     {leftReads rightReads : List Read}
     (first : Block transition choices initial middle left leftReads)
     (second : Block transition (choices.drop left) middle final right rightReads) :
@@ -283,7 +312,7 @@ theorem Block.append {choices : Choices} {initial middle final : State} {left ri
     have rest := induction (by simpa [Nat.add_comm] using second)
     simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm, List.append_assoc] using Block.atomic step rest
 
-theorem Block.then_executes {choices : Choices} {initial middle : State} {count : Nat}
+theorem Block.then_executes {choices : ChoiceStream Choice} {initial middle : State} {count : Nat}
     {reads : List Read} {result : Result}
     (block : Block transition choices initial middle count reads)
     (tail : Executes transition (choices.drop count) middle result) :
@@ -297,7 +326,7 @@ theorem Block.then_executes {choices : Choices} {initial middle : State} {count 
     have finish := induction (by simpa [Nat.add_comm] using tail)
     simpa [Nat.add_comm] using Executes.atomic step finish
 
-theorem Block.run_append {choices : Choices} {initial middle : State} {count fuel : Nat}
+theorem Block.run_append {choices : ChoiceStream Choice} {initial middle : State} {count fuel : Nat}
     {reads : List Read} {result : Result}
     (block : Block transition choices initial middle count reads)
     (tail : run transition (choices.drop count) fuel middle = .ok result) :
@@ -313,7 +342,7 @@ theorem Block.run_append {choices : Choices} {initial middle : State} {count fue
     rw [show count + 1 + fuel = (count + fuel) + 1 by omega, run_atomic transition step, finish]
     simp [Except.map, Nat.add_comm]
 
-theorem Block.restrict_choices {choices other : Choices} {initial final : State} {count : Nat}
+theorem Block.restrict_choices {choices other : ChoiceStream Choice} {initial final : State} {count : Nat}
     {reads : List Read} (block : Block transition choices initial final count reads)
     (agree : choices.Agree other count) : Block transition other initial final count reads := by
   induction block generalizing other with

@@ -208,6 +208,7 @@ if [[ $full_project == true ]]; then
     # olean in the distinct private lib alongside the private corpus.Certify.
     cat > "$output/source/CorpusFullReplay.lean" <<'LEAN'
 import EDSL.All
+import tests.FlagChoiceExecution
 import corpus.Certify
 import tests.VerificationImports
 import tests.VerifyFunction
@@ -971,7 +972,7 @@ certificate_targets=(EDSL.Corpus.V1.Comparisons EDSL.Corpus.V1.Arithmetic EDSL.C
     EDSL.Corpus.V1.AverageCertificates EDSL.Corpus.V1.ParityCertificates
     EDSL.Corpus.V1.RotationCertificates EDSL.Corpus.PlainMixedWitnesses)
 if [[ $full_project == true ]]; then
-    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests ParityTests RotationTests Low8Tests ByteEqualityTests CFGProfileTests ManagedQueue64Tests \
+    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests ParityTests RotationTests Low8Tests ByteEqualityTests CFGProfileTests ChoiceTests ManagedQueue64Tests \
         edsl-proof-export edsl-grade "${certificate_targets[@]}"
 else
     record build "${lean_lock[@]}" lake build "${certificate_targets[@]}"

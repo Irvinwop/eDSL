@@ -6,9 +6,9 @@ import EDSL.X86.Sequential.ExecutionTotal
 
 namespace EDSL.X86.Sequential.Engine
 
-variable (transition : Bool → State → Except Error Observation)
+variable {Choice : Type} (transition : Choice → State → Except Error Observation)
 
-theorem run_choices_congr {left right : Choices} {fuel : Nat} {initial : State}
+theorem run_choices_congr {left right : ChoiceStream Choice} {fuel : Nat} {initial : State}
     (agree : left.Agree right fuel) : run transition left fuel initial = run transition right fuel initial := by
   induction fuel generalizing left right initial with
   | zero => rfl
@@ -27,7 +27,7 @@ theorem run_choices_congr {left right : Choices} {fuel : Nat} {initial : State}
 
 /-- Each accumulated read belongs to an actual observation at a continuing
 prefix. This records the pre-instruction state and its exact stream index. -/
-theorem Executes.read_origin {choices : Choices} {initial : State} {result : Result}
+theorem Executes.read_origin {choices : ChoiceStream Choice} {initial : State} {result : Result}
     (execution : Executes transition choices initial result) {read : Read}
     (member : read ∈ result.reads) :
     ∃ count before priorReads observation, count < result.instructions ∧
@@ -42,7 +42,7 @@ theorem Executes.read_origin {choices : Choices} {initial : State} {result : Res
     · obtain ⟨count, before, priorReads, observation, bound, block, actual, present⟩ := induction later
       refine ⟨count + 1, before, reads ++ priorReads, observation, by simp only [Result.prepend]; omega,
         .next step block, ?_, present⟩
-      simpa [Choices.drop, Nat.add_comm] using actual
+      simpa [ChoiceStream.drop, Nat.add_comm] using actual
   | @atomic choices initial middle result reads event step tail induction =>
     rcases List.mem_append.mp member with first | later
     · exact ⟨0, initial, [], ⟨.atomic event middle, reads⟩, by simp only [Result.prepend]; omega,
@@ -50,9 +50,9 @@ theorem Executes.read_origin {choices : Choices} {initial : State} {result : Res
     · obtain ⟨count, before, priorReads, observation, bound, block, actual, present⟩ := induction later
       refine ⟨count + 1, before, reads ++ priorReads, observation, by simp only [Result.prepend]; omega,
         .atomic step block, ?_, present⟩
-      simpa [Choices.drop, Nat.add_comm] using actual
+      simpa [ChoiceStream.drop, Nat.add_comm] using actual
 
-theorem Block.read_origin {choices : Choices} {initial final : State} {count : Nat} {reads : List Read}
+theorem Block.read_origin {choices : ChoiceStream Choice} {initial final : State} {count : Nat} {reads : List Read}
     (execution : Block transition choices initial final count reads) {read : Read}
     (member : read ∈ reads) :
     ∃ index before priorReads observation, index < count ∧
@@ -65,15 +65,15 @@ theorem Block.read_origin {choices : Choices} {initial final : State} {count : N
     · exact ⟨0, initial, [], ⟨.next middle, reads⟩, by omega, .nil, step, first⟩
     · obtain ⟨index, before, priorReads, observation, bound, block, actual, present⟩ := induction later
       refine ⟨index + 1, before, reads ++ priorReads, observation, by omega, .next step block, ?_, present⟩
-      simpa [Choices.drop, Nat.add_comm] using actual
+      simpa [ChoiceStream.drop, Nat.add_comm] using actual
   | @atomic choices initial middle final count reads rest event step tail induction =>
     rcases List.mem_append.mp member with first | later
     · exact ⟨0, initial, [], ⟨.atomic event middle, reads⟩, by omega, .nil, step, first⟩
     · obtain ⟨index, before, priorReads, observation, bound, block, actual, present⟩ := induction later
       refine ⟨index + 1, before, reads ++ priorReads, observation, by omega, .atomic step block, ?_, present⟩
-      simpa [Choices.drop, Nat.add_comm] using actual
+      simpa [ChoiceStream.drop, Nat.add_comm] using actual
 
-theorem Block.run_error_append {choices : Choices} {initial middle : State} {count fuel : Nat}
+theorem Block.run_error_append {choices : ChoiceStream Choice} {initial middle : State} {count fuel : Nat}
     {reads : List Read} {error : Error}
     (block : Block transition choices initial middle count reads)
     (tail : run transition (choices.drop count) fuel middle = .error error) :
@@ -91,15 +91,15 @@ theorem Block.run_error_append {choices : Choices} {initial middle : State} {cou
 
 /-- A transition error, or a syscall boundary rejected by this evaluator. The
 evaluator's zero-fuel case is separate because it takes no machine step. -/
-def FaultAt (af : Bool) (initial : State) (error : Error) : Prop :=
+def FaultAt (af : Choice) (initial : State) (error : Error) : Prop :=
   transition af initial = .error error ∨
     error = .syscallBoundary ∧ ∃ request reads, transition af initial = .ok ⟨.syscall request, reads⟩
 
-def FaultTrace (choices : Choices) (initial : State) (error : Error)
+def FaultTrace (choices : ChoiceStream Choice) (initial : State) (error : Error)
     (count : Nat) (reads : List Read) : Prop :=
   ∃ before, Block transition choices initial before count reads ∧ FaultAt transition (choices count) before error
 
-theorem FaultTrace.run {choices : Choices} {initial : State} {error : Error} {count fuel : Nat}
+theorem FaultTrace.run {choices : ChoiceStream Choice} {initial : State} {error : Error} {count fuel : Nat}
     {reads : List Read} (trace : FaultTrace transition choices initial error count reads)
     (enough : count < fuel) : run transition choices fuel initial = .error error := by
   obtain ⟨before, block, fault⟩ := trace
@@ -107,10 +107,10 @@ theorem FaultTrace.run {choices : Choices} {initial : State} {error : Error} {co
   obtain ⟨rest, rfl⟩ := remaining
   apply block.run_error_append transition
   rcases fault with error | ⟨rfl, request, reads, syscall⟩
-  · exact run_fault transition (by simpa [Choices.drop] using error)
-  · exact run_syscall transition (by simpa [Choices.drop] using syscall)
+  · exact run_fault transition (by simpa [ChoiceStream.drop] using error)
+  · exact run_syscall transition (by simpa [ChoiceStream.drop] using syscall)
 
-theorem run_error_sound {choices : Choices} {fuel : Nat} {initial : State} {error : Error}
+theorem run_error_sound {choices : ChoiceStream Choice} {fuel : Nat} {initial : State} {error : Error}
     (fault : run transition choices fuel initial = .error error) :
     error = .exhaustedFuel ∨ ∃ count reads, count < fuel ∧ FaultTrace transition choices initial error count reads := by
   induction fuel generalizing choices initial with
@@ -139,7 +139,7 @@ theorem run_error_sound {choices : Choices} {fuel : Nat} {initial : State} {erro
           rcases induction tail with exhausted | ⟨count, priorReads, bound, before, block, actual⟩
           · exact .inl exhausted
           · refine .inr ⟨count + 1, reads ++ priorReads, by omega, before, .next step block, ?_⟩
-            simpa [Choices.drop, Nat.add_comm] using actual
+            simpa [ChoiceStream.drop, Nat.add_comm] using actual
       | atomic event middle =>
         cases tail : run transition (choices.drop 1) fuel middle with
         | ok result => rw [run_atomic transition step, tail] at fault; cases fault
@@ -150,10 +150,10 @@ theorem run_error_sound {choices : Choices} {fuel : Nat} {initial : State} {erro
           rcases induction tail with exhausted | ⟨count, priorReads, bound, before, block, actual⟩
           · exact .inl exhausted
           · refine .inr ⟨count + 1, reads ++ priorReads, by omega, before, .atomic step block, ?_⟩
-            simpa [Choices.drop, Nat.add_comm] using actual
+            simpa [ChoiceStream.drop, Nat.add_comm] using actual
 
 theorem AllExecutions.no_fault_trace {initial : State} {contract : Result → Prop}
-    (correct : AllExecutions transition initial contract) {choices : Choices} {error : Error}
+    (correct : AllExecutions transition initial contract) {choices : ChoiceStream Choice} {error : Error}
     {count : Nat} {reads : List Read} : ¬ FaultTrace transition choices initial error count reads := by
   intro fault
   obtain ⟨result, execution, _⟩ := correct choices
@@ -166,7 +166,7 @@ theorem AllExecutions.safe {initial : State} {contract : Result → Prop}
     (correct : AllExecutions transition initial contract) : Safe transition initial := by
   intro before reachable af
   obtain ⟨choices, count, reads, block⟩ := reachable
-  let extension : Choices := fun index => if index < count then choices index else af
+  let extension : ChoiceStream Choice := fun index => if index < count then choices index else af
   have agree : choices.Agree extension count := by
     intro index bound
     simp [extension, bound]
@@ -185,7 +185,7 @@ theorem AllExecutions.safe {initial : State} {contract : Result → Prop}
     exact correct.no_fault_trace transition
       ⟨before, block, .inr ⟨rfl, request, accesses, by simpa [nextChoice] using chosen⟩⟩
 
-theorem run_instructions_le {choices : Choices} {fuel : Nat} {initial : State} {result : Result}
+theorem run_instructions_le {choices : ChoiceStream Choice} {fuel : Nat} {initial : State} {result : Result}
     (success : run transition choices fuel initial = .ok result) : result.instructions ≤ fuel := by
   have execution := run_sound transition success
   by_cases enough : result.instructions ≤ fuel

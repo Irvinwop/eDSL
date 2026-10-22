@@ -186,7 +186,8 @@ theorem truncation_and_canonical_boundary :
 theorem cfg_and_literal :
     CFG.analyze [0x49,0xd3,0xc0,0xc3] = .ok {
       nodes := [⟨0,.rolCL64 .r8,true,2⟩,⟨3,.legacy .ret,false,1⟩], maxDepth := 2 } ∧
-    Literals.instruction (.rolCL64 .r12) = "(.rolCL64 .r12)" := ⟨rfl, rfl⟩
+    Literals.instruction (.rolCL64 .r12) = "(.rolCL64 .r12)" := by
+  constructor <;> cbv
 
 namespace Generated
 open VCGen

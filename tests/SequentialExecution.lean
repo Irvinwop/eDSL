@@ -49,21 +49,21 @@ def observe (choices : Sequential.Choices) (fuel : Nat) (initial : State) :
 -- Flags are the architectural TEST(1,1) result plus preserved non-status
 -- bits and the SECOND instruction's AF. Reusing choices 0 fails these checks.
 example : observe falseThenTrue 3 (entry logicalBytes) =
-    some (0, 0x212, 8192, 32776, 3, [⟨.stack, 32768, 8⟩]) := by rfl
+    some (0, 0x212, 8192, 32776, 3, [⟨.stack, 32768, 8⟩]) := by cbv
 
 example : observe trueThenFalse 3 (entry logicalBytes) =
-    some (0, 0x202, 8192, 32776, 3, [⟨.stack, 32768, 8⟩]) := by rfl
+    some (0, 0x202, 8192, 32776, 3, [⟨.stack, 32768, 8⟩]) := by cbv
 
 -- ADD zero + 0x80000000 has SF and PF set, with CF/AF/ZF/OF clear.
 -- EAX is zero extended, and only the data operand and RET stack are reads.
 example : observe falseThenTrue 4 (entry addBytes) =
     some (0x80000000, 0x286, 8192, 32776, 4,
-      [⟨.data, 12288, 4⟩, ⟨.stack, 32768, 8⟩]) := by rfl
+      [⟨.data, 12288, 4⟩, ⟨.stack, 32768, 8⟩]) := by cbv
 
 -- This compares the complete result, including all registers and memory.
-example : Sequential.run falseThenTrue 4 (entry addBytes) = Sequential.run trueThenFalse 4 (entry addBytes) := by rfl
+example : Sequential.run falseThenTrue 4 (entry addBytes) = Sequential.run trueThenFalse 4 (entry addBytes) := by cbv
 
-example : Sequential.run falseThenTrue 3 (entry addBytes) = .error .exhaustedFuel := by rfl
+example : Sequential.run falseThenTrue 3 (entry addBytes) = .error .exhaustedFuel := by cbv
 
 -- A continuation cannot hide a fault simply because another stream succeeds.
 -- Here both streams encounter the actual missing memory operand.
@@ -71,15 +71,15 @@ def missingData : State := { entry addBytes with memory := {
   memory addBytes with read := fun address =>
     if 12288 ≤ address.toNat ∧ address.toNat < 12292 then none else (memory addBytes).read address } }
 
-example : Sequential.run falseThenTrue 4 missingData = .error (.inaccessibleData 12288) := by rfl
-example : Sequential.run trueThenFalse 4 missingData = .error (.inaccessibleData 12288) := by rfl
+example : Sequential.run falseThenTrue 4 missingData = .error (.inaccessibleData 12288) := by cbv
+example : Sequential.run trueThenFalse 4 missingData = .error (.inaccessibleData 12288) := by cbv
 
 -- The missing ModRM byte is a fetch error, never an operand-read event.
 example : Sequential.run falseThenTrue 1 (entry [0x48, 0x85]) =
-    .error (.inaccessibleInstruction 4098) := by rfl
+    .error (.inaccessibleInstruction 4098) := by cbv
 
-example : Sequential.run falseThenTrue 1 (entry [0x67]) = .error (.unsupportedOpcode 0x67) := by rfl
-example : Sequential.run falseThenTrue 1 (entry [0x0f, 0x05]) = .error .syscallBoundary := by rfl
+example : Sequential.run falseThenTrue 1 (entry [0x67]) = .error (.unsupportedOpcode 0x67) := by cbv
+example : Sequential.run falseThenTrue 1 (entry [0x0f, 0x05]) = .error .syscallBoundary := by cbv
 
 -- Legacy atomic outcomes continue execution and count once, retaining their
 -- successful four-byte operand read and their actual memory write.
@@ -89,7 +89,7 @@ def atomicObservation : Option (Word × BitVec 32 × Nat × List Sequential.Read
   return (result.state.registers .rax, stored, result.instructions, result.reads)
 
 example : atomicObservation = some (0x80000000, 0xfeed1234, 2,
-    [⟨.data, 12288, 4⟩, ⟨.stack, 32768, 8⟩]) := by rfl
+    [⟨.data, 12288, 4⟩, ⟨.stack, 32768, 8⟩]) := by cbv
 
 end EDSL.Tests.SequentialExecution
 

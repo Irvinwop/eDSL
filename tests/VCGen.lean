@@ -108,14 +108,14 @@ theorem denied_data_permission (initial : State) (returnAddress payload : Word)
 
 -- Mutating MOV RAX,RDI into the same-length MOV RAX,RSI cannot keep its CFG
 -- certificate. This exercises exact decoder/byte binding, not graph assignment.
-example : CFG.check ((bytes .identity64).set 2 0xf0) (graph .identity64) = false := by decide
+example : CFG.check ((bytes .identity64).set 2 0xf0) (graph .identity64) = false := by decide +kernel
 
 -- Truncation may not obtain the original graph's RET/closed-edge guarantees.
-example : CFG.check ((bytes .identity64).take 3) (graph .identity64) = false := by decide
+example : CFG.check ((bytes .identity64).take 3) (graph .identity64) = false := by decide +kernel
 
 -- ENDBR32 remains outside the exact ENDBR64 subset. A similar prefix must
 -- not be stripped or accepted as the supported landing-pad encoding.
-example : CFG.discover ([0xf3,0x0f,0x1e,0xfb] ++ bytes .identity64) = none := by decide
+example : CFG.discover ([0xf3,0x0f,0x1e,0xfb] ++ bytes .identity64) = none := by decide +kernel
 
 -- The next instruction consumes the last unit of fuel; RET cannot then run.
 theorem insufficient_fuel (initial : State) (base : Word) :

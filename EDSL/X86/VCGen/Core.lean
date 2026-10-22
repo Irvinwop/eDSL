@@ -64,7 +64,7 @@ theorem CheckedTrace.read_origin {AllowedRead : State → Read → Prop}
         Sequential.Block.next actual block, ?_, present, permitted, succeeded⟩
       · change count + 1 < 1 + result.instructions
         omega
-      · simpa only [Choices.drop, Nat.add_comm 1 count] using step
+      · simpa only [ChoiceStream.drop, Nat.add_comm 1 count] using step
 
 /-- Generate bounded weakest preconditions by reducing the production ISA
 executor. The only instruction data comes from an independently byte-checked

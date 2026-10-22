@@ -78,8 +78,10 @@ fetch checks canonicality and accessibility.
 for the existing XOR/TEST/logical/SHR instructions, OF for ROL exactly when
 old RCX's masked count exceeds one, and none otherwise.
 
-There is still one Bool per retired instruction. The types of `execute`,
-`step`, `Choices`, `Engine`, `run`, `wp` and `decidableWP` are unchanged.
+The existing `execute`, `step`, `Choices`, `run`, `wp` and `decidableWP`
+interfaces still use one Bool per retired instruction. The shared `Engine`
+also accepts arbitrary choice domains; the additive [vector interface](flag-choices.md)
+retains the complete behavior of this original instruction profile.
 Existing binders named `af` are retained to avoid breaking named arguments;
 the Bool's general meaning is now the flag selected by `choiceFlag`.
 Fresh schedule positions are consumed even when ignored. IMUL stays
