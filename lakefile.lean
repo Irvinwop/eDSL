@@ -194,7 +194,8 @@ lean_lib ByteEqualityTests where
 -- Explicit larger bounds and preservation of the original default profile.
 lean_lib CFGProfileTests where
   roots := #[`tests.CFGProfiles, `tests.CFG, `tests.StructuralCFG,
-    `tests.StructuralControl, `tests.EffectVCGen, `tests.VCGen, `tests.VCGenCutpoints,
+    `tests.StructuralControl, `tests.StructuralDiscovery, `tests.EffectVCGen,
+    `tests.EffectReflection, `tests.EffectChecked, `tests.VCGen, `tests.VCGenCutpoints,
     `tests.VCGenCompactLoop, `tests.VCGenPolicy, `tests.VCGenReflection,
     `tests.BufferCallVCGen]
   moreLeanArgs := #["-DautoImplicit=false"]

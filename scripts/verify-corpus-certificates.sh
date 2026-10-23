@@ -227,7 +227,10 @@ import tests.GradingSignum
 import tests.SignumCertificates
 import tests.StructuralCFG
 import tests.StructuralControl
+import tests.StructuralDiscovery
 import tests.EffectVCGen
+import tests.EffectReflection
+import tests.EffectChecked
 import corpus.Certify
 import CorpusCertificateChecks
 import tests.VerificationImports

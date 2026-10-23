@@ -1,92 +1,101 @@
 # Bounded verification with memory effects
 
-`EDSL.X86.VCGen.Effects` generates bounded conditions over the production vector
-executor for a structurally checked x86-64 graph. It supports ordinary successor
-states and the existing legacy DWORD XCHG/XADD observations, retaining the exact
-ordered atomic events. Its soundness theorem is shared across programs.
+`EDSL.X86.VCGen.Effects` verifies bounded x86-64 executions using the production
+vector executor. It supports ordinary DWORD/QWORD stores and legacy DWORD
+XCHG/XADD observations, retaining exact ordered atomic events. Clients
+supply bytes, a graph, an initial state and entry node, fuel, a policy and an
+independent result/event contract. Execution and soundness are shared across
+programs. Graphs can come from [structural discovery](structural-cfg.md).
 
-A new program supplies its bytes and graph, an independent result/event contract,
-an initial executable mapping and entry PC, a policy, and a proof of the generated
-formula. It supplies no new instruction interpreter. This is a library API;
-automatic structural graph discovery, a generic Boolean decision procedure,
-packet-grader integration and loop-cutpoint rules for this effectful API remain
-future work. Existing read-only discovery, reflection and packet APIs keep their
-current admission policy.
-
-## Policy and framing
+## Policy and code separation
 
 `Effects.Policy` separates three predicates:
 
-- `Current` states what must hold in each actual instruction prestate and at
-  return.
-- `AllowedRead` authorizes each actual operand read in its current prestate.
-- `AllowedEffect` authorizes the decoded instruction and complete actual
+- `Current` holds in every actual instruction prestate and the returned state.
+- `AllowedRead` authorizes each actual operand read in its prestate.
+- `AllowedEffect` authorizes the decoded instruction and its complete actual
   observation. Same-value writes still have write intent.
 
-Every soundness entry point requires `Effects.CodeFrame policy bytes base`.
-This proof carries the initial executable bytes through every allowed ordinary
-or atomic continuation. It is separate from the generated formula and supplies
-no whole-memory equality. The next instruction is authenticated against the
-actual successor memory, after applying this frame.
+The generic soundness APIs require `Effects.CodeFrame policy bytes base`,
+separately from the generated formula. It preserves the selected executable bytes
+through every allowed ordinary or atomic continuation, so decoding uses actual
+successor memory at each step. It permits data memory to change.
 
-Import `EDSL.X86.VCGen.Effects.Frames` for a reusable frame:
+`EDSL.X86.VCGen.Effects.Frames` supplies `CodeSeparated`, `codeSeparatedPolicy`
+and `codeSeparatedPolicy_codeFrame`. The policy admits `CFG.readOnly`
+instructions, ordinary stores with actual DWORD/QWORD prestate intents disjoint
+from the selected code, and the legacy DWORD XCHG/XADD forms with disjoint RDI
+footprints. The shared frame theorem derives code preservation from successful
+production execution and memory frame laws.
 
-```lean
-import EDSL.X86.VCGen.Effects.Frames
+`EDSL.X86.VCGen.Effects.SeparationCheck` supplies `checkCodeFootprint`,
+`checkCodeSeparated` and `decidableCodeSeparated`. The footprint check uses exact
+modular byte-address differences; its DWORD/QWORD equivalences include wrapping
+and empty windows. `checkCodeSeparated_iff` proves equivalence to `CodeSeparated`.
+Authorization uses write intent even when the stored value leaves memory equal.
+Separation supplies no writability or OS authority; execution still checks
+permissions. Executable admission separately requires an actual `CodeAt` window.
 
-#check EDSL.X86.VCGen.Effects.CodeSeparated
-#check EDSL.X86.VCGen.Effects.codeSeparatedPolicy
-#check EDSL.X86.VCGen.Effects.codeSeparatedPolicy_codeFrame
-```
-
-`CodeSeparated` admits the read-only instruction family, ordinary stores with
-actual DWORD/QWORD prestate intents and footprints disjoint from the selected
-code, or the supported legacy DWORD atomic forms with the same separation.
-It authorizes writes independently of final-memory equality. The adapter derives
-code preservation from successful production execution and the existing memory
-frame laws; clients do not repeat opcode cases for each new program.
-
-The adapter protects the selected executable window. Caller-slot separation,
-current ownership and epochs, other memory regions and resource transitions need
-additional policy and proof obligations. A CPU predicate closed over an initial
-OS world does not establish coherent resource evolution after writes.
-
-## Conditions and results
+## Finite WP checking
 
 `Effects.wp graph base policy fuel node initial Post` quantifies over every
-complete flag valuation and reduces `Sequential.executeWith`. Each continuing
-step requires a graph edge, its actual successor RIP and the residual formula.
-Returns satisfy `Post : Result → List AtomicEvent → Prop`. Errors, zero fuel,
-missing successors and syscalls fail closed.
+complete flag valuation and evaluates `Sequential.executeWith`. Each continuation
+requires a graph edge, the actual successor RIP and the residual formula. Returns
+satisfy `Post : Result → List AtomicEvent → Prop`. Errors, zero fuel, missing
+successors and syscalls fail closed.
 
-`Effects.sound` yields actual `ExecutesWith`, the independent postcondition,
-an instruction bound and `Effects.Trace`. The trace has production ret/next/atomic
-steps with current executable bytes, decoding and read/effect authorization.
-Its atomic constructor prepends the actual event, preserving order and
-multiplicity. `Effects.run_sound` reuses the existing engine's evaluator theorem.
-The evaluator still returns its existing `Result`; the separate trace certifies
-the event list. `Effects.all_executions` and `Effects.safe` provide the corresponding
-universal returning-execution and sequential prefix-safety results.
+`EDSL.X86.VCGen.Effects.Reflection` supplies the reusable `Effects.decidableWP`.
+Clients pass explicit decisions for `Current`, `AllowedRead`, `AllowedEffect`
+and `Post`. Fuel recursion checks finite graph successors and enumerates the
+instruction's active undefined-flag representatives. Equality of the entire
+executor observation justifies omitting inactive choices, including reads,
+successor states, atomic payloads and errors. Independent active flags retain
+all combinations.
 
-## Worked regressions
+With that decision installed, `Effects.check` returns a Boolean and `check_iff`
+equates acceptance with the existing WP. It checks dynamic obligations only.
+`checked_run_sound` additionally requires `CFG.Structural.Valid`, initial
+`CodeAt`, the selected node's RIP and `CodeFrame`. For every flag-choice stream it
+gives an actual `runWith`, the independent contract, an instruction bound and
+`Effects.Trace`. The result retains ordered reads; the trace certifies atomic
+event order and multiplicity separately from the engine's returned `Result`.
+`checked_sound`, `checked_all_executions` and `checked_safe` expose execution and
+sequential prefix-safety results under the same premises.
 
-[`tests/EffectVCGen.lean`](../tests/EffectVCGen.lean) demonstrates the shared API:
+## Combined certificate
 
-- Store/load/RET proves literal little-endian data, RAX, the original stack
-  return, three retired instructions, ordered reads and no atomic events.
-- XCHG/XADD/RET proves the final word and the two literal old/new events in their
-  actual order. A reversed-event contract is rejected through the real trace.
-- An actual same-value store leaves complete memory equal but is rejected by
-  a separately chosen policy that forbids writes.
-- An allowed physical store overlapping the executable RET changes the byte;
-  the separation policy and generated conditions reject that footprint.
+Import `EDSL.X86.VCGen.Effects.Checked` for `Effects.certifySeparatedWith` and
+the default-profile `Effects.certifySeparated`. Callers supply `Current`,
+`AllowedRead`, `Post` and their explicit decisions. `decidableSeparatedWP`
+builds the WP decision using `decidableCodeSeparated` for effects.
 
-The fixtures use `Current := True` and impose no logical OS authority. They
-establish bounded sequential model behavior, without adding corpus coverage.
-The tests belong to `CFGProfileTests` and the full corpus fresh target.
+Combined acceptance checks all four obligations on the supplied inputs:
 
-This sequential atomic trace is not a concurrent scheduler history. TSO buffers,
-delayed publication, current OS authority, lock transfer, fairness and
-linearizability require an explicit bridge to the concurrent models. Physical
-CPU/OS correspondence and source/compiler preservation remain separate target
-refinement obligations.
+1. `CFG.Structural.checkWith profile bytes graph` authenticates the graph.
+2. `ELF.checkCode initial.memory base bytes` checks actual executable bytes.
+3. The initial RIP equals `base + BitVec.ofNat 64 (graph.node node).offset`.
+4. `Effects.check` accepts the WP under `codeSeparatedPolicy`.
+
+`certifySeparatedWith_sound` and `certifySeparated_sound` derive the actual
+production run, contract, instruction bound and ordered trace for every choice
+stream. Code mapping and entry RIP follow from the checks; the shared separation
+adapter supplies the frame. Clients need no separate `CodeAt` or code-frame
+proof. The default static caps are 64 bytes and 32 nodes; larger windows require
+an explicit profile. Dynamic fuel remains a separate bound.
+
+[`tests/EffectReflection.lean`](../tests/EffectReflection.lean) checks literal
+store/load results, atomic event order, denied reads and final-state predicates,
+same-value writes, executable overlap, footprint boundaries and independent
+PF/ZF choices. [`tests/EffectChecked.lean`](../tests/EffectChecked.lean) connects
+combined acceptance to a production run and rejects changed executable text and
+a wrong entry RIP even where the raw WP accepts the proposed instructions.
+
+These APIs establish bounded sequential model behavior. The separation policy
+protects only the selected code; caller-slot ownership and other resource frames
+need additional obligations. A CPU predicate closed over an initial OS world
+does not establish coherent current-world or ownership/epoch evolution after
+writes. OS authority, TSO publication, scheduling, lock transfer and
+linearizability require a proved bridge to the concurrent models. Cutpoints
+provide no unbounded-loop rule here. Physical CPU/OS correspondence and
+source/compiler preservation remain separate refinement obligations. Rejection
+or exhausted fuel does not establish a program defect.
