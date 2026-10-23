@@ -102,7 +102,8 @@ theorem step_peer_cursor {state : State} {action : Action} {result : State × Ob
     (priorLive : state.workers[tid]? = some prior)
     (currentLive : result.1.workers[tid]? = some current) :
     current.storeCursor = prior.storeCursor := by
-  have unchanged := step_peer success different
+  have unchanged : result.1.workers[tid]? = state.workers[tid]? := by
+    cases action <;> exact step_peer (peer := tid) (family := .xaddOnly) success different
   have same : current = prior :=
     Option.some.inj (currentLive.symm.trans (unchanged.trans priorLive))
   exact congrArg Worker.storeCursor same

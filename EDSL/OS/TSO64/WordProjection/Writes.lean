@@ -11,7 +11,10 @@ In particular, the quiet queue case records only its endpoint: a caller must
 still classify managed reads and supply their reference read steps.
 -/
 
+set_option warningAsError true
 set_option autoImplicit false
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
 
 namespace EDSL.OS.TSO64.WordProjection
 open X86 Concurrency
@@ -100,8 +103,8 @@ theorem ordinary_queue_projection {state : TSO64.State} {tid : Nat} {worker : Wo
 managed write. Ordinary publication uses the checked registered-cell frame
 inside `memory_step`, for every current location. -/
 theorem memory_step_unchanged {state : TSO64.State} {action : Action}
-    {result : TSO64.State × Observation} {profile : Profile}
-    (valid : WellFormed state profile) (success : step state action profile = .ok result)
+    {result : TSO64.State × Observation} {profile : Profile} {family : RMWFamily}
+    (valid : WellFormed state profile) (success : step state action profile family = .ok result)
     (silent : PublishedHistory.writeOf result.2 = none) :
     memory result.1.world = memory state.world := by
   funext query
@@ -110,9 +113,9 @@ theorem memory_step_unchanged {state : TSO64.State} {action : Action}
 /-- Turn the exact current-memory effect into reference memory update algebra.
 The update's orientation is normalized without an address-distinctness premise. -/
 theorem memory_step_written {state : TSO64.State} {action : Action}
-    {result : TSO64.State × Observation} {profile : Profile}
+    {result : TSO64.State × Observation} {profile : Profile} {family : RMWFamily}
     {cause : PublishedHistory.WriteCause}
-    (valid : WellFormed state profile) (success : step state action profile = .ok result)
+    (valid : WellFormed state profile) (success : step state action profile family = .ok result)
     (written : PublishedHistory.writeOf result.2 = some cause) :
     memory result.1.world =
       TSOWord.setMemory (memory state.world) cause.cell cause.value := by
@@ -181,14 +184,14 @@ emptiness check, the primitive's old read and the exact projected memory step.
 The reference helper expands to acquire/read/enqueue/publication/unlock, keeping
 every peer buffer and restoring the free lock, including for unchanged values. -/
 theorem rmw_path_of_effect {state : TSO64.State} {action : Action} {tid : Nat}
-    {worker : Worker} {instruction : LockedAdd64.Instruction}
+    {worker : Worker} {instruction : AddRMW64.Instruction}
     {identifier : Atomics64.HandleId64} {output : World × Atomics64.FetchAddEvent}
-    {machine : LockedAdd64.Observation} {profile : Profile}
+    {machine : AddRMW64.Observation} {profile : Profile} {family : RMWFamily}
     (valid : WellFormed state profile) (live : state.workers[tid]? = some worker)
     (empty : worker.pending = [])
-    (effect : Atomics64.FetchAddMachineEffect state.world worker.resources.actor identifier
+    (effect : Atomics64.AddRMWMachineEffect state.world worker.resources.actor identifier
       (sharedCPU state worker) instruction output machine)
-    (success : step state action profile =
+    (success : step state action profile family =
       .ok (install state tid output.1 { worker with context := .ofCPU machine.state },
         .rmw tid output.2)) :
     TSOWord.Path (project state)
@@ -224,8 +227,9 @@ theorem rmw_path_of_effect {state : TSO64.State} {action : Action} {tid : Nat}
 path. The origin supplies the checked joint effect and the real empty own FIFO;
 no delta is reconstructed from event values and no atomic shortcut rule is used. -/
 theorem rmw_path {state after : TSO64.State} {action : Action} {profile : Profile}
-    {tid : Nat} {event : Atomics64.FetchAddEvent} (valid : WellFormed state profile)
-    (success : step state action profile = .ok (after, .rmw tid event)) :
+    {family : RMWFamily} {tid : Nat} {event : Atomics64.FetchAddEvent}
+    (valid : WellFormed state profile)
+    (success : step state action profile family = .ok (after, .rmw tid event)) :
     TSOWord.Path (project state)
       [.lock tid, .read tid event.cell event.arithmetic.event.before,
         .write tid event.cell event.arithmetic.event.after, .tau, .unlock tid]
@@ -235,6 +239,6 @@ theorem rmw_path {state after : TSO64.State} {action : Action} {profile : Profil
     cases effect with
     | intro supported bounds decoded reads queue executed finish => cases finish
   | rmw live running code caller fetched bounds empty grant effect =>
-    exact rmw_path_of_effect valid live empty effect success
+    exact rmw_path_of_effect valid live empty (RMWFamily.MachineEffect.arithmetic effect) success
 
 end EDSL.OS.TSO64.WordProjection

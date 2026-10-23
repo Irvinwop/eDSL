@@ -4,6 +4,11 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.OS.TSO64.Invariant
 
+set_option warningAsError true
+set_option autoImplicit false
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
+
 namespace EDSL.OS.TSO64
 open X86 AddressSpace
 
@@ -247,8 +252,8 @@ theorem local_original_caller {state : State} {worker : Worker}
 /-- All shared loan cells survive every scheduler action. The frame is derived
 from the existing borrowing mutation frame / current fetchAdd effect. -/
 theorem step_loan_contents {state : State} {action : Action} {result : State × Observation}
-    {profile : Profile} (valid : WellFormed state profile)
-    (success : step state action profile = .ok result)
+    {profile : Profile} {family : RMWFamily} (valid : WellFormed state profile)
+    (success : step state action profile family = .ok result)
     {identifier : Nat} {loan : Borrowing.Loan}
     (live : state.world.legacy.shared.loans identifier = some loan) (address : Word)
     (inside : loan.region.Contains address) :
@@ -272,8 +277,8 @@ theorem step_loan_contents {state : State} {action : Action} {result : State × 
     exact changed.loan_contents valid.1 identifier loan live address inside
 
 theorem schedule_loan_contents {state : State} {actions : List Action} {result : State × List Observation}
-    {profile : Profile} (valid : WellFormed state profile)
-    (success : schedule state actions profile = .ok result)
+    {profile : Profile} {family : RMWFamily} (valid : WellFormed state profile)
+    (success : schedule state actions profile family = .ok result)
     {identifier : Nat} {loan : Borrowing.Loan}
     (live : state.world.legacy.shared.loans identifier = some loan) (address : Word)
     (inside : loan.region.Contains address) :

@@ -6,6 +6,7 @@ import EDSL.X86.Sequential.Immediate32
 import EDSL.X86.Sequential.CallerOnly
 import EDSL.X86.Sequential.Code
 import EDSL.Audit
+import tests.Support.ExceptDecidable
 
 set_option autoImplicit false
 set_option warningAsError true
@@ -13,6 +14,7 @@ set_option maxHeartbeats 300000
 set_option maxRecDepth 128
 
 namespace EDSL.Tests.Immediate32
+open scoped EDSL.Tests.Support
 open X86 X86.Sequential
 
 private def entry (bytes : List Byte) (registers : Register → Word) (flags : Word) : State :=
@@ -200,7 +202,7 @@ theorem relocated_cmp_eax (memory : Memory) (base : Word) (registers : Register 
     Sequential.decodeAt ⟨registers,base,flags,memory⟩ = .ok (.cmpImm32 .rax 0xff false) := by
   exact decodeAt_transport
     (code_fetch_transport_of_bound code (by decide) 0 (by decide)
-      ⟨registers,base,flags,memory⟩ rfl (by simp)) (by rfl)
+      ⟨registers,base,flags,memory⟩ rfl (by simp)) (by decide +kernel)
 
 private def fault {α : Type} (result : Except Error α) (expected : Error) : Bool :=
   match result with | .error actual => actual == expected | .ok _ => false

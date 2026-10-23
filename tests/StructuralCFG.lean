@@ -4,6 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.X86.Sequential.StructuralCFG
 import EDSL.Audit
+import tests.Support.ExceptDecidable
 
 set_option autoImplicit false
 set_option warningAsError true
@@ -11,6 +12,7 @@ set_option maxHeartbeats 300000
 set_option maxRecDepth 128
 
 namespace EDSL.Tests.StructuralCFG
+open scoped EDSL.Tests.Support
 open X86 Sequential
 
 /-!
@@ -88,7 +90,7 @@ theorem wrong_instruction_rejected : CFG.Structural.check bytes wrongInstruction
 
 -- The opcode at +9 remains present, but its displacement byte cannot be fetched.
 theorem truncated_operand : Sequential.decodeAt (codeState (bytes.take 10) 9) =
-    .error (.inaccessibleInstruction 10) := by rfl
+    .error (.inaccessibleInstruction 10) := by decide +kernel
 
 theorem truncated_rejected : CFG.Structural.check (bytes.take 10) graph = false := by
   decide +kernel

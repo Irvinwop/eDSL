@@ -4,11 +4,16 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.X86.Sequential.CFGDiscovery
 import EDSL.Audit
+import tests.Support.ExceptDecidable
 
 set_option warningAsError true
+set_option autoImplicit false
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
 
 namespace EDSL.Tests.SequentialArithmetic64
 open X86
+open scoped EDSL.Tests.Support
 
 private def emptyMemory : Memory where
   read := fun _ => none
@@ -29,7 +34,7 @@ private def entry (code : List Byte) (registers : Register → Word := fun _ => 
       else data.executable address
     writable := data.writable }
 
-private def nextView (af : Bool) (state : State)
+private def nextView {α : Type} (af : Bool) (state : State)
     (view : State → List Sequential.Read → α) : Except Error α := do
   let observation ← Sequential.step af state
   match observation.result with
@@ -57,7 +62,7 @@ theorem lea_scales_and_extended_banks (af : Bool) :
       .ok (0x20000000c,4100,[]), .ok (0x100000014,4100,[]),
       .ok (0x200000014,4100,[]), .ok (0x10000000c,4100,[]),
       .ok (0x20000000c,4100,[]), .ok (0x100000014,4100,[]),
-      .ok (0x200000014,4100,[])] := by rfl
+      .ok (0x200000014,4100,[])] := by cases af <;> decide +kernel
 
 theorem lea_base_banks_ignore_x (af : Bool) :
     ([([0x48,0x8d,0x1f], .rbx), ([0x49,0x8d,0x1f], .rbx),
@@ -70,7 +75,7 @@ theorem lea_base_banks_ignore_x (af : Bool) :
     [.ok (0x100000000,4099,[]), .ok (0x200000000,4099,[]),
       .ok (0x100000000,4099,[]), .ok (0x200000000,4099,[]),
       .ok (0x100000000,4099,[]), .ok (0x200000000,4099,[]),
-      .ok (0x100000000,4099,[]), .ok (0x200000000,4099,[])] := by rfl
+      .ok (0x100000000,4099,[]), .ok (0x200000000,4099,[])] := by cases af <;> decide +kernel
 
 /-- Destination/base/index aliases must use the complete pre-state. X=1
 makes index code4 a real R12, and RSP is an ordinary LEA destination/base. -/
@@ -82,7 +87,7 @@ theorem lea_aliases (af : Bool) :
         (fun state reads => (state.registers destination, state.flags, reads))) =
     [.ok (0x10000001c,0x246,[]), .ok (0x100000018,0x246,[]),
       .ok (0x1b00000000,0x246,[]), .ok (0xfffffffffffffff3,0x246,[]),
-      .ok (0x17fffffff0,0x246,[])] := by rfl
+      .ok (0x17fffffff0,0x246,[])] := by cases af <;> decide +kernel
 
 private def allRegisters : List Register :=
   [.rax,.rcx,.rdx,.rbx,.rsp,.rbp,.rsi,.rdi,.r8,.r9,.r10,.r11,.r12,.r13,.r14,.r15]
@@ -123,7 +128,9 @@ theorem lea_noncanonical_and_wrap (af : Bool) :
         (fun register => if register = .rax then 5 else 0x2000000000000001))
         (fun state reads => (state.registers .rax, state.flags, reads))) =
     (.ok (0x800000000000,false,[]), .error (.inaccessibleData 0x800000000000),
-      .ok (0,0x246,[]), .ok (13,0x246,[])) := by rfl
+      .ok (0,0x246,[]), .ok (13,0x246,[])) := by
+  cases af <;> refine Prod.ext ?_ (Prod.ext ?_ (Prod.ext ?_ ?_)) <;>
+    first | decide +kernel | rfl
 
 private def addRegisters : Register → Word
   | .rax => 0x1111111100000001 | .rbx => 0x2222222200000003
@@ -151,7 +158,7 @@ theorem add_banks_and_directions (af : Bool) :
       .ok (0x3333333300000004,4099,[]), .ok (0x5555555500000008,4099,[]),
       .ok (0x3333333300000004,4099,[]), .ok (0x5555555500000008,4099,[]),
       .ok (0x5555555500000008,4099,[]), .ok (0x777777770000000c,4099,[]),
-      .ok (0x5555555500000008,4099,[]), .ok (0x777777770000000c,4099,[])] := by rfl
+      .ok (0x5555555500000008,4099,[]), .ok (0x777777770000000c,4099,[])] := by cases af <;> decide +kernel
 
 /-- Literal arithmetic results and architectural status words cover unsigned
 carry, signed overflow, nibble carry, parity, zero and sign independently.
@@ -166,7 +173,7 @@ theorem add_status_vectors (af : Bool) :
         (fun state reads => (state.registers .rax,state.flags,reads))) =
     [.ok (0,0x246,[]), .ok (0,0x257,[]), .ok (0x8000000000000000,0xa96,[]),
       .ok (0,0xa47,[]), .ok (16,0x212,[]), .ok (3,0x206,[]), .ok (1,0x202,[]),
-      .ok (0x200000000,0x206,[])] := by rfl
+      .ok (0x200000000,0x206,[])] := by cases af <;> decide +kernel
 
 /-- Self-add doubles the original full register rather than observing a
 partially updated operand. RSP is supported as both destination and source. -/
@@ -176,7 +183,7 @@ theorem add_self_and_rsp (af : Bool) :
       List (List Byte × Register)).map (fun (bytes,destination) =>
         nextView af (entry bytes (fun _ => 0x8000000000000001))
           (fun state reads => (state.registers destination,state.flags,reads))) =
-    List.replicate 4 (.ok (2,0xa03,[])) := by rfl
+    List.replicate 4 (.ok (2,0xa03,[])) := by cases af <;> decide +kernel
 
 set_option maxRecDepth 4096 in
 theorem add_complete_context (registers : Register → Word) (flags : Word)
@@ -209,15 +216,17 @@ theorem unsupported_forms :
       [0x48,0x01,0x08], [0x48,0x03,0x48,0], [0x48,0x48,0x01,0xc8],
       [0x48,0x66,0x8d,0x07], [0x48,0xf0,0x01,0xc8]] : List (List Byte)).map
       (fun bytes => Sequential.decodeAt (entry bytes)) =
-    List.replicate 10 (.error .unsupportedEncoding) := by rfl
+    List.replicate 10 (.error .unsupportedEncoding) := by decide +kernel
 
+/-- REX.W=0 LEA now belongs to the address32 domain. Register-mode LEA
+remains invalid; repeated/unsupported leading prefixes remain rejected. -/
 theorem unsupported_leading_prefixes :
-    ([[0x40,0x8d,0x07], [0x47,0x01,0xc8], [0x66,0x48,0x01,0xc8],
+    ([[0x40,0x8d,0xc7], [0x47,0x01,0xc8], [0x66,0x48,0x01,0xc8],
       [0x67,0x48,0x8d,0x07], [0xf0,0x48,0x01,0xc8]] : List (List Byte)).map
       (fun bytes => Sequential.decodeAt (entry bytes)) =
     [.error .unsupportedEncoding, .error .unsupportedEncoding,
       .error .unsupportedEncoding, .error (.unsupportedOpcode 0x67),
-      .error .unsupportedEncoding] := by rfl
+      .error .unsupportedEncoding] := by decide +kernel
 
 theorem truncated_and_nonexecutable_fetch (af : Bool) :
     (([[0x48,0x8d], [0x48,0x8d,0x04], [0x4f,0x03]] : List (List Byte)).map
@@ -226,7 +235,7 @@ theorem truncated_and_nonexecutable_fetch (af : Bool) :
         memory := { (entry [0x48,0x8d,0x04,0xc8]).memory with
           executable := fun address => decide (address ≠ 4099) } }).map (fun _ => ())) =
     ([.error (.inaccessibleInstruction 4098), .error (.inaccessibleInstruction 4099),
-      .error (.inaccessibleInstruction 4098)], .error (.inaccessibleInstruction 4099)) := by rfl
+      .error (.inaccessibleInstruction 4098)], .error (.inaccessibleInstruction 4099)) := by cases af <;> decide +kernel
 
 /-- Discovery accepts these register effects and uses the actual SIB and
 register instruction lengths before the terminal return. -/
@@ -235,7 +244,7 @@ theorem cfg_admission :
       (fun graph => graph.nodes.map (fun node =>
         (node.offset,node.instruction,node.instruction.length))) =
     .ok [(0,.lea64 .r10 (.indexed .r15 .r9 2),4),
-      (4,.addReg64 .r8 .r11,3),(7,.legacy .ret,1)] := by rfl
+      (4,.addReg64 .r8 .r11,3),(7,.legacy .ret,1)] := by decide +kernel
 
 end EDSL.Tests.SequentialArithmetic64
 

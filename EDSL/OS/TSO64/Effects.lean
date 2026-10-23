@@ -5,6 +5,11 @@ SPDX-License-Identifier: Apache-2.0
 import EDSL.OS.TSO64.Queue.Publication
 import EDSL.OS.TSO64.Setup
 
+set_option warningAsError true
+set_option autoImplicit false
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
+
 namespace EDSL.OS.TSO64
 open X86 AddressSpace
 
@@ -111,53 +116,117 @@ theorem ordinary_effect {state : State} {tid : Nat} {worker : Worker}
     · simp [ordinary, admitted, bounds] at success
   · simp [ordinary, admitted] at success
 
-inductive LockedEffect (state : State) (tid : Nat) (worker : Worker)
-    (instruction : LockedAdd64.Instruction) : State × Observation → Prop where
-  | blocked (bounds : codeFits worker instruction.length) (nonempty : worker.pending ≠ []) :
-      LockedEffect state tid worker instruction (state, .blocked tid)
+inductive LockedEffectFor (family : RMWFamily) (state : State) (tid : Nat) (worker : Worker)
+    (instruction : family.Instruction) : State × Observation → Prop where
+  | blocked (bounds : codeFits worker (family.embed instruction).length)
+      (nonempty : worker.pending ≠ []) :
+      LockedEffectFor family state tid worker instruction (state, .blocked tid)
   | rmw {identifier handle cell output machine}
-      (bounds : codeFits worker instruction.length) (empty : worker.pending = [])
-      (decoded : LockedAdd64.decodeAt (sharedCPU state worker) = .ok instruction)
+      (bounds : codeFits worker (family.embed instruction).length) (empty : worker.pending = [])
+      (decoded : family.decodeAt (sharedCPU state worker) = .ok instruction)
       (selected : atomicFor state.world worker.resources
-        ((sharedCPU state worker).registers instruction.base) = some (identifier, handle, cell))
+        ((sharedCPU state worker).registers (family.embed instruction).base) = some (identifier, handle, cell))
       (changed : Atomics64.fetchAdd state.world worker.resources.actor identifier
-        ((sharedCPU state worker).registers instruction.source) = .ok output)
-      (executed : LockedAdd64.step (sharedCPU state worker) = .ok machine) :
-      LockedEffect state tid worker instruction
+        ((family.embed instruction).delta (sharedCPU state worker)) = .ok output)
+      (executed : family.stepCPU (sharedCPU state worker) = .ok machine) :
+      LockedEffectFor family state tid worker instruction
         (install state tid output.1 { worker with context := .ofCPU machine.state }, .rmw tid output.2)
+
+/-- Definitional legacy specialization, retaining both constructor names and
+all source-register contracts without widening the default effect. -/
+abbrev LockedEffect (state : State) (tid : Nat) (worker : Worker)
+    (instruction : LockedAdd64.Instruction) : State × Observation → Prop :=
+  LockedEffectFor .xaddOnly state tid worker instruction
+
+theorem lockedFor_effect {family : RMWFamily} {state : State} {tid : Nat} {worker : Worker}
+    {instruction : family.Instruction} {result : State × Observation}
+    (success : lockedFor family state tid worker instruction = .ok result) :
+    LockedEffectFor family state tid worker instruction result := by
+  by_cases bounds : codeFits worker (family.embed instruction).length
+  · cases empty : worker.pending.isEmpty with
+    | false =>
+      simp [lockedFor, bounds, empty] at success
+      subst result
+      exact .blocked bounds (by intro same; simp [same] at empty)
+    | true =>
+      cases decoded : family.decodeAt (sharedCPU state worker) with
+      | error fault => simp [lockedFor, bounds, empty, decoded, Except.mapError] at success
+      | ok actual =>
+        by_cases same : actual = instruction
+        · subst actual
+          cases selected : atomicFor state.world worker.resources
+              ((sharedCPU state worker).registers (family.embed instruction).base) with
+          | none => simp [lockedFor, bounds, empty, decoded, selected, Except.mapError] at success
+          | some grant =>
+            rcases grant with ⟨identifier, handle, cell⟩
+            cases changed : Atomics64.fetchAdd state.world worker.resources.actor identifier
+                ((family.embed instruction).delta (sharedCPU state worker)) with
+            | error fault => simp [lockedFor, bounds, empty, decoded, selected, changed, Except.mapError] at success
+            | ok output =>
+              cases executed : family.stepCPU (sharedCPU state worker) with
+              | error fault => simp [lockedFor, bounds, empty, decoded, selected, changed, executed, Except.mapError] at success
+              | ok machine =>
+                simp [lockedFor, bounds, empty, decoded, selected, changed, executed, Except.mapError] at success
+                subst result
+                exact .rmw bounds (List.isEmpty_iff.mp empty) decoded selected changed executed
+        · simp [lockedFor, bounds, empty, decoded, same, Except.mapError] at success
+  · simp [lockedFor, bounds] at success
 
 theorem locked_effect {state : State} {tid : Nat} {worker : Worker}
     {instruction : LockedAdd64.Instruction} {result : State × Observation}
     (success : locked state tid worker instruction = .ok result) :
-    LockedEffect state tid worker instruction result := by
-  by_cases bounds : codeFits worker instruction.length
-  · cases empty : worker.pending.isEmpty with
-    | false =>
-      simp [locked, bounds, empty] at success
-      subst result
-      exact .blocked bounds (by intro same; simp [same] at empty)
-    | true =>
-      cases decoded : LockedAdd64.decodeAt (sharedCPU state worker) with
-      | error fault => simp [locked, bounds, empty, decoded, Except.mapError] at success
-      | ok actual =>
-        by_cases same : actual = instruction
-        · subst actual
-          cases selected : atomicFor state.world worker.resources ((sharedCPU state worker).registers instruction.base) with
-          | none => simp [locked, bounds, empty, decoded, selected, Except.mapError] at success
-          | some grant =>
-            rcases grant with ⟨identifier, handle, cell⟩
-            cases changed : Atomics64.fetchAdd state.world worker.resources.actor identifier
-                ((sharedCPU state worker).registers instruction.source) with
-            | error fault => simp [locked, bounds, empty, decoded, selected, changed, Except.mapError] at success
-            | ok output =>
-              cases executed : LockedAdd64.step (sharedCPU state worker) with
-              | error fault => simp [locked, bounds, empty, decoded, selected, changed, executed, Except.mapError] at success
-              | ok machine =>
-                simp [locked, bounds, empty, decoded, selected, changed, executed, Except.mapError] at success
-                subst result
-                exact .rmw bounds (List.isEmpty_iff.mp empty) decoded selected changed executed
-        · simp [locked, bounds, empty, decoded, same, Except.mapError] at success
-  · simp [locked, bounds] at success
+    LockedEffect state tid worker instruction result :=
+  lockedFor_effect (family := .xaddOnly) success
+
+/-- Current decoded operands and the actual checked dispatch determine the joint
+effect. No desired successor, old value or poststate register oracle is used. -/
+theorem lockedFor_coupled {family : RMWFamily} {state : State} {worker : Worker}
+    {instruction : family.Instruction}
+    {identifier : Atomics64.HandleId64} {handle : Atomics64.Handle} {cell : Atomics64.Cell}
+    {output : World × Atomics64.FetchAddEvent} {machine : AddRMW64.Observation}
+    (decoded : family.decodeAt (sharedCPU state worker) = .ok instruction)
+    (selected : atomicFor state.world worker.resources
+      ((sharedCPU state worker).registers (family.embed instruction).base) = some (identifier, handle, cell))
+    (changed : Atomics64.fetchAdd state.world worker.resources.actor identifier
+      ((family.embed instruction).delta (sharedCPU state worker)) = .ok output)
+    (executed : family.stepCPU (sharedCPU state worker) = .ok machine) :
+    family.MachineEffect state.world worker.resources.actor identifier
+      (sharedCPU state worker) instruction output machine := by
+  obtain ⟨_, authorized, operand⟩ := atomicFor_sound selected
+  have bridge := Atomics64.addRmw_step_effect state.world worker.resources.actor identifier handle cell
+    (sharedCPU state worker) (family.embed instruction) output changed authorized rfl operand.symm
+    (RMWFamily.decodeAt_embed decoded)
+  have actual : AddRMW64.step (sharedCPU state worker) = .ok machine :=
+    (RMWFamily.stepCPU_eq_arithmetic decoded).symm.trans executed
+  have same := Except.ok.inj (bridge.step.symm.trans actual)
+  subst machine
+  exact (RMWFamily.machineEffect_iff_arithmetic (family := family)).mpr bridge
+
+/-- Current WF, bounds, empty whole own FIFO, actual published-RAM decode and
+current atomic selection derive both primitive and machine successes. Direct
+kernel calls still do not establish the additional `issue` resource gates. -/
+theorem lockedFor_enabled {family : RMWFamily} {state : State} {tid : Nat}
+    {worker : Worker} {instruction : family.Instruction}
+    {identifier : Atomics64.HandleId64} {handle : Atomics64.Handle} {cell : Atomics64.Cell}
+    (valid : Atomics64.WellFormed state.world)
+    (bounds : codeFits worker (family.embed instruction).length)
+    (empty : worker.pending = [])
+    (decoded : family.decodeAt (sharedCPU state worker) = .ok instruction)
+    (selected : atomicFor state.world worker.resources
+      ((sharedCPU state worker).registers (family.embed instruction).base) = some (identifier, handle, cell)) :
+    ∃ output machine,
+      Atomics64.fetchAdd state.world worker.resources.actor identifier
+        ((family.embed instruction).delta (sharedCPU state worker)) = .ok output ∧
+      family.stepCPU (sharedCPU state worker) = .ok machine ∧
+      lockedFor family state tid worker instruction = .ok
+        (install state tid output.1 { worker with context := .ofCPU machine.state }, .rmw tid output.2) := by
+  obtain ⟨_, authorized, operand⟩ := atomicFor_sound selected
+  obtain ⟨output, changed, executed⟩ := Atomics64.addRmw_step_enabled state.world
+    worker.resources.actor identifier handle cell (sharedCPU state worker) (family.embed instruction)
+    valid authorized rfl operand.symm (RMWFamily.decodeAt_embed decoded)
+  have stepped := (RMWFamily.stepCPU_eq_arithmetic decoded).trans executed
+  refine ⟨output, _, changed, stepped, ?_⟩
+  simp [lockedFor, bounds, empty, decoded, selected, changed, stepped, Except.mapError]
 
 /-- Converse from actual dispatch to the CURRENT OS/machine joint effect.
 The captured delta is the actual prestate source, including base aliases/RSP. -/
@@ -171,22 +240,19 @@ theorem locked_coupled {state : State} {worker : Worker} {instruction : LockedAd
       ((sharedCPU state worker).registers instruction.source) = .ok output)
     (executed : LockedAdd64.step (sharedCPU state worker) = .ok machine) :
     Atomics64.FetchAddMachineEffect state.world worker.resources.actor identifier
-      (sharedCPU state worker) instruction output machine := by
-  obtain ⟨_, authorized, operand⟩ := atomicFor_sound selected
-  have bridge := Atomics64.fetchAdd_step_effect _ _ _ _ _ _ _ _ changed authorized rfl operand.symm decoded
-  have same := Except.ok.inj (bridge.step.symm.trans executed)
-  subst machine
-  exact bridge
+      (sharedCPU state worker) instruction output machine :=
+  lockedFor_coupled (family := .xaddOnly) decoded selected changed executed
 
 theorem issue_effect {state : State} {tid : Nat} {af : Bool} {result : State × Observation} {profile : Profile}
-    (success : issue state tid af profile = .ok result) :
+    {family : RMWFamily}
+    (success : issue state tid af profile family = .ok result) :
     ∃ worker, state.workers[tid]? = some worker ∧ worker.phase ≠ .returned ∧
       LeaseCurrent state.world worker.resources.actor worker.resources.code ∧
       LeaseCurrent state.world worker.resources.actor worker.resources.caller ∧
-      ∃ instruction, decode (fetchCPU state worker) = .ok instruction ∧
+      ∃ instruction, decode (fetchCPU state worker) family = .ok instruction ∧
         (match instruction with
         | .ordinary instruction => OrdinaryEffect state tid worker instruction af result profile
-        | .locked instruction => LockedEffect state tid worker instruction result) := by
+        | .locked instruction => LockedEffectFor family state tid worker instruction result) := by
   cases live : state.workers[tid]? with
   | none => simp [issue, live] at success
   | some worker =>
@@ -194,7 +260,7 @@ theorem issue_effect {state : State} {tid : Nat} {af : Bool} {result : State × 
     · simp [issue, live, returned] at success
     · by_cases code : LeaseCurrent state.world worker.resources.actor worker.resources.code
       · by_cases caller : LeaseCurrent state.world worker.resources.actor worker.resources.caller
-        · cases decoded : decode (fetchCPU state worker) with
+        · cases decoded : decode (fetchCPU state worker) family with
           | error fault => simp [issue, live, returned, code, caller, decoded] at success
           | ok instruction =>
             refine ⟨worker, rfl, returned, code, caller, instruction, decoded, ?_⟩
@@ -203,7 +269,7 @@ theorem issue_effect {state : State} {tid : Nat} {af : Bool} {result : State × 
               apply ordinary_effect
               simpa [issue, live, returned, code, caller, decoded] using success
             | locked instruction =>
-              apply locked_effect
+              apply lockedFor_effect
               simpa [issue, live, returned, code, caller, decoded] using success
         · simp [issue, live, returned, caller] at success
       · simp [issue, live, returned, code] at success

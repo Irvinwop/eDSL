@@ -24,6 +24,8 @@ ulimit -c 0
 mkdir -p "$output/receipts" "$output/source" "$output/opcodes"
 phase=initialization
 complete=0
+matrix_summary='No complete native matrix comparison recorded.'
+observation_count=0
 # Check memory after taking the shared lock, before starting each Lean process.
 # A resource failure leaves the run incomplete; it never weakens a proof gate.
 edsl_lean_guard() {
@@ -61,22 +63,25 @@ finish() {
     fi
     printf '%s\n' "$status" > "$output/script.exit"
     cat > "$output/RECEIPT.md" <<RECEIPT
-Owned finite ADD32/SUB32/CMP32-imm8 / INC32 / signed-disp8 LEA64 conformance.
+Owned finite ADD32/SUB32/CMP32-imm8 / INC32 / LEA64 / LEA32 / TEST-low8 conformance.
 Mode: $mode; phase: $phase; actual exit: $status.
 Exact commands, environments, stdout, stderr, timestamps and exits: receipts/.
-Native scope: 136 windows x 12 rotated vectors x 4 ADD-established flag seeds;
-1920 ADD32, 384 INC32, 1152 LEA64, 1536 SUB32, 1536 CMP32 = 6528 observations.
-SUB writes zero-extended low32; CMP preserves every full64 GPR. Actual GPRs:
+Checked matrix (reported only after complete persisted comparison):
+$matrix_summary
+SUB/LEA32 write zero-extended low32; CMP/TEST preserve every full64 GPR. Actual GPRs:
 RAX RCX RDX RBX RSP RBP R8 R9 R12 R13 R15. RSP is source-only.
 Other GPRs and RAM/permission maps in replay are synthetic full-state frames.
 PUSHFQ clears saved RF/VM; no hidden physical RF/VM preservation established.
 AC/DF/TF off, ordinary RAM, Linux x86-64 SysV, debug/asynchronous boundaries,
 four-level canonical model and CET-off target limitations remain explicit.
 No POPFQ. LEA does not read DATA, including noncanonical/modular results.
+TEST compares every flag except undefined AF. Both real model step choices
+must set AF to their respective false/true values with all other bits exact.
+AF-only flips are synthetic admissibility controls, never extra observations.
 Native-only success is independent finite mathematical comparison, not a Lean
 replay or universal ISA/OS refinement. Full replay uses actual public decodeAt
 and step for both AF choices with ordinary kernel terms at default budgets.
-Root owns all registration, integrated/current fresh gates and publication.
+Full-project registration and fresh replay are separate validation gates.
 RECEIPT
     (cd "$output" && find . -type f ! -name EVIDENCE.sha256 ! -name EVIDENCE.seal ! -name 'seal-check.*' -print0 |
         sort -z | xargs -0 sha256sum) > "$output/EVIDENCE.sha256"
@@ -126,6 +131,7 @@ for file in "${owned[@]}" lean-toolchain; do install -D -m 0644 "$file" "$output
 providers=(EDSL/X86/Sequential/Model.lean EDSL/X86/Sequential/Flags.lean EDSL/X86/Sequential/Decode.lean
     EDSL/X86/Sequential/DecodeTransport.lean EDSL/X86/Sequential/Machine.lean
     EDSL/X86/Sequential/Counter32.lean EDSL/X86/Sequential/Immediate32.lean
+    EDSL/X86/Sequential/Address32.lean EDSL/X86/Sequential/TestImmediate8.lean
     EDSL/Audit.lean tests/native/UnaryReplay.lean)
 run provider-sources-before sha256sum "${providers[@]}"
 # These existing objects are observed only; never imported or copied in native-only mode.
@@ -167,6 +173,8 @@ else
 fi
 phase=independent_native_check
 run independent-check "$output/capture.elf" check "$output/capture.tsv" "$output/opcodes"
+matrix_summary=$(< "$output/receipts/independent-check.stdout")
+observation_count=$(awk 'END {print NR-1}' "$output/capture.tsv")
 run opcode-pins sha256sum "$output"/opcodes/*.bin
 cp "$output/receipts/opcode-pins.stdout" "$output/OPCODES.sha256"
 
@@ -188,7 +196,7 @@ corrupt_scalar() {
             word=$field
             n=index(hex,substr(word,digit,1))-1
             if (length(word)!=16 || n<0) exit 1
-            n=mask==8 ? (n<8 ? n+8 : n-8) : (n%2==0 ? n+1 : n-1)
+            n=int(n/mask)%2==0 ? n+mask : n-mask
             $field=substr(word,1,digit-1) substr(hex,n+1,1) substr(word,digit+1)
             changed++
         }
@@ -201,13 +209,36 @@ for family in sub cmp; do
     corrupt_scalar "$family-auxiliary" nibble_next "${family}_eax_7f" 6 15 1
     corrupt_scalar "$family-overflow" signed_min "${family}_eax_7f" 6 14 8
 done
+corrupt_scalar lea32-upper32 zero_dirty lea32_base_np 18 8 1
+corrupt_scalar lea32-carry zero_dirty lea32_sib_47_all_alias 6 16 1
+corrupt_scalar lea32-auxiliary zero_dirty lea32_sib_47_all_alias 6 15 1
+corrupt_scalar lea32-overflow zero_dirty lea32_sib_47_all_alias 6 14 8
+corrupt_scalar lea32-preserved zero_dirty lea32_sib_47_all_alias 6 1 1
+corrupt_scalar test-low8 byte_high test_al_ff 18 16 1
+corrupt_scalar test-upper32 byte_high test_al_ff 18 8 1
+corrupt_scalar test-other-gpr byte_high test_al_ff 19 16 1
+corrupt_scalar test-rsp zero_dirty test_spl_ff 22 16 1
+corrupt_scalar test-carry byte_high test_al_ff 6 16 1
+corrupt_scalar test-parity byte_high test_al_ff 6 16 4
+corrupt_scalar test-zero byte_high test_al_ff 6 15 4
+corrupt_scalar test-sign byte_high test_al_ff 6 15 8
+corrupt_scalar test-overflow byte_high test_al_ff 6 14 8
+corrupt_scalar test-preserved byte_high test_al_ff 6 1 1
+# This is a positive SYNTHETIC admissibility control, not a physical observation.
+corrupt_scalar test-af-admissible byte_high test_al_ff 6 15 1
+awk -F '\t' 'BEGIN {OFS=FS} NR==2 {$4="83c081"} {print}' "$output/capture.tsv" > "$output/wrong-bytes.tsv"
+awk -F '\t' 'BEGIN {OFS=FS} NR==2 {$4=$4 "90"} {print}' "$output/capture.tsv" > "$output/wrong-length.tsv"
 native_controls=(corrupt-output corrupt-flags missing duplicate malformed
-    sub-upper32 cmp-upper32 sub-borrow cmp-borrow sub-auxiliary cmp-auxiliary sub-overflow cmp-overflow)
+    sub-upper32 cmp-upper32 sub-borrow cmp-borrow sub-auxiliary cmp-auxiliary sub-overflow cmp-overflow
+    lea32-upper32 lea32-carry lea32-auxiliary lea32-overflow lea32-preserved
+    test-low8 test-upper32 test-other-gpr test-rsp
+    test-carry test-parity test-zero test-sign test-overflow test-preserved wrong-bytes wrong-length)
 for control in "${native_controls[@]}"; do
     status=0
     run "native-reject-$control" "$output/capture.elf" check "$output/$control.tsv" "$output/opcodes" || status=$?
     [[ $status -eq 1 ]] || { echo "Invalid native negative-control exit: $control"; exit 1; }
 done
+run native-admit-test-af "$output/capture.elf" check "$output/test-af-admissible.tsv" "$output/opcodes"
 grep -F 'independent mathematical result mismatch' "$output/receipts/native-reject-corrupt-output.stderr"
 grep -F 'independent mathematical flags mismatch' "$output/receipts/native-reject-corrupt-flags.stderr"
 grep -F 'incomplete matrix' "$output/receipts/native-reject-missing.stderr"
@@ -220,6 +251,51 @@ for family in sub cmp; do
         grep -F 'independent mathematical flags mismatch' "$output/receipts/native-reject-$family-$bit.stderr"
     done
 done
+grep -F 'independent mathematical result mismatch' "$output/receipts/native-reject-lea32-upper32.stderr"
+for control in lea32-carry lea32-auxiliary lea32-overflow lea32-preserved \
+    test-carry test-parity test-zero test-sign test-overflow test-preserved; do
+    grep -F 'independent mathematical flags mismatch' "$output/receipts/native-reject-$control.stderr"
+done
+for control in test-low8 test-upper32 test-rsp; do
+    grep -F 'observed TEST operand changed' "$output/receipts/native-reject-$control.stderr"
+done
+grep -F 'observed nondestination GPR changed' "$output/receipts/native-reject-test-other-gpr.stderr"
+for control in wrong-bytes wrong-length; do
+    grep -F 'captured opcode mismatch' "$output/receipts/native-reject-$control.stderr"
+done
+# Persisted matrix/schema controls are deliberately separate from native rows.
+# A smaller internally complete capture must not redefine the required keys.
+manifest_controls=(missing-probe wrong-address-form missing-input)
+for control in "${manifest_controls[@]}"; do
+    control_dir="$output/manifest-$control"
+    mkdir -p "$control_dir"
+    cp -a "$output/opcodes" "$control_dir/opcodes"
+    cp "$output/probes.tsv" "$output/inputs.tsv" "$output/capture.tsv" "$control_dir/"
+    case $control in
+        missing-probe)
+            awk -F '\t' '$1!="lea32_base_np"' "$output/probes.tsv" > "$control_dir/probes.tsv"
+            awk -F '\t' 'NR==1 || $2!="lea32_base_np"' "$output/capture.tsv" > "$control_dir/capture.tsv"
+            ;;
+        wrong-address-form)
+            awk -F '\t' 'BEGIN {OFS=FS} $1=="lea32_disp_np_alias" {$9=3} {print}' \
+                "$output/probes.tsv" > "$control_dir/probes.tsv"
+            ;;
+        missing-input)
+            awk -F '\t' '$1!="zero_dirty"' "$output/inputs.tsv" > "$control_dir/inputs.tsv"
+            awk -F '\t' 'NR==1 || $1!="zero_dirty"' "$output/capture.tsv" > "$control_dir/capture.tsv"
+            ;;
+    esac
+    status=0
+    run "native-reject-manifest-$control" "$output/capture.elf" check \
+        "$control_dir/capture.tsv" "$control_dir/opcodes" || status=$?
+    [[ $status -eq 1 ]] || { echo "Invalid native manifest-control exit: $control"; exit 1; }
+    if [[ $control == missing-input ]]; then
+        grep -F 'input manifest mismatch' "$output/receipts/native-reject-manifest-$control.stderr"
+    else
+        grep -F 'probe manifest mismatch' "$output/receipts/native-reject-manifest-$control.stderr"
+    fi
+done
+rejection_control_count=$((${#native_controls[@]}+${#manifest_controls[@]}))
 
 if [[ $mode != --native-only ]]; then
     phase=production_toolchain
@@ -232,11 +308,13 @@ if [[ $mode != --native-only ]]; then
     phase=production_build
     # Build the current production closure before copying its pinned providers.
     run model-build "${lean_gate[@]}" lake build \
-        EDSL.X86.Sequential.Machine EDSL.X86.Sequential.Immediate32 EDSL.Audit tests.native.UnaryReplay
+        EDSL.X86.Sequential.Machine EDSL.X86.Sequential.Immediate32 \
+        EDSL.X86.Sequential.Address32 EDSL.X86.Sequential.TestImmediate8 EDSL.Audit tests.native.UnaryReplay
     mkdir -p "$output/lean-lib/tests/native" "$output/lean-lib/Tools/Native" "$output/generated"
     provider="$root/.lake/build/lib/lean"
     declare -A imported=()
-    queue=(tests.native.UnaryReplay EDSL.X86.Sequential.Immediate32 EDSL.Audit)
+    queue=(tests.native.UnaryReplay EDSL.X86.Sequential.Immediate32
+        EDSL.X86.Sequential.Address32 EDSL.X86.Sequential.TestImmediate8 EDSL.Audit)
     for ((q=0; q<${#queue[@]}; q++)); do
         module=${queue[$q]}
         [[ -z ${imported[$module]:-} ]] || continue
@@ -274,14 +352,35 @@ if [[ $mode != --native-only ]]; then
         [[ $status -eq 1 && ! -d $output/rejected-$control ]] || { echo "Invalid Lean rejection: $control"; exit 1; }
     done
     for control in corrupt-output corrupt-flags sub-upper32 cmp-upper32 sub-borrow cmp-borrow \
-        sub-auxiliary cmp-auxiliary sub-overflow cmp-overflow; do
+        sub-auxiliary cmp-auxiliary sub-overflow cmp-overflow \
+        lea32-upper32 lea32-carry lea32-auxiliary lea32-overflow lea32-preserved \
+        test-low8 test-upper32 test-other-gpr test-rsp test-carry test-parity test-zero \
+        test-sign test-overflow test-preserved; do
         grep -F 'independent mathematical result/flags/frame mismatch' "$output/receipts/lean-reject-$control.stderr"
     done
     grep -F 'incomplete matrix' "$output/receipts/lean-reject-missing.stderr"
     grep -F 'duplicate observation' "$output/receipts/lean-reject-duplicate.stderr"
     grep -F 'malformed capture field count' "$output/receipts/lean-reject-malformed.stderr"
+    for control in wrong-bytes wrong-length; do
+        grep -F 'captured opcode mismatch' "$output/receipts/lean-reject-$control.stderr"
+    done
+    for control in "${manifest_controls[@]}"; do
+        control_dir="$output/manifest-$control"
+        status=0
+        lean_call "lean-reject-manifest-$control" --run "$output/source/Tools/Native/CounterDisplacementReplay.lean" generate \
+            "$control_dir/probes.tsv" "$control_dir/inputs.tsv" "$control_dir/capture.tsv" "$control_dir/opcodes" \
+            "$output/rejected-manifest-$control" || status=$?
+        [[ $status -eq 1 && ! -d $output/rejected-manifest-$control ]] || {
+            echo "Invalid Lean manifest rejection: $control"; exit 1;
+        }
+    done
+    grep -F 'incomplete required probe key inventory' "$output/receipts/lean-reject-manifest-missing-probe.stderr"
+    grep -F 'unexpected probe name/metadata/byte key' "$output/receipts/lean-reject-manifest-wrong-address-form.stderr"
+    grep -F 'incomplete or changed required input rotation' "$output/receipts/lean-reject-manifest-missing-input.stderr"
+    lean_call lean-admit-test-af --run "$output/source/Tools/Native/CounterDisplacementReplay.lean" check \
+        "$output/probes.tsv" "$output/inputs.tsv" "$output/test-af-admissible.tsv" "$output/opcodes"
     phase=kernel_replay
-    printf 'import EDSL.X86.Sequential.Immediate32\nimport tests.native.CounterDisplacementReplay\n' \
+    printf 'import EDSL.X86.Sequential.Immediate32\nimport EDSL.X86.Sequential.Address32\nimport EDSL.X86.Sequential.TestImmediate8\nimport tests.native.CounterDisplacementReplay\n' \
         > "$output/generated/CounterDisplacementAudit.lean"
     while IFS= read -r module; do
         [[ -n $module ]] || continue
@@ -299,6 +398,19 @@ set_option maxRecDepth 128
 #print axioms EDSL.X86.Sequential.execute_subImm32_flags
 #print axioms EDSL.X86.Sequential.execute_cmpImm32_context
 #print axioms EDSL.X86.Sequential.execute_cmpImm32_flags
+#print axioms EDSL.X86.Sequential.execute_lea32_context
+#print axioms EDSL.X86.Sequential.execute_lea32_baseDisp8_signed
+#print axioms EDSL.X86.Sequential.execute_lea32_sibDisp8_signed
+#print axioms EDSL.X86.Sequential.lea32_narrows_lea64
+#print axioms EDSL.X86.Sequential.lea32_effects
+#print axioms EDSL.OS.CallResources.current_lea32_step
+#print axioms EDSL.X86.Sequential.execute_testImm8_context
+#print axioms EDSL.X86.Sequential.testImm8_result_toNat
+#print axioms EDSL.X86.Sequential.execute_testImm8_admissible_iff
+#print axioms EDSL.X86.Sequential.execute_testImm8_choices
+#print axioms EDSL.X86.Sequential.testImm8_effects
+#print axioms EDSL.X86.Sequential.executeWith_testImm8_agreement
+#print axioms EDSL.OS.CallResources.current_testImm8_step
 #audit_edsl
 AUDIT
     phase=audit
@@ -329,11 +441,13 @@ done
 run owned-after sha256sum "${owned[@]}" lean-toolchain
 run owned-equal cmp "$output/receipts/owned-before.stdout" "$output/receipts/owned-after.stdout"
 if [[ $mode == --native-only ]]; then
-    printf 'PASS: independent finite native capture/check; 6528 rows, 136 windows, thirteen malformed/corruption controls. No new-model replay claimed.\n' > "$output/result.txt"
+    printf '%s\nPASS: independent finite native capture/check; %s rejection controls and synthetic AF admissibility. No Lean replay claimed.\n' \
+        "$matrix_summary" "$rejection_control_count" > "$output/result.txt"
     printf 'Native capture and mathematical comparison only; not Lean replay.\n' > "$output/NATIVE-READY"
     phase=native_complete
 else
-    printf 'PASS: 6528 native observations; production decodeAt/step, both AF choices; required semantic corruption controls; thirteen malformed/corruption controls; 6528 default-budget kernel theorems; transitive axiom audit.\n' > "$output/result.txt"
+    printf '%s\nPASS: production decodeAt/step, both AF choices with exact selected AF; required direct controls; %s rejection controls and synthetic AF admissibility; %s finite kernel row theorems at unchanged budgets; transitive axiom audit.\n' \
+        "$matrix_summary" "$rejection_control_count" "$observation_count" > "$output/result.txt"
     printf 'Complete owned finite capture, current production model replay and dependency audit.\n' > "$output/READY"
     phase=complete
 fi

@@ -6,13 +6,17 @@ import EDSL.OS.TSO64.Access
 import EDSL.OS.TSO64.Run
 import EDSL.X86.Sequential.Return
 
+set_option warningAsError true
 set_option autoImplicit false
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
 
 namespace EDSL.OS.TSO64.Return
 open X86
 
 /-!
-Response facts for a single actual RET under either existing scheduler profile.
+Response facts for a single actual RET under either authority profile and
+instruction family.
 The prestate invariant supplies current resource validity and protects the
 original caller slot from the local FIFO overlay. No queue emptiness or prior
 issue history is required. Function-wide result and ABI contracts, publication,
@@ -22,10 +26,11 @@ and correspondence with physical execution remain separate obligations.
 /-- A response comes from actual RET execution with current code and original
 caller authority. The exact installation retains resources, pending entries,
 and the next store number; it installs the actual returned machine context.
-The profile indexes the existing ordinary effect, including its read checks. -/
+The profile indexes the ordinary effect and its read checks; the instruction
+family indexes the actual guarded fetch. -/
 def ReturnOrigin (before : State) (action : Action)
     (result : State × Observation) (tid : Nat) (value : Word)
-    (profile : Profile := .ownedOnly) : Prop :=
+    (profile : Profile := .ownedOnly) (family : RMWFamily := .xaddOnly) : Prop :=
   ∃ af worker output observation,
     action = .issue tid af ∧ before.workers[tid]? = some worker ∧ worker.phase ≠ .returned ∧
     LeaseCurrent before.world worker.resources.actor worker.resources.code ∧
@@ -33,7 +38,7 @@ def ReturnOrigin (before : State) (action : Action)
     before.world.legacy.shared.loans worker.resources.caller.identifier = some worker.resources.caller.loan ∧
     worker.resources.caller.loan.region = AddressSpace.qwordRegion worker.resources.callerAddress ∧
     codeFits worker (Sequential.Instruction.legacy .ret).length ∧
-    decode (fetchCPU before worker) = .ok (.ordinary (.legacy .ret)) ∧
+    decode (fetchCPU before worker) family = .ok (.ordinary (.legacy .ret)) ∧
     OrdinaryEffect before tid worker (.legacy .ret) af result profile ∧
     Sequential.decodeAt (localCPU before worker) = .ok (.legacy .ret) ∧
     Sequential.execute (localCPU before worker) (.legacy .ret) af = .ok observation ∧
@@ -57,8 +62,9 @@ def returnValue (result : State × Observation) : Option (Nat × Word) :=
 /-- Explicit resource, FIFO, and counter frame for clients that compose a RET
 response with a load or store call. The world is retained without publication. -/
 theorem ReturnOrigin.frame {before : State} {action : Action}
-    {result : State × Observation} {tid : Nat} {value : Word} {profile : Profile}
-    (origin : ReturnOrigin before action result tid value profile) :
+    {result : State × Observation} {tid : Nat} {value : Word}
+    {profile : Profile} {family : RMWFamily}
+    (origin : ReturnOrigin before action result tid value profile family) :
     result.1.world = before.world ∧
       ∃ prior current,
         before.workers[tid]? = some prior ∧ result.1.workers[tid]? = some current ∧
@@ -76,12 +82,13 @@ theorem ReturnOrigin.frame {before : State} {action : Action}
 machine/resource origin. All initial FIFOs may be nonempty provided the stated
 prestate invariant holds under the selected profile. -/
 theorem returned_origin {before : State} {action : Action}
-    {after : State} {tid : Nat} {profile : Profile} (valid : WellFormed before profile)
-    (success : step before action profile = .ok (after, .returned tid)) :
+    {after : State} {tid : Nat} {profile : Profile} {family : RMWFamily}
+    (valid : WellFormed before profile)
+    (success : step before action profile family = .ok (after, .returned tid)) :
     ∃ value, returnValue (after, .returned tid) = some (tid, value) ∧
-      ReturnOrigin before action (after, .returned tid) tid value profile := by
+      ReturnOrigin before action (after, .returned tid) tid value profile family := by
   cases step_origin (profile := profile) success with
-  | @ordinary tid af worker instruction result _ live running code caller fetched effect =>
+  | @ordinary _ tid af worker instruction result _ live running code caller fetched effect =>
     have workerValid := valid.2 _ (List.mem_of_getElem? live)
     have accesses := effect.accesses
     have actualEffect := effect
@@ -133,14 +140,15 @@ theorem returned_origin {before : State} {action : Action}
 /-- A projected response from a successful scheduler step has an actual RET
 origin. This public theorem is independent of call classification or history. -/
 theorem returnValue_sound {before : State} {action : Action}
-    {result : State × Observation} {tid : Nat} {value : Word} {profile : Profile}
-    (valid : WellFormed before profile) (success : step before action profile = .ok result)
+    {result : State × Observation} {tid : Nat} {value : Word}
+    {profile : Profile} {family : RMWFamily}
+    (valid : WellFormed before profile) (success : step before action profile family = .ok result)
     (accepted : returnValue result = some (tid, value)) :
-    ReturnOrigin before action result tid value profile := by
+    ReturnOrigin before action result tid value profile family := by
   cases observed : result.2 with
   | returned actualTid =>
     have shape : result = (result.1, .returned actualTid) := Prod.ext rfl observed
-    have actual : step before action profile = .ok (result.1, .returned actualTid) := by
+    have actual : step before action profile family = .ok (result.1, .returned actualTid) := by
       exact success.trans (congrArg Except.ok shape)
     obtain ⟨actualValue, extracted, origin⟩ := returned_origin valid actual
     rw [shape] at accepted

@@ -4,53 +4,62 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.OS.TSO64.Frames
 
+set_option warningAsError true
+set_option autoImplicit false
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
+
 namespace EDSL.OS.TSO64
 open X86 AddressSpace
 
 /-- Exhaustive origin for an actual successful scheduler action. In particular
 an atomic label carries the actual decoded instruction and joint current-world
 bridge, rather than reconstructing an input from after minus before. -/
-inductive Origin (state : State) : Action → State × Observation → (profile : Profile := .ownedOnly) → Prop where
-  | ordinary {tid af worker instruction result profile}
+inductive Origin (state : State) :
+    Action → State × Observation → (profile : Profile := .ownedOnly) →
+    (family : RMWFamily := .xaddOnly) → Prop where
+  | ordinary {family : RMWFamily} {tid af worker instruction result profile}
       (live : state.workers[tid]? = some worker)
       (running : worker.phase ≠ .returned)
       (code : LeaseCurrent state.world worker.resources.actor worker.resources.code)
       (caller : LeaseCurrent state.world worker.resources.actor worker.resources.caller)
-      (fetched : decode (fetchCPU state worker) = .ok (.ordinary instruction))
+      (fetched : decode (fetchCPU state worker) family = .ok (.ordinary instruction))
       (effect : OrdinaryEffect state tid worker instruction af result profile) :
-      Origin state (.issue tid af) result profile
-  | blocked {tid af worker instruction profile}
+      Origin state (.issue tid af) result profile family
+  | blocked {family : RMWFamily} {tid af worker instruction profile}
       (live : state.workers[tid]? = some worker)
       (running : worker.phase ≠ .returned)
       (code : LeaseCurrent state.world worker.resources.actor worker.resources.code)
       (caller : LeaseCurrent state.world worker.resources.actor worker.resources.caller)
-      (fetched : decode (fetchCPU state worker) = .ok (.locked instruction))
-      (bounds : codeFits worker instruction.length) (nonempty : worker.pending ≠ []) :
-      Origin state (.issue tid af) (state, .blocked tid) profile
-  | rmw {tid af worker instruction identifier output machine profile}
+      (fetched : decode (fetchCPU state worker) family = .ok (.locked instruction))
+      (bounds : codeFits worker (family.embed instruction).length) (nonempty : worker.pending ≠ []) :
+      Origin state (.issue tid af) (state, .blocked tid) profile family
+  | rmw {family : RMWFamily} {tid af worker instruction identifier output machine profile}
       (live : state.workers[tid]? = some worker)
       (running : worker.phase ≠ .returned)
       (code : LeaseCurrent state.world worker.resources.actor worker.resources.code)
       (caller : LeaseCurrent state.world worker.resources.actor worker.resources.caller)
-      (fetched : decode (fetchCPU state worker) = .ok (.locked instruction))
-      (bounds : codeFits worker instruction.length)
+      (fetched : decode (fetchCPU state worker) family = .ok (.locked instruction))
+      (bounds : codeFits worker (family.embed instruction).length)
       (empty : worker.pending = [])
       (grant : identifier ∈ worker.resources.atomics)
-      (effect : Atomics64.FetchAddMachineEffect state.world worker.resources.actor identifier
+      (effect : family.MachineEffect state.world worker.resources.actor identifier
         (sharedCPU state worker) instruction output machine) :
       Origin state (.issue tid af)
-        (install state tid output.1 { worker with context := .ofCPU machine.state }, .rmw tid output.2) profile
-  | drained {tid worker head tail output profile}
+        (install state tid output.1 { worker with context := .ofCPU machine.state }, .rmw tid output.2)
+        profile family
+  | drained {family : RMWFamily} {tid worker head tail output profile}
       (live : state.workers[tid]? = some worker) (fifo : worker.pending = head :: tail)
       (gate : PendingValid state.world worker.resources head profile)
       (changed : Queue.Effect state.world worker.resources head output)
       (effect : Publication state.world output.1 head.store) :
       Origin state (.drain tid)
-        (install state tid output.1 { worker with pending := tail }, .drained tid head) profile
+        (install state tid output.1 { worker with pending := tail }, .drained tid head) profile family
 
 theorem step_origin {state : State} {action : Action} {result : State × Observation}
-    {profile : Profile} (success : step state action profile = .ok result) :
-    Origin state action result profile := by
+    {profile : Profile} {family : RMWFamily}
+    (success : step state action profile family = .ok result) :
+    Origin state action result profile family := by
   cases action with
   | issue tid af =>
     obtain ⟨worker, live, running, code, caller, instruction, fetched, effect⟩ :=
@@ -62,7 +71,7 @@ theorem step_origin {state : State} {action : Action} {result : State × Observa
       | blocked bounds nonempty => exact .blocked live running code caller fetched bounds nonempty
       | rmw bounds empty decoded selected changed executed =>
         exact .rmw live running code caller fetched bounds empty (atomicFor_sound selected).1
-          (locked_coupled decoded selected changed executed)
+          (lockedFor_coupled decoded selected changed executed)
   | drain tid =>
     obtain ⟨worker, head, tail, output, live, fifo, gate, changed, same⟩ :=
       drain_effect (profile := profile) success
@@ -72,7 +81,9 @@ theorem step_origin {state : State} {action : Action} {result : State × Observa
 /-- Blocking returns the WHOLE input state, not just a matching observation.
 It emits no event and retires no user instruction. -/
 theorem blocked_unchanged {state : State} {action : Action} {after : State} {tid : Nat}
-    {profile : Profile} (success : step state action profile = .ok (after, .blocked tid)) : after = state := by
+    {profile : Profile} {family : RMWFamily}
+    (success : step state action profile family = .ok (after, .blocked tid)) :
+    after = state := by
   cases step_origin (profile := profile) success with
   | ordinary live running code caller fetched effect =>
     cases effect with
@@ -82,7 +93,9 @@ theorem blocked_unchanged {state : State} {action : Action} {after : State} {tid
 /-- All executable code, including code outside worker loans, is retained by
 every successful action. Ordinary stores cannot publish into executable bytes. -/
 theorem step_code {state : State} {action : Action} {result : State × Observation}
-    {profile : Profile} (success : step state action profile = .ok result) {base : Word} {bytes : List Byte}
+    {profile : Profile} {family : RMWFamily}
+    (success : step state action profile family = .ok result)
+    {base : Word} {bytes : List Byte}
     (code : CodeAt (published state.world) base bytes) :
     CodeAt (published result.1.world) base bytes := by
   cases step_origin (profile := profile) success with
@@ -91,8 +104,9 @@ theorem step_code {state : State} {action : Action} {result : State × Observati
     | intro supported bounds decoded reads queue step finish => cases finish <;> exact code
   | blocked => exact code
   | rmw live running codeLease caller fetched bounds empty grant effect =>
-    have preserved := effect.preserves_all_code base bytes code
-    rw [effect.memory] at preserved
+    have arithmetic := RMWFamily.MachineEffect.arithmetic effect
+    have preserved := arithmetic.preserves_all_code base bytes code
+    rw [arithmetic.memory] at preserved
     exact preserved
   | drained live fifo gate changed effect =>
     dsimp only [install]
@@ -123,7 +137,8 @@ private theorem install_resource_frame {state : State} {tid thread : Nat} {world
 /-- Every worker retains its ORIGINAL code/caller resources, owner, ticket and
 atomic grant lists across every action, including its own RSP-changing RMW. -/
 theorem step_resources {state : State} {action : Action} {result : State × Observation}
-    {profile : Profile} (success : step state action profile = .ok result)
+    {profile : Profile} {family : RMWFamily}
+    (success : step state action profile family = .ok result)
     {thread : Nat} {prior current : Worker}
     (priorLive : state.workers[thread]? = some prior)
     (currentLive : result.1.workers[thread]? = some current) : current.resources = prior.resources := by
@@ -180,8 +195,8 @@ theorem drain_nextStore {state : State} {tid : Nat} {result : State × Observati
   rfl
 
 theorem schedule_drains_nextStore (count : Nat) {state : State} {tid : Nat}
-    {result : State × List Observation} {profile : Profile}
-    (success : schedule state (List.replicate count (.drain tid)) profile = .ok result)
+    {result : State × List Observation} {profile : Profile} {family : RMWFamily}
+    (success : schedule state (List.replicate count (.drain tid)) profile family = .ok result)
     {prior current : Worker} (priorLive : state.workers[tid]? = some prior)
     (currentLive : result.1.workers[tid]? = some current) : current.nextStore = prior.nextStore := by
   induction count generalizing state result prior with
@@ -210,9 +225,9 @@ one. The suffix is exactly its pending length, with no fairness or future
 success assumption. Context, phase and original resources do not advance. -/
 theorem publish_worker (count : Nat) {state : State} {tid : Nat} {worker : Worker}
     {profile : Profile} (valid : WellFormed state profile) (live : state.workers[tid]? = some worker)
-    (length : worker.pending.length = count) :
+    (length : worker.pending.length = count) (family : RMWFamily := .xaddOnly) :
     ∃ result final,
-      schedule state (List.replicate count (.drain tid)) profile = .ok result ∧
+      schedule state (List.replicate count (.drain tid)) profile family = .ok result ∧
       result.1.workers[tid]? = some final ∧ final.pending = [] ∧
       final.context = worker.context ∧ final.phase = worker.phase ∧ final.resources = worker.resources ∧
       StoreBuffer.Mixed.view (published result.1.world) (payload final.pending) = (localCPU state worker).memory ∧

@@ -4,7 +4,10 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.OS.TSO64.PublishedHistory
 
+set_option warningAsError true
 set_option autoImplicit false
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
 
 namespace EDSL.OS.TSO64.WordProjection
 open X86
@@ -66,8 +69,8 @@ theorem memory_read {world : World} {identifier : Atomics64.CellId64} {cell : At
     memory world identifier = some value := by simp only [memory, live, read, Except.toOption]
 
 private theorem write_live {state : State} {action : Action} {result : State × Observation}
-    {profile : Profile} {cause : PublishedHistory.WriteCause}
-    (success : step state action profile = .ok result)
+    {profile : Profile} {family : RMWFamily} {cause : PublishedHistory.WriteCause}
+    (success : step state action profile family = .ok result)
     (written : PublishedHistory.writeOf result.2 = some cause) :
     ∃ cell, state.world.cells cause.cell = some cell := by
   cases step_origin success with
@@ -80,7 +83,7 @@ private theorem write_live {state : State} {action : Action} {result : State × 
     have equal := Option.some.inj written
     subst cause
     obtain ⟨handle, cell, _, _, linked, _, identifier, _⟩ :=
-      Atomics64.fetchAdd_context _ _ _ _ _ effect.checked
+      Atomics64.fetchAdd_context _ _ _ _ _ (RMWFamily.MachineEffect.arithmetic effect).checked
     exact ⟨cell, by simpa only [PublishedHistory.WriteCause.cell, identifier] using linked⟩
   | drained liveWorker fifo gate changed effect =>
     cases changed with
@@ -91,8 +94,8 @@ private theorem write_live {state : State} {action : Action} {result : State × 
       exact ⟨_, current.cell⟩
 
 theorem memory_step {state : State} {action : Action} {result : State × Observation}
-    {profile : Profile} (valid : WellFormed state profile)
-    (success : step state action profile = .ok result) (query : Atomics64.CellId64) :
+    {profile : Profile} {family : RMWFamily} (valid : WellFormed state profile)
+    (success : step state action profile family = .ok result) (query : Atomics64.CellId64) :
     memory result.1.world query =
       match PublishedHistory.writeOf result.2 with
       | none => memory state.world query

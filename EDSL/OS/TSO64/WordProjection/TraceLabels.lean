@@ -13,7 +13,10 @@ inspect the actual checked observation. `scheduleLabels` traverses the existing
 `step` function and propagates its failures unchanged.
 -/
 
+set_option warningAsError true
 set_option autoImplicit false
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
 
 namespace EDSL.OS.TSO64.WordProjection
 open X86 Concurrency
@@ -44,12 +47,13 @@ def ordinaryLabels (state : TSO64.State) (tid : Nat) (worker : Worker)
 /-- Annotate the ordinary instruction fetched from this actual worker's
 prestate. Invalid indices, failed decodes and locked instructions yield no
 ordinary labels; successful-step theorems exclude those cases where needed. -/
-def issueLabels (state : TSO64.State) (tid : Nat) (profile : Profile := .ownedOnly) :
+def issueLabels (state : TSO64.State) (tid : Nat) (profile : Profile := .ownedOnly)
+    (family : RMWFamily := .xaddOnly) :
     List ReferenceLabel :=
   match state.workers[tid]? with
   | none => []
   | some worker =>
-      match decode (fetchCPU state worker) with
+      match decode (fetchCPU state worker) family with
       | .ok (.ordinary instruction) => ordinaryLabels state tid worker instruction profile
       | _ => []
 
@@ -57,9 +61,10 @@ def issueLabels (state : TSO64.State) (tid : Nat) (profile : Profile := .ownedOn
 a managed publication contributes one Tau; blocked and ordinary publications
 are erased. Ordinary/return observations use the actual prestate instruction. -/
 def stepLabels (state : TSO64.State) (observation : Observation)
-    (profile : Profile := .ownedOnly) : List ReferenceLabel :=
+    (profile : Profile := .ownedOnly) (family : RMWFamily := .xaddOnly) :
+    List ReferenceLabel :=
   match observation with
-  | .ordinary tid | .returned tid => issueLabels state tid profile
+  | .ordinary tid | .returned tid => issueLabels state tid profile family
   | .rmw tid event =>
       [.lock tid, .read tid event.cell event.arithmetic.event.before,
         .write tid event.cell event.arithmetic.event.after, .tau, .unlock tid]
@@ -70,13 +75,14 @@ def stepLabels (state : TSO64.State) (observation : Observation)
 This accessor preserves the first actual executor failure and does not run a
 reference-model executor or add a criterion for successful execution. -/
 def scheduleLabels (state : TSO64.State) (actions : List Action)
-    (profile : Profile := .ownedOnly) : Except Fault (List ReferenceLabel) :=
+    (profile : Profile := .ownedOnly) (family : RMWFamily := .xaddOnly) :
+    Except Fault (List ReferenceLabel) :=
   match actions with
   | [] => .ok []
   | action :: rest => do
-      let result ← step state action profile
-      let following ← scheduleLabels result.1 rest profile
-      return stepLabels state result.2 profile ++ following
+      let result ← step state action profile family
+      let following ← scheduleLabels result.1 rest profile family
+      return stepLabels state result.2 profile family ++ following
 
 private theorem admission_checked {world : World} {resources : Resources} {store : Store}
     {occurrence : Nat} {profile : Profile} {entry : Pending}
@@ -116,8 +122,8 @@ the actual fetched instruction and ordinary finish result rather than guessing
 which kind of observation an instruction ought to produce. -/
 theorem StepTrace.labels {state : TSO64.State} {action : Action}
     {result : TSO64.State × Observation} {profile : Profile} {labels : List ReferenceLabel}
-    (trace : StepTrace state action result profile labels) :
-    stepLabels state result.2 profile = labels := by
+    {family : RMWFamily} (trace : StepTrace state action result profile labels family) :
+    stepLabels state result.2 profile family = labels := by
   cases trace with
   | ordinary success live fetched effect classified =>
     have annotated := classified.labels
@@ -133,9 +139,9 @@ theorem StepTrace.labels {state : TSO64.State} {action : Action}
 The proof traverses their real successful steps, preserving action order. -/
 theorem ScheduleTrace.labels {profile : Profile} {state : TSO64.State}
     {actions : List Action} {result : TSO64.State × List Observation}
-    {labels : List ReferenceLabel}
-    (trace : ScheduleTrace profile state actions result labels) :
-    scheduleLabels state actions profile = .ok labels := by
+    {labels : List ReferenceLabel} {family : RMWFamily}
+    (trace : ScheduleTrace profile state actions result labels family) :
+    scheduleLabels state actions profile family = .ok labels := by
   induction trace with
   | nil => rfl
   | cons stepped scheduled ih =>
@@ -144,11 +150,11 @@ theorem ScheduleTrace.labels {profile : Profile} {state : TSO64.State}
 /-- The existing schedule's computational annotations always succeed and
 retain both per-action classification and reference-path soundness. -/
 theorem schedule_labels {state : TSO64.State} {actions : List Action}
-    {result : TSO64.State × List Observation} {profile : Profile}
+    {result : TSO64.State × List Observation} {profile : Profile} {family : RMWFamily}
     (valid : WellFormed state profile)
-    (success : schedule state actions profile = .ok result) :
-    ∃ labels, scheduleLabels state actions profile = .ok labels ∧
-      ScheduleTrace profile state actions result labels ∧
+    (success : schedule state actions profile family = .ok result) :
+    ∃ labels, scheduleLabels state actions profile family = .ok labels ∧
+      ScheduleTrace profile state actions result labels family ∧
       TSOWord.Path (project state) labels (project result.1) := by
   obtain ⟨labels, trace, path⟩ := schedule_trace valid success
   exact ⟨labels, trace.labels, trace, path⟩
@@ -157,12 +163,12 @@ theorem schedule_labels {state : TSO64.State} {actions : List Action}
 refinement theorem. Clients need only evaluate the unchanged scheduler and its
 annotation accessor, rather than hand-constructing a proof for each program. -/
 theorem schedule_labels_sound {state : TSO64.State} {actions : List Action}
-    {result : TSO64.State × List Observation} {profile : Profile}
+    {result : TSO64.State × List Observation} {profile : Profile} {family : RMWFamily}
     {labels : List ReferenceLabel}
     (valid : WellFormed state profile)
-    (success : schedule state actions profile = .ok result)
-    (annotated : scheduleLabels state actions profile = .ok labels) :
-    ScheduleTrace profile state actions result labels ∧
+    (success : schedule state actions profile family = .ok result)
+    (annotated : scheduleLabels state actions profile family = .ok labels) :
+    ScheduleTrace profile state actions result labels family ∧
       TSOWord.Path (project state) labels (project result.1) := by
   obtain ⟨actual, trace, path⟩ := schedule_trace valid success
   have same : actual = labels := Except.ok.inj (trace.labels.symm.trans annotated)

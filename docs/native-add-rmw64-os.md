@@ -69,7 +69,9 @@ no hidden alias and protected-resource assumptions. Unmanaged mixed-width,
 MMIO, DMA and non-temporal interference remain excluded. The virtual checks
 do not establish physical LOCK refinement.
 
-Scheduler dispatch is unchanged. The existing Resumable effect adapter remains
+The [arithmetic scheduler family](arithmetic-rmw-scheduler.md) uses this coupling
+for actual XADD/ADD/INC issues; the default family retains XADD-only dispatch.
+The existing Resumable effect adapter remains
 ordinary-only; these theorems do not admit atomic heads there or supply a native
 RMW boundary, whole-loop event-count proof, counter certificate or releasing
 join. They add no frozen-corpus coverage. Whole-OS correctness, source/compiler

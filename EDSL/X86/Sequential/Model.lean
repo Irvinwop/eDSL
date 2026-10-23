@@ -103,6 +103,10 @@ inductive Instruction where
   /-- Low32 register TEST; `prefixed` records one non-W REX byte for length.
   No GPR is written, and AF is an independent undefined choice. -/
   | test32 (left right : Register) (prefixed : Bool)
+  /-- Register-only F6 /0 ib, testing LOW8 against the raw immediate byte.
+  No register is written. AF is an independent undefined choice; prefix
+  presence records no prefix or exactly one canonical 40/41 REX byte. -/
+  | testImm8 (operand : Register) (immediate : Byte) (prefixed : Bool)
   /-- Low32 register CMP, left minus right, with no register write. -/
   | cmp32 (left right : Register) (prefixed : Bool)
   /-- Register-only 83 /7 ib: compare low32 with the imm8 sign-extended to32.
@@ -199,6 +203,10 @@ inductive Instruction where
   /-- Full-width effective-address arithmetic. It performs no data access and
   preserves every flag, including when the computed value is noncanonical. -/
   | lea64 (destination : Register) (address : Address)
+  /-- Full64 prestate effective-address arithmetic followed by a low32,
+  zero-extended destination write. No operand access or flag change occurs.
+  Prefix presence records no prefix or one W=0 REX; never a 67 override. -/
+  | lea32 (destination : Register) (address : Address) (prefixed : Bool)
   /-- Register-register addition with full-width result and arithmetic flags. -/
   | addReg64 (destination source : Register)
   /-- Register-only full-width AND/OR/XOR, with an independent undefined AF

@@ -2,14 +2,17 @@
 import tests.native.UnaryReplay
 
 set_option autoImplicit false
+set_option warningAsError true
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
 
 namespace EDSL.Tests.RegisterCapture
 open X86 X86.Sequential
 
 /- Shared capture mechanics. Only the selected list describes physical GPR
 observations. Every other register uses the independent unary model canary;
-RAM/value/execute/write maps are synthetic. This helper does not decode or
-execute an instruction itself, or infer a hardware permission map. -/
+RAM/value/execute/write maps are synthetic. State construction infers no
+hardware permission map; checks below use the public production decoder/step. -/
 structure Capture where
   code : List Byte
   before : List Word
@@ -34,10 +37,22 @@ def frameQueries (codeLength : Nat) : List Word :=
    0x7ffffffffffe,0x7fffffffffff,0x800000000000,
    0xffff7fffffffffff,0xffff800000000000,0xffff800000000001,0xffffffffffffffff]
 
+inductive AFPolicy where
+  | exact
+  | undefinedAF
+  deriving DecidableEq, Inhabited
+
+/-- Only AF may vary. Each model choice must set that bit to its own value;
+the choice equal to the saved AF therefore matches the entire observation. -/
+def expectedObservedFlags (capture : Capture) (policy : AFPolicy) (af : Bool) : Word :=
+  match policy with
+  | .exact => capture.flagsAfter
+  | .undefinedAF => (capture.flagsAfter &&& ~~~(0x10 : Word)) ||| (if af then 0x10 else 0)
+
 /-- Actual public production step for BOTH AF choices. All sixteen modeled
 GPRs are compared; only `selected` entries came from physical observations.
 Universal RAM/map preservation is separately supplied by fullRAMFrame below. -/
-def stepCheck (selected : List Register) (capture : Capture) : Bool :=
+def stepCheckWithAF (selected : List Register) (capture : Capture) (policy : AFPolicy) : Bool :=
   [false,true].all fun af =>
     let initial := capture.initial selected
     match Sequential.step af initial with
@@ -45,7 +60,7 @@ def stepCheck (selected : List Register) (capture : Capture) : Bool :=
     | .ok observation => match observation.result with
       | .next final =>
         final.rip == UnaryReplay.codeBase + BitVec.ofNat 64 capture.code.length &&
-        final.flags == capture.flagsAfter && observation.reads == [] &&
+        final.flags == expectedObservedFlags capture policy af && observation.reads == [] &&
         UnaryReplay.allRegisters.all (fun r =>
           final.registers r == registers selected capture.after r) &&
         (frameQueries capture.code.length).all (fun a =>
@@ -54,16 +69,29 @@ def stepCheck (selected : List Register) (capture : Capture) : Bool :=
           final.memory.writable a == initial.memory.writable a)
       | _ => false
 
-def check (selected : List Register) (capture : Capture)
-    (instruction : Sequential.Instruction) : Bool :=
+def checkWithAF (selected : List Register) (capture : Capture)
+    (instruction : Sequential.Instruction) (policy : AFPolicy) : Bool :=
+  let initial := capture.initial selected
   capture.before.length == selected.length && capture.after.length == selected.length &&
-  (match Sequential.decodeAt (capture.initial selected) with
+  (match Sequential.decodeAt initial with
     | .ok actual => decide (actual = instruction)
     | .error _ => false) && instruction.length == capture.code.length &&
-  instruction.isNew && !instruction.isLocked && !instruction.choosesAF &&
-  instruction.storeIntent (capture.initial selected) == none &&
-  instruction.storeIntent64 (capture.initial selected) == none &&
-  stepCheck selected capture
+  instruction.isNew && !instruction.isLocked &&
+  (match policy with
+    | .exact => !instruction.choosesAF && decide (instruction.choiceFlag initial = none)
+    | .undefinedAF => instruction.choosesAF &&
+        decide (instruction.choiceFlag initial = some .af)) &&
+  instruction.operandReads initial == [] &&
+  instruction.storeIntent initial == none && instruction.storeIntent64 initial == none &&
+  stepCheckWithAF selected capture policy
+
+/-- Compatibility wrappers retain exact comparison of every saved flag. -/
+def stepCheck (selected : List Register) (capture : Capture) : Bool :=
+  stepCheckWithAF selected capture .exact
+
+def check (selected : List Register) (capture : Capture)
+    (instruction : Sequential.Instruction) : Bool :=
+  checkWithAF selected capture instruction .exact
 
 -- These existing universal theorems preserve the ENTIRE read/execute/write
 -- maps for the authenticated decode/new/no-store/success conditions above.

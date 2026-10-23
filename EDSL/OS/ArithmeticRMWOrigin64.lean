@@ -27,9 +27,9 @@ selected worker. The joint effect authenticates the actual current RAM decode,
 checked OS authorization, prestate address/delta and complete CPU/OS response.
 
 This predicate does not assert an executable scheduler step or a dispatch
-converse. TSO64 still dispatches only XADD; `of_step` below is its one-way lift.
-ADD/INC clients must supply all these facts, including the exact installation,
-until the dependent scheduler interfaces have been widened separately. -/
+converse. `of_step` below lifts an actual successful step under either
+instruction family and either authority profile, including its exact current
+installation. The default family retains XADD-only dispatch. -/
 structure Evidence {Id : Type} (target : Atomics64.CellId64) (before : TSO64.State)
     (action : TSO64.Action) (result : TSO64.State × TSO64.Observation) (point : Call Id)
     (event : Atomics64.FetchAddEvent) (af : Bool) (worker : TSO64.Worker)
@@ -207,28 +207,31 @@ theorem Origin.observed {Id : Type} {target : Atomics64.CellId64} {before : TSO6
   exact ⟨event, evidence.observed, evidence.selected, evidence.delta, evidence.output.symm,
     by rw [evidence.observed]; rfl⟩
 
-/-- Lift an actual current XADD scheduler event into the common captured-delta
-interface. No ADD/INC scheduler support or Origin-to-step converse is asserted. -/
+/-- Lift an actual current scheduler event from either instruction family and
+either authority profile into the common captured-delta interface. The actual
+step supplies the current dispatch gates; no Origin-to-step converse is asserted. -/
 theorem of_step {Id : Type} {target : Atomics64.CellId64} {before after : TSO64.State}
-    {action : TSO64.Action} {tid : Nat} {event : Atomics64.FetchAddEvent} {profile : TSO64.Profile}
-    (id : Id) (success : TSO64.step before action profile = .ok (after, .rmw tid event))
+    {action : TSO64.Action} {tid : Nat} {event : Atomics64.FetchAddEvent}
+    {profile : TSO64.Profile} {family : TSO64.RMWFamily}
+    (id : Id) (success : TSO64.step before action profile family = .ok (after, .rmw tid event))
     (selected : event.cell = target) :
     Origin target before action (after, .rmw tid event) (call id tid event) := by
   cases TSO64.step_origin success with
   | ordinary live running code caller fetched effect =>
     cases effect with
     | intro supported bounds decoded reads queue executed finish => cases finish
-  | rmw live running code caller fetched bounds empty grant effect =>
-    rename_i af worker instruction identifier output machine
-    refine ⟨output.2, af, worker, .xadd instruction, identifier, machine, ?_⟩
+  | @rmw family _ af worker instruction identifier output machine _
+      live running code caller fetched bounds empty grant effect =>
+    have arithmetic := TSO64.RMWFamily.MachineEffect.arithmetic effect
+    refine ⟨output.2, af, worker, family.embed instruction, identifier, machine, ?_⟩
     exact ⟨rfl, rfl, live, running, code, caller, bounds, empty, grant,
-      Atomics64.AddRMWMachineEffect.xadd_iff.mpr effect, selected, effect.delta, rfl, rfl⟩
+      arithmetic, selected, arithmetic.delta, rfl, rfl⟩
 
 /-- A blocked own-FIFO attempt retains the whole scheduler state, retires
 nothing and cannot carry an RMW event. It is not an installed arithmetic RMW. -/
 theorem blocked {before after : TSO64.State} {action : TSO64.Action} {tid : Nat}
-    {profile : TSO64.Profile}
-    (success : TSO64.step before action profile = .ok (after, .blocked tid)) :
+    {profile : TSO64.Profile} {family : TSO64.RMWFamily}
+    (success : TSO64.step before action profile family = .ok (after, .blocked tid)) :
     after = before ∧ (TSO64.Observation.blocked tid).retired = 0 ∧
       ∀ issuer event, (TSO64.Observation.blocked tid) ≠ .rmw issuer event := by
   refine ⟨TSO64.blocked_unchanged success, rfl, ?_⟩

@@ -4,6 +4,11 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.X86.Sequential.Model
 
+set_option autoImplicit false
+set_option warningAsError true
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
+
 namespace EDSL.X86.Sequential
 
 /-- REX.W rotates use the old RCX's low six bits, equivalently CL & 63. -/
@@ -78,6 +83,23 @@ theorem statusFlags_preserves (old : Word) (cf pf af zf sf of : Bool) :
       old &&& ~~~arithmeticFlagMask := by
   cases cf <;> cases pf <;> cases af <;> cases zf <;> cases sf <;> cases of <;>
     simp [statusFlags, flagBit, arithmeticFlagMask, BitVec.and_or_distrib_right, BitVec.and_assoc]
+
+/-- Logical LOW8 flags. Bit7 supplies SF; AF remains an explicit choice. -/
+def logicalFlags8 (old : Word) (result : Byte) (af : Bool) : Word :=
+  statusFlags old false (evenParity result) af (result == 0) result.msb false
+
+theorem logicalFlags8_bits (old : Word) (result : Byte) (af : Bool) :
+    (logicalFlags8 old result af).getLsbD 0 = false ∧
+    (logicalFlags8 old result af).getLsbD 2 = evenParity result ∧
+    (logicalFlags8 old result af).getLsbD 4 = af ∧
+    (logicalFlags8 old result af).getLsbD 6 = (result == 0) ∧
+    (logicalFlags8 old result af).getLsbD 7 = result.msb ∧
+    (logicalFlags8 old result af).getLsbD 11 = false :=
+  statusFlags_bits ..
+
+theorem logicalFlags8_preserves (old : Word) (result : Byte) (af : Bool) :
+    logicalFlags8 old result af &&& ~~~arithmeticFlagMask = old &&& ~~~arithmeticFlagMask :=
+  statusFlags_preserves ..
 
 def logicalFlags32 (old : Word) (result : BitVec 32) (af : Bool) : Word :=
   statusFlags old false (evenParity (result.setWidth 8)) af (result == 0) result.msb false
@@ -399,6 +421,34 @@ def LogicalFlagsAdmissible (old actual : Word) (parity zero sign : Bool) : Prop 
   actual &&& ~~~arithmeticFlagMask = old &&& ~~~arithmeticFlagMask ∧
   actual.getLsbD 0 = false ∧ actual.getLsbD 2 = parity ∧
   actual.getLsbD 6 = zero ∧ actual.getLsbD 7 = sign ∧ actual.getLsbD 11 = false
+
+theorem logicalFlags8_admissible_iff (old actual : Word) (result : Byte) :
+    LogicalFlagsAdmissible old actual (evenParity result) (result == 0) result.msb ↔
+      ∃ af, actual = logicalFlags8 old result af := by
+  constructor
+  · rintro ⟨outside, carry, parity, zero, sign, overflow⟩
+    exact ⟨actual.getLsbD 4, statusFlags_unique old actual _ _ _ _ _ _ outside
+      ⟨carry, parity, rfl, zero, sign, overflow⟩⟩
+  · rintro ⟨af, rfl⟩
+    have bits := logicalFlags8_bits old result af
+    exact ⟨logicalFlags8_preserves old result af, bits.1, bits.2.1,
+      bits.2.2.2.1, bits.2.2.2.2.1, bits.2.2.2.2.2⟩
+
+theorem logicalFlags8_choices (old : Word) (result : Byte) (left right : Bool) :
+    logicalFlags8 old result left &&& ~~~(0x10 : Word) =
+      logicalFlags8 old result right &&& ~~~(0x10 : Word) := by
+  cases left <;> cases right <;>
+    simp [logicalFlags8, statusFlags, flagBit, BitVec.and_or_distrib_right]
+
+theorem logicalFlags8_choice_injective (old : Word) (result : Byte) (left right : Bool) :
+    logicalFlags8 old result left = logicalFlags8 old result right ↔ left = right := by
+  constructor
+  · intro same
+    have bit := congrArg (fun flags : Word => flags.getLsbD 4) same
+    simpa only [(logicalFlags8_bits old result left).2.2.1,
+      (logicalFlags8_bits old result right).2.2.1] using bit
+  · rintro rfl
+    rfl
 
 theorem logicalFlags32_admissible_iff (old actual : Word) (result : BitVec 32) :
     LogicalFlagsAdmissible old actual (evenParity (result.setWidth 8)) (result == 0) result.msb ↔

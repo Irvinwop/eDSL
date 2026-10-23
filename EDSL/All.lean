@@ -162,10 +162,16 @@ import EDSL.Corpus.V1.AverageCertificates
 import EDSL.Corpus.V1.ParityCertificates
 import EDSL.Corpus.V1.RotationCertificates
 import EDSL.Corpus.V1.CallerOnlyAdapters
+import EDSL.X86.VCGen.MixedCFG
+import EDSL.X86.VCGen.MixedCFGDiscovery
+import EDSL.X86.VCGen.MixedCFGTransport
+import EDSL.Corpus.V1.CounterMixedGraphs
 import EDSL.X86.Sequential.Rotate
 import EDSL.WordMath.Rotation
 import EDSL.X86.Sequential.Low8
 import EDSL.X86.Sequential.Immediate32
+import EDSL.X86.Sequential.Address32
+import EDSL.X86.Sequential.TestImmediate8
 import EDSL.X86.Sequential.ShiftOne
 import EDSL.X86.Sequential.ParityISA
 import EDSL.WordMath.Parity

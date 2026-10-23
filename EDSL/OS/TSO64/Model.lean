@@ -3,7 +3,13 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.OS.TSO64.Queue.Sequence
+import EDSL.OS.TSO64.RMWFamily
 import EDSL.X86.Sequential.MachineChoices
+
+set_option warningAsError true
+set_option autoImplicit false
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
 
 namespace EDSL.OS.TSO64
 open X86 AddressSpace
@@ -62,14 +68,14 @@ def fetchCPU (state : State) (worker : Worker) : X86.State :=
   let memory := published state.world
   cpu worker { memory with executable := (fun address => memory.executable address && decide (worker.resources.code.loan.region.Contains address)) }
 
-inductive Decoded where
+inductive Decoded (family : RMWFamily := .xaddOnly) where
   | ordinary (instruction : Sequential.Instruction)
-  | locked (instruction : LockedAdd64.Instruction)
+  | locked (instruction : family.Instruction)
 
-def decode (state : X86.State) : Except Fault Decoded := do
+def decode (state : X86.State) (family : RMWFamily := .xaddOnly) : Except Fault (Decoded family) := do
   let first ← (fetchByte state.memory state.rip).mapError Fault.machine
   if first = 0xf0 then
-    return .locked (← (LockedAdd64.decodeAt state).mapError Fault.machine)
+    return .locked (← (family.decodeAt state).mapError Fault.machine)
   else return .ordinary (← (Sequential.decodeAt state).mapError Fault.machine)
 
 /-- Ordinary admission follows the existing Bool-choice scalar/control profile,
@@ -153,31 +159,39 @@ def ordinary (state : State) (tid : Nat) (worker : Worker)
   finishOrdinary state tid worker update.pending observation update.nextStore
 
 /-- Only the issuing FIFO blocks. Blocking neither drains nor executes the
-primitive. Peer FIFOs are irrelevant to enabledness of this indivisible RMW8. -/
-def locked (state : State) (tid : Nat) (worker : Worker)
-    (instruction : LockedAdd64.Instruction) : Except Fault (State × Observation) := do
-  if ¬codeFits worker instruction.length then throw .codeBounds
+primitive. Peer FIFOs are irrelevant to enabledness of this indivisible RMW8.
+All operands are captured from the current published prestate before writeback.
+Direct calls do not establish the live/running/code/caller gates of `issue`. -/
+def lockedFor (family : RMWFamily) (state : State) (tid : Nat) (worker : Worker)
+    (instruction : family.Instruction) : Except Fault (State × Observation) := do
+  if ¬codeFits worker (family.embed instruction).length then throw .codeBounds
   if !worker.pending.isEmpty then return (state, .blocked tid)
   let initial := sharedCPU state worker
-  let actual ← (LockedAdd64.decodeAt initial).mapError Fault.machine
+  let actual ← (family.decodeAt initial).mapError Fault.machine
   if actual ≠ instruction then throw .unexpected
   let some (identifier, _, _) := atomicFor state.world worker.resources
-    (initial.registers instruction.base) | throw .noAtomicGrant
+    (initial.registers (family.embed instruction).base) | throw .noAtomicGrant
   let result ← (Atomics64.fetchAdd state.world worker.resources.actor identifier
-    (initial.registers instruction.source)).mapError Fault.os
-  let machine ← (LockedAdd64.step initial).mapError Fault.machine
+    ((family.embed instruction).delta initial)).mapError Fault.os
+  let machine ← (family.stepCPU initial).mapError Fault.machine
   return (install state tid result.1 { worker with context := .ofCPU machine.state }, .rmw tid result.2)
 
+/-- The original public XADD-only executor is the specialization of one kernel. -/
+abbrev locked (state : State) (tid : Nat) (worker : Worker)
+    (instruction : LockedAdd64.Instruction) : Except Fault (State × Observation) :=
+  lockedFor .xaddOnly state tid worker instruction
+
 def issue (state : State) (tid : Nat) (af : Bool)
-    (profile : Profile := .ownedOnly) : Except Fault (State × Observation) := do
+    (profile : Profile := .ownedOnly) (family : RMWFamily := .xaddOnly) :
+    Except Fault (State × Observation) := do
   let some worker := state.workers[tid]? | throw .missingWorker
   if worker.phase = .returned then throw .alreadyReturned
   if ¬LeaseCurrent state.world worker.resources.actor worker.resources.code ∨
       ¬LeaseCurrent state.world worker.resources.actor worker.resources.caller then throw .resource
-  let instruction ← decode (fetchCPU state worker)
+  let instruction ← decode (fetchCPU state worker) family
   match instruction with
   | .ordinary instruction => ordinary state tid worker instruction af profile
-  | .locked instruction => locked state tid worker instruction
+  | .locked instruction => lockedFor family state tid worker instruction
 
 /-- Recheck the FIFO head's complete original authority at the current world,
 then publish exactly that head. CPU RAM is never copied into the world. The
@@ -189,19 +203,21 @@ def drain (state : State) (tid : Nat) (profile : Profile := .ownedOnly) :
   let result ← Queue.publish state.world worker.resources head profile
   return (install state tid result.1 { worker with pending := tail }, .drained tid head)
 
-def step (state : State) (action : Action) (profile : Profile := .ownedOnly) :
+def step (state : State) (action : Action) (profile : Profile := .ownedOnly)
+    (family : RMWFamily := .xaddOnly) :
     Except Fault (State × Observation) :=
   match action with
-  | .issue tid af => issue state tid af profile
+  | .issue tid af => issue state tid af profile family
   | .drain tid => drain state tid profile
 
-def schedule (state : State) (actions : List Action) (profile : Profile := .ownedOnly) :
+def schedule (state : State) (actions : List Action) (profile : Profile := .ownedOnly)
+    (family : RMWFamily := .xaddOnly) :
     Except Fault (State × List Observation) :=
   match actions with
   | [] => .ok (state, [])
   | action :: rest => do
-    let head ← step state action profile
-    let tail ← schedule head.1 rest profile
+    let head ← step state action profile family
+    let tail ← schedule head.1 rest profile family
     return (tail.1, head.2 :: tail.2)
 
 def Returned (state : State) : Prop := ∀ worker ∈ state.workers, worker.phase = .returned

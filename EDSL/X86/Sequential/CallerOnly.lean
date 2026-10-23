@@ -35,14 +35,14 @@ instructions inhabit a different instruction type and are not admitted here. -/
 def CallerOnly : Instruction → Prop
   | .legacy old => ContextOnly old ∨ old = .ret
   | .xorSelf32 _ | .logicalReg32 _ _ _ _ | .logicalImm32 _ _ _ _
-  | .test32 _ _ _ | .cmp32 _ _ _ | .cmpReg8 _ _ _ | .subReg32 _ _ _
+  | .test32 _ _ _ | .testImm8 _ _ _ | .cmp32 _ _ _ | .cmpReg8 _ _ _ | .subReg32 _ _ _
   | .subImm32 _ _ _ | .cmpImm32 _ _ _
   | .negReg32 _ _ | .bswapReg64 _ | .shrOne64 _ | .rolCL64 _
   | .movzxReg8 _ _ _ | .endbr64IbtDisabled | .nop _
   | .test64 _ _ | .cmp64 _ _ | .cmpImm64 _ _
   | .movReg32 _ _ | .movReg64 _ _ | .movSignImm32 _ _
   | .setcc _ _ _ | .movImm8 _ _ _ | .cmovReg64 _ _ _ | .cmovReg32 _ _ _ _
-  | .lea64 _ _ | .addReg64 _ _ | .logicalReg64 _ _ _
+  | .lea64 _ _ | .lea32 _ _ _ | .addReg64 _ _ | .logicalReg64 _ _ _
   | .xchgReg64 _ _ | .xchgRax64 _ | .addImm64 _ _ | .addImm32 _ _ _
   | .inc32 _ _ | .inc64 _ | .dec64 _ | .je _ | .jcc _ _ | .jmp _ => True
   | .imulReg64 _ _ | .shiftRightImm32 _ _ _ _
@@ -202,6 +202,7 @@ theorem CallerOnly.execute_memory_eq {instruction : Instruction}
       rw [ret_memory_eq input memory (caller rfl)]
       cases executeRet input <;> rfl
   | lea64 destination address => cases address <;> rfl
+  | lea32 destination address prefixed => cases address <;> rfl
   | je displacement =>
     simp only [execute_je]
     rw [shortBranch_memory_eq input memory (input.flags.getLsbD 6) displacement]

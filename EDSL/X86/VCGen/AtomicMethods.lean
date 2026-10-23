@@ -53,7 +53,7 @@ private theorem first_fetch {initial : X86.State} {instruction : OS.TSO64.Decode
     (decoded : OS.TSO64.decode initial = .ok instruction) :
     ∃ byte, fetchByte initial.memory initial.rip = .ok byte := by
   cases first : fetchByte initial.memory initial.rip with
-  | error fault => simp [OS.TSO64.decode, first, Except.mapError] at decoded
+  | error fault => simp [OS.TSO64.decode, RMWFamily.decodeAt, first, Except.mapError] at decoded
   | ok byte => exact ⟨byte, rfl⟩
 
 /-- Transport the existing two production decoders together. Locked fetch
@@ -71,10 +71,10 @@ theorem decode_transport {source destination : X86.State} {instruction : OS.TSO6
     have actual : ∃ locked, instruction = .locked locked ∧
         LockedAdd64.decodeAt source = .ok locked := by
       cases output : LockedAdd64.decodeAt source with
-      | error fault => simp [OS.TSO64.decode, first, output, Except.mapError] at decoded
+      | error fault => simp [OS.TSO64.decode, RMWFamily.decodeAt, first, output, Except.mapError] at decoded
       | ok locked =>
-        simp [OS.TSO64.decode, first, output, Except.mapError] at decoded
-        exact ⟨locked, decoded.symm, rfl⟩
+        simp [OS.TSO64.decode, RMWFamily.decodeAt, first, output, Except.mapError] at decoded
+        exact ⟨locked, Except.ok.inj decoded.symm, rfl⟩
     obtain ⟨locked, rfl, actual⟩ := actual
     have code := LockedAdd64.decodeAt_code actual
     have destinationCode : CodeAt destination.memory destination.rip locked.bytes := by
@@ -82,17 +82,17 @@ theorem decode_transport {source destination : X86.State} {instruction : OS.TSO6
       intro offset byte present
       have bound := (List.getElem_of_getElem? present).1
       exact transport offset (by change offset < 5 at bound; omega) byte (code.2 offset byte present)
-    simp [OS.TSO64.decode, next, LockedAdd64.decodeAt_of_code locked destinationCode,
+    simp [OS.TSO64.decode, RMWFamily.decodeAt, next, LockedAdd64.decodeAt_of_code locked destinationCode,
       Except.mapError]
   · have actual : ∃ ordinary, instruction = .ordinary ordinary ∧
         Sequential.decodeAt source = .ok ordinary := by
       cases output : Sequential.decodeAt source with
-      | error fault => simp [OS.TSO64.decode, first, lock, output, Except.mapError] at decoded
+      | error fault => simp [OS.TSO64.decode, RMWFamily.decodeAt, first, lock, output, Except.mapError] at decoded
       | ok ordinary =>
-        simp [OS.TSO64.decode, first, lock, output, Except.mapError] at decoded
+        simp [OS.TSO64.decode, RMWFamily.decodeAt, first, lock, output, Except.mapError] at decoded
         exact ⟨ordinary, decoded.symm, rfl⟩
     obtain ⟨ordinary, rfl, actual⟩ := actual
-    simp [OS.TSO64.decode, next, lock, Sequential.decodeAt_transport transport actual,
+    simp [OS.TSO64.decode, RMWFamily.decodeAt, next, lock, Sequential.decodeAt_transport transport actual,
       Except.mapError]
 
 private theorem offset_nat {bytes : List Byte} {memory : Memory} {base : Word}
@@ -195,12 +195,18 @@ theorem decode_ordinary {state : X86.State} {instruction : Sequential.Instructio
   obtain ⟨byte, first⟩ := first_fetch decoded
   by_cases lock : byte = 0xf0#8
   · subst byte
-    cases result : LockedAdd64.decodeAt state <;>
-      simp [OS.TSO64.decode, first, result, Except.mapError] at decoded
-  · cases result : Sequential.decodeAt state with
-    | error fault => simp [OS.TSO64.decode, first, lock, result, Except.mapError] at decoded
+    cases result : LockedAdd64.decodeAt state with
+    | error fault =>
+      simp [OS.TSO64.decode, RMWFamily.decodeAt, first, result, Except.mapError] at decoded
     | ok actual =>
-      simp [OS.TSO64.decode, first, lock, result, Except.mapError] at decoded
+      simp [OS.TSO64.decode, RMWFamily.decodeAt, first, result, Except.mapError] at decoded
+      change (Except.ok (.locked actual) : Except Fault OS.TSO64.Decoded) =
+        .ok (.ordinary instruction) at decoded
+      cases decoded
+  · cases result : Sequential.decodeAt state with
+    | error fault => simp [OS.TSO64.decode, RMWFamily.decodeAt, first, lock, result, Except.mapError] at decoded
+    | ok actual =>
+      simp [OS.TSO64.decode, RMWFamily.decodeAt, first, lock, result, Except.mapError] at decoded
       cases decoded
       rfl
 
@@ -211,13 +217,13 @@ private theorem decode_locked {state : X86.State} {instruction : LockedAdd64.Ins
   by_cases lock : byte = 0xf0#8
   · subst byte
     cases result : LockedAdd64.decodeAt state with
-    | error fault => simp [OS.TSO64.decode, first, result, Except.mapError] at decoded
+    | error fault => simp [OS.TSO64.decode, RMWFamily.decodeAt, first, result, Except.mapError] at decoded
     | ok actual =>
-      simp [OS.TSO64.decode, first, result, Except.mapError] at decoded
+      simp [OS.TSO64.decode, RMWFamily.decodeAt, first, result, Except.mapError] at decoded
       cases decoded
       rfl
   · cases result : Sequential.decodeAt state <;>
-      simp [OS.TSO64.decode, first, lock, result, Except.mapError] at decoded
+      simp [OS.TSO64.decode, RMWFamily.decodeAt, first, lock, result, Except.mapError] at decoded
 
 theorem Node.codeFits {bytes : List Byte} {offset : Nat} {instruction : OS.TSO64.Decoded}
     (node : Node bytes offset instruction) {state : OS.TSO64.State} {worker : Worker} {base : Word}
@@ -294,8 +300,12 @@ theorem issue_locked {bytes : List Byte} {offset : Nat} {instruction : LockedAdd
     some (identifier, handle, cell) at selected
   refine ⟨output, _, ?_, Atomics64.fetchAdd_step_effect _ _ _ _ _ _ _ _
     changed authority rfl address.symm locked⟩
-  simp [issue, live, running, resource.1, resource.2.1, fetched, OS.TSO64.locked,
+  simp [issue, live, running, resource.1, resource.2.1, fetched, OS.TSO64.lockedFor,
+    RMWFamily.embed, RMWFamily.decodeAt, RMWFamily.stepCPU,
+    AddRMW64.Instruction.length, AddRMW64.Instruction.base, AddRMW64.Instruction.delta,
     bounds, empty, locked, selected, changed, executed, Except.mapError]
+  change (if instruction = instruction then _ else _) = _
+  simp
 
 /-- Padding admitted by the production sequential target profile. -/
 inductive Padding where
@@ -909,14 +919,14 @@ theorem rmw_origin {method : Method} {state after : OS.TSO64.State} {tid : Nat} 
   | ordinary originLive running code caller fetched effect =>
     cases effect with
     | intro supported bounds decoded reads queue step finish => cases finish
-  | @rmw tid af issuing instruction identifier output machine _ originLive running code caller fetched bounds empty grant effect =>
+  | @rmw _ tid af issuing instruction identifier output machine _ originLive running code caller fetched bounds empty grant effect =>
     have same := Option.some.inj (originLive.symm.trans live)
     subst worker
     obtain ⟨offset, pointEq, instructionEq⟩ := locked_location current located running fetched
     subst point
     subst instructionEq
     refine ⟨offset, af, identifier, machine, rfl, rfl, ?_, ?_, effect.cpu.old⟩
-    · simpa only [install, located.1] using effect
+    · simpa only [RMWFamily.MachineEffect, install, located.1] using effect
     · rw [located.2.2.2.2.1]
       exact written_same _ _ _
 

@@ -126,6 +126,8 @@ private theorem sequential_rex_stack {state : State} {opcode : Byte}
   have notImm8 : ¬(0xb0 ≤ opcode.toNat ∧ opcode.toNat ≤ 0xb7) := by omega
   rw [Sequential.decodeAt, legacy_rejects_rex_stack fetched lower upper]
   simp [Sequential.decodeNewAt, Sequential.decodeTailAt, fetched, notImm8, notJcc, no32,
+    outside (by decide : 0x8d < 256) (by decide),
+    outside (by decide : 0xf6 < 256) (by decide),
     outside (by decide : 0xb9 < 256) (by decide),
     outside (by decide : 0xbb < 256) (by decide),
     outside (by decide : 0xbc < 256) (by decide),
@@ -185,6 +187,8 @@ private theorem rex32_rejects_stack {state : State} {rex opcode : Byte}
     rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
     simp [Sequential.decodeAt, X86.decodeAt, Sequential.decodeNewAt,
       Sequential.decodeREX32At, Sequential.decodeCompare32At, fetched, operation, notImm8,
+    outside (by decide : 0x8d < 256) (by decide),
+    outside (by decide : 0xf6 < 256) (by decide),
       outside (by decide : 0xf7 < 256) (by decide),
     outside (by decide : 0xff < 256) (by decide),
     outside (by decide : 0x83 < 256) (by decide),

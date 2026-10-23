@@ -5,10 +5,12 @@
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -17,7 +19,8 @@
 #include <unistd.h>
 
 using Word = std::uint64_t;
-enum Family : unsigned { Add32, Inc32, Lea64, Sub32, Cmp32 };
+enum Family : unsigned { Add32, Inc32, Lea64, Sub32, Cmp32, Lea32, TestLow8 };
+enum AddressForm : unsigned { Base, Indexed, BaseDisp8, SibDisp8 };
 constexpr std::array<unsigned, 11> selected{0,1,2,3,4,5,8,9,12,13,15};
 constexpr std::array<const char*, 11> regnames{
     "rax","rcx","rdx","rbx","rsp","rbp","r8","r9","r12","r13","r15"};
@@ -27,21 +30,21 @@ struct Snapshot {
 };
 static_assert(sizeof(Snapshot) == 192 && offsetof(Snapshot, after) == 88 &&
               offsetof(Snapshot, flags_before) == 176 && offsetof(Snapshot, flags_after) == 184);
-#define P(name,kind,dst,base,index,scale,imm,pref,...) \
+#define P(name,kind,dst,base,index,scale,imm,pref,form,...) \
     extern "C" void counter_##name(const Word*, unsigned, Snapshot*); \
     extern "C" const unsigned char counter_##name##_instruction[], counter_##name##_instruction_end[];
 #include "probes.def"
 #undef P
 struct Probe {
     const char* name;
-    unsigned kind, dst, base, index, scale, imm, pref;
+    unsigned kind, dst, base, index, scale, imm, pref, form;
     void (*run)(const Word*, unsigned, Snapshot*);
     const unsigned char *start, *end;
     std::vector<unsigned char> literal;
 };
 const std::vector<Probe> probes{
-#define P(name,kind,dst,base,index,scale,imm,pref,...) \
-    {#name,kind,dst,base,index,scale,imm,pref,counter_##name, \
+#define P(name,kind,dst,base,index,scale,imm,pref,form,...) \
+    {#name,kind,dst,base,index,scale,imm,pref,form,counter_##name, \
      counter_##name##_instruction,counter_##name##_instruction_end,{__VA_ARGS__}},
 #include "probes.def"
 #undef P
@@ -101,14 +104,58 @@ Word reg(const std::array<Word,11>& values, unsigned r) {
     for (std::size_t i=0;i<selected.size();++i) if (selected[i]==r) return values[i];
     throw std::runtime_error("probe requires unobserved register");
 }
+bool observed(unsigned r) {
+    for (const auto selected_register : selected) if (selected_register==r) return true;
+    return false;
+}
+// Validate literal contracts before any file/observation emission. No byte is
+// decoded here; metadata and linked bytes have separate authentication paths.
+void validate_probes() {
+    std::set<std::string> names;
+    for (const auto& p : probes) {
+        require(names.insert(p.name).second,"duplicate probe contract");
+        require(p.kind<=TestLow8 && p.scale<4 && p.imm<256 && p.pref<2 && p.form<=SibDisp8,
+                "unsupported probe contract");
+        require(observed(p.dst) && (p.dst!=4 || p.kind==TestLow8),
+                "unobserved operand or forbidden native RSP destination");
+        require(!p.literal.empty() && p.literal.size()<=15,"invalid literal length");
+        if (p.kind!=Lea64 && p.kind!=Lea32) {
+            require(p.form==Base && p.base==0 && p.index==16 && p.scale==0,
+                    "noncanonical unused address metadata");
+            require(p.kind!=Inc32 || p.imm==1,"noncanonical INC immediate metadata");
+            continue;
+        }
+        require(observed(p.base) && (p.index==16 || (observed(p.index) && p.index!=4)),
+                "unobserved address operand or invalid RSP index");
+        require(p.kind!=Lea64 || (p.pref==1 && p.form>=BaseDisp8),"unsupported LEA64 form");
+        if (p.form==Base || p.form==BaseDisp8)
+            require(p.index==16 && p.scale==0 && p.base!=4 && p.base!=12,"malformed plain address");
+        if (p.form==Base || p.form==Indexed)
+            require(p.imm==0 && p.base!=5 && p.base!=13,"malformed nondisplaced address");
+        if (p.form==Indexed) require(p.index!=16,"indexed address requires an index");
+    }
+}
 // Independent mathematical contract: no model evaluator or opcode decoding.
 Word expected_result(const Probe& p, const Snapshot& s) {
-    require(p.kind<=Cmp32,"unsupported probe family");
+    require(p.kind<=TestLow8,"unsupported probe family");
     const std::int64_t immediate = p.imm < 128 ? p.imm : static_cast<std::int64_t>(p.imm)-256;
-    if (p.kind == Lea64) {
-        const __int128_t sum = static_cast<__int128_t>(reg(s.before,p.base)) + immediate +
+    if (p.kind == Lea64 || p.kind == Lea32) {
+        const __int128_t sum = static_cast<__int128_t>(reg(s.before,p.base)) +
+            (p.form==BaseDisp8 || p.form==SibDisp8 ? immediate : 0) +
             (p.index == 16 ? 0 : static_cast<__int128_t>(reg(s.before,p.index)) * (Word{1} << p.scale));
+        if (p.kind==Lea32) {
+            const __int128_t modulus = Word{1}<<32;
+            const __int128_t reduced = sum % modulus;
+            return static_cast<Word>(reduced<0 ? reduced+modulus : reduced);
+        }
         return static_cast<Word>(sum); // modulo 2^64, including negative/noncanonical values
+    }
+    if (p.kind==TestLow8) {
+        const Word x = reg(s.before,p.dst)%256;
+        Word intersection=0;
+        for (Word power=1;power<256;power*=2)
+            intersection+=power*((x/power)%2)*((p.imm/power)%2);
+        return intersection; // only for flags; every full64 GPR is preserved
     }
     const Word x = reg(s.before,p.dst) % (Word{1}<<32);
     const std::int64_t delta = p.kind==Inc32 ? 1 :
@@ -118,7 +165,14 @@ Word expected_result(const Probe& p, const Snapshot& s) {
     return static_cast<Word>(sum) % (Word{1}<<32); // upper32 must be zero
 }
 Word expected_flags(const Probe& p, const Snapshot& s, Word output) {
-    if (p.kind == Lea64) return s.flags_before;
+    if (p.kind == Lea64 || p.kind == Lea32) return s.flags_before;
+    if (p.kind==TestLow8) {
+        unsigned bits=0;
+        for (Word low=output;low!=0;low/=2) bits+=static_cast<unsigned>(low%2);
+        const Word status=Word(bits%2==0)*4+Word(output==0)*64+Word(output>=128)*128;
+        // AF-normalized expectation. CF=OF=0; every nonarithmetic bit survives.
+        return (s.flags_before & ~arithmetic_mask) | status;
+    }
     constexpr Word modulus = Word{1}<<32;
     const Word x = reg(s.before,p.dst) % modulus;
     const std::int64_t signed_x = x < (Word{1}<<31) ? static_cast<std::int64_t>(x) :
@@ -151,12 +205,14 @@ void check_observation(const Probe& p, std::size_t c, unsigned seed, const Snaps
             "target requires AC/DF/TF off and RFLAGS reserved bit1");
     require(((s.flags_before | s.flags_after) & 0x30000)==0,"PUSHFQ RF/VM masking mismatch");
     const Word result = expected_result(p,s);
-    if (p.kind==Cmp32)
-        require(reg(s.after,p.dst)==reg(s.before,p.dst),"observed CMP operand changed");
+    if (p.kind==Cmp32 || p.kind==TestLow8)
+        require(reg(s.after,p.dst)==reg(s.before,p.dst),
+                p.kind==Cmp32 ? "observed CMP operand changed" : "observed TEST operand changed");
     else require(reg(s.after,p.dst)==result,"independent mathematical result mismatch");
     for (std::size_t i=0;i<selected.size();++i)
         if (selected[i]!=p.dst) require(s.before[i]==s.after[i],"observed nondestination GPR changed");
-    require(s.flags_after==expected_flags(p,s,result),"independent mathematical flags mismatch");
+    const Word observed_flags=p.kind==TestLow8 ? s.flags_after & ~Word{0x10} : s.flags_after;
+    require(observed_flags==expected_flags(p,s,result),"independent mathematical flags mismatch");
 }
 void write_file(const std::string& path, const std::string& text) {
     std::ofstream file(path,std::ios::binary);
@@ -165,24 +221,49 @@ void write_file(const std::string& path, const std::string& text) {
     file.close();
     require(bool(file),"cannot close output: "+path);
 }
-std::vector<std::string> live_codes(const std::string& dir) {
-    std::vector<std::string> result;
-    std::string manifest = "probe\tkind\tdestination\tbase\tindex\tscale\timm8\tprefixed\tinstruction_hex\n";
+std::string probe_manifest() {
+    std::string manifest = "probe\tkind\tdestination\tbase\tindex\tscale\timm8\tprefixed\taddress_form\tinstruction_hex\n";
+    for (const auto& p : probes) {
+        manifest += std::string(p.name)+"\t"+std::to_string(p.kind)+"\t"+std::to_string(p.dst)+"\t"+
+            std::to_string(p.base)+"\t"+std::to_string(p.index)+"\t"+std::to_string(p.scale)+"\t"+
+            std::to_string(p.imm)+"\t"+std::to_string(p.pref)+"\t"+std::to_string(p.form)+"\t"+
+            code_hex(p.literal)+"\n";
+    }
+    return manifest;
+}
+std::string input_manifest() {
+    std::string in;
+    for (const auto& i : inputs) in+=std::string(i.name)+"\t"+hex(i.value)+"\n";
+    return in;
+}
+std::string read_file(const std::filesystem::path& path) {
+    std::ifstream file(path,std::ios::binary);
+    require(bool(file),"cannot open persisted manifest");
+    const std::string text((std::istreambuf_iterator<char>(file)),{});
+    require(!file.bad(),"persisted manifest read failure");
+    return text;
+}
+std::vector<std::vector<unsigned char>> linked_codes() {
+    std::vector<std::vector<unsigned char>> result;
     for (const auto& p : probes) {
         const auto start=reinterpret_cast<std::uintptr_t>(p.start), end=reinterpret_cast<std::uintptr_t>(p.end);
         require(end>start && end-start<=15,"invalid live opcode labels");
         const std::vector<unsigned char> live(p.start,p.start+(end-start));
         require(live==p.literal,"live linked bytes differ from independent literal window");
-        write_file(dir+"/opcodes/"+p.name+".bin",std::string(live.begin(),live.end()));
-        result.push_back(code_hex(live));
-        manifest += std::string(p.name)+"\t"+std::to_string(p.kind)+"\t"+std::to_string(p.dst)+"\t"+
-            std::to_string(p.base)+"\t"+std::to_string(p.index)+"\t"+std::to_string(p.scale)+"\t"+
-            std::to_string(p.imm)+"\t"+std::to_string(p.pref)+"\t"+code_hex(p.literal)+"\n";
+        result.push_back(live);
     }
-    write_file(dir+"/probes.tsv",manifest);
-    std::string in;
-    for (const auto& i : inputs) in+=std::string(i.name)+"\t"+hex(i.value)+"\n";
-    write_file(dir+"/inputs.tsv",in);
+    return result;
+}
+std::vector<std::string> live_codes(const std::string& dir) {
+    // Authenticate ALL labeled windows before emitting any opcode/metadata.
+    const auto live=linked_codes();
+    std::vector<std::string> result;
+    for (std::size_t n=0;n<probes.size();++n) {
+        write_file(dir+"/opcodes/"+probes[n].name+".bin",std::string(live[n].begin(),live[n].end()));
+        result.push_back(code_hex(live[n]));
+    }
+    write_file(dir+"/probes.tsv",probe_manifest());
+    write_file(dir+"/inputs.tsv",input_manifest());
     return result;
 }
 void capture(const std::string& dir) {
@@ -223,12 +304,18 @@ void capture(const std::string& dir) {
         << "); no Lean replay or universal physical CPU/OS refinement.\n";
 }
 void check(const char* path, const std::string& dir) {
+    auto opcode_path=std::filesystem::path(dir).lexically_normal();
+    if (opcode_path.filename().empty()) opcode_path=opcode_path.parent_path();
+    const auto parent=opcode_path.parent_path();
+    require(read_file(parent/"probes.tsv")==probe_manifest(),"probe manifest mismatch");
+    require(read_file(parent/"inputs.tsv")==input_manifest(),"input manifest mismatch");
     std::ifstream file(path);
     require(bool(file),"cannot open capture");
     std::string line;
     require(bool(std::getline(file,line)) && line==header(),"capture header/schema mismatch");
     std::vector<bool> seen(std::size(inputs)*probes.size()*4,false);
     std::size_t count=0;
+    std::array<std::size_t,7> family_counts{};
     for (const auto& p : probes) {
         std::ifstream opcode(dir+"/"+p.name+".bin",std::ios::binary);
         require(bool(opcode),"missing opcode file");
@@ -256,19 +343,22 @@ void check(const char* path, const std::string& dir) {
         try { check_observation(probes[n],c,static_cast<unsigned>(seed),s); }
         catch (const std::exception& e) { throw std::runtime_error(f[0]+"/"+f[1]+"/"+f[2]+": "+e.what()); }
         ++count;
+        ++family_counts.at(probes[n].kind);
     }
     require(!file.bad() && count==seen.size(),"incomplete matrix");
-    std::array<std::size_t,5> family_counts{};
-    for (const auto& p : probes) family_counts.at(p.kind)+=std::size(inputs)*4;
-    constexpr std::array<const char*,5> families{"ADD32","INC32","LEA64","SUB32","CMP32"};
-    std::cout << "PASS: " << count << " persisted native observations;";
+    for (const bool present : seen) require(present,"missing required observation");
+    constexpr std::array<const char*,7> families{"ADD32","INC32","LEA64","SUB32","CMP32","LEA32","TEST-low8"};
+    std::cout << "PASS: " << count << " persisted native observations across " << probes.size()
+        << " windows x " << std::size(inputs) << " rotated vectors x " << seed_flags.size() << " seeds;";
     for (std::size_t i=0;i<families.size();++i)
         std::cout << ' ' << family_counts[i] << ' ' << families[i] << ';';
     std::cout << " independent wide arithmetic, signed overflow/carry/borrow/nibble/parity, "
-        "all saved flags and selected GPR frames (CMP preserves full64).\n";
+        "arithmetic byte intersection; all saved flags exact except TEST AF; selected GPR frames "
+        "(CMP/TEST preserve full64).\n";
 }
 int main(int argc,char** argv) {
     try {
+        validate_probes();
         if (argc==3 && std::string(argv[1])=="capture") capture(argv[2]);
         else if (argc==4 && std::string(argv[1])=="check") check(argv[2],argv[3]);
         else throw std::runtime_error("usage: capture.elf capture OUTPUT | check CAPTURE.tsv OPCODE_DIR");

@@ -39,6 +39,8 @@ def Instruction.length : Instruction → Nat
   | .cmpMemImm8 address _ => 3 + address.suffixBytes
   | .cmpMemReg8 address _ | .cmpMemReg32 address _ => 2 + address.suffixBytes
   | .cmpRegMem8 _ address prefixed => (if prefixed then 3 else 2) + address.suffixBytes
+  | .lea32 _ address prefixed => (if prefixed then 3 else 2) + address.suffixBytes
+  | .testImm8 _ _ prefixed => if prefixed then 4 else 3
   | .movSignImm32 _ _ => 7
   | .setcc _ _ prefixed => if prefixed then 4 else 3
   | .movImm8 _ _ prefixed => if prefixed then 3 else 2
@@ -122,6 +124,19 @@ def decodeMovImm8At (state : State) (opcode rex : Byte) (prefixed : Bool) :
   if !prefixed ∧ 4 ≤ opcode.toNat % 8 then throw .unsupportedEncoding
   let immediate ← fetchByte state.memory (state.rip + (if prefixed then 2 else 1))
   return .movImm8 (rexModRMRM rex opcode) immediate prefixed
+
+/-- Continue after authenticated F6, register /0 only. As for the other
+canonical byte-immediate APIs, only 40/41 REX is reviewed. Reject memory,
+other selectors and the unmodeled unprefixed AH/CH/DH/BH bank before fetching
+the immediate. That immediate is a raw byte, with no sign extension. -/
+def decodeTestImm8At (state : State) (rex : Byte) (prefixed : Bool) :
+    Except Error Instruction := do
+  if prefixed ∧ rex ≠ 0x40 ∧ rex ≠ 0x41 then throw .unsupportedEncoding
+  let modrm ← fetchByte state.memory (state.rip + (if prefixed then 2 else 1))
+  if modrm.toNat / 64 ≠ 3 ∨ modrm.toNat / 8 % 8 ≠ 0 then throw .unsupportedEncoding
+  if !prefixed ∧ 4 ≤ modrm.toNat % 8 then throw .unsupportedEncoding
+  let immediate ← fetchByte state.memory (state.rip + (if prefixed then 3 else 2))
+  return .testImm8 (rexModRMRM (if prefixed then rex else 0) modrm) immediate prefixed
 
 /-- Continue after authenticated 0F, with no prefix or exactly one 40/41 REX.
 All sixteen conditions are admitted. Only C0..C7 ModRM (mod=3, reg=0) is
@@ -456,6 +471,31 @@ def decodeQWordAddressAt (state : State) (rex modrm : Byte) : Except Error Addre
   else if modrm.toNat % 8 = 5 then throw .unsupportedEncoding
   else return .base (rexModRMRM rex modrm)
 
+/-- Continue after authenticated 8D, no prefix or one W=0 REX. The prefixed
+path reuses LEA64's exact mod00/mod01 address decoders. The unprefixed path
+has the same subset at its shorter offsets. Mod00 SIB requires a real base
+and index; mod01 SIB also admits an absent index, and all bases are real.
+No disp32, RIP-relative, register operand, legacy prefix or 67 is admitted. -/
+def decodeLea32At (state : State) (rex : Byte) (prefixed : Bool) :
+    Except Error Instruction := do
+  if prefixed ∧ rex32Prefix rex ≠ true then throw .unsupportedEncoding
+  let modrm ← fetchByte state.memory (state.rip + (if prefixed then 2 else 1))
+  let address : Address ← if prefixed then
+      if modrm.toNat / 64 = 1 then decodeDisp8AddressAt state rex modrm
+      else decodeQWordAddressAt state rex modrm
+    else if modrm.toNat / 64 = 1 then do
+      if modrm.toNat % 8 = 4 then
+        let sib ← fetchByte state.memory (state.rip + 2)
+        let index := if sib.toNat / 8 % 8 = 4 then none else some (modRMReg sib)
+        let displacement ← fetchByte state.memory (state.rip + 3)
+        pure (Address.sibDisp8 (modRMRM sib) index
+          ⟨sib.toNat / 64, by have := sib.isLt; omega⟩ displacement)
+      else
+        let displacement ← fetchByte state.memory (state.rip + 2)
+        pure (Address.baseDisp8 (modRMRM modrm) displacement)
+    else decodeAddressAt state modrm
+  return .lea32 (rexModRMReg (if prefixed then rex else 0) modrm) address prefixed
+
 /-- Continue after authenticated 3A, with no prefix or one non-W REX. Only
 mod00 memory addresses from the existing helpers are admitted. Unprefixed
 reg4..7 mean AH..BH and reject. This helper does not authenticate its supplied
@@ -497,6 +537,8 @@ def decodeREX32At (state : State) (rex : Byte) : Except Error Instruction := do
   else if operation = 0x29 ∨ operation = 0x2b then decodeSubReg32At state operation rex true
   else if operation = 0x31 ∨ operation = 0x33 ∨ operation = 0x09 ∨ operation = 0x0b then decodeLogicalReg32At state operation rex true
   else if operation = 0xc1 then decodeShiftRightImm32At state rex true
+  else if operation = 0x8d then decodeLea32At state rex true
+  else if operation = 0xf6 then decodeTestImm8At state rex true
   else if operation = 0xf7 then decodeNegReg32At state rex true
   else if operation = 0x83 ∨ operation = 0xff then decodeCounter32At state operation rex true
   else decodeCompare32At state operation rex true
@@ -616,7 +658,14 @@ def decodeTailAt (state : State) (opcode : Byte) (oldError : Error) : Except Err
     return .jmp (← fetchByte state.memory (state.rip + 1))
   else throw oldError
 
-/-- NEW subset only. SHR64 by one admits REX.W D1 /5, mod=3, length three.
+/-- NEW subset only. LEA32 admits 8D /r with no prefix or one W=0 REX40..47, using exactly the
+LEA64 mod00/mod01 full64 address subset below. Its result is low32 zero
+extended, with no address-size override. Historical unprefixed LEA successes
+retain their legacy constructors. TEST8 admits F6 /0 ib in register mode,
+unprefixed for AL/CL/DL/BL or with exactly REX40/41 for all low-byte GPRs.
+Other TEST prefixes, memory, group selectors and unprefixed high-byte banks
+reject before any unnecessary operand suffix fetch. AF is undefined.
+SHR64 by one admits REX.W D1 /5, mod=3, length three.
 REX.B extends the destination; REX.R is ignored for the opcode-extension field
 and REX.X is ignored without a SIB. No other counts, widths, group selectors,
 memory or extra prefixes are admitted by this family.
@@ -689,6 +738,8 @@ def decodeNewAt (state : State) (oldError : Error) : Except Error Instruction :=
   else if opcode = 0x29 ∨ opcode = 0x2b then decodeSubReg32At state opcode 0 false
   else if opcode = 0x31 ∨ opcode = 0x33 ∨ opcode = 0x09 ∨ opcode = 0x0b then decodeLogicalReg32At state opcode 0 false
   else if opcode = 0xc1 then decodeShiftRightImm32At state 0 false
+  else if opcode = 0x8d then decodeLea32At state 0 false
+  else if opcode = 0xf6 then decodeTestImm8At state 0 false
   else if opcode = 0xf7 then decodeNegReg32At state 0 false
   else if opcode = 0x83 ∨ opcode = 0xff then decodeCounter32At state opcode 0 false
   else if opcode = 0x39 then
@@ -737,13 +788,13 @@ theorem SuccessfulFetchTransportWithin.restrict {small large : Nat} {source dest
 theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.length := by
   cases instruction with
   | shiftRightImm32 _ _ _ prefixed | logicalReg32 _ _ _ prefixed | logicalImm32 _ _ _ prefixed
-  | test32 _ _ prefixed | cmp32 _ _ prefixed | cmovReg32 _ _ _ prefixed
+  | testImm8 _ _ prefixed | test32 _ _ prefixed | cmp32 _ _ prefixed | cmovReg32 _ _ _ prefixed
   | setcc _ _ prefixed | movImm8 _ _ prefixed
   | cmpReg8 _ _ prefixed | subReg32 _ _ prefixed | movzxReg8 _ _ prefixed | negReg32 _ prefixed
   | subImm32 _ _ prefixed | cmpImm32 _ _ prefixed
   | addImm32 _ _ prefixed | inc32 _ prefixed =>
     cases prefixed <;> simp [Instruction.length]
-  | cmpRegMem8 _ address prefixed | movzxMem8 _ address prefixed => cases address <;> cases prefixed <;> simp [Instruction.length, Address.suffixBytes]
+  | lea32 _ address prefixed | cmpRegMem8 _ address prefixed | movzxMem8 _ address prefixed => cases address <;> cases prefixed <;> simp [Instruction.length, Address.suffixBytes]
   | endbr64IbtDisabled => decide
   | nop encoding => cases encoding <;> decide
   | legacy old => cases old <;> simp [Instruction.length]
@@ -760,13 +811,13 @@ theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.len
 theorem Instruction.length_le_fifteen (instruction : Instruction) : instruction.length ≤ 15 := by
   cases instruction with
   | shiftRightImm32 _ _ _ prefixed | logicalReg32 _ _ _ prefixed | logicalImm32 _ _ _ prefixed
-  | test32 _ _ prefixed | cmp32 _ _ prefixed | cmovReg32 _ _ _ prefixed
+  | testImm8 _ _ prefixed | test32 _ _ prefixed | cmp32 _ _ prefixed | cmovReg32 _ _ _ prefixed
   | setcc _ _ prefixed | movImm8 _ _ prefixed
   | cmpReg8 _ _ prefixed | subReg32 _ _ prefixed | movzxReg8 _ _ prefixed | negReg32 _ prefixed
   | subImm32 _ _ prefixed | cmpImm32 _ _ prefixed
   | addImm32 _ _ prefixed | inc32 _ prefixed =>
     cases prefixed <;> simp [Instruction.length]
-  | cmpRegMem8 _ address prefixed | movzxMem8 _ address prefixed => cases address <;> cases prefixed <;> simp [Instruction.length, Address.suffixBytes]
+  | lea32 _ address prefixed | cmpRegMem8 _ address prefixed | movzxMem8 _ address prefixed => cases address <;> cases prefixed <;> simp [Instruction.length, Address.suffixBytes]
   | endbr64IbtDisabled => decide
   | nop encoding => cases encoding <;> decide
   | legacy old => cases old <;> simp [Instruction.length]

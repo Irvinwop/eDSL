@@ -7,7 +7,10 @@ import EDSL.OS.TSO64.Run
 import EDSL.OS.AtomicFetchAddHistory64
 import EDSL.OS.AtomicAccess64
 
+set_option warningAsError true
 set_option autoImplicit false
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
 
 namespace EDSL.OS.TSO64.PublishedHistory
 open X86 AddressSpace
@@ -86,8 +89,8 @@ frame every managed cell. Managed drains and RMWs count as writes even when
 their full word equals the prior word. The write is selected by persistent
 cell identity from the actual observation. -/
 theorem step_read {state : State} {action : Action} {result : State × Observation}
-    {profile : Profile} (valid : TSO64.WellFormed state profile)
-    (success : step state action profile = .ok result)
+    {profile : Profile} {family : RMWFamily} (valid : TSO64.WellFormed state profile)
+    (success : step state action profile family = .ok result)
     (target : Atomics64.CellId64) (cell : Atomics64.Cell)
     (live : state.world.cells target = some cell) (prior : Word)
     (readBefore : loadQWord (published state.world) cell.address = .ok prior) :
@@ -102,7 +105,8 @@ theorem step_read {state : State} {action : Action} {result : State × Observati
       cases finish <;> exact readBefore
   | blocked => exact readBefore
   | rmw liveWorker running code caller fetched bounds empty grant effect =>
-    exact rmw_read valid.1 effect.checked target cell live prior readBefore
+    exact rmw_read valid.1 (RMWFamily.MachineEffect.arithmetic effect).checked
+      target cell live prior readBefore
   | drained liveWorker fifo gate changed effect =>
     cases changed with
     | ordinary changed =>

@@ -159,10 +159,11 @@ theorem swap_width_prefix_bank_negatives :
       [0x48,0x0f,0xc7], [0x49,0x0f,0xd0]] : List (List Byte)).all
       (fun code => rejects code) = true := by decide +kernel
 
-/-- Unknown lead bytes keep the legacy error; they must not accidentally
-decode as a supported LOW32 unary or full64 BSWAP operation. -/
+/-- F6 is recognized by TEST-low8, but its unmodeled byte-NEG /3 selector
+rejects as an unsupported encoding. Unknown lead prefixes retain the legacy
+opcode error; none may decode as LOW32 NEG or full64 BSWAP. -/
 theorem unknown_prefix_and_byte_width_negatives :
-    rejects [0xf6,0xd8] (.unsupportedOpcode 0xf6) = true ∧
+    rejects [0xf6,0xd8] .unsupportedEncoding = true ∧
     rejects [0x67,0xf7,0xd8] (.unsupportedOpcode 0x67) = true ∧
     rejects [0xf2,0xf7,0xd8] (.unsupportedOpcode 0xf2) = true ∧
     rejects [0x2e,0x48,0x0f,0xc8] (.unsupportedOpcode 0x2e) = true := by

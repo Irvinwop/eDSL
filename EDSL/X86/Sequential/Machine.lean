@@ -50,7 +50,7 @@ def Instruction.isLocked : Instruction → Bool
 
 def Instruction.choosesAF : Instruction → Bool
   | .logicalReg32 _ _ _ _ | .logicalImm32 _ _ _ _
-  | .xorSelf32 _ | .test32 _ _ _ | .test64 _ _ | .logicalReg64 _ _ _ | .shrOne64 _ => true
+  | .xorSelf32 _ | .test32 _ _ _ | .testImm8 _ _ _ | .test64 _ _ | .logicalReg64 _ _ _ | .shrOne64 _ => true
   | _ => false
 
 /-- Identity of the single undefined flag supported by this profile. This is
@@ -110,6 +110,11 @@ def execute (state : State) (instruction : Instruction) (af : Bool) : Except Err
     return ⟨.next { state with
       rip := state.rip + BitVec.ofNat 64 instruction.length
       flags := logicalFlags32 state.flags result af }, reads⟩
+  | .testImm8 operand immediate _ =>
+    let result := (state.registers operand).setWidth 8 &&& immediate
+    return ⟨.next { state with
+      rip := state.rip + BitVec.ofNat 64 instruction.length
+      flags := logicalFlags8 state.flags result af }, reads⟩
   | .cmp32 left right _ =>
     return ⟨.next { state with
       rip := state.rip + BitVec.ofNat 64 instruction.length
@@ -212,6 +217,10 @@ def execute (state : State) (instruction : Instruction) (af : Bool) : Except Err
       rip := state.rip + BitVec.ofNat 64 instruction.length }, reads⟩
   | .lea64 destination address =>
     return ⟨.next { state.writeRegister destination (address.eval state) with
+      rip := state.rip + BitVec.ofNat 64 instruction.length }, reads⟩
+  | .lea32 destination address _ =>
+    return ⟨.next { state.writeRegister destination
+      (((address.eval state).setWidth 32).setWidth 64) with
       rip := state.rip + BitVec.ofNat 64 instruction.length }, reads⟩
   | .addReg64 destination source =>
     let left := state.registers destination
@@ -985,7 +994,8 @@ theorem execute_storeIntent {state : State} {instruction : Instruction} {address
     simp only [Instruction.storeIntent, Option.some.injEq, Prod.mk.injEq] at intent
     rcases intent with ⟨rfl, rfl⟩
     exact execute_storeMem32 state operand source af
-  | shiftRightImm32 _ _ _ _ | imulReg64 _ _ | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
+  | shiftRightImm32 _ _ _ _ | imulReg64 _ _ | lea32 _ _ _ | testImm8 _ _ _
+  | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | subImm32 _ _ _ | cmpImm32 _ _ _
   | addImm32 _ _ _ | inc32 _ _
   | negReg32 _ _ | bswapReg64 _ | shrOne64 _ | rolCL64 _
@@ -1319,6 +1329,7 @@ theorem execute_reads {state : State} {instruction : Instruction} {af : Bool}
     cases result : executeShortBranch state true displacement <;> simp only [execute, result, ok_bind, error_bind, pure_ok, Except.ok.injEq, reduceCtorEq] at success
     cases success
     rfl
+  | lea32 _ _ _ | testImm8 _ _ _
   | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | negReg32 destination prefixed | bswapReg64 destination | shrOne64 destination | rolCL64 destination
   | movzxReg8 destination source prefixed
@@ -1443,6 +1454,7 @@ theorem execute_reads_succeed {state : State} {instruction : Instruction} {af : 
       simp only [Instruction.operandReads, List.mem_singleton] at member
       subst read
       exact ⟨value, loaded⟩
+  | lea32 _ _ _ | testImm8 _ _ _
   | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | subImm32 _ _ _ | cmpImm32 _ _ _
   | addImm32 _ _ _ | inc32 _ _
@@ -1475,6 +1487,7 @@ theorem execute_new_memory {state final : State} {instruction : Instruction} {af
     exact (execute_cmpMemReg8_context success next).2.1
   | cmpMemReg32 address source =>
     exact (execute_cmpMemReg32_context success next).2.1
+  | lea32 _ _ _ | testImm8 _ _ _
   | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | negReg32 destination prefixed | bswapReg64 destination | shrOne64 destination | rolCL64 destination
   | movzxReg8 destination source prefixed
@@ -1585,6 +1598,7 @@ theorem execute_new_next {state : State} {instruction : Instruction} {af : Bool}
   | cmpMemReg32 address source =>
     obtain ⟨value, _, rfl⟩ := execute_cmpMemReg32_success_iff.mp success
     exact ⟨_, rfl⟩
+  | lea32 _ _ _ | testImm8 _ _ _
   | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
   | negReg32 destination prefixed | bswapReg64 destination | shrOne64 destination | rolCL64 destination
   | movzxReg8 destination source prefixed
@@ -1694,6 +1708,7 @@ theorem execute_new_flags {state final : State} {instruction : Instruction} {af 
   | cmpMemReg32 address source =>
     exact (execute_cmpMemReg32_context success next).2.2.1
   | bswapReg64 destination
+  | lea32 destination address prefixed
   | movzxReg8 destination source prefixed
   | movReg32 destination source | movReg64 destination source | setcc condition destination prefixed | movImm8 destination immediate prefixed | movSignImm32 destination immediate | lea64 destination address
   | cmovReg32 condition destination source prefixed | cmovReg64 condition destination source | xchgReg64 left right | xchgRax64 other
@@ -1724,6 +1739,9 @@ theorem execute_new_flags {state final : State} {instruction : Instruction} {af 
   | test32 left right prefixed =>
     cases success; cases next
     exact logicalFlags32_preserves ..
+  | testImm8 operand immediate prefixed =>
+    cases success; cases next
+    exact logicalFlags8_preserves ..
   | cmp32 left right prefixed =>
     cases success; cases next
     exact cmpFlags32_preserves ..

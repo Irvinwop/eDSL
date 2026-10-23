@@ -78,7 +78,7 @@ ret
 .size counter_\name, .-counter_\name
 .endm
 
-#define P(name,kind,dst,base,index,scale,imm,pref,...) OBSERVE name, __VA_ARGS__
+#define P(name,kind,dst,base,index,scale,imm,pref,form,...) OBSERVE name, __VA_ARGS__
 #include "probes.def"
 #undef P
 .section .note.GNU-stack,"",@progbits

@@ -78,6 +78,11 @@ lean_lib GradingFixtures where
   roots := #[`tests.fixtures]
   globs := #[.submodules `tests.fixtures]
 
+-- Opt-in computational equality shared by finite regression observations.
+lean_lib VerificationTestSupport where
+  roots := #[`tests.Support.ExceptDecidable]
+  moreLeanArgs := #["-DautoImplicit=false"]
+
 -- Build shared fixtures and their clients once through Lake's input traces.
 -- The explicit audit entry point remains runnable after restoring these proofs.
 lean_lib ManagedFetchAdd64Tests where
@@ -85,7 +90,7 @@ lean_lib ManagedFetchAdd64Tests where
     `tests.TSO64Interleaving, `tests.TSO64Forwarding, `tests.TSO64CurrentRAM,
     `tests.TSO64Denials, `tests.TSO64Audit, `tests.ManagedOverlay64,
     `tests.FetchAddCalls64, `tests.FetchAddABI64, `tests.AtomicMethods,
-    `tests.CorpusFetchAdd64, `tests.ManagedFetchAdd64Audit]
+    `tests.CorpusFetchAdd64, `tests.ManagedFetchAdd64Audit, `tests.ArithmeticRMWScheduler]
 
 -- Checked shared-cell accesses, separate from scheduler and source ordering.
 lean_lib AtomicAccess64Tests where
@@ -214,6 +219,19 @@ lean_lib EffectSimulationTests where
 -- Width32 register SUB/CMP, signed immediates and complete subtraction flags.
 lean_lib Immediate32Tests where
   roots := #[`tests.Immediate32]
+  moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
+    "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
+
+-- Full-address LEA32 narrowing and low-byte immediate TEST contracts.
+lean_lib AddressByteTests where
+  roots := #[`tests.Address32, `tests.TestImmediate8, `tests.AddressByteTransport,
+    `tests.SequentialArithmetic64]
+  moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
+    "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
+
+-- Complete mixed ordinary/arithmetic-RMW graphs and exact named ELF extents.
+lean_lib MixedCFGTests where
+  roots := #[`tests.CounterMixedGraphs]
   moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
     "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
 

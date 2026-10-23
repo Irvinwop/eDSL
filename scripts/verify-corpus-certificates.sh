@@ -241,6 +241,8 @@ import tests.CallerOnlyTransport
 import EDSL.OS.TSO64.EffectSimulation.Resumable.CallerOnly
 import EDSL.Corpus.V1.CallerOnlyAdapters
 import tests.AddRMW64
+import tests.ArithmeticRMWScheduler
+import tests.CounterMixedGraphs
 import EDSL.OS.AddRMWMachine64
 import tests.CounterPadding13
 import corpus.Certify
@@ -260,6 +262,10 @@ import tests.CorpusUnaryResources
 import tests.GradingUnary
 import tests.SequentialCounter32
 import tests.Immediate32
+import tests.Address32
+import tests.TestImmediate8
+import tests.AddressByteTransport
+import tests.SequentialArithmetic64
 import tests.SequentialDisplacement
 import tests.VCGenCompactLoop
 import tests.PopcountBodies
@@ -1219,7 +1225,7 @@ certificate_targets=(EDSL.Corpus.V1.Comparisons EDSL.Corpus.V1.Arithmetic EDSL.C
     EDSL.Corpus.V1.SignumRegistered tests.SignumCertificates
     EDSL.Corpus.PlainMixedWitnesses)
 if [[ $full_project == true ]]; then
-    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests Immediate32Tests AverageTests ParityTests RotationTests Low8Tests ByteEqualityTests CFGProfileTests EffectSimulationTests AddRMW64Tests PaddingTests ChoiceTests ManagedQueue64Tests \
+    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests Immediate32Tests AddressByteTests MixedCFGTests AverageTests ParityTests RotationTests Low8Tests ByteEqualityTests CFGProfileTests EffectSimulationTests AddRMW64Tests ManagedFetchAdd64Tests PaddingTests ChoiceTests ManagedQueue64Tests \
         edsl-proof-export edsl-grade "${certificate_targets[@]}"
 else
     record build "${lean_lock[@]}" lake build "${certificate_targets[@]}"

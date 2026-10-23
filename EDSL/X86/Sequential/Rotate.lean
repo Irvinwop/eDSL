@@ -316,6 +316,10 @@ theorem execute_choice_context (state : State) (instruction : Instruction) (flag
     cases selected
     exact ⟨_, _, rfl, rfl, rfl, rfl, rfl, logicalFlags32_choices ..,
       (logicalFlags32_bits ..).2.2.1, (logicalFlags32_bits ..).2.2.1⟩
+  case testImm8 operand immediate prefixed =>
+    cases selected
+    exact ⟨_, _, rfl, rfl, rfl, rfl, rfl, logicalFlags8_choices ..,
+      (logicalFlags8_bits ..).2.2.1, (logicalFlags8_bits ..).2.2.1⟩
   case test64 leftReg rightReg =>
     cases selected
     exact ⟨_, _, rfl, rfl, rfl, rfl, rfl, logicalFlags64_choices ..,

@@ -54,6 +54,7 @@ def readOnly : Instruction → Bool
   | .legacy .movEaxEdi | .legacy .movEaxEsi | .legacy (.jrcxz _)
   | .legacy (.loopRcx _) | .legacy (.jnz _) | .legacy .cmpEaxZero
   | .legacy .loadEaxRdi | .legacy .loadEaxRsi | .legacy (.mov32 _ _)
+  | .lea32 _ _ _ | .testImm8 _ _ _
   | .logicalReg32 _ _ _ _ | .logicalImm32 _ _ _ _ | .cmpImm64 _ _
   | .subImm32 _ _ _ | .cmpImm32 _ _ _
   | .shiftRightImm32 _ _ _ _ | .imulReg64 _ _ | .addImm32 _ _ _ | .inc32 _ _ | .negReg32 _ _ | .bswapReg64 _ | .shrOne64 _ | .rolCL64 _

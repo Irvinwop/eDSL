@@ -17,7 +17,10 @@ boundaries. This result establishes neither source-language ordering, hardware
 validity, fairness, progress nor correspondence with the complete HOL4 model.
 -/
 
+set_option warningAsError true
 set_option autoImplicit false
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
 
 namespace EDSL.OS.TSO64.WordProjection
 open X86 Concurrency
@@ -216,42 +219,43 @@ theorem OrdinaryTrace.managed_labels {state : TSO64.State} {tid : Nat} {worker :
 Ordinary instructions retain their decoded origin. Publications retain the
 actual head tag, and RMW labels retain the actual checked event values. -/
 inductive StepTrace (state : TSO64.State) : Action → (TSO64.State × Observation) →
-    Profile → List ReferenceLabel → Prop where
+    Profile → List ReferenceLabel → (family : RMWFamily := .xaddOnly) → Prop where
   | ordinary {tid : Nat} {af : Bool} {worker : Worker}
       {instruction : Sequential.Instruction} {result : TSO64.State × Observation}
-      {profile : Profile} {labels : List ReferenceLabel}
-      (success : step state (.issue tid af) profile = .ok result)
+      {profile : Profile} {labels : List ReferenceLabel} {family : RMWFamily}
+      (success : step state (.issue tid af) profile family = .ok result)
       (live : state.workers[tid]? = some worker)
-      (fetched : decode (fetchCPU state worker) = .ok (.ordinary instruction))
+      (fetched : decode (fetchCPU state worker) family = .ok (.ordinary instruction))
       (effect : OrdinaryEffect state tid worker instruction af result profile)
       (classified : OrdinaryTrace state tid worker instruction result profile labels) :
-      StepTrace state (.issue tid af) result profile labels
+      StepTrace state (.issue tid af) result profile labels family
   | blocked {action : Action} {after : TSO64.State} {tid : Nat} {profile : Profile}
-      (success : step state action profile = .ok (after, .blocked tid)) :
-      StepTrace state action (after, .blocked tid) profile []
+      {family : RMWFamily}
+      (success : step state action profile family = .ok (after, .blocked tid)) :
+      StepTrace state action (after, .blocked tid) profile [] family
   | ordinaryDrain {tid : Nat} {after : TSO64.State} {ticket : Ownership.Ticket}
-      {store : Store} {profile : Profile}
-      (success : step state (.drain tid) profile =
+      {store : Store} {profile : Profile} {family : RMWFamily}
+      (success : step state (.drain tid) profile family =
         .ok (after, .drained tid (.ordinary ticket store))) :
-      StepTrace state (.drain tid) (after, .drained tid (.ordinary ticket store)) profile []
+      StepTrace state (.drain tid) (after, .drained tid (.ordinary ticket store)) profile [] family
   | managedDrain {tid : Nat} {after : TSO64.State} {reference : Queue.ManagedRef}
-      {value : Word} {occurrence : Nat} {profile : Profile}
-      (success : step state (.drain tid) profile =
+      {value : Word} {occurrence : Nat} {profile : Profile} {family : RMWFamily}
+      (success : step state (.drain tid) profile family =
         .ok (after, .drained tid (.managed reference value occurrence))) :
       StepTrace state (.drain tid)
-        (after, .drained tid (.managed reference value occurrence)) profile [.tau]
+        (after, .drained tid (.managed reference value occurrence)) profile [.tau] family
   | rmw {action : Action} {after : TSO64.State} {tid : Nat}
-      {event : Atomics64.FetchAddEvent} {profile : Profile}
-      (success : step state action profile = .ok (after, .rmw tid event)) :
+      {event : Atomics64.FetchAddEvent} {profile : Profile} {family : RMWFamily}
+      (success : step state action profile family = .ok (after, .rmw tid event)) :
       StepTrace state action (after, .rmw tid event) profile
         [.lock tid, .read tid event.cell event.arithmetic.event.before,
-          .write tid event.cell event.arithmetic.event.after, .tau, .unlock tid]
+          .write tid event.cell event.arithmetic.event.after, .tau, .unlock tid] family
 
 /-- A classified action always retains its exact successful checked step. -/
 theorem StepTrace.success {state : TSO64.State} {action : Action}
     {result : TSO64.State × Observation} {profile : Profile} {labels : List ReferenceLabel}
-    (trace : StepTrace state action result profile labels) :
-    step state action profile = .ok result := by
+    {family : RMWFamily} (trace : StepTrace state action result profile labels family) :
+    step state action profile family = .ok result := by
   cases trace <;> assumption
 
 /-- Every classified action has the same labelled reference behavior. The
@@ -259,7 +263,8 @@ managed-drain case uses its real FIFO-head publication; ordinary drains use
 registered-cell framing and cannot skip a managed concrete head. -/
 theorem StepTrace.path {state : TSO64.State} {action : Action}
     {result : TSO64.State × Observation} {profile : Profile} {labels : List ReferenceLabel}
-    (trace : StepTrace state action result profile labels) (valid : WellFormed state profile) :
+    {family : RMWFamily} (trace : StepTrace state action result profile labels family)
+    (valid : WellFormed state profile) :
     TSOWord.Path (project state) labels (project result.1) := by
   cases trace with
   | ordinary success live fetched effect classified => exact classified.path valid live
@@ -281,11 +286,11 @@ theorem StepTrace.path {state : TSO64.State} {action : Action}
 /-- Every successful actual step admits a constrained trace. No read label is
 chosen by comparing desired postconditions or testing reference reachability. -/
 theorem step_trace {state : TSO64.State} {action : Action}
-    {result : TSO64.State × Observation} {profile : Profile}
-    (valid : WellFormed state profile) (success : step state action profile = .ok result) :
-    ∃ labels, StepTrace state action result profile labels ∧
+    {result : TSO64.State × Observation} {profile : Profile} {family : RMWFamily}
+    (valid : WellFormed state profile) (success : step state action profile family = .ok result) :
+    ∃ labels, StepTrace state action result profile labels family ∧
       TSOWord.Path (project state) labels (project result.1) := by
-  have classified : ∃ labels, StepTrace state action result profile labels := by
+  have classified : ∃ labels, StepTrace state action result profile labels family := by
     cases step_origin success with
     | ordinary live running code caller fetched effect =>
       obtain ⟨labels, trace⟩ := ordinary_trace effect live
@@ -294,7 +299,7 @@ theorem step_trace {state : TSO64.State} {action : Action}
       exact ⟨[], .blocked success⟩
     | rmw live running code caller fetched bounds empty grant effect =>
       exact ⟨_, .rmw success⟩
-    | @drained tid worker head tail output profile live fifo gate changed effect =>
+    | @drained _ tid worker head tail output _ live fifo gate changed effect =>
       cases head with
       | ordinary ticket store => exact ⟨[], .ordinaryDrain success⟩
       | managed reference value occurrence => exact ⟨[.tau], .managedDrain success⟩
@@ -314,24 +319,26 @@ theorem path_append {before middle after : ReferenceState}
 one observed result per step. Reference labels concatenate in action order;
 a locked action contributes its complete five-label expansion. -/
 inductive ScheduleTrace (profile : Profile) : TSO64.State → List Action →
-    (TSO64.State × List Observation) → List ReferenceLabel → Prop where
-  | nil (state : TSO64.State) : ScheduleTrace profile state [] (state, []) []
+    (TSO64.State × List Observation) → List ReferenceLabel →
+    (family : RMWFamily := .xaddOnly) → Prop where
+  | nil {family : RMWFamily} (state : TSO64.State) :
+      ScheduleTrace profile state [] (state, []) [] family
   | cons {state : TSO64.State} {action : Action} {rest : List Action}
       {head : TSO64.State × Observation} {tail : TSO64.State × List Observation}
-      {first following : List ReferenceLabel}
-      (stepped : StepTrace state action head profile first)
-      (scheduled : ScheduleTrace profile head.1 rest tail following) :
+      {first following : List ReferenceLabel} {family : RMWFamily}
+      (stepped : StepTrace state action head profile first family)
+      (scheduled : ScheduleTrace profile head.1 rest tail following family) :
       ScheduleTrace profile state (action :: rest) (tail.1, head.2 :: tail.2)
-        (first ++ following)
+        (first ++ following) family
 
 /-- Every actual finite schedule has both per-action classification and a
 reference path with those same labels. Validity is propagated through the real
 scheduler, rather than assumed independently at every intermediate state. -/
 theorem schedule_trace {state : TSO64.State} {actions : List Action}
-    {result : TSO64.State × List Observation} {profile : Profile}
+    {result : TSO64.State × List Observation} {profile : Profile} {family : RMWFamily}
     (valid : WellFormed state profile)
-    (success : schedule state actions profile = .ok result) :
-    ∃ labels, ScheduleTrace profile state actions result labels ∧
+    (success : schedule state actions profile family = .ok result) :
+    ∃ labels, ScheduleTrace profile state actions result labels family ∧
       TSOWord.Path (project state) labels (project result.1) := by
   induction actions generalizing state result with
   | nil =>

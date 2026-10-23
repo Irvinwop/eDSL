@@ -4,6 +4,11 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.OS.TSO64.Effects
 
+set_option warningAsError true
+set_option autoImplicit false
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
+
 namespace EDSL.OS.TSO64
 open X86 AddressSpace
 
@@ -63,9 +68,9 @@ theorem OrdinaryEffect.wellFormed {state : State} {tid : Nat} {worker : Worker}
     | next outcome => exact install_valid valid (Stable.refl _) valid.1 ⟨workerValid.1, pending⟩
     | returned outcome => exact install_valid valid (Stable.refl _) valid.1 ⟨workerValid.1, pending⟩
 
-theorem LockedEffect.wellFormed {state : State} {tid : Nat} {worker : Worker}
-    {instruction : LockedAdd64.Instruction} {result : State × Observation} {profile : Profile}
-    (effect : LockedEffect state tid worker instruction result)
+theorem LockedEffectFor.wellFormed {family : RMWFamily} {state : State} {tid : Nat} {worker : Worker}
+    {instruction : family.Instruction} {result : State × Observation} {profile : Profile}
+    (effect : LockedEffectFor family state tid worker instruction result)
     (valid : WellFormed state profile) (live : state.workers[tid]? = some worker) :
     WellFormed result.1 profile := by
   have workerValid := valid.2 worker (List.mem_of_getElem? live)
@@ -76,8 +81,16 @@ theorem LockedEffect.wellFormed {state : State} {tid : Nat} {worker : Worker}
     exact install_valid valid frame (Atomics64.fetchAdd_wellFormed _ _ _ _ _ valid.1 changed)
       ⟨frame.resources workerValid.1, fun pending member => frame.pending (workerValid.2 pending member)⟩
 
-theorem issue_wellFormed {state : State} {tid : Nat} {af : Bool} {result : State × Observation} {profile : Profile}
-    (valid : WellFormed state profile) (success : issue state tid af profile = .ok result) :
+theorem LockedEffect.wellFormed {state : State} {tid : Nat} {worker : Worker}
+    {instruction : LockedAdd64.Instruction} {result : State × Observation} {profile : Profile}
+    (effect : LockedEffect state tid worker instruction result)
+    (valid : WellFormed state profile) (live : state.workers[tid]? = some worker) :
+    WellFormed result.1 profile :=
+  LockedEffectFor.wellFormed effect valid live
+
+theorem issue_wellFormed {state : State} {tid : Nat} {af : Bool} {result : State × Observation}
+    {profile : Profile} {family : RMWFamily}
+    (valid : WellFormed state profile) (success : issue state tid af profile family = .ok result) :
     WellFormed result.1 profile := by
   obtain ⟨worker, live, _, _, _, instruction, _, effect⟩ := issue_effect success
   cases instruction with
@@ -98,15 +111,17 @@ theorem drain_wellFormed {state : State} {tid : Nat} {result : State × Observat
 
 /-- Resource/lifetime and OS invariants are consequences of actual gates and
 checked effects. No successor-WF test appears in the executable scheduler. -/
-theorem step_wellFormed {state : State} {action : Action} {result : State × Observation} {profile : Profile}
-    (valid : WellFormed state profile) (success : step state action profile = .ok result) :
+theorem step_wellFormed {state : State} {action : Action} {result : State × Observation}
+    {profile : Profile} {family : RMWFamily}
+    (valid : WellFormed state profile) (success : step state action profile family = .ok result) :
     WellFormed result.1 profile := by
   cases action with
   | issue tid af => exact issue_wellFormed valid success
   | drain tid => exact drain_wellFormed valid success
 
-theorem step_stable {state : State} {action : Action} {result : State × Observation} {profile : Profile}
-    (success : step state action profile = .ok result) : Stable state.world result.1.world := by
+theorem step_stable {state : State} {action : Action} {result : State × Observation}
+    {profile : Profile} {family : RMWFamily}
+    (success : step state action profile family = .ok result) : Stable state.world result.1.world := by
   cases action with
   | issue tid af =>
     obtain ⟨_, _, _, _, _, instruction, _, effect⟩ := issue_effect success
@@ -129,8 +144,9 @@ theorem install_peer {state : State} {tid peer : Nat} {world : World} {worker : 
 
 /-- Peer RF/RIP/flags/phase, original resources, and pending grants survive
 every successful issue/drain literally, without stale RAM in the context. -/
-theorem step_peer {state : State} {action : Action} {result : State × Observation} {peer : Nat} {profile : Profile}
-    (success : step state action profile = .ok result)
+theorem step_peer {state : State} {action : Action} {result : State × Observation} {peer : Nat}
+    {profile : Profile} {family : RMWFamily}
+    (success : step state action profile family = .ok result)
     (different : peer ≠ (match action with | .issue tid _ | .drain tid => tid)) :
     result.1.workers[peer]? = state.workers[peer]? := by
   cases action with
@@ -150,22 +166,22 @@ theorem step_peer {state : State} {action : Action} {result : State × Observati
     exact install_peer different
 
 theorem schedule_cons_ok {state : State} {action : Action} {rest : List Action}
-    {result : State × List Observation} {profile : Profile}
-    (success : schedule state (action :: rest) profile = .ok result) :
-    ∃ head tail, step state action profile = .ok head ∧ schedule head.1 rest profile = .ok tail ∧
+    {result : State × List Observation} {profile : Profile} {family : RMWFamily}
+    (success : schedule state (action :: rest) profile family = .ok result) :
+    ∃ head tail, step state action profile family = .ok head ∧ schedule head.1 rest profile family = .ok tail ∧
       result = (tail.1, head.2 :: tail.2) := by
-  cases first : step state action profile with
+  cases first : step state action profile family with
   | error fault => simp [schedule, first] at success
   | ok head =>
-    cases following : schedule head.1 rest profile with
+    cases following : schedule head.1 rest profile family with
     | error fault => simp [schedule, first, following] at success
     | ok tail =>
       simp [schedule, first, following] at success
       exact ⟨head, tail, rfl, following, success.symm⟩
 
 theorem schedule_wellFormed {state : State} {actions : List Action} {result : State × List Observation}
-    {profile : Profile} (valid : WellFormed state profile)
-    (success : schedule state actions profile = .ok result) : WellFormed result.1 profile := by
+    {profile : Profile} {family : RMWFamily} (valid : WellFormed state profile)
+    (success : schedule state actions profile family = .ok result) : WellFormed result.1 profile := by
   induction actions generalizing state result with
   | nil => simp only [schedule, Except.ok.injEq] at success; subst result; exact valid
   | cons action rest ih =>

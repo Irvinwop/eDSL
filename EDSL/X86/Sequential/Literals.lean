@@ -69,6 +69,8 @@ def instruction : Instruction → String
     s!"(.logicalImm32 {logical} {register destination} {immediate.toNat} {prefixed})"
   | .cmpImm64 left immediate => s!"(.cmpImm64 {register left} {immediate.toNat})"
   | .test32 left right prefixed => s!"(.test32 {register left} {register right} {prefixed})"
+  | .testImm8 operand immediate prefixed =>
+    s!"(.testImm8 {register operand} {immediate.toNat} {prefixed})"
   | .cmp32 left right prefixed => s!"(.cmp32 {register left} {register right} {prefixed})"
   | .cmpImm32 left immediate prefixed =>
     s!"(.cmpImm32 {register left} {immediate.toNat} {prefixed})"
@@ -118,6 +120,8 @@ def instruction : Instruction → String
   | .cmovReg32 predicate destination source prefixed =>
     s!"(.cmovReg32 {condition predicate} {register destination} {register source} {prefixed})"
   | .lea64 destination operand => s!"(.lea64 {register destination} {address operand})"
+  | .lea32 destination operand prefixed =>
+    s!"(.lea32 {register destination} {address operand} {prefixed})"
   | .addReg64 destination source => s!"(.addReg64 {register destination} {register source})"
   | .logicalReg64 operation destination source =>
     let logical := match operation with

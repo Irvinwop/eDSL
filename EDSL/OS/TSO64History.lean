@@ -5,12 +5,18 @@ SPDX-License-Identifier: Apache-2.0
 import EDSL.OS.TSO64.Run
 import EDSL.OS.AtomicFetchAddHistory64
 
+set_option warningAsError true
+set_option autoImplicit false
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
+
 namespace EDSL.OS.TSO64History
 open X86
 
-/-- Retain the actual typed RMW output; ordinary issue, blocked attempts,
-RET and FIFO publication are silent positions in the OS arithmetic history.
-Silence does not erase those actions from the scheduler's original trace. -/
+/-- Retain the actual typed RMW output. In the owned-only history theorems below,
+ordinary issue, blocked attempts, RET and FIFO publication are silent positions.
+Silence does not erase those actions from the scheduler's original trace; the
+theorems do not erase managed publication under the shared-cell profile. -/
 def label : TSO64.Observation → Option Atomics64.FetchAddEvent
   | .rmw _ event => some event
   | _ => none
@@ -36,12 +42,13 @@ theorem step_event_origin {before after : TSO64.State} {action : TSO64.Action}
   | rmw live running code caller fetched bounds empty grant effect =>
     exact ⟨_, _, _, _, _, rfl, live, running, empty, fetched, effect, rfl⟩
 
-/-- Every successful default-policy scheduler action projects to a real checked OS operation
-or an unchanged world. No desired value, future success, or arithmetic checker
-is a premise. Machine origins remain in TSO64's separate effect theorems. -/
+/-- Every successful owned-only scheduler action in either instruction family
+projects to a real checked OS operation or an unchanged world. No desired
+value, future success, or arithmetic checker is a premise. Machine origins remain in TSO64's separate effect theorems. -/
 theorem step_history {before : TSO64.State} {action : TSO64.Action}
     {result : TSO64.State × TSO64.Observation}
-    (success : TSO64.step before action = .ok result) :
+    {family : TSO64.RMWFamily}
+    (success : TSO64.step before action .ownedOnly family = .ok result) :
     AtomicFetchAddHistory64.Step before.world (label result.2) result.1.world := by
   cases action with
   | issue tid af =>
@@ -64,7 +71,8 @@ theorem step_history {before : TSO64.State} {action : TSO64.Action}
 and every other-cell RMW, rather than an alternative counter execution engine. -/
 theorem schedule_history {before : TSO64.State} {actions : List TSO64.Action}
     {result : TSO64.State × List TSO64.Observation}
-    (success : TSO64.schedule before actions = .ok result) :
+    {family : TSO64.RMWFamily}
+    (success : TSO64.schedule before actions .ownedOnly family = .ok result) :
     AtomicFetchAddHistory64.History before.world (result.2.map label) result.1.world := by
   induction actions generalizing before result with
   | nil =>
@@ -86,7 +94,8 @@ zero-update occurrences, or supply invocation/RET intervals. -/
 theorem schedule_sequential {Id Thread : Type} {before : TSO64.State}
     {actions : List TSO64.Action} {result : TSO64.State × List TSO64.Observation}
     (valid : TSO64.WellFormed before)
-    (success : TSO64.schedule before actions = .ok result)
+    {family : TSO64.RMWFamily}
+    (success : TSO64.schedule before actions .ownedOnly family = .ok result)
     (target : Atomics64.CellId64) (cell : Atomics64.Cell)
     (live : before.world.cells target = some cell)
     (identifier : Atomics64.FetchAddEvent → Id) (thread : Atomics64.FetchAddEvent → Thread)
@@ -105,7 +114,8 @@ schedule. This is neither teardown nor a resource-releasing join. -/
 theorem schedule_retained {before : TSO64.State} {actions : List TSO64.Action}
     {result : TSO64.State × List TSO64.Observation}
     (valid : TSO64.WellFormed before)
-    (success : TSO64.schedule before actions = .ok result)
+    {family : TSO64.RMWFamily}
+    (success : TSO64.schedule before actions .ownedOnly family = .ok result)
     (target : Atomics64.CellId64) (cell : Atomics64.Cell)
     (live : before.world.cells target = some cell) :
     result.1.world.cells target = some cell ∧
