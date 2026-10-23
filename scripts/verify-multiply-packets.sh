@@ -42,13 +42,33 @@ sha256sum corpus/v1/gcc/final.elf corpus/v1/clang/final.elf > "$output/input-SHA
 lean=(env LEAN_NUM_THREADS=1 flock /tmp/edsl-lean-build.lock lake)
 write_word64() {
     local value=$1 octal index
-    for index in {0..7}; do
+    for ((index=0; index<8; index++)); do
         printf -v octal '\\%03o' "$((value & 255))"
         printf '%b' "$octal"
         value=$((value >> 8))
     done
 }
-while read -r compiler offset size entry; do
+# Minimal ET_EXEC/RX adapter for the existing entry-based artifact API. The
+# complete original corpus ELF is bound separately by its named certificate.
+wrap_elf() {
+    local raw=$1 size=$2
+    printf '\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+    printf '\x02\x00\x3e\x00\x01\x00\x00\x00'
+    write_word64 4194432
+    write_word64 64
+    write_word64 0
+    printf '\x00\x00\x00\x00\x40\x00\x38\x00\x01\x00\x00\x00\x00\x00\x00\x00'
+    printf '\x01\x00\x00\x00\x05\x00\x00\x00'
+    write_word64 128
+    write_word64 4194432
+    write_word64 0
+    write_word64 "$size"
+    write_word64 "$size"
+    write_word64 4096
+    write_word64 0
+    cat "$raw"
+}
+while read -r compiler offset size; do
     raw="$output/inputs/$compiler.bin"
     expect_status 0 "$compiler-extract" dd "if=corpus/v1/$compiler/final.elf" "of=$raw" bs=1 "skip=$offset" "count=$size" status=none
     expect_status 0 "$compiler-complete-extent" test "$(wc -c < "$raw")" -eq "$size"
@@ -59,15 +79,12 @@ while read -r compiler offset size entry; do
     head -c "$((size - 1))" "$raw" > "$short"
     expect_status 0 "$compiler-isolation" "${lean[@]}" env lean -j1 -DwarningAsError=true \
         --run tests/GradingIsolation.lean --registered tests.GradingMultiply "EDSL.Tests.GradingMultiply.raw_$compiler"
-    # Adapter controls: retain the frozen file except for its ELF entry field,
-    # selecting the function already certified separately by exact symbol name.
-    # These copies are not the unchanged frozen artifacts and do not add coverage.
+    # Synthetic wrapper exercises the existing ELF entry API; it is not a
+    # compiler-produced corpus artifact and does not add corpus coverage.
     elf="$output/inputs/$compiler-entry.elf"
-    cp "corpus/v1/$compiler/final.elf" "$elf"
-    write_word64 "$entry" | dd of="$elf" bs=1 seek=24 count=8 conv=notrunc status=none
+    wrap_elf "$raw" "$size" > "$elf"
     changed_elf="$output/inputs/$compiler-changed.elf"
-    cp "$elf" "$changed_elf"
-    printf '\x90' | dd of="$changed_elf" bs=1 "seek=$((offset + size - 1))" count=1 conv=notrunc status=none
+    wrap_elf "$changed" "$size" > "$changed_elf"
     for mode in reference body; do
         options=()
         if [[ $mode == body ]]; then options=(--body); fi
@@ -89,8 +106,8 @@ while read -r compiler offset size entry; do
         done
     done
 done <<'EXTENTS'
-gcc 11696 12 4206000
-clang 4912 8 4199216
+gcc 11696 12
+clang 4912 8
 EXTENTS
 sha256sum --quiet --check "$output/input-SHA256SUMS"
 printf 'PASS: eight raw/ELF packet acceptances; sixteen changed-byte/extent rejections. No corpus score or native execution claim.\n' > "$output/result.txt"
