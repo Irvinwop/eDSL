@@ -46,6 +46,28 @@ admission policy. They do not acquire effectful execution support through this
 module. Graph proposals for the structural API can be supplied independently;
 future effectful consumers need their own proved execution/resource bridge.
 
+## Following actual store and atomic steps
+
+`EDSL.X86.Sequential.StructuralControl` connects the checked graph to actual
+production execution without imposing the read-only policy.
+`Structural.Valid.continues` requires the current executable `CodeAt`, the
+current node RIP, and a successful `stepWith` observation. If that observation
+contains an ordinary or atomic successor state, the theorem locates its RIP
+at a checked successor node. Atomic events remain in the observation; syscall
+requests and returned results are boundaries outside this continuation rule.
+
+The rule covers successful stores, XCHG and XADD as well as the current
+registered vector effects and ordinary instructions. Failed execution provides
+no continuation witness. Adding a registered effect requires proving its
+fallthrough law.
+
+This is a control-flow fact, not an effect or resource frame. In particular, a
+store can overwrite the next instruction even though its successor RIP is a
+checked node. Before taking the next checked step, a consumer must establish
+`CodeAt` again from an appropriate ownership and write-separation argument.
+Atomic event interpretation, store publication, scheduling and lock ownership
+remain separate obligations.
+
 ## Retaining read-only verification
 
 The existing `CFG.Valid`, `CFG.checkWith` and read-only execution APIs are
@@ -68,7 +90,15 @@ still succeed, while successor closure rejects it. Other controls cover stale
 instruction proposals, truncated fetch, incomplete extents, missing entry
 cutpoints, invalid depths and explicit admission limits.
 
-The tests belong to `CFGProfileTests` and the full corpus replay target. This
-example supplies no spinlock behavior certificate or additional corpus credit.
+`tests/StructuralControl.lean` checks actual store and XCHG outcomes against
+literal expected bytes, register values, flags and read observations. A denied
+write checks real permission failure. Actual syscall and RET observations test
+the boundary exclusions. A deliberately writable-text fixture follows a checked
+edge while replacing the next RET with NOP, and proves that the old `CodeAt` no
+longer holds. This prevents control-flow authentication from being mistaken for
+code preservation.
+
+The tests belong to `CFGProfileTests` and the full corpus replay target. These
+examples supply no spinlock behavior certificate or additional corpus credit.
 The next shared-memory layer must connect actual decoded effects to current
 ownership, atomic events, store publication and the production scheduler.

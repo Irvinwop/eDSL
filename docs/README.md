@@ -68,7 +68,7 @@ and lower-bound claims.
 
 | Need | References |
 | --- | --- |
-| Execution, branches and loops | [Control flow](control-flow.md), [CFG proofs](cfg.md), [explicit CFG bounds](cfg-profiles.md), [short branches](sequential-short-jcc.md) |
+| Execution, branches and loops | [Control flow](control-flow.md), [CFG proofs](cfg.md), [explicit CFG bounds](cfg-profiles.md), [effect-independent structure and continuation](structural-cfg.md), [short branches](sequential-short-jcc.md) |
 | Register and memory instructions | [Moves](sequential-moves.md), [memory64](memory64.md), [arithmetic64](sequential-arithmetic64.md), [memory addition](sequential-add-memory64.md), [logic64](sequential-logical64.md) |
 | Conditions and operand widths | [Corpus ISA](sequential-corpus-isa.md), [CMOV64](sequential-cmov64.md), [CMOV32](sequential-cmov32.md), [byte order](sequential-byte-order.md), [low32 logic and CMP64](sequential-parity-isa.md), [low-byte results](low8-results.md) |
 | Unary, counter and shift rules | [NEG32/BSWAP64](sequential-unary.md), [counter/address rules](popcount.md#reusable-proof-components), [SHR64 by one](shift-one.md), [SHR/SAR32 and vector effects](shift-right32.md), [ROL64 by CL](rotate.md) |

@@ -72,6 +72,7 @@ import EDSL.Sum32.Correctness
 import EDSL.Sum32.Artifact
 import EDSL.X86.Sequential.CFGArtifact
 import EDSL.X86.Sequential.StructuralCFG
+import EDSL.X86.Sequential.StructuralControl
 import EDSL.X86.Sequential.CutpointsAccounting
 import EDSL.X86.VCGen
 import EDSL.X86.VCGen.Policy
