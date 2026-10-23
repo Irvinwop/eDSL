@@ -123,6 +123,30 @@ The [blocker report](corpus-blockers.md) identifies later instruction, memory
 and synchronization gaps. Keep the frozen inputs and denominator unchanged;
 new configurations require a new corpus version.
 
+## Next shared-memory verification layer
+
+The next capability is a reusable checker for branching shared-memory routines,
+exercised by the frozen spinlock acquire/release and counter-worker functions.
+[Structural CFG certificates](structural-cfg.md) authenticate byte partitions,
+decoding and control-flow annotations independently of effect policy. They do
+not supply execution or protocol correctness.
+
+The remaining work is to connect those structural certificates to production
+issue/drain transitions and current ownership. This includes typed DWORD lock
+authority, actual exchange events, ordinary release stores with delayed FIFO
+publication, and individually interleaved counter increments. Existing fixed
+method families remain useful components; their shapes do not certify these
+branching functions.
+
+Acquire needs every-prefix safety and a separate conditional progress contract:
+fair thread selection alone does not guarantee a successful test-and-set attempt.
+Release must transfer the protected invariant and retain pending publication
+obligations after return. Counter loops must preserve exact per-invocation event
+counts, including every unrolled increment. Larger functions need an explicit
+structural profile and compatible managed-rule bounds; truncation is not an
+admission strategy. Source-order and physical CPU/kernel refinement remain
+separate obligations. These planned contracts add no current corpus credit.
+
 ## Design commitments
 
 - Implement semantics, eDSLs and proof infrastructure in Lean 4, using the
