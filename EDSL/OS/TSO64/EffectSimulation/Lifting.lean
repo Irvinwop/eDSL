@@ -40,23 +40,24 @@ Native origins retain ordinary, blocked, full64 RMW and publication evidence;
 this record supplies no instruction interpreter or fixed-program phase model. -/
 structure Simulation {G : Type u} (profile : Profile)
     (Rel : State → G → Prop)
-    (Advance : G → Action → Observation → G → Prop) : Prop where
+    (Advance : G → Action → Observation → G → Prop)
+    (family : RMWFamily := .xaddOnly) : Prop where
   lift : ∀ {before after : State} {action : Action} {observation : Observation} {g : G},
     WellFormed before profile → Rel before g →
-    Origin before action (after, observation) profile →
+    Origin before action (after, observation) profile family →
     ∃ next, Advance g action observation next ∧ Rel after next
 
 /-- Fold the client's origin law along an actual successful schedule. Only
 initial validity and relatedness are assumed; each successor invariant follows
 from the production step, with its actual world and unfiltered observation. -/
-theorem Simulation.schedule {G : Type u} {profile : Profile}
+theorem Simulation.schedule {G : Type u} {profile : Profile} {family : RMWFamily}
     {Rel : State → G → Prop}
     {Advance : G → Action → Observation → G → Prop}
-    (laws : Simulation profile Rel Advance)
+    (laws : Simulation profile Rel Advance family)
     {initial final : State} {actions : List Action}
     {observations : List Observation} {g : G}
     (valid : WellFormed initial profile) (related : Rel initial g)
-    (actual : TSO64.schedule initial actions profile = .ok (final, observations)) :
+    (actual : TSO64.schedule initial actions profile family = .ok (final, observations)) :
     ∃ next, Rel final next ∧ LiftTrace Advance g actions observations next := by
   induction actions generalizing initial final observations g with
   | nil =>
@@ -68,12 +69,12 @@ theorem Simulation.schedule {G : Type u} {profile : Profile}
     exact ⟨g, related, .nil⟩
   | cons action rest ih =>
     obtain ⟨⟨after, observation⟩, ⟨last, seen⟩, stepped, scheduled, same⟩ :=
-      schedule_cons_ok actual
+      schedule_cons_ok (family := family) actual
     obtain ⟨middle, advanced, middleRelated⟩ :=
-      laws.lift valid related (step_origin stepped)
+      laws.lift valid related (step_origin (family := family) stepped)
     obtain ⟨next, finalRelated, lifted⟩ :=
       ih (initial := after) (final := last) (observations := seen) (g := middle)
-        (step_wellFormed valid stepped) middleRelated scheduled
+        (step_wellFormed (family := family) valid stepped) middleRelated scheduled
     have finalEq : final = last := congrArg Prod.fst same
     have observationsEq : observations = observation :: seen := congrArg Prod.snd same
     rw [finalEq, observationsEq]
@@ -83,28 +84,29 @@ theorem Simulation.schedule {G : Type u} {profile : Profile}
 The suffix is the same successful run from that cut's actual world. Indices
 count all actions; past-end indices inherit `ScheduleTrace.cut`'s final state
 and empty suffix. No relatedness premise is required at intermediate cuts. -/
-theorem Simulation.schedule_cut {G : Type u} {profile : Profile}
+theorem Simulation.schedule_cut {G : Type u} {profile : Profile} {family : RMWFamily}
     {Rel : State → G → Prop}
     {Advance : G → Action → Observation → G → Prop}
-    (laws : Simulation profile Rel Advance)
+    (laws : Simulation profile Rel Advance family)
     {initial final : State} {actions : List Action}
     {observations : List Observation} {g : G}
     (valid : WellFormed initial profile) (related : Rel initial g)
-    (actual : TSO64.schedule initial actions profile = .ok (final, observations))
+    (actual : TSO64.schedule initial actions profile family = .ok (final, observations))
     (index : Nat) :
     ∃ before next,
-      TSO64.schedule initial (actions.take index) profile =
+      TSO64.schedule initial (actions.take index) profile family =
         .ok (before, observations.take index) ∧
-      TSO64.schedule before (actions.drop index) profile =
+      TSO64.schedule before (actions.drop index) profile family =
         .ok (final, observations.drop index) ∧
       Rel before next ∧
       LiftTrace Advance g (actions.take index) (observations.take index) next := by
-  obtain ⟨before, prefixRun, suffixRun⟩ := ScheduleTrace.cut actual index
-  obtain ⟨next, cutRelated, lifted⟩ := laws.schedule valid related prefixRun
+  obtain ⟨before, prefixRun, suffixRun⟩ := ScheduleTrace.cut (family := family) actual index
+  obtain ⟨next, cutRelated, lifted⟩ := laws.schedule (family := family) valid related prefixRun
   exact ⟨before, next, prefixRun, suffixRun, cutRelated, lifted⟩
 
 end EDSL.OS.TSO64.EffectSimulation
 
+#print axioms EDSL.OS.TSO64.EffectSimulation.Simulation
 #print axioms EDSL.OS.TSO64.EffectSimulation.Simulation.schedule
 #print axioms EDSL.OS.TSO64.EffectSimulation.Simulation.schedule_cut
 #audit_edsl

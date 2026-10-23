@@ -5,6 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 import EDSL.X86.VCGen.Effects.Head
 import EDSL.OS.TSO64.EffectSimulation.Ordinary
 import EDSL.OS.TSO64.EffectSimulation.Lifting
+import EDSL.OS.TSO64.EffectSimulation.CheckedLifting
 import EDSL.OS.TSO64.EffectSimulation.Resources
 import EDSL.OS.TSO64.EffectSimulation.Resumable.Simulation
 

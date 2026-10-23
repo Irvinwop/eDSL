@@ -44,7 +44,7 @@ private theorem install_resources_at {state : State} {owner tid : Nat} {world : 
 /-- Every originally live index retains its complete original resources.
 The current worker is obtained from the actual origin's installed state. -/
 theorem origin_resources {state : State} {action : Action} {result : State × Observation}
-    {profile : Profile} (origin : Origin state action result profile)
+    {profile : Profile} {family : RMWFamily} (origin : Origin state action result profile family)
     {tid : Nat} {prior : Worker} (live : state.workers[tid]? = some prior) :
     ∃ current, result.1.workers[tid]? = some current ∧ current.resources = prior.resources := by
   cases origin with
@@ -61,8 +61,8 @@ theorem origin_resources {state : State} {action : Action} {result : State × Ob
 /-- Original identity is bound to a worker at the same current index, whose
 resources are valid in the actual successor world under the same profile. -/
 theorem origin_current_resources {state : State} {action : Action}
-    {result : State × Observation} {profile : Profile}
-    (origin : Origin state action result profile) (valid : WellFormed state profile)
+    {result : State × Observation} {profile : Profile} {family : RMWFamily}
+    (origin : Origin state action result profile family) (valid : WellFormed state profile)
     {tid : Nat} {prior : Worker} (live : state.workers[tid]? = some prior) :
     ∃ current, result.1.workers[tid]? = some current ∧ current.resources = prior.resources ∧
       ResourcesValid result.1.world current.resources := by
@@ -74,8 +74,8 @@ theorem origin_current_resources {state : State} {action : Action}
 and blocked origins leave the world unchanged; RMW and drain origins supply
 their checked OS effects, including either kind of tagged publication. -/
 theorem origin_loan_contents {state : State} {action : Action}
-    {result : State × Observation} {profile : Profile}
-    (origin : Origin state action result profile) (valid : WellFormed state profile)
+    {result : State × Observation} {profile : Profile} {family : RMWFamily}
+    (origin : Origin state action result profile family) (valid : WellFormed state profile)
     {identifier : Nat} {loan : Borrowing.Loan}
     (live : state.world.legacy.shared.loans identifier = some loan) (address : Word)
     (inside : loan.region.Contains address) :
@@ -87,7 +87,8 @@ theorem origin_loan_contents {state : State} {action : Action}
     | intro _supported _bounds _decoded _reads _queue _step finish => cases finish <;> rfl
   | blocked => rfl
   | rmw _subjectLive _running _code _caller _fetched _bounds _empty _grant effect =>
-    exact Atomics64.fetchAdd_loan_contents _ _ _ _ _ valid.1 effect.checked
+    have arithmetic := RMWFamily.MachineEffect.arithmetic effect
+    exact Atomics64.fetchAdd_loan_contents _ _ _ _ _ valid.1 arithmetic.checked
       identifier loan live address inside
   | drained _subjectLive _fifo _gate changed _effect =>
     exact changed.loan_contents valid.1 identifier loan live address inside
@@ -96,8 +97,8 @@ theorem origin_loan_contents {state : State} {action : Action}
 address. Authorization, loan confinement and all eight published bytes are
 retained; no current stack-pointer equality is needed or established. -/
 theorem origin_loan_read_preserved {state : State} {action : Action}
-    {result : State × Observation} {profile : Profile}
-    (origin : Origin state action result profile) (valid : WellFormed state profile)
+    {result : State × Observation} {profile : Profile} {family : RMWFamily}
+    (origin : Origin state action result profile family) (valid : WellFormed state profile)
     {borrower identifier : Nat} {address value : Word}
     (read : Borrowing.loadWord64 state.world.legacy.shared borrower identifier address = .ok value) :
     Borrowing.loadWord64 result.1.world.legacy.shared borrower identifier address = .ok value := by
@@ -117,8 +118,8 @@ theorem origin_loan_read_preserved {state : State} {action : Action}
 
 /-- Complete original resource identity along an authentic native prefix,
 without any passive-only restriction on its own issues. -/
-theorem OriginTrace.resources {profile : Profile} {tid : Nat}
-    {initial final : State} {history : Log} (trace : OriginTrace profile initial history final) :
+theorem OriginTrace.resources {profile : Profile} {family : RMWFamily} {tid : Nat}
+    {initial final : State} {history : Log} (trace : OriginTrace profile initial history final family) :
     ∀ {prior : Worker}, initial.workers[tid]? = some prior →
       ∃ current, final.workers[tid]? = some current ∧ current.resources = prior.resources := by
   induction trace with
@@ -129,8 +130,8 @@ theorem OriginTrace.resources {profile : Profile} {tid : Nat}
     obtain ⟨current, currentLive, second⟩ := ih middleLive
     exact ⟨current, currentLive, second.trans first⟩
 
-theorem OriginTrace.current_resources {profile : Profile} {tid : Nat}
-    {initial final : State} {history : Log} (trace : OriginTrace profile initial history final)
+theorem OriginTrace.current_resources {profile : Profile} {family : RMWFamily} {tid : Nat}
+    {initial final : State} {history : Log} (trace : OriginTrace profile initial history final family)
     (valid : WellFormed initial profile) {prior : Worker}
     (live : initial.workers[tid]? = some prior) :
     ∃ current, final.workers[tid]? = some current ∧ current.resources = prior.resources ∧
@@ -141,8 +142,8 @@ theorem OriginTrace.current_resources {profile : Profile} {tid : Nat}
 
 /-- A fixed original borrowing read survives every connected origin prefix,
 including own retirements and later publications after return. -/
-theorem OriginTrace.loan_read_preserved {profile : Profile}
-    {initial final : State} {history : Log} (trace : OriginTrace profile initial history final)
+theorem OriginTrace.loan_read_preserved {profile : Profile} {family : RMWFamily}
+    {initial final : State} {history : Log} (trace : OriginTrace profile initial history final family)
     {borrower identifier : Nat} {address value : Word} :
     WellFormed initial profile →
     Borrowing.loadWord64 initial.world.legacy.shared borrower identifier address = .ok value →
@@ -154,23 +155,23 @@ theorem OriginTrace.loan_read_preserved {profile : Profile}
     exact ih (origin_wellFormed head valid) (origin_loan_read_preserved head valid read)
 
 /-- A pause also retains the live index and complete original resource record. -/
-theorem Pause.resources {profile : Profile} {tid : Nat} {before after : State × Log}
-    {prior : Worker} (paused : Pause profile tid before after)
+theorem Pause.resources {profile : Profile} {family : RMWFamily} {tid : Nat} {before after : State × Log}
+    {prior : Worker} (paused : Pause profile tid before after family)
     (live : before.1.workers[tid]? = some prior) :
     ∃ current, after.1.workers[tid]? = some current ∧ current.resources = prior.resources := by
   obtain ⟨_suffix, trace, _quiet, _same⟩ := paused
   exact trace.resources live
 
-theorem Pause.current_resources {profile : Profile} {tid : Nat} {before after : State × Log}
-    {prior : Worker} (paused : Pause profile tid before after)
+theorem Pause.current_resources {profile : Profile} {family : RMWFamily} {tid : Nat} {before after : State × Log}
+    {prior : Worker} (paused : Pause profile tid before after family)
     (valid : WellFormed before.1 profile) (live : before.1.workers[tid]? = some prior) :
     ∃ current, after.1.workers[tid]? = some current ∧ current.resources = prior.resources ∧
       ResourcesValid after.1.world current.resources := by
   obtain ⟨_suffix, trace, _quiet, _same⟩ := paused
   exact trace.current_resources valid live
 
-theorem Pause.loan_read_preserved {profile : Profile} {tid : Nat} {before after : State × Log}
-    (paused : Pause profile tid before after) (valid : WellFormed before.1 profile)
+theorem Pause.loan_read_preserved {profile : Profile} {family : RMWFamily} {tid : Nat} {before after : State × Log}
+    (paused : Pause profile tid before after family) (valid : WellFormed before.1 profile)
     {borrower identifier : Nat} {address value : Word}
     (read : Borrowing.loadWord64 before.1.world.legacy.shared borrower identifier address = .ok value) :
     Borrowing.loadWord64 after.1.world.legacy.shared borrower identifier address = .ok value := by

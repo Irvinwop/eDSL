@@ -46,12 +46,13 @@ def Reifies (tid : Nat) (result : S × O)
 queue admission, never a guessed successor CPU or a future scheduler success.
 The effect policy in a head is separate from these original OS authorities. -/
 structure OrdinaryReady (state : S) (tid : Nat) (worker : Worker)
-    (instruction : Sequential.Instruction) (profile : Profile := .ownedOnly) : Prop where
+    (instruction : Sequential.Instruction) (profile : Profile := .ownedOnly)
+    (family : RMWFamily := .xaddOnly) : Prop where
   live : state.workers[tid]? = some worker
   running : worker.phase = .running
   codeCurrent : LeaseCurrent state.world worker.resources.actor worker.resources.code
   callerCurrent : LeaseCurrent state.world worker.resources.actor worker.resources.caller
-  dispatch : decode (fetchCPU state worker) = .ok (.ordinary instruction)
+  dispatch : decode (fetchCPU state worker) family = .ok (.ordinary instruction)
   admitted : supported instruction = true
   bounds : codeFits worker instruction.length
   reads : ∃ units, (instruction.operandReads (localCPU state worker)).mapM
@@ -293,15 +294,15 @@ private theorem supported_outcome {initial : X86.State}
 current OS prestate admissions. The bytes/policy remain those of the head;
 there is no static-node size bound, successor oracle, or invented world. -/
 theorem issue_from_head {state : S} {tid : Nat} {worker : Worker}
-    {instruction : Sequential.Instruction} {af : Bool} {profile : Profile}
+    {instruction : Sequential.Instruction} {af : Bool} {profile : Profile} {family : RMWFamily}
     {bytes : List Byte} {base : Word} {policy : X86.VCGen.Effects.Policy}
     {actual : Sequential.Observation}
     (valid : WellFormed state profile)
-    (ready : OrdinaryReady state tid worker instruction profile)
+    (ready : OrdinaryReady state tid worker instruction profile family)
     (head : X86.VCGen.Effects.Head bytes base policy
       (Sequential.FlagChoices.uniform af) (localCPU state worker) instruction actual) :
     ∃ result : S × O,
-      step state (.issue tid af) profile = .ok result ∧
+      step state (.issue tid af) profile family = .ok result ∧
       Reifies tid result actual ∧ result.1.world = state.world ∧
       WellFormed result.1 profile := by
   obtain ⟨update, queue⟩ := ready.queue
@@ -322,9 +323,9 @@ theorem issue_from_head {state : S} {tid : Nat} {worker : Worker}
     exact executed
   have effect : OrdinaryEffect state tid worker instruction af result profile :=
     .intro ready.admitted ready.bounds head.decoded ready.reads queue stepped finish
-  have success : step state (.issue tid af) profile = .ok result := by
+  have success : step state (.issue tid af) profile family = .ok result := by
     obtain ⟨units, reads⟩ := ready.reads
-    change issue state tid af profile = .ok result
+    change issue state tid af profile family = .ok result
     simp [issue, ready.live, ready.running, ready.codeCurrent, ready.callerCurrent,
       ready.dispatch, ordinary, ready.admitted, ready.bounds, head.decoded, reads,
       X86.VCGen.ManagedRules.queue_checked queue, executed, Except.mapError,

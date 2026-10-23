@@ -136,6 +136,30 @@ After interference, a sequential certificate's tail may refer to a stale CPU.
 A client must establish evidence at the actual resumed state or prove a
 suitable transport law. Unchanged thread registers alone do not justify reuse.
 
+## Instruction families and checked steps
+
+The shared `OriginTrace`, `Pause`, `Box`, `Simulation` and `OrdinaryReady`
+interfaces accept an optional RMW instruction family. The default remains
+`.xaddOnly`; select `.arithmetic` explicitly for the supported locked ADD and
+INC forms. Every origin in a trace uses the same selected family. Current
+resource, code, caller and ordinary-read/queue checks retain their contracts.
+Existing ordinary resumable blocks continue to use their original domain.
+
+`EDSL.OS.TSO64.EffectSimulation.CheckedSimulation` is available through the
+bridge import.
+Its local law receives an actual successful **current step**, allowing a client
+to retain details such as the selected atomic handle. An arbitrary
+`Origin.rmw` records a granted handle and its effect, but does not record the
+executor's first matching handle selection; there is no converse from an origin
+to an executable step.
+
+`CheckedSimulation.schedule` and `schedule_cut` retain every action and
+observation in `LiftTrace`. `Simulation.toChecked` converts an existing
+origin-based law using the forward step-to-origin theorem. These folds do not
+establish enabledness or completion. Mixed instruction graphs have structural
+certificates; generated mixed ordinary/RMW block obligations and counted-loop
+contracts remain separate work.
+
 ## Scope
 
 These adapters retain the current scheduler's instruction support, authority

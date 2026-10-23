@@ -47,38 +47,60 @@ abbrev Log := List Tick
 Admission of that initial state is a separate client obligation. Adjacent
 ticks share the actual result/input state; no disconnected history is admitted.
 These are native origins, not a claim of an executable Origin converse. -/
-inductive OriginTrace (profile : Profile) : State → Log → State → Prop where
-  | nil {state : State} : OriginTrace profile state [] state
+inductive OriginTrace.Core (profile : Profile) (family : RMWFamily) :
+    State → Log → State → Prop where
+  | nil {state : State} : OriginTrace.Core profile family state [] state
   | cons {tick : Tick} {history : Log} {final : State}
-      (head : Origin tick.before tick.action tick.result profile)
-      (tail : OriginTrace profile tick.result.1 history final) :
-      OriginTrace profile tick.before (tick :: history) final
+      (head : Origin tick.before tick.action tick.result profile family)
+      (tail : OriginTrace.Core profile family tick.result.1 history final) :
+      OriginTrace.Core profile family tick.before (tick :: history) final
 
-theorem OriginTrace.append {profile : Profile} {initial middle final : State}
+/-- Preserve the public argument order and default while keeping the family
+a datatype parameter, so specialized traces support ordinary induction. -/
+abbrev OriginTrace (profile : Profile) (initial : State) (history : Log) (final : State)
+    (family : RMWFamily := .xaddOnly) : Prop :=
+  OriginTrace.Core profile family initial history final
+
+/-- The public empty trace constructor, transparent to the single core trace. -/
+abbrev OriginTrace.nil {profile : Profile} {state : State} {family : RMWFamily} :
+    OriginTrace profile state [] state family :=
+  OriginTrace.Core.nil
+
+/-- The public connected trace constructor, retaining the same family at
+the actual native origin and the tail's actual input state. -/
+abbrev OriginTrace.cons {profile : Profile} {tick : Tick} {history : Log} {final : State}
+    {family : RMWFamily}
+    (head : Origin tick.before tick.action tick.result profile family)
+    (tail : OriginTrace profile tick.result.1 history final family) :
+    OriginTrace profile tick.before (tick :: history) final family :=
+  OriginTrace.Core.cons head tail
+
+theorem OriginTrace.append {profile : Profile} {family : RMWFamily}
+    {initial middle final : State}
     {front back : Log}
-    (first : OriginTrace profile initial front middle)
-    (second : OriginTrace profile middle back final) :
-    OriginTrace profile initial (front ++ back) final := by
+    (first : OriginTrace profile initial front middle family)
+    (second : OriginTrace profile middle back final family) :
+    OriginTrace profile initial (front ++ back) final family := by
   induction first with
   | nil => exact second
   | cons head _ ih => exact .cons head (ih second)
 
 /-- The single extension needed by an origin-indexed simulation law. -/
-theorem OriginTrace.snoc {profile : Profile} {initial before : State}
+theorem OriginTrace.snoc {profile : Profile} {family : RMWFamily} {initial before : State}
     {history : Log} {action : Action} {result : State × Observation}
-    (priorTrace : OriginTrace profile initial history before)
-    (origin : Origin before action result profile) :
-    OriginTrace profile initial (history ++ [⟨before, action, result⟩]) result.1 :=
+    (priorTrace : OriginTrace profile initial history before family)
+    (origin : Origin before action result profile family) :
+    OriginTrace profile initial (history ++ [⟨before, action, result⟩]) result.1 family :=
   priorTrace.append (OriginTrace.cons (tick := ⟨before, action, result⟩) origin .nil)
 
 /-- Recover both authentic cuts and the native origin at an original log
 index. Drains and blocked attempts are retained and consume positions. -/
-theorem OriginTrace.at {profile : Profile} {initial final : State}
-    {history : Log} (trace : OriginTrace profile initial history final)
+theorem OriginTrace.at {profile : Profile} {family : RMWFamily} {initial final : State}
+    {history : Log} (trace : OriginTrace profile initial history final family)
     {index : Nat} {tick : Tick} (found : history[index]? = some tick) :
-    OriginTrace profile initial (history.take index) tick.before ∧
-      Origin tick.before tick.action tick.result profile ∧
-      OriginTrace profile initial (history.take (index + 1)) tick.result.1 := by
+    OriginTrace profile initial (history.take index) tick.before family ∧
+      Origin tick.before tick.action tick.result profile family ∧
+      OriginTrace profile initial (history.take (index + 1)) tick.result.1 family := by
   induction trace generalizing index with
   | nil => simp at found
   | cons head _ ih =>
@@ -94,19 +116,20 @@ theorem OriginTrace.at {profile : Profile} {initial final : State}
 /-- Reflexive-transitive native passive interference, appending exactly a
 connected passive suffix. An arbitrary preexisting log needs the separate
 `OriginTrace` premise in `Pause.authentic`. -/
-def Pause (profile : Profile) (tid : Nat) (before after : State × Log) : Prop :=
-  ∃ suffix, OriginTrace profile before.1 suffix after.1 ∧
+def Pause (profile : Profile) (tid : Nat) (before after : State × Log)
+    (family : RMWFamily := .xaddOnly) : Prop :=
+  ∃ suffix, OriginTrace profile before.1 suffix after.1 family ∧
     (∀ tick ∈ suffix, passive tid tick.action) ∧ after.2 = before.2 ++ suffix
 
-theorem Pause.refl {profile : Profile} {tid : Nat} {current : State × Log} :
-    Pause profile tid current current :=
+theorem Pause.refl {profile : Profile} {family : RMWFamily} {tid : Nat} {current : State × Log} :
+    Pause profile tid current current family :=
   ⟨[], .nil, by simp, by simp only [List.append_nil]⟩
 
-theorem Pause.step {profile : Profile} {tid : Nat} {before : State}
+theorem Pause.step {profile : Profile} {family : RMWFamily} {tid : Nat} {before : State}
     {history : Log} {action : Action} {result : State × Observation}
-    (quiet : passive tid action) (origin : Origin before action result profile) :
+    (quiet : passive tid action) (origin : Origin before action result profile family) :
     Pause profile tid (before, history)
-      (result.1, history ++ [⟨before, action, result⟩]) := by
+      (result.1, history ++ [⟨before, action, result⟩]) family := by
   refine ⟨[⟨before, action, result⟩],
     OriginTrace.cons (tick := ⟨before, action, result⟩) origin .nil, ?_, rfl⟩
   intro tick member
@@ -114,9 +137,10 @@ theorem Pause.step {profile : Profile} {tid : Nat} {before : State}
   subst tick
   exact quiet
 
-theorem Pause.trans {profile : Profile} {tid : Nat} {before middle after : State × Log}
-    (first : Pause profile tid before middle) (second : Pause profile tid middle after) :
-    Pause profile tid before after := by
+theorem Pause.trans {profile : Profile} {family : RMWFamily} {tid : Nat}
+    {before middle after : State × Log}
+    (first : Pause profile tid before middle family) (second : Pause profile tid middle after family) :
+    Pause profile tid before after family := by
   obtain ⟨front, firstTrace, firstQuiet, firstLog⟩ := first
   obtain ⟨back, secondTrace, secondQuiet, secondLog⟩ := second
   refine ⟨front ++ back, firstTrace.append secondTrace, ?_, ?_⟩
@@ -127,40 +151,40 @@ theorem Pause.trans {profile : Profile} {tid : Nat} {before middle after : State
   · rw [secondLog, firstLog, List.append_assoc]
 
 /-- Authenticity is transported, never inferred from the pause alone. -/
-theorem Pause.authentic {profile : Profile} {tid : Nat} {initial : State}
-    {before after : State × Log} (paused : Pause profile tid before after)
-    (priorTrace : OriginTrace profile initial before.2 before.1) :
-    OriginTrace profile initial after.2 after.1 := by
+theorem Pause.authentic {profile : Profile} {family : RMWFamily} {tid : Nat} {initial : State}
+    {before after : State × Log} (paused : Pause profile tid before after family)
+    (priorTrace : OriginTrace profile initial before.2 before.1 family) :
+    OriginTrace profile initial after.2 after.1 family := by
   obtain ⟨suffix, trace, _quiet, same⟩ := paused
   rw [same]
   exact priorTrace.append trace
 
 /-- Universal closure under all native passive origins from the current state. -/
 def Box (profile : Profile) (tid : Nat) (P : State → Log → Prop)
-    (state : State) (history : Log) : Prop :=
-  ∀ after extended, Pause profile tid (state, history) (after, extended) → P after extended
+    (state : State) (history : Log) (family : RMWFamily := .xaddOnly) : Prop :=
+  ∀ after extended, Pause profile tid (state, history) (after, extended) family → P after extended
 
-theorem Box.here {profile : Profile} {tid : Nat} {P : State → Log → Prop}
-    {state : State} {history : Log} (closed : Box profile tid P state history) :
+theorem Box.here {profile : Profile} {family : RMWFamily} {tid : Nat} {P : State → Log → Prop}
+    {state : State} {history : Log} (closed : Box profile tid P state history family) :
     P state history :=
-  closed state history Pause.refl
+  closed state history (Pause.refl (family := family))
 
-theorem Box.stable {profile : Profile} {tid : Nat} {P : State → Log → Prop}
+theorem Box.stable {profile : Profile} {family : RMWFamily} {tid : Nat} {P : State → Log → Prop}
     {before after : State} {history extended : Log}
-    (closed : Box profile tid P before history)
-    (paused : Pause profile tid (before, history) (after, extended)) :
-    Box profile tid P after extended := by
+    (closed : Box profile tid P before history family)
+    (paused : Pause profile tid (before, history) (after, extended) family) :
+    Box profile tid P after extended family := by
   intro final later following
   exact closed final later (paused.trans following)
 
 /-- A successful passive schedule yields a pause with all original actions
 and observations in order. This theorem only extracts production origins;
 it defines no scheduler or instruction evaluator and needs no future run. -/
-theorem Pause.of_schedule {profile : Profile} {tid : Nat} {before after : State}
+theorem Pause.of_schedule {profile : Profile} {family : RMWFamily} {tid : Nat} {before after : State}
     {actions : List Action} {observations : List Observation}
-    (actual : TSO64.schedule before actions profile = .ok (after, observations))
+    (actual : TSO64.schedule before actions profile family = .ok (after, observations))
     (only : ∀ action ∈ actions, passive tid action) (history : Log) :
-    ∃ suffix, Pause profile tid (before, history) (after, history ++ suffix) ∧
+    ∃ suffix, Pause profile tid (before, history) (after, history ++ suffix) family ∧
       suffix.map Tick.action = actions ∧
       suffix.map (fun tick => tick.result.2) = observations := by
   induction actions generalizing before after observations history with
@@ -172,13 +196,14 @@ theorem Pause.of_schedule {profile : Profile} {tid : Nat} {before after : State}
     subst observations
     refine ⟨[], ?_, rfl, rfl⟩
     simpa only [List.append_nil] using
-      (Pause.refl (profile := profile) (tid := tid) (current := (before, history)))
+      (Pause.refl (profile := profile) (family := family) (tid := tid) (current := (before, history)))
   | cons action rest ih =>
     obtain ⟨⟨middle, observation⟩, ⟨last, seen⟩, stepped, scheduled, same⟩ :=
-      schedule_cons_ok actual
+      schedule_cons_ok (family := family) actual
     let tick : Tick := ⟨before, action, (middle, observation)⟩
-    have edge : Pause profile tid (before, history) (middle, history ++ [tick]) :=
-      Pause.step (only action List.mem_cons_self) (step_origin stepped)
+    have edge : Pause profile tid (before, history) (middle, history ++ [tick]) family :=
+      Pause.step (family := family) (only action List.mem_cons_self)
+        (step_origin (family := family) stepped)
     have restOnly : ∀ next ∈ rest, passive tid next :=
       fun next member => only next (List.mem_cons_of_mem action member)
     obtain ⟨suffix, paused, actionsEq, seenEq⟩ :=
@@ -198,7 +223,7 @@ theorem Pause.of_schedule {profile : Profile} {tid : Nat} {before after : State}
 /-- Metadata/permission stability factored directly through native origins.
 Published byte values need not be stable. -/
 theorem origin_stable {state : State} {action : Action} {result : State × Observation}
-    {profile : Profile} (origin : Origin state action result profile) :
+    {profile : Profile} {family : RMWFamily} (origin : Origin state action result profile family) :
     Stable state.world result.1.world := by
   cases origin with
   | ordinary _live _running _code _caller _fetched effect =>
@@ -207,21 +232,23 @@ theorem origin_stable {state : State} {action : Action} {result : State × Obser
       cases finish <;> exact Stable.refl _
   | blocked => exact Stable.refl _
   | rmw _live _running _code _caller _fetched _bounds _empty _grant effect =>
-    exact fetchAdd_stable effect.checked
+    have arithmetic := RMWFamily.MachineEffect.arithmetic effect
+    exact fetchAdd_stable arithmetic.checked
   | drained _live _fifo _gate _changed effect => exact effect.stable
 
 /-- Origin-indexed invariant transport, including the checked coupled RMW and
 both native publication cases. No executable step converse is used. -/
 theorem origin_wellFormed {state : State} {action : Action} {result : State × Observation}
-    {profile : Profile} (origin : Origin state action result profile)
+    {profile : Profile} {family : RMWFamily} (origin : Origin state action result profile family)
     (valid : WellFormed state profile) : WellFormed result.1 profile := by
   cases origin with
   | ordinary live _running _code _caller _fetched effect => exact effect.wellFormed valid live
   | blocked => exact valid
   | rmw live _running _code _caller _fetched _bounds _empty _grant effect =>
     have workerValid := valid.2 _ (List.mem_of_getElem? live)
-    have frame := fetchAdd_stable effect.checked
-    exact install_valid valid frame (effect.wellFormed valid.1)
+    have arithmetic := RMWFamily.MachineEffect.arithmetic effect
+    have frame := fetchAdd_stable arithmetic.checked
+    exact install_valid valid frame (arithmetic.wellFormed valid.1)
       ⟨frame.resources workerValid.1,
         fun pending member => frame.pending (workerValid.2 pending member)⟩
   | drained live fifo _gate changed effect =>
@@ -235,7 +262,7 @@ theorem origin_wellFormed {state : State} {action : Action} {result : State × O
 
 /-- All executable bytes survive every origin, independently of worker RIP. -/
 theorem origin_code {state : State} {action : Action} {result : State × Observation}
-    {profile : Profile} (origin : Origin state action result profile)
+    {profile : Profile} {family : RMWFamily} (origin : Origin state action result profile family)
     {base : Word} {bytes : List Byte} (code : CodeAt (published state.world) base bytes) :
     CodeAt (published result.1.world) base bytes := by
   cases origin with
@@ -245,8 +272,9 @@ theorem origin_code {state : State} {action : Action} {result : State × Observa
       cases finish <;> exact code
   | blocked => exact code
   | rmw _live _running _lease _caller _fetched _bounds _empty _grant effect =>
-    have preserved := effect.preserves_all_code base bytes code
-    rw [effect.memory] at preserved
+    have arithmetic := RMWFamily.MachineEffect.arithmetic effect
+    have preserved := arithmetic.preserves_all_code base bytes code
+    rw [arithmetic.memory] at preserved
     exact preserved
   | drained _live _fifo gate _changed effect =>
     dsimp only [install]
@@ -286,8 +314,8 @@ private theorem install_drain_saved {state : State} {owner tid : Nat} {world : W
 original resource identity and occurrence counter. This includes own drains
 with returned phase; no running or empty-FIFO assumption occurs. -/
 theorem origin_saved {state : State} {action : Action} {result : State × Observation}
-    {profile : Profile} {tid : Nat} {prior : Worker}
-    (origin : Origin state action result profile) (quiet : passive tid action)
+    {profile : Profile} {family : RMWFamily} {tid : Nat} {prior : Worker}
+    (origin : Origin state action result profile family) (quiet : passive tid action)
     (live : state.workers[tid]? = some prior) :
     ∃ current, result.1.workers[tid]? = some current ∧ SavedFrame prior current := by
   cases origin with
@@ -299,22 +327,24 @@ theorem origin_saved {state : State} {action : Action} {result : State × Observ
   | rmw => exact ⟨prior, (install_peer (Ne.symm quiet)).trans live, .refl _⟩
   | drained subjectLive _fifo _gate _changed _effect => exact install_drain_saved subjectLive live
 
-theorem OriginTrace.wellFormed {profile : Profile} {initial final : State} {history : Log}
-    (trace : OriginTrace profile initial history final) :
+theorem OriginTrace.wellFormed {profile : Profile} {family : RMWFamily}
+    {initial final : State} {history : Log}
+    (trace : OriginTrace profile initial history final family) :
     WellFormed initial profile → WellFormed final profile := by
   induction trace with
   | nil => exact id
   | cons head _ ih => intro valid; exact ih (origin_wellFormed head valid)
 
-theorem OriginTrace.code {profile : Profile} {initial final : State} {history : Log}
-    (trace : OriginTrace profile initial history final) {base : Word} {bytes : List Byte} :
+theorem OriginTrace.code {profile : Profile} {family : RMWFamily}
+    {initial final : State} {history : Log}
+    (trace : OriginTrace profile initial history final family) {base : Word} {bytes : List Byte} :
     CodeAt (published initial.world) base bytes → CodeAt (published final.world) base bytes := by
   induction trace with
   | nil => exact id
   | cons head _ ih => intro code; exact ih (origin_code head code)
 
-theorem OriginTrace.passive_saved {profile : Profile} {tid : Nat}
-    {initial final : State} {history : Log} (trace : OriginTrace profile initial history final) :
+theorem OriginTrace.passive_saved {profile : Profile} {family : RMWFamily} {tid : Nat}
+    {initial final : State} {history : Log} (trace : OriginTrace profile initial history final family) :
     (∀ tick ∈ history, passive tid tick.action) →
     ∀ {prior : Worker}, initial.workers[tid]? = some prior →
       ∃ current, final.workers[tid]? = some current ∧ SavedFrame prior current := by
@@ -327,21 +357,22 @@ theorem OriginTrace.passive_saved {profile : Profile} {tid : Nat}
       ih (fun tick member => quiet tick (List.mem_cons_of_mem _ member)) middleLive
     exact ⟨current, currentLive, first.trans second⟩
 
-theorem Pause.wellFormed {profile : Profile} {tid : Nat} {before after : State × Log}
-    (paused : Pause profile tid before after) (valid : WellFormed before.1 profile) :
+theorem Pause.wellFormed {profile : Profile} {family : RMWFamily} {tid : Nat}
+    {before after : State × Log}
+    (paused : Pause profile tid before after family) (valid : WellFormed before.1 profile) :
     WellFormed after.1 profile := by
   obtain ⟨_suffix, trace, _quiet, _same⟩ := paused
   exact trace.wellFormed valid
 
-theorem Pause.code {profile : Profile} {tid : Nat} {before after : State × Log}
-    (paused : Pause profile tid before after) {base : Word} {bytes : List Byte}
+theorem Pause.code {profile : Profile} {family : RMWFamily} {tid : Nat} {before after : State × Log}
+    (paused : Pause profile tid before after family) {base : Word} {bytes : List Byte}
     (code : CodeAt (published before.1.world) base bytes) :
     CodeAt (published after.1.world) base bytes := by
   obtain ⟨_suffix, trace, _quiet, _same⟩ := paused
   exact trace.code code
 
-theorem Pause.saved {profile : Profile} {tid : Nat} {before after : State × Log}
-    {prior : Worker} (paused : Pause profile tid before after)
+theorem Pause.saved {profile : Profile} {family : RMWFamily} {tid : Nat} {before after : State × Log}
+    {prior : Worker} (paused : Pause profile tid before after family)
     (live : before.1.workers[tid]? = some prior) :
     ∃ current, after.1.workers[tid]? = some current ∧ SavedFrame prior current := by
   obtain ⟨_suffix, trace, quiet, _same⟩ := paused
@@ -349,7 +380,18 @@ theorem Pause.saved {profile : Profile} {tid : Nat} {before after : State × Log
 
 end EDSL.OS.TSO64.EffectSimulation
 
+#print axioms EDSL.OS.TSO64.EffectSimulation.OriginTrace.Core
+#print axioms EDSL.OS.TSO64.EffectSimulation.OriginTrace
+#print axioms EDSL.OS.TSO64.EffectSimulation.OriginTrace.nil
+#print axioms EDSL.OS.TSO64.EffectSimulation.OriginTrace.cons
+#print axioms EDSL.OS.TSO64.EffectSimulation.OriginTrace.append
+#print axioms EDSL.OS.TSO64.EffectSimulation.OriginTrace.snoc
 #print axioms EDSL.OS.TSO64.EffectSimulation.OriginTrace.at
+#print axioms EDSL.OS.TSO64.EffectSimulation.OriginTrace.wellFormed
+#print axioms EDSL.OS.TSO64.EffectSimulation.OriginTrace.code
+#print axioms EDSL.OS.TSO64.EffectSimulation.OriginTrace.passive_saved
+#print axioms EDSL.OS.TSO64.EffectSimulation.Pause
+#print axioms EDSL.OS.TSO64.EffectSimulation.Box
 #print axioms EDSL.OS.TSO64.EffectSimulation.Pause.refl
 #print axioms EDSL.OS.TSO64.EffectSimulation.Pause.step
 #print axioms EDSL.OS.TSO64.EffectSimulation.Pause.trans
