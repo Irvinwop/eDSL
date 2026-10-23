@@ -105,12 +105,20 @@ inductive Instruction where
   | test32 (left right : Register) (prefixed : Bool)
   /-- Low32 register CMP, left minus right, with no register write. -/
   | cmp32 (left right : Register) (prefixed : Bool)
+  /-- Register-only 83 /7 ib: compare low32 with the imm8 sign-extended to32.
+  Every GPR, including all upper halves, survives. All arithmetic flags are
+  defined by width32 subtraction; prefix presence records canonical 40/41. -/
+  | cmpImm32 (left : Register) (immediate : Byte) (prefixed : Bool)
   /-- LOW8 register CMP, left minus right. Without REX only AL/CL/DL/BL
   decode; with REX every low-byte GPR is available. No high-byte bank is modeled. -/
   | cmpReg8 (left right : Register) (prefixed : Bool)
   /-- LOW32 register subtraction using prestate operands and defined arithmetic
   flags. The destination's upper32 bits are cleared, including self-aliases. -/
   | subReg32 (destination source : Register) (prefixed : Bool)
+  /-- Register-only 83 /5 ib: subtract the imm8 sign-extended to32 from the
+  old low32 destination, then zero-extend the result. CF/AF are subtraction
+  borrows, rather than carries of addition with a negated immediate. -/
+  | subImm32 (destination : Register) (immediate : Byte) (prefixed : Bool)
   /-- Register-only low32 two's-complement negation. The source is the old
   destination, the full destination is zero extended, and all six arithmetic
   flags (including AF) are defined by subtraction from zero. Prefix presence

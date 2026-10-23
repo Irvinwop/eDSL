@@ -165,6 +165,7 @@ import EDSL.Corpus.V1.CallerOnlyAdapters
 import EDSL.X86.Sequential.Rotate
 import EDSL.WordMath.Rotation
 import EDSL.X86.Sequential.Low8
+import EDSL.X86.Sequential.Immediate32
 import EDSL.X86.Sequential.ShiftOne
 import EDSL.X86.Sequential.ParityISA
 import EDSL.WordMath.Parity

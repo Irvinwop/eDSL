@@ -43,7 +43,7 @@ example : observed [0x41,0x83,0xc4,1] .r12 0x123400000000000f 0x202 =
 
 -- Unsupported width/group/memory/prefix forms must not become counter updates.
 example : Sequential.decodeAt (codeState [0x83,0x00,1] 0) = .error .unsupportedEncoding := by rfl
-example : Sequential.decodeAt (codeState [0x83,0xe8,1] 0) = .error .unsupportedEncoding := by rfl
+example : Sequential.decodeAt (codeState [0x83,0xd0,1] 0) = .error .unsupportedEncoding := by rfl
 example : Sequential.decodeAt (codeState [0xff,0xc8] 0) = .error .unsupportedEncoding := by rfl
 example : Sequential.decodeAt (codeState [0x42,0xff,0xc0] 0) = .error .unsupportedEncoding := by rfl
 example : Sequential.decodeAt (codeState [0x44,0x83,0xc0,1] 0) = .error .unsupportedEncoding := by rfl

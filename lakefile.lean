@@ -211,6 +211,12 @@ lean_lib EffectSimulationTests where
   moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
     "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
 
+-- Width32 register SUB/CMP, signed immediates and complete subtraction flags.
+lean_lib Immediate32Tests where
+  roots := #[`tests.Immediate32]
+  moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
+    "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
+
 -- Exact compiler padding, fetch boundaries and complete context frames.
 lean_lib PaddingTests where
   roots := #[`tests.CounterPadding13, `tests.SequentialByteComparePadding,

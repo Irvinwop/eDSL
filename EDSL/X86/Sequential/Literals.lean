@@ -70,9 +70,13 @@ def instruction : Instruction → String
   | .cmpImm64 left immediate => s!"(.cmpImm64 {register left} {immediate.toNat})"
   | .test32 left right prefixed => s!"(.test32 {register left} {register right} {prefixed})"
   | .cmp32 left right prefixed => s!"(.cmp32 {register left} {register right} {prefixed})"
+  | .cmpImm32 left immediate prefixed =>
+    s!"(.cmpImm32 {register left} {immediate.toNat} {prefixed})"
   | .cmpReg8 left right prefixed => s!"(.cmpReg8 {register left} {register right} {prefixed})"
   | .subReg32 destination source prefixed =>
     s!"(.subReg32 {register destination} {register source} {prefixed})"
+  | .subImm32 destination immediate prefixed =>
+    s!"(.subImm32 {register destination} {immediate.toNat} {prefixed})"
   | .negReg32 destination prefixed => s!"(.negReg32 {register destination} {prefixed})"
   | .bswapReg64 destination => s!"(.bswapReg64 {register destination})"
   | .shrOne64 destination => s!"(.shrOne64 {register destination})"

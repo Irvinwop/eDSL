@@ -56,7 +56,8 @@ def Instruction.length : Instruction → Nat
   | .addMem32 _ address | .loadMem32 _ address | .storeMem32 address _ => 2 + address.suffixBytes
   | .lea64 _ address | .loadMem64 _ address | .addMem64 _ address | .storeMem64 address _ =>
     3 + address.suffixBytes
-  | .shiftRightImm32 _ _ _ prefixed | .logicalImm32 _ _ _ prefixed | .addImm32 _ _ prefixed => if prefixed then 4 else 3
+  | .shiftRightImm32 _ _ _ prefixed | .logicalImm32 _ _ _ prefixed | .addImm32 _ _ prefixed
+  | .subImm32 _ _ prefixed | .cmpImm32 _ _ prefixed => if prefixed then 4 else 3
   | .inc32 _ prefixed => if prefixed then 3 else 2
   | .imulReg64 _ _ | .cmpImm64 _ _ | .addImm64 _ _ | .cmovReg64 _ _ _ => 4
 
@@ -231,11 +232,13 @@ def decodeNegReg32At (state : State) (rex : Byte) (prefixed : Bool) :
   if modrm.toNat / 64 ≠ 3 ∨ modrm.toNat / 8 % 8 ≠ 3 then throw .unsupportedEncoding
   return .negReg32 (rexModRMRM (if prefixed then rex else 0) modrm) prefixed
 
-/-- Register-only low32 group operations: 83 /0 ib (ADD), 83 /4 ib (AND)
+/-- Register-only low32 group operations: 83 /0 ib (ADD), /4 ib (AND),
+/5 ib (SUB), /7 ib (CMP),
 or FF /0 (INC), with no prefix
 or one canonical 40/41. The caller authenticates opcode/prefix, and this helper
 fetches the full register ModRM and optional immediate. No memory or other
-group operation is lowered to a counter operation. -/
+group operation is lowered to a supported operation. SUB/CMP use subtraction
+flags, and CMP does not write a register. -/
 def decodeCounter32At (state : State) (opcode rex : Byte) (prefixed : Bool) :
     Except Error Instruction := do
   if opcode ≠ 0x83 ∧ opcode ≠ 0xff then throw .unsupportedEncoding
@@ -245,6 +248,12 @@ def decodeCounter32At (state : State) (opcode rex : Byte) (prefixed : Bool) :
   let destination := rexModRMRM (if prefixed then rex else 0) modrm
   if opcode = 0x83 ∧ modrm.toNat / 8 % 8 = 4 then
     return .logicalImm32 .band destination
+      (← fetchByte state.memory (state.rip + (if prefixed then 3 else 2))) prefixed
+  else if opcode = 0x83 ∧ modrm.toNat / 8 % 8 = 5 then
+    return .subImm32 destination
+      (← fetchByte state.memory (state.rip + (if prefixed then 3 else 2))) prefixed
+  else if opcode = 0x83 ∧ modrm.toNat / 8 % 8 = 7 then
+    return .cmpImm32 destination
       (← fetchByte state.memory (state.rip + (if prefixed then 3 else 2))) prefixed
   else if modrm.toNat / 8 % 8 ≠ 0 then throw .unsupportedEncoding
   else if opcode = 0x83 then
@@ -643,7 +652,11 @@ MOV sign-extended imm32 admits 48/49 C7 /0 id, length seven; other C7 forms reje
 Register-only ADD32 admits 83 /0 ib and INC32 admits FF /0, unprefixed or with
 exactly one 40/41 REX. ADD sign-extends the immediate at width32; both clear
 the destination upper32 and INC preserves incoming CF. AND32 additionally admits
-83 /4 ib with the same prefix restriction and a signed imm8. XOR32 admits
+83 /4 ib with the same prefix restriction and a signed imm8.
+Register-only SUB32 (83 /5 ib) and CMP32 (83 /7 ib) use that same 40/41
+profile and sign extension to32. Both define subtraction/borrow flags; SUB
+clears its destination upper32, and CMP preserves every GPR. The legacy-first
+83 F8 00 form remains legacy CMP EAX,0. XOR32 admits
 31/33 /r and OR32 admits 09/0B /r, mod=3, unprefixed or with one W=0 REX40..47 (R/B extend operands;
 X is ignored). SHR32/SAR32 admit C1 /5 or /7 ib, mod=3, with the same W=0
 REX scope; R/X are ignored and B extends the destination. Masked counts zero
@@ -727,6 +740,7 @@ theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.len
   | test32 _ _ prefixed | cmp32 _ _ prefixed | cmovReg32 _ _ _ prefixed
   | setcc _ _ prefixed | movImm8 _ _ prefixed
   | cmpReg8 _ _ prefixed | subReg32 _ _ prefixed | movzxReg8 _ _ prefixed | negReg32 _ prefixed
+  | subImm32 _ _ prefixed | cmpImm32 _ _ prefixed
   | addImm32 _ _ prefixed | inc32 _ prefixed =>
     cases prefixed <;> simp [Instruction.length]
   | cmpRegMem8 _ address prefixed | movzxMem8 _ address prefixed => cases address <;> cases prefixed <;> simp [Instruction.length, Address.suffixBytes]
@@ -749,6 +763,7 @@ theorem Instruction.length_le_fifteen (instruction : Instruction) : instruction.
   | test32 _ _ prefixed | cmp32 _ _ prefixed | cmovReg32 _ _ _ prefixed
   | setcc _ _ prefixed | movImm8 _ _ prefixed
   | cmpReg8 _ _ prefixed | subReg32 _ _ prefixed | movzxReg8 _ _ prefixed | negReg32 _ prefixed
+  | subImm32 _ _ prefixed | cmpImm32 _ _ prefixed
   | addImm32 _ _ prefixed | inc32 _ prefixed =>
     cases prefixed <;> simp [Instruction.length]
   | cmpRegMem8 _ address prefixed | movzxMem8 _ address prefixed => cases address <;> cases prefixed <;> simp [Instruction.length, Address.suffixBytes]

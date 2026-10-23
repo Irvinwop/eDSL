@@ -24,6 +24,14 @@ ulimit -c 0
 mkdir -p "$output/receipts" "$output/source" "$output/opcodes"
 phase=initialization
 complete=0
+# Check memory after taking the shared lock, before starting each Lean process.
+# A resource failure leaves the run incomplete; it never weakens a proof gate.
+edsl_lean_guard() {
+    awk '/MemAvailable/ {exit !($2>=1572864)}' /proc/meminfo || return 75
+    exec "$@"
+}
+export -f edsl_lean_guard
+lean_gate=(flock /tmp/edsl-lean-build.lock bash -c 'edsl_lean_guard "$@"' edsl-lean)
 run() {
     local label=$1 status=0
     shift
@@ -39,7 +47,8 @@ run() {
     return "$status"
 }
 lean_call() {
-    run "$1" flock /tmp/edsl-lean-build.lock lean -j1 -DwarningAsError=true -DautoImplicit=false "${@:2}"
+    run "$1" "${lean_gate[@]}" lean -j1 -DwarningAsError=true -DautoImplicit=false \
+        -DmaxHeartbeats=300000 -DmaxRecDepth=128 "${@:2}"
 }
 finish() {
     local status=$? seal_status=0
@@ -52,11 +61,12 @@ finish() {
     fi
     printf '%s\n' "$status" > "$output/script.exit"
     cat > "$output/RECEIPT.md" <<RECEIPT
-Owned finite ADD32-imm8 / INC32 / signed-disp8 LEA64 conformance.
+Owned finite ADD32/SUB32/CMP32-imm8 / INC32 / signed-disp8 LEA64 conformance.
 Mode: $mode; phase: $phase; actual exit: $status.
 Exact commands, environments, stdout, stderr, timestamps and exits: receipts/.
-Native scope: 72 windows x 12 rotated vectors x 4 ADD-established flag seeds;
-1920 ADD32, 384 INC32, 1152 LEA64 = 3456 observations. Actual selected GPRs:
+Native scope: 136 windows x 12 rotated vectors x 4 ADD-established flag seeds;
+1920 ADD32, 384 INC32, 1152 LEA64, 1536 SUB32, 1536 CMP32 = 6528 observations.
+SUB writes zero-extended low32; CMP preserves every full64 GPR. Actual GPRs:
 RAX RCX RDX RBX RSP RBP R8 R9 R12 R13 R15. RSP is source-only.
 Other GPRs and RAM/permission maps in replay are synthetic full-state frames.
 PUSHFQ clears saved RF/VM; no hidden physical RF/VM preservation established.
@@ -115,7 +125,8 @@ cp "$output/receipts/owned-before.stdout" "$output/OWNED-SOURCES.sha256"
 for file in "${owned[@]}" lean-toolchain; do install -D -m 0644 "$file" "$output/source/$file"; done
 providers=(EDSL/X86/Sequential/Model.lean EDSL/X86/Sequential/Flags.lean EDSL/X86/Sequential/Decode.lean
     EDSL/X86/Sequential/DecodeTransport.lean EDSL/X86/Sequential/Machine.lean
-    EDSL/X86/Sequential/Counter32.lean EDSL/Audit.lean tests/native/UnaryReplay.lean)
+    EDSL/X86/Sequential/Counter32.lean EDSL/X86/Sequential/Immediate32.lean
+    EDSL/Audit.lean tests/native/UnaryReplay.lean)
 run provider-sources-before sha256sum "${providers[@]}"
 # These existing objects are observed only; never imported or copied in native-only mode.
 for file in "${providers[@]}"; do
@@ -166,7 +177,33 @@ sed '$d' "$output/capture.tsv" > "$output/missing.tsv"
 cp "$output/capture.tsv" "$output/duplicate.tsv"
 sed -n '2p' "$output/capture.tsv" >> "$output/duplicate.tsv"
 awk -F '\t' 'BEGIN {OFS=FS} NR==2 {NF=27} {print}' "$output/capture.tsv" > "$output/malformed.tsv"
-for control in corrupt-output corrupt-flags missing duplicate malformed; do
+# Mutate actual observed bits, including borrow versus ADD(-imm), nibble
+# borrow and signed-minimum overflow. Each named capture must occur once.
+corrupt_scalar() {
+    local control=$1 case_id=$2 probe_name=$3 field=$4 digit=$5 mask=$6
+    awk -F '\t' -v case_id="$case_id" -v probe_name="$probe_name" \
+        -v field="$field" -v digit="$digit" -v mask="$mask" '
+        BEGIN {OFS=FS; hex="0123456789abcdef"}
+        NR>1 && $1==case_id && $2==probe_name && $3=="0" {
+            word=$field
+            n=index(hex,substr(word,digit,1))-1
+            if (length(word)!=16 || n<0) exit 1
+            n=mask==8 ? (n<8 ? n+8 : n-8) : (n%2==0 ? n+1 : n-1)
+            $field=substr(word,1,digit-1) substr(hex,n+1,1) substr(word,digit+1)
+            changed++
+        }
+        {print}
+        END {if (changed!=1) exit 1}' "$output/capture.tsv" > "$output/$control.tsv"
+}
+for family in sub cmp; do
+    corrupt_scalar "$family-upper32" zero_dirty "${family}_eax_80" 18 8 1
+    corrupt_scalar "$family-borrow" zero_dirty "${family}_eax_80" 6 16 1
+    corrupt_scalar "$family-auxiliary" nibble_next "${family}_eax_7f" 6 15 1
+    corrupt_scalar "$family-overflow" signed_min "${family}_eax_7f" 6 14 8
+done
+native_controls=(corrupt-output corrupt-flags missing duplicate malformed
+    sub-upper32 cmp-upper32 sub-borrow cmp-borrow sub-auxiliary cmp-auxiliary sub-overflow cmp-overflow)
+for control in "${native_controls[@]}"; do
     status=0
     run "native-reject-$control" "$output/capture.elf" check "$output/$control.tsv" "$output/opcodes" || status=$?
     [[ $status -eq 1 ]] || { echo "Invalid native negative-control exit: $control"; exit 1; }
@@ -176,23 +213,30 @@ grep -F 'independent mathematical flags mismatch' "$output/receipts/native-rejec
 grep -F 'incomplete matrix' "$output/receipts/native-reject-missing.stderr"
 grep -F 'duplicate observation' "$output/receipts/native-reject-duplicate.stderr"
 grep -F 'malformed capture field count' "$output/receipts/native-reject-malformed.stderr"
+grep -F 'independent mathematical result mismatch' "$output/receipts/native-reject-sub-upper32.stderr"
+grep -F 'observed CMP operand changed' "$output/receipts/native-reject-cmp-upper32.stderr"
+for family in sub cmp; do
+    for bit in borrow auxiliary overflow; do
+        grep -F 'independent mathematical flags mismatch' "$output/receipts/native-reject-$family-$bit.stderr"
+    done
+done
 
 if [[ $mode != --native-only ]]; then
     phase=production_toolchain
     [[ $(< lean-toolchain) == leanprover/lean4:v4.35.0 ]] || { echo 'Unexpected Lean pin'; exit 2; }
-    run lean-version flock /tmp/edsl-lean-build.lock lean --version
-    run lean-prefix flock /tmp/edsl-lean-build.lock lean --print-prefix
+    run lean-version "${lean_gate[@]}" lean --version
+    run lean-prefix "${lean_gate[@]}" lean --print-prefix
     lean_prefix=$(< "$output/receipts/lean-prefix.stdout")
     sha256sum "$lean_prefix/bin/lean" "$lean_prefix/lib/lean/Init.olean" \
         "$lean_prefix/lib/lean/Lean.olean" "$lean_prefix/lib/lean/Std.olean" > "$output/INSTALLED-LEAN.sha256"
     phase=production_build
     # Build the current production closure before copying its pinned providers.
-    run model-build flock /tmp/edsl-lean-build.lock lake build \
-        EDSL.X86.Sequential.Machine EDSL.Audit tests.native.UnaryReplay
+    run model-build "${lean_gate[@]}" lake build \
+        EDSL.X86.Sequential.Machine EDSL.X86.Sequential.Immediate32 EDSL.Audit tests.native.UnaryReplay
     mkdir -p "$output/lean-lib/tests/native" "$output/lean-lib/Tools/Native" "$output/generated"
     provider="$root/.lake/build/lib/lean"
     declare -A imported=()
-    queue=(tests.native.UnaryReplay EDSL.Audit)
+    queue=(tests.native.UnaryReplay EDSL.X86.Sequential.Immediate32 EDSL.Audit)
     for ((q=0; q<${#queue[@]}; q++)); do
         module=${queue[$q]}
         [[ -z ${imported[$module]:-} ]] || continue
@@ -222,27 +266,41 @@ if [[ $mode != --native-only ]]; then
     lean_call generate --run "$output/source/Tools/Native/CounterDisplacementReplay.lean" generate \
         "$output/probes.tsv" "$output/inputs.tsv" "$output/capture.tsv" "$output/opcodes" "$output/generated"
     phase=lean_malformed_controls
-    for control in corrupt-output corrupt-flags missing duplicate malformed; do
+    for control in "${native_controls[@]}"; do
         status=0
         lean_call "lean-reject-$control" --run "$output/source/Tools/Native/CounterDisplacementReplay.lean" generate \
             "$output/probes.tsv" "$output/inputs.tsv" "$output/$control.tsv" "$output/opcodes" \
             "$output/rejected-$control" || status=$?
         [[ $status -eq 1 && ! -d $output/rejected-$control ]] || { echo "Invalid Lean rejection: $control"; exit 1; }
     done
-    for control in corrupt-output corrupt-flags; do
+    for control in corrupt-output corrupt-flags sub-upper32 cmp-upper32 sub-borrow cmp-borrow \
+        sub-auxiliary cmp-auxiliary sub-overflow cmp-overflow; do
         grep -F 'independent mathematical result/flags/frame mismatch' "$output/receipts/lean-reject-$control.stderr"
     done
     grep -F 'incomplete matrix' "$output/receipts/lean-reject-missing.stderr"
     grep -F 'duplicate observation' "$output/receipts/lean-reject-duplicate.stderr"
     grep -F 'malformed capture field count' "$output/receipts/lean-reject-malformed.stderr"
     phase=kernel_replay
-    printf 'import tests.native.CounterDisplacementReplay\n' > "$output/generated/CounterDisplacementAudit.lean"
+    printf 'import EDSL.X86.Sequential.Immediate32\nimport tests.native.CounterDisplacementReplay\n' \
+        > "$output/generated/CounterDisplacementAudit.lean"
     while IFS= read -r module; do
         [[ -n $module ]] || continue
         lean_call "kernel-$module" -R "$output/generated" -o "$output/lean-lib/$module.olean" "$output/generated/$module.lean"
         printf 'import %s\n' "$module" >> "$output/generated/CounterDisplacementAudit.lean"
     done < "$output/generated/CounterDisplacement.modules"
-    printf '\n#audit_edsl\n' >> "$output/generated/CounterDisplacementAudit.lean"
+    cat >> "$output/generated/CounterDisplacementAudit.lean" <<'AUDIT'
+
+set_option autoImplicit false
+set_option warningAsError true
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
+#print axioms EDSL.X86.Sequential.execute_subImm32_context
+#print axioms EDSL.X86.Sequential.execute_subImm32_signed
+#print axioms EDSL.X86.Sequential.execute_subImm32_flags
+#print axioms EDSL.X86.Sequential.execute_cmpImm32_context
+#print axioms EDSL.X86.Sequential.execute_cmpImm32_flags
+#audit_edsl
+AUDIT
     phase=audit
     lean_call audit -R "$output/generated" -o "$output/lean-lib/CounterDisplacementAudit.olean" \
         "$output/generated/CounterDisplacementAudit.lean"
@@ -271,11 +329,11 @@ done
 run owned-after sha256sum "${owned[@]}" lean-toolchain
 run owned-equal cmp "$output/receipts/owned-before.stdout" "$output/receipts/owned-after.stdout"
 if [[ $mode == --native-only ]]; then
-    printf 'PASS: independent finite native capture/check; 3456 rows, 72 windows, five malformed/corruption controls. No new-model replay claimed.\n' > "$output/result.txt"
+    printf 'PASS: independent finite native capture/check; 6528 rows, 136 windows, thirteen malformed/corruption controls. No new-model replay claimed.\n' > "$output/result.txt"
     printf 'Native capture and mathematical comparison only; not Lean replay.\n' > "$output/NATIVE-READY"
     phase=native_complete
 else
-    printf 'PASS: 3456 native observations; production decodeAt/step, both AF choices; 27 semantic corruption controls; five malformed controls; 3456 default-budget kernel theorems; transitive axiom audit.\n' > "$output/result.txt"
+    printf 'PASS: 6528 native observations; production decodeAt/step, both AF choices; required semantic corruption controls; thirteen malformed/corruption controls; 6528 default-budget kernel theorems; transitive axiom audit.\n' > "$output/result.txt"
     printf 'Complete owned finite capture, current production model replay and dependency audit.\n' > "$output/READY"
     phase=complete
 fi

@@ -115,6 +115,11 @@ def execute (state : State) (instruction : Instruction) (af : Bool) : Except Err
       rip := state.rip + BitVec.ofNat 64 instruction.length
       flags := cmpFlags32 state.flags ((state.registers left).setWidth 32)
         ((state.registers right).setWidth 32) }, reads⟩
+  | .cmpImm32 left immediate _ =>
+    return ⟨.next { state with
+      rip := state.rip + BitVec.ofNat 64 instruction.length
+      flags := cmpFlags32 state.flags ((state.registers left).setWidth 32)
+        (immediate.signExtend 32) }, reads⟩
   | .cmpReg8 left right _ =>
     return ⟨.next { state with
       rip := state.rip + BitVec.ofNat 64 instruction.length
@@ -123,6 +128,12 @@ def execute (state : State) (instruction : Instruction) (af : Bool) : Except Err
   | .subReg32 destination source _ =>
     let left := (state.registers destination).setWidth 32
     let right := (state.registers source).setWidth 32
+    return ⟨.next { state.writeRegister destination ((left - right).setWidth 64) with
+      rip := state.rip + BitVec.ofNat 64 instruction.length
+      flags := cmpFlags32 state.flags left right }, reads⟩
+  | .subImm32 destination immediate _ =>
+    let left := (state.registers destination).setWidth 32
+    let right := immediate.signExtend 32
     return ⟨.next { state.writeRegister destination ((left - right).setWidth 64) with
       rip := state.rip + BitVec.ofNat 64 instruction.length
       flags := cmpFlags32 state.flags left right }, reads⟩
@@ -975,6 +986,7 @@ theorem execute_storeIntent {state : State} {instruction : Instruction} {address
     rcases intent with ⟨rfl, rfl⟩
     exact execute_storeMem32 state operand source af
   | shiftRightImm32 _ _ _ _ | imulReg64 _ _ | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
+  | subImm32 _ _ _ | cmpImm32 _ _ _
   | addImm32 _ _ _ | inc32 _ _
   | negReg32 _ _ | bswapReg64 _ | shrOne64 _ | rolCL64 _
   | movzxMem8 _ _ _ | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _
@@ -1315,6 +1327,7 @@ theorem execute_reads {state : State} {instruction : Instruction} {af : Bool}
   | cmpReg8 left right prefixed | subReg32 destination source prefixed
   | test32 left right prefixed | cmp32 left right prefixed | endbr64IbtDisabled | nop encoding
   | xorSelf32 destination | test64 left right | cmp64 left right
+  | subImm32 destination immediate prefixed | cmpImm32 destination immediate prefixed
   | addImm32 destination immediate prefixed | inc32 destination prefixed
   | addImm64 destination immediate | inc64 destination | dec64 destination =>
     cases success
@@ -1431,6 +1444,7 @@ theorem execute_reads_succeed {state : State} {instruction : Instruction} {af : 
       subst read
       exact ⟨value, loaded⟩
   | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
+  | subImm32 _ _ _ | cmpImm32 _ _ _
   | addImm32 _ _ _ | inc32 _ _
   | negReg32 _ _ | bswapReg64 _ | shrOne64 _ | rolCL64 _
   | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _
@@ -1469,6 +1483,7 @@ theorem execute_new_memory {state final : State} {instruction : Instruction} {af
   | cmpReg8 left right prefixed | subReg32 destination source prefixed
   | test32 left right prefixed | cmp32 left right prefixed | endbr64IbtDisabled | nop encoding
   | xorSelf32 destination | test64 left right | cmp64 left right
+  | subImm32 destination immediate prefixed | cmpImm32 destination immediate prefixed
   | addImm32 destination immediate prefixed | inc32 destination prefixed
   | addImm64 destination immediate | inc64 destination | dec64 destination =>
     cases success
@@ -1578,6 +1593,7 @@ theorem execute_new_next {state : State} {instruction : Instruction} {af : Bool}
   | cmpReg8 left right prefixed | subReg32 destination source prefixed
   | test32 left right prefixed | cmp32 left right prefixed | endbr64IbtDisabled | nop encoding
   | xorSelf32 destination | test64 left right | cmp64 left right
+  | subImm32 destination immediate prefixed | cmpImm32 destination immediate prefixed
   | addImm32 destination immediate prefixed | inc32 destination prefixed
   | addImm64 destination immediate | inc64 destination | dec64 destination =>
     cases success
@@ -1709,6 +1725,9 @@ theorem execute_new_flags {state final : State} {instruction : Instruction} {af 
     cases success; cases next
     exact logicalFlags32_preserves ..
   | cmp32 left right prefixed =>
+    cases success; cases next
+    exact cmpFlags32_preserves ..
+  | subImm32 destination immediate prefixed | cmpImm32 destination immediate prefixed =>
     cases success; cases next
     exact cmpFlags32_preserves ..
   | test64 left right =>

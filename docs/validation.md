@@ -51,6 +51,21 @@ covers the
 [exact compiler padding forms](byte-compare-padding.md), required-byte fetch
 permissions, complete context frames and instruction boundaries.
 
+For register SUB32/CMP32 with sign-extended imm8 operands:
+
+```sh
+lake build Immediate32Tests
+```
+
+This strict target is rooted at `tests.Immediate32` and uses warnings as errors,
+`autoImplicit=false`, 300000 heartbeats and recursion depth 128. It checks
+production decoding and steps against independent subtraction results and full
+flag words, arbitrary GPR and memory frames, upper32 clearing, register banks,
+required-byte fetch faults, excluded forms and legacy decode priority. The
+[SUB32/CMP32 guide](sequential-immediate32.md) describes the implemented contracts,
+accepted encodings and failure order. Target compilation is separate from the
+aggregate axiom audit, fresh kernel replay and full source CI.
+
 For named-function extraction, generated-module composition, independent
 functional/current-resource verification and exact-file rejection checks on an
 owned real compiler output:
@@ -97,6 +112,12 @@ the stored fresh aggregate explicitly imports `tests.CallerOnlyTransport`.
 build. Both `EDSL.All` and the stored fresh-replay aggregate import
 `EDSL.OS.AddRMWMachine64`, so the existing CI full-project gate audits and replays
 its declarations as part of that closure.
+
+`Immediate32Tests` is included in the same full-project build. `EDSL.All` imports
+`EDSL.X86.Sequential.Immediate32`, and the stored `CorpusFullReplay` aggregate
+explicitly imports `tests.Immediate32`. The aggregate axiom audit and fresh
+replay therefore include both the reusable contracts and their regressions.
+This wiring adds no corpus certificates or score credit.
 
 For owned finite logical-right-shift observations with independently chosen
 undefined AF and ordinary-kernel production replay:

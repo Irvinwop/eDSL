@@ -66,6 +66,7 @@ theorem execute_returned_only_ret {initial final : State}
       cases returned
       exact congrArg Sequential.Instruction.legacy (legacy_returned_only_ret result)
   | shiftRightImm32 _ _ _ _ | imulReg64 _ _ | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
+  | subImm32 _ _ _ | cmpImm32 _ _ _
   | addImm32 _ _ _ | inc32 _ _
   | negReg32 _ _ | bswapReg64 _ | shrOne64 _ | rolCL64 _
   | movzxMem8 _ _ _ | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _

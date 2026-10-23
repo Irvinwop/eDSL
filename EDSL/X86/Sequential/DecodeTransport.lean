@@ -693,26 +693,30 @@ private theorem decodeNewAt_fallback_irrelevant {state : State} {opcode : Byte}
         rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
   · rcases mov with rfl | rfl | rfl | rfl <;> rfl
 
-/-- MOV overlaps the legacy ModRM cases, and 0F overlaps SYSCALL. Their
-second byte, supplied by successful new decoding, selects the legacy result. -/
+/-- MOV overlaps legacy ModRM cases, and 0F overlaps SYSCALL. For 83 F8,
+successful new decoding also authenticates the immediate: the legacy-first
+decoder distinguishes CMP EAX,0 from the new immediate comparison there. -/
 private theorem decodeNewAt_shared_second {state : State} {opcode : Byte}
     {instruction : Instruction} {fault : Error}
     (decoded : decodeNewAt state fault = .ok instruction)
     (fetched : fetchByte state.memory state.rip = .ok opcode) (mov : SharedOpcode opcode) :
     ∃ modrm, fetchByte state.memory (state.rip + 1#64) = .ok modrm ∧
-      (opcode = 0x83#8 → modrm ≠ 0xf8#8) := by
+      (opcode = 0x83#8 → modrm = 0xf8#8 →
+        ∃ immediate, fetchByte state.memory (state.rip + 2#64) = .ok immediate) := by
   rcases mov with rfl | rfl | rfl | rfl
   all_goals
     cases fetchedModrm : fetchByte state.memory (state.rip + 1#64) with
     | error error => simp [decodeNewAt, decodeTailAt, decode0F32At, decodeCounter32At, fetched, fetchedModrm] at decoded
     | ok modrm =>
       refine ⟨modrm, rfl, ?_⟩
-      intro same
+      intro same isCmp
       first
       | solve | cases same
-      | intro bad
-        subst modrm
-        simp [decodeNewAt, decodeCounter32At, fetched, fetchedModrm] at decoded
+      | subst modrm
+        cases fetchedImmediate : fetchByte state.memory (state.rip + 2#64) with
+        | error error =>
+          simp [decodeNewAt, decodeCounter32At, fetched, fetchedModrm, fetchedImmediate] at decoded
+        | ok immediate => exact ⟨immediate, rfl⟩
 
 private theorem legacy_shared_decode_congr {source destination : State} {opcode modrm : Byte}
     (mov : SharedOpcode opcode)
@@ -720,13 +724,18 @@ private theorem legacy_shared_decode_congr {source destination : State} {opcode 
     (destinationOpcode : fetchByte destination.memory destination.rip = .ok opcode)
     (sourceModrm : fetchByte source.memory (source.rip + 1#64) = .ok modrm)
     (destinationModrm : fetchByte destination.memory (destination.rip + 1#64) = .ok modrm)
-    (notCmp : opcode = 0x83#8 → modrm ≠ 0xf8#8) :
+    (immediate : opcode = 0x83#8 → modrm = 0xf8#8 →
+      fetchByte destination.memory (destination.rip + 2#64) =
+        fetchByte source.memory (source.rip + 2#64)) :
     X86.decodeAt destination = X86.decodeAt source := by
   rcases mov with rfl | rfl | rfl | rfl
   · simp [X86.decodeAt, sourceOpcode, destinationOpcode, sourceModrm, destinationModrm]
   · simp [X86.decodeAt, sourceOpcode, destinationOpcode, sourceModrm, destinationModrm]
   · simp [X86.decodeAt, sourceOpcode, destinationOpcode, sourceModrm, destinationModrm]
-  · simp [X86.decodeAt, sourceOpcode, destinationOpcode, sourceModrm, destinationModrm, notCmp rfl]
+  · by_cases isCmp : modrm = 0xf8#8
+    · simp [X86.decodeAt, sourceOpcode, destinationOpcode, sourceModrm, destinationModrm,
+        isCmp, immediate rfl isCmp]
+    · simp [X86.decodeAt, sourceOpcode, destinationOpcode, sourceModrm, destinationModrm, isCmp]
 
 /-- Transfer ANY successful decode to any memory/base preserving its successful
 fetches at offsets below fifteen. The legacy-first selection remains unchanged,
@@ -752,10 +761,16 @@ theorem decodeAt_transport {source destination : State} {instruction : Instructi
     have oldDestination : ∃ destinationFault, X86.decodeAt destination = .error destinationFault := by
       rcases newOpcode with disjoint | mov
       · exact ⟨_, old_rejects_new_opcode destinationFetch disjoint⟩
-      · obtain ⟨modrm, fetchedModrm, notCmp⟩ := decodeNewAt_shared_second newly fetched mov
+      · obtain ⟨modrm, fetchedModrm, immediate⟩ := decodeNewAt_shared_second newly fetched mov
         have destinationModrm := transport 1 (by decide) modrm fetchedModrm
+        have sameImmediate : opcode = 0x83#8 → modrm = 0xf8#8 →
+            fetchByte destination.memory (destination.rip + 2#64) =
+              fetchByte source.memory (source.rip + 2#64) := by
+          intro is83 isCmp
+          obtain ⟨byte, sourceByte⟩ := immediate is83 isCmp
+          rw [transport 2 (by decide) byte sourceByte, sourceByte]
         exact ⟨fault, (legacy_shared_decode_congr mov fetched destinationFetch
-          fetchedModrm destinationModrm notCmp).trans old⟩
+          fetchedModrm destinationModrm sameImmediate).trans old⟩
     obtain ⟨destinationFault, oldDestination⟩ := oldDestination
     have moved := decodeNewAt_transport fault transport newly
     rw [decodeAt, oldDestination]

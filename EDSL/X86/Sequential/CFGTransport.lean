@@ -124,6 +124,7 @@ theorem execute_next_target {initial final : State} {instruction : Instruction} 
   | lea64 destination address | addReg64 destination source | logicalReg64 operation destination source | xchgReg64 left right | xchgRax64 other
   | test32 left right prefixed | cmp32 left right prefixed | endbr64IbtDisabled | nop encoding
   | test64 left right | cmp64 left right
+  | subImm32 destination immediate prefixed | cmpImm32 destination immediate prefixed
   | addImm32 destination immediate prefixed | inc32 destination prefixed
   | addImm64 destination immediate | inc64 destination | dec64 destination =>
     cases success; cases next
@@ -173,6 +174,7 @@ theorem execute_next_memory {initial final : State} {instruction : Instruction} 
     cases next
     exact executeInstruction_ordinary_memory noStore (Or.inl result)
   | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
+  | subImm32 _ _ _ | cmpImm32 _ _ _
   | addImm32 _ _ _ | inc32 _ _
   | negReg32 _ _ | bswapReg64 _ | shrOne64 _ | rolCL64 _
   | movzxMem8 _ _ _ | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _
@@ -230,6 +232,7 @@ theorem execute_result {initial : State} {instruction : Instruction} {af : Bool}
       cases success
       exact ⟨_, Or.inl rfl⟩
   | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
+  | subImm32 _ _ _ | cmpImm32 _ _ _
   | addImm32 _ _ _ | inc32 _ _
   | negReg32 _ _ | bswapReg64 _ | shrOne64 _ | rolCL64 _
   | movzxMem8 _ _ _ | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _
@@ -279,6 +282,7 @@ theorem targets_translate (node : Node) (base : Word) :
   | legacy old => cases old <;>
       simp [Targets, Node.successors, instruction, BitVec.ofNat_add, BitVec.add_assoc]
   | logicalReg32 _ _ _ _ | logicalImm32 _ _ _ _ | cmpImm64 _ _
+  | subImm32 _ _ _ | cmpImm32 _ _ _
   | addImm32 _ _ _ | inc32 _ _
   | negReg32 _ _ | bswapReg64 _ | shrOne64 _ | rolCL64 _
   | movzxMem8 _ _ _ | movzxReg8 _ _ _ | cmpReg8 _ _ _ | subReg32 _ _ _

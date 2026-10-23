@@ -2,6 +2,8 @@
 import tests.native.RegisterCapture
 
 set_option autoImplicit false
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
 
 namespace EDSL.Tests.CounterDisplacementReplay
 open X86 X86.Sequential RegisterCapture
@@ -18,7 +20,7 @@ def selectedRegisters : List Register :=
 
 structure Probe where
   name : String
-  kind : Nat -- 0 ADD32, 1 INC32, 2 LEA64
+  kind : Nat -- 0 ADD32, 1 INC32, 2 LEA64, 3 SUB32, 4 CMP32
   destination : Register
   base : Register
   index : Option Register
@@ -33,6 +35,8 @@ instance : Inhabited Probe := ⟨⟨"",0,.rax,.rax,none,0,0,false,false,[]⟩⟩
 def Probe.instruction (p : Probe) : Sequential.Instruction :=
   if p.kind == 0 then .addImm32 p.destination p.immediate p.prefixed
   else if p.kind == 1 then .inc32 p.destination p.prefixed
+  else if p.kind == 3 then .subImm32 p.destination p.immediate p.prefixed
+  else if p.kind == 4 then .cmpImm32 p.destination p.immediate p.prefixed
   else .lea64 p.destination (if p.sib then
     .sibDisp8 p.base p.index p.scale p.immediate else .baseDisp8 p.base p.immediate)
 
@@ -48,8 +52,17 @@ def signedByte (b : Byte) : Int :=
 def input (r : Row) (register : Register) : Word :=
   registers selectedRegisters r.capture.before register
 
-/-- Independent modular mathematical result, with prestate operands. This
-uses integer arithmetic, never the model's Address.eval, execute or flag APIs. -/
+/-- Independent low32 arithmetic, including the difference used only for CMP
+flags. No model arithmetic, execution or flag API is used. -/
+def mathematicalALUResult (r : Row) : Word :=
+  let x := (input r r.probe.destination).toNat % 4294967296
+  let y := if r.probe.kind == 1 then 1 else signedByte r.probe.immediate
+  let result := if r.probe.kind == 3 || r.probe.kind == 4 then Int.ofNat x - y
+    else Int.ofNat x + y
+  BitVec.ofInt 64 (result % 4294967296)
+
+/-- Independent modular mathematical register result, with prestate operands.
+CMP preserves the entire operand, including its high32 bits. -/
 def mathematicalResult (r : Row) : Word :=
   if r.probe.kind == 2 then
     BitVec.ofInt 64 (Int.ofNat (input r r.probe.base).toNat +
@@ -57,13 +70,12 @@ def mathematicalResult (r : Row) : Word :=
         | none => 0
         | some index => Int.ofNat (input r index).toNat * Int.ofNat (2 ^ r.probe.scale.val)) +
       signedByte r.probe.immediate)
-  else
-    let x := (input r r.probe.destination).toNat % 4294967296
-    let y := if r.probe.kind == 1 then 1 else signedByte r.probe.immediate
-    BitVec.ofInt 64 ((Int.ofNat x + y) % 4294967296)
+  else if r.probe.kind == 4 then input r r.probe.destination
+  else mathematicalALUResult r
 
 /-- Six arithmetic predicates independently defined in Nat/Int: unsigned
-carry, signed overflow, low-nibble carry, even low-byte parity, zero and sign.
+carry/borrow, signed overflow, low-nibble carry/borrow, even low-byte parity,
+zero and sign. CMP flags use the difference even though its GPR is unchanged.
 INC uses incoming CF, including on wrap. All other saved bits are compared. -/
 def mathematicalFlags (r : Row) : Word :=
   if r.probe.kind == 2 then r.capture.flagsBefore
@@ -72,19 +84,23 @@ def mathematicalFlags (r : Row) : Word :=
     let y := if r.probe.kind == 1 then 1 else signedByte r.probe.immediate
     let unsignedY := (y % 4294967296).toNat
     let signedX : Int := if x < 2147483648 then Int.ofNat x else Int.ofNat x - 4294967296
-    let sum := signedX + y
-    let output := (mathematicalResult r).toNat
+    let subtraction := r.probe.kind == 3 || r.probe.kind == 4
+    let signedResult := if subtraction then signedX - y else signedX + y
+    let output := (mathematicalALUResult r).toNat
     let bits := (List.range 8).foldl (fun total i => total + (output / 2^i) % 2) 0
     let cf := if r.probe.kind == 1 then r.capture.flagsBefore.toNat % 2 == 1
+      else if subtraction then decide (x < unsignedY)
       else decide (x + unsignedY ≥ 4294967296)
+    let af := if subtraction then decide (x % 16 < unsignedY % 16)
+      else decide (x % 16 + unsignedY % 16 ≥ 16)
     let status := (if cf then 1 else 0) + (if bits % 2 == 0 then 4 else 0) +
-      (if x % 16 + unsignedY % 16 ≥ 16 then 16 else 0) +
+      (if af then 16 else 0) +
       (if output == 0 then 64 else 0) + (if output ≥ 2147483648 then 128 else 0) +
-      (if sum < -2147483648 ∨ sum > 2147483647 then 2048 else 0)
+      (if signedResult < -2147483648 ∨ signedResult > 2147483647 then 2048 else 0)
     (r.capture.flagsBefore &&& ~~~UnaryReplay.arithmeticMask) ||| BitVec.ofNat 64 status
 
 def independentCheck (r : Row) : Bool :=
-  r.probe.kind < 3 && r.capture.code == r.probe.code &&
+  r.probe.kind < 5 && r.capture.code == r.probe.code &&
   r.capture.before.length == 11 && r.capture.after.length == 11 && r.seed < 4 &&
   r.capture.flagsBefore &&& UnaryReplay.arithmeticMask ==
     (UnaryReplay.seedFlags[r.seed]?).getD 0 &&
@@ -122,7 +138,7 @@ private def readProbes (path : System.FilePath) (opcodes : System.FilePath) : IO
     let scale ← parseNat f[5]!
     let imm ← parseNat f[6]!
     let pref ← parseNat f[7]!
-    require (kind < 3 && scale < 4 && imm < 256 && pref < 2 && dst != .rsp)
+    require (kind < 5 && scale < 4 && imm < 256 && pref < 2 && dst != .rsp)
       "unsupported probe contract"
     let scale : Fin 4 ← if h : scale < 4 then pure ⟨scale,h⟩
       else throw (IO.userError "unsupported SIB scale")
@@ -132,8 +148,9 @@ private def readProbes (path : System.FilePath) (opcodes : System.FilePath) : IO
     let p : Probe := ⟨f[0]!,kind,dst,base,index,scale,BitVec.ofNat 8 imm,
       pref == 1,code.length == 5,code⟩
     result := result.push p
-  require (result.size == 72 && (result.filter (·.kind == 0)).size == 40 &&
-    (result.filter (·.kind == 1)).size == 8 && (result.filter (·.kind == 2)).size == 24)
+  require (result.size == 136 && (result.filter (·.kind == 0)).size == 40 &&
+    (result.filter (·.kind == 1)).size == 8 && (result.filter (·.kind == 2)).size == 24 &&
+    (result.filter (·.kind == 3)).size == 32 && (result.filter (·.kind == 4)).size == 32)
     "incomplete probe table"
   return result
 
@@ -183,7 +200,7 @@ private def readRows (probes : Array Probe) (inputs : Array (String × Word))
       require (before[j]! == requested) "controlled input mismatch"
     require (independentCheck row) "independent mathematical result/flags/frame mismatch"
     result := result.push row
-  require (result.size == 3456) "incomplete matrix"
+  require (result.size == 6528) "incomplete matrix"
   for i in inputs do
     for p in probes do
       for seed in [0:4] do
@@ -209,7 +226,8 @@ private def selftest (rows : Array Row) : IO Unit := do
   let mut count := 0
   -- These controls bypass all independent/schema/fixture guards and challenge
   -- the actual production full-step projection on REAL captured observations.
-  for name in ["add_eax_01","inc_r12d","lea_sib_dest_index_alias","lea_sib_all_alias"] do
+  for name in ["add_eax_01","inc_r12d","lea_sib_dest_index_alias","lea_sib_all_alias",
+      "sub_eax_80","cmp_eax_7f"] do
     let some row := rows.find? (fun r => r.probe.name == name && r.seed == 1)
       | throw (IO.userError "missing semantic corruption control")
     let c := row.capture
@@ -254,6 +272,7 @@ private def generate (rows : Array Row) (directory : System.FilePath) : IO Unit 
     let name := s!"CounterDisplacementChunk{chunk}"
     modules := modules ++ [name]
     let mut source := "import tests.native.CounterDisplacementReplay\nset_option autoImplicit false\n" ++
+      "set_option maxHeartbeats 300000\nset_option maxRecDepth 128\n" ++
       "namespace EDSL.Tests.CounterDisplacementReplay.Generated\n"
     for i in [chunk*16:min rows.size ((chunk+1)*16)] do
       let r := rows[i]!

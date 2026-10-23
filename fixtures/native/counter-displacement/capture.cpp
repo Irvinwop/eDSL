@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 using Word = std::uint64_t;
+enum Family : unsigned { Add32, Inc32, Lea64, Sub32, Cmp32 };
 constexpr std::array<unsigned, 11> selected{0,1,2,3,4,5,8,9,12,13,15};
 constexpr std::array<const char*, 11> regnames{
     "rax","rcx","rdx","rbx","rsp","rbp","r8","r9","r12","r13","r15"};
@@ -102,31 +103,39 @@ Word reg(const std::array<Word,11>& values, unsigned r) {
 }
 // Independent mathematical contract: no model evaluator or opcode decoding.
 Word expected_result(const Probe& p, const Snapshot& s) {
+    require(p.kind<=Cmp32,"unsupported probe family");
     const std::int64_t immediate = p.imm < 128 ? p.imm : static_cast<std::int64_t>(p.imm)-256;
-    if (p.kind == 2) {
+    if (p.kind == Lea64) {
         const __int128_t sum = static_cast<__int128_t>(reg(s.before,p.base)) + immediate +
             (p.index == 16 ? 0 : static_cast<__int128_t>(reg(s.before,p.index)) * (Word{1} << p.scale));
         return static_cast<Word>(sum); // modulo 2^64, including negative/noncanonical values
     }
     const Word x = reg(s.before,p.dst) % (Word{1}<<32);
-    const std::int64_t sum = static_cast<std::int64_t>(x) + (p.kind==1 ? 1 : immediate);
+    const std::int64_t delta = p.kind==Inc32 ? 1 :
+        (p.kind==Sub32 || p.kind==Cmp32 ? -immediate : immediate);
+    const std::int64_t sum = static_cast<std::int64_t>(x) + delta;
+    // CMP uses this mathematical difference for flags only, never as a write.
     return static_cast<Word>(sum) % (Word{1}<<32); // upper32 must be zero
 }
 Word expected_flags(const Probe& p, const Snapshot& s, Word output) {
-    if (p.kind == 2) return s.flags_before;
+    if (p.kind == Lea64) return s.flags_before;
     constexpr Word modulus = Word{1}<<32;
     const Word x = reg(s.before,p.dst) % modulus;
     const std::int64_t signed_x = x < (Word{1}<<31) ? static_cast<std::int64_t>(x) :
         static_cast<std::int64_t>(x)-static_cast<std::int64_t>(modulus);
-    const std::int64_t immediate = p.kind==1 ? 1 :
+    const std::int64_t immediate = p.kind==Inc32 ? 1 :
         (p.imm < 128 ? p.imm : static_cast<std::int64_t>(p.imm)-256);
     const Word y = static_cast<Word>(immediate) % modulus;
-    const bool cf = p.kind==1 ? (s.flags_before % 2 != 0) : x+y >= modulus;
-    const std::int64_t signed_sum = signed_x+immediate;
+    const bool subtract = p.kind==Sub32 || p.kind==Cmp32;
+    // Borrow compares the unsigned width32 operands; it is not ADD(-imm)'s carry.
+    const bool cf = p.kind==Inc32 ? (s.flags_before % 2 != 0) :
+        (subtract ? x<y : x+y >= modulus);
+    const bool auxiliary = subtract ? x%16<y%16 : x%16+y%16>=16;
+    const std::int64_t signed_sum = subtract ? signed_x-immediate : signed_x+immediate;
     const bool of = signed_sum < -INT64_C(2147483648) || signed_sum > INT64_C(2147483647);
     unsigned bits = 0;
     for (Word low=output%256;low!=0;low/=2) bits+=static_cast<unsigned>(low%2);
-    const Word status = Word(cf) + Word(bits%2==0)*4 + Word(x%16+y%16>=16)*16 +
+    const Word status = Word(cf) + Word(bits%2==0)*4 + Word(auxiliary)*16 +
         Word(output==0)*64 + Word(output>=(Word{1}<<31))*128 + Word(of)*2048;
     return (s.flags_before & ~arithmetic_mask) | status;
 }
@@ -142,7 +151,9 @@ void check_observation(const Probe& p, std::size_t c, unsigned seed, const Snaps
             "target requires AC/DF/TF off and RFLAGS reserved bit1");
     require(((s.flags_before | s.flags_after) & 0x30000)==0,"PUSHFQ RF/VM masking mismatch");
     const Word result = expected_result(p,s);
-    require(reg(s.after,p.dst)==result,"independent mathematical result mismatch");
+    if (p.kind==Cmp32)
+        require(reg(s.after,p.dst)==reg(s.before,p.dst),"observed CMP operand changed");
+    else require(reg(s.after,p.dst)==result,"independent mathematical result mismatch");
     for (std::size_t i=0;i<selected.size();++i)
         if (selected[i]!=p.dst) require(s.before[i]==s.after[i],"observed nondestination GPR changed");
     require(s.flags_after==expected_flags(p,s,result),"independent mathematical flags mismatch");
@@ -247,8 +258,14 @@ void check(const char* path, const std::string& dir) {
         ++count;
     }
     require(!file.bad() && count==seen.size(),"incomplete matrix");
-    std::cout << "PASS: " << count << " persisted native observations; 1920 ADD32, 384 INC32, 1152 LEA64; "
-        "independent wide arithmetic, signed overflow/carry/nibble/parity, all saved flags and selected GPR frames.\n";
+    std::array<std::size_t,5> family_counts{};
+    for (const auto& p : probes) family_counts.at(p.kind)+=std::size(inputs)*4;
+    constexpr std::array<const char*,5> families{"ADD32","INC32","LEA64","SUB32","CMP32"};
+    std::cout << "PASS: " << count << " persisted native observations;";
+    for (std::size_t i=0;i<families.size();++i)
+        std::cout << ' ' << family_counts[i] << ' ' << families[i] << ';';
+    std::cout << " independent wide arithmetic, signed overflow/carry/borrow/nibble/parity, "
+        "all saved flags and selected GPR frames (CMP preserves full64).\n";
 }
 int main(int argc,char** argv) {
     try {
