@@ -15,6 +15,7 @@ import EDSL.Corpus.V1.PopcountCertificates
 import EDSL.Corpus.V1.AverageCertificates
 import EDSL.Corpus.V1.ParityCertificates
 import EDSL.Corpus.V1.RotationCertificates
+import EDSL.Corpus.V1.MultiplyRegistered
 import EDSL.Corpus.PlainMixedWitnesses
 import Lean
 
@@ -164,6 +165,19 @@ theorem acceptedRotationCertificates :
   ⟨⟨V1.RotationCertificates.gcc_certificate⟩,
     ⟨V1.RotationCertificates.clang_certificate⟩⟩
 
+set_option autoImplicit false in
+set_option warningAsError true in
+/-- Trusted multiplication registration binds both complete unchanged ELF
+files and named extents to independent full64 modular-product semantics under
+every flag-vector stream, with useful current loaded caller resources. -/
+theorem acceptedMultiplyCertificates :
+    Nonempty (CertificateFor .multiplyModulo64
+      (V1.MultiplyWindows.file .defaultGCC) V1.MultiplyWindows.name) ∧
+    Nonempty (CertificateFor .multiplyModulo64
+      (V1.MultiplyWindows.file .defaultClang) V1.MultiplyWindows.name) :=
+  ⟨⟨V1.MultiplyRegistered.certificate .defaultGCC⟩,
+    ⟨V1.MultiplyRegistered.certificate .defaultClang⟩⟩
+
 /-- Registration retains the original mixed and homogeneous certificate gates. -/
 def plainCohortCertificate (compiler : V1.PlainInputs.Compiler) :
     Plain.CohortCertificate (V1.PlainWindows.file compiler) :=
@@ -198,6 +212,7 @@ run_cmd do
       ``EDSL.Corpus.Reporting.acceptedAverageCertificates,
       ``EDSL.Corpus.Reporting.acceptedParityCertificates,
       ``EDSL.Corpus.Reporting.acceptedRotationCertificates,
+      ``EDSL.Corpus.Reporting.acceptedMultiplyCertificates,
       ``EDSL.Corpus.Reporting.acceptedPlainCertificates] do
     for dependency in ← Lean.collectAxioms family do
       unless allowed.contains dependency do
@@ -449,6 +464,22 @@ private def rotationJson (compiler : Corpus.V1.RotationCode.Compiler) : Json :=
     ("size", toJson input.bytes.length),
     ("proof", toJson proof)]
 
+private def multiplyJson (compiler : Corpus.V1.MultiplyCode.Compiler) : Json :=
+  let input := (Corpus.V1.MultiplyRegistered.certificate compiler).input
+  let symbol := String.ofList
+    (Corpus.V1.MultiplyWindows.name.map fun byte => Char.ofNat byte.toNat)
+  let proof := "EDSL.Corpus.V1.MultiplyRegistered.certificate " ++
+    (match compiler with | .defaultGCC => "defaultGCC" | .defaultClang => "defaultClang")
+  Json.mkObj [
+    ("symbol", toJson symbol),
+    ("operation", toJson ("unsigned_multiplication_modulo64" : String)),
+    ("model", toJson ("sequential-x86-flags-callable-v1" : String)),
+    ("registry_id", toJson ("multiplyModulo64" : String)),
+    ("file_offset", toJson input.function.window.offset),
+    ("address", toJson input.function.window.address),
+    ("size", toJson input.bytes.length),
+    ("proof", toJson proof)]
+
 private def plainJson (compiler : Corpus.V1.PlainInputs.Compiler)
     (kind : Grading.ConcurrentTask.Plain64.Kind) : Json :=
   let input := (Corpus.Reporting.plainNamedCertificate compiler kind).named.input
@@ -479,7 +510,8 @@ private def certificateRows (compiler : Corpus.V1.Comparisons.Compiler) : Array 
     byteComparisonJson compiler, unaryJson compiler .absSigned32,
     unaryJson compiler .byteSwap64, popcountJson compiler, averageJson compiler,
     parityJson compiler, rotationJson compiler, byteEqualityJson compiler,
-    plainJson compiler .loadAcquire, plainJson compiler .storeRelease]
+    plainJson compiler .loadAcquire, plainJson compiler .storeRelease,
+    multiplyJson compiler]
 
 private def fileJson (compiler : Corpus.V1.Comparisons.Compiler) (path : System.FilePath)
     (bytes : Nat) : Json := Json.mkObj [
@@ -526,6 +558,8 @@ private def report (request : Request) (gccBytes clangBytes : Nat) : Json :=
       ("rotation_progress", toJson ("exact retired model instructions including RET and GCC ENDBR64: rotation GCC 5, Clang 4; universal decoded-execution observations; no physical timing or minimum-cost claim" : String)),
       ("average_semantics", toJson ("full64 RDI/RSI inputs; unsigned floor of the unbounded natural input sum divided by two; all full64 pairs including overflowing input sums admitted; every AF stream terminates; complete RAM and original caller resources retained at every prefix and return; ABI and result established at return" : String)),
       ("average_progress", toJson ("exact retired model instructions including RET and GCC ENDBR64: average GCC 7, Clang 6; universal decoded-execution observations; no physical timing or minimum-cost claim" : String)),
+      ("multiply_semantics", toJson ("full64 RDI/RSI inputs; unsigned residue of the unbounded natural product modulo 2^64; all full64 pairs including wrapping products admitted; every independent status-flag vector stream terminates, including independent undefined PF/AF/ZF/SF; IMUL CF/OF follow signed full-product truncation overflow; complete RAM and permissions, original caller and RET-slot resources and current code authority retained at every prefix and return; ABI and result established at return" : String)),
+      ("multiply_progress", toJson ("exact retired model instructions including RET and GCC ENDBR64: multiplication GCC 4, Clang 3; universal decoded vector-execution observations with the sole original return-slot read; no physical timing or minimum-cost claim" : String)),
       ("unary_progress", toJson ("exact retired model instructions including RET and GCC ENDBR64: absolute value GCC 5, Clang 4; byte reversal GCC 4, Clang 3; no physical timing or minimum-cost claim" : String)),
       ("buffer_semantics", toJson ("first bounded NUL length for arbitrary admitted byte snapshots with n < 2^64; all AF streams terminate by dynamic rank; original caller, full RAM and every-prefix read authority retained; n=0 requires no data loan or pointer validity" : String)),
       ("index_search_semantics", toJson ("earliest matching byte or little-endian u32 index, or full64 SIZE_MAX when absent, for arbitrary admitted snapshots with n < 2^64; low8/low32 search key permits arbitrary upper bits; all AF streams terminate by dynamic rank; original caller, full RAM, ABI and every-prefix current read authority retained; n=0 requires no data loan or pointer validity" : String)),

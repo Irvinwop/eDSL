@@ -15,8 +15,8 @@ case "$#:${1:-}" in
     1:--full-project) full_project=true ;;
     1:--help)
         echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]'
-        echo 'Builds twenty scalar, two managed concurrent fetch-add, two bounded byte-scan, four first-match search, two byte-comparison, two byte-equality and four managed plain load/store certificates, audits axioms and checks file binding.'
-        echo 'Default: fresh-replays corpus.Certify. --full-project: also builds the full catalogue and verification, unary, popcount, average, parity, rotation, low-byte and CFG-profile tests; fresh-replays them together.'
+        echo 'Builds twenty-two scalar, two managed concurrent fetch-add, two bounded byte-scan, four first-match search, two byte-comparison, two byte-equality and four managed plain load/store certificates, audits axioms and checks file binding.'
+        echo 'Default: fresh-replays the named certificate checks and corpus.Certify. --full-project: also builds the full catalogue and verification, unary, popcount, average, parity, rotation, low-byte, CFG-profile and full-vector multiplication tests; fresh-replays them together and runs multiplication packet controls.'
         exit 0 ;;
     *) echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]' >&2; exit 2 ;;
 esac
@@ -42,7 +42,7 @@ clang_file=corpus/v1/clang/final.elf
 stage=setup
 complete=false
 gate_scope=corpus-cli
-fresh_target=corpus.Certify
+fresh_target=CorpusCertificateChecks
 fresh_label=fresh-corpus
 if [[ $full_project == true ]]; then
     gate_scope=full-project-and-corpus-cli
@@ -75,7 +75,8 @@ record() {
 # inventory afterwards so additions/deletions cannot escape the stability gate.
 source_hash_command='git ls-files --cached --others --exclude-standard -z --
     "*.lean" "*.sh" "*.c" "*.cc" "*.cpp" "*.h" "*.hpp" "*.S" "*.s" "*.ll"
-    lean-toolchain lakefile.lean lakefile.toml lake-manifest.json AGENTS.md "corpus/v1/*" |
+    lean-toolchain lakefile.lean lakefile.toml lake-manifest.json AGENTS.md
+    scripts/verify-corpus-certificates.sh "corpus/v1/*" |
     sort -zu | xargs -0 -r sha256sum --'
 # Keep the command one shell pipeline; newlines above are argument separators.
 source_hash_command=${source_hash_command//$'\n'/ }
@@ -197,6 +198,8 @@ record popcount-certificate-api test -f EDSL/Corpus/V1/PopcountCertificates.lean
 record average-certificate-api test -f EDSL/Corpus/V1/AverageCertificates.lean
 record parity-certificate-api test -f EDSL/Corpus/V1/ParityCertificates.lean
 record rotation-certificate-api test -f EDSL/Corpus/V1/RotationCertificates.lean
+record multiply-certificate-api test -f EDSL/Corpus/V1/MultiplyRegistered.lean
+record multiply-packet-gate test -f scripts/verify-multiply-packets.sh
 record plain-certificate-api test -f EDSL/Corpus/PlainCertificate.lean
 record plain-witness-api test -f EDSL/Corpus/PlainWitnesses.lean
 record plain-mixed-witness-api test -f EDSL/Corpus/PlainMixedWitnesses.lean
@@ -210,7 +213,10 @@ if [[ $full_project == true ]]; then
 import EDSL.All
 import tests.FlagChoiceExecution
 import tests.SequentialMultiply
+import tests.MultiplyResources
+import tests.GradingMultiply
 import corpus.Certify
+import CorpusCertificateChecks
 import tests.VerificationImports
 import tests.VerifyFunction
 import tests.ELFCertificate
@@ -265,7 +271,7 @@ import tests.PlainCallHistory64
 LEAN
     printf 'import CorpusFullReplay\n' > "$output/Audit.lean"
 else
-    printf 'import corpus.Certify\n' > "$output/Audit.lean"
+    printf 'import corpus.Certify\nimport CorpusCertificateChecks\n' > "$output/Audit.lean"
 fi
 cat >> "$output/Audit.lean" <<'LEAN'
 import EDSL.Audit
@@ -567,6 +573,112 @@ example (compiler : EDSL.Corpus.V1.PlainInputs.Compiler) :
 #print axioms EDSL.Corpus.Reporting.acceptedAverageCertificates
 #print axioms EDSL.Corpus.Reporting.acceptedParityCertificates
 #print axioms EDSL.Corpus.Reporting.acceptedRotationCertificates
+#print axioms EDSL.Corpus.Reporting.acceptedMultiplyCertificates
+#print axioms EDSL.Corpus.V1.MultiplyRegistered.claim
+#print axioms EDSL.Corpus.V1.MultiplyBodies.observations
+#audit_edsl
+LEAN
+
+# Named independent obligations are stored and included in both fresh targets.
+cat > "$output/source/CorpusCertificateChecks.lean" <<'LEAN'
+import corpus.Certify
+import EDSL.Audit
+
+set_option autoImplicit false
+set_option warningAsError true
+namespace EDSL.Corpus.AcceptanceChecks
+
+-- Independently bind the new registry ID to both complete original files and
+-- the literal row-07 name. A neutral spec-selected certificate, legacy task,
+-- Bool execution model or report string cannot substitute for these types.
+theorem files :
+    Nonempty (EDSL.Corpus.CertificateFor .multiplyModulo64
+      (EDSL.Corpus.V1.Comparisons.file .defaultGCC)
+      [99,95,109,117,108,95,109,111,100,54,52]) ∧
+    Nonempty (EDSL.Corpus.CertificateFor .multiplyModulo64
+      (EDSL.Corpus.V1.Comparisons.file .defaultClang)
+      [99,95,109,117,108,95,109,111,100,54,52]) :=
+  EDSL.Corpus.Reporting.acceptedMultiplyCertificates
+theorem selectedInput (compiler : EDSL.Corpus.V1.MultiplyCode.Compiler) :
+    (EDSL.Corpus.V1.MultiplyRegistered.certificate compiler).input =
+      EDSL.Corpus.V1.MultiplyWindows.input compiler := rfl
+theorem registration : EDSL.Grading.registry .multiplyModulo64 =
+    ⟨.flags, EDSL.Grading.ofReadOnlyFor .flags
+      (EDSL.PureCall.readOnlyTask EDSL.Arithmetic64.multiplyModulo)⟩ := rfl
+
+-- The registry-owned complete raw/resource claim includes original admission,
+-- return hooks, every-prefix policies and separate useful-domain inhabitants.
+theorem claim (compiler : EDSL.Corpus.V1.MultiplyCode.Compiler) :
+    EDSL.Grading.RegisteredClaim .multiplyModulo64
+      (EDSL.Corpus.V1.MultiplyCode.bytes compiler) :=
+  EDSL.Corpus.V1.MultiplyRegistered.claim compiler
+theorem nonvacuous (compiler : EDSL.Corpus.V1.MultiplyCode.Compiler) :
+    EDSL.Grading.ReadOnlyNonvacuous
+      (EDSL.PureCall.readOnlyTask EDSL.Arithmetic64.multiplyModulo)
+      (EDSL.Corpus.V1.MultiplyCode.bytes compiler) :=
+  ((EDSL.Grading.registeredClaim_multiplyModulo64_iff _).mp
+    (EDSL.Corpus.V1.MultiplyRegistered.claim compiler)).2
+theorem resources (compiler : EDSL.Corpus.V1.MultiplyCode.Compiler)
+    (resource : EDSL.PureCall.Resources EDSL.Arithmetic64.multiplyModulo)
+    (initial : EDSL.X86.State)
+    (pre : EDSL.PureCall.ResourcePre EDSL.Arithmetic64.multiplyModulo
+      (EDSL.Corpus.V1.MultiplyCode.bytes compiler) resource initial) :
+    EDSL.X86.Sequential.AllExecutionsWith initial (fun result =>
+      EDSL.PureCall.Post EDSL.Arithmetic64.multiplyModulo
+        (EDSL.PureCall.resourceInput resource) initial result.state ∧
+      EDSL.OS.CallResources.Current resource.call resource.shared result.state) ∧
+    EDSL.Grading.ReadOnlyPolicyFor .flags initial
+      (EDSL.OS.CallResources.Current resource.call resource.shared)
+      (fun _ read => EDSL.OS.CallResources.ReadAllowed resource.call resource.shared read) :=
+  ((EDSL.Grading.registered_multiplyModulo64_semanticClaim_iff _).mp
+    (EDSL.Corpus.V1.MultiplyRegistered.claim compiler).1).resource resource initial pre
+
+/-- Every full64 pair is admitted in the same actual installed caller world;
+no successful execution, cost bound, desired result or usefulness is assumed. -/
+theorem allPairs (compiler : EDSL.Corpus.V1.MultiplyCode.Compiler)
+    (left right : EDSL.X86.Word) :
+    EDSL.PureCall.ResourcePre EDSL.Arithmetic64.multiplyModulo
+      (EDSL.Corpus.V1.MultiplyCode.bytes compiler)
+      (EDSL.Corpus.V1.MultiplyResources.resource compiler (left,right))
+      (EDSL.Corpus.V1.MultiplyResources.initial compiler (left,right)) :=
+  EDSL.Corpus.V1.MultiplyResources.pre compiler (left,right)
+
+/-- The independent row-07 natural-product contract is required explicitly;
+changing a registry spec alias cannot change this literal mathematical result. -/
+theorem mathematicalResult (compiler : EDSL.Corpus.V1.MultiplyCode.Compiler)
+    (resource : EDSL.PureCall.Resources EDSL.Arithmetic64.multiplyModulo)
+    (initial : EDSL.X86.State)
+    (pre : EDSL.PureCall.ResourcePre EDSL.Arithmetic64.multiplyModulo
+      (EDSL.Corpus.V1.MultiplyCode.bytes compiler) resource initial) :
+    EDSL.X86.Sequential.AllExecutionsWith initial (fun result =>
+      (result.state.registers .rax).toNat =
+        (resource.value.1.toNat * resource.value.2.toNat) % 2^64 ∧
+      result.state.memory = initial.memory ∧
+      result.state.rip = resource.call.returnAddress ∧
+      result.state.registers .rsp = initial.registers .rsp + 8 ∧
+      EDSL.OS.CallResources.Current resource.call resource.shared result.state) := by
+  intro choices
+  obtain ⟨result, execution, post, current⟩ :=
+    (resources compiler resource initial pre).1 choices
+  exact ⟨result, execution, post.result, post.memory, post.returnAddress,
+    post.stackPointer, current⟩
+
+-- Actual retired instructions, including RET and GCC ENDBR64, are concluded
+-- for arbitrary admitted prestates and all independent flag-vector streams.
+theorem retired (compiler : EDSL.Corpus.V1.MultiplyCode.Compiler)
+    {input : EDSL.PureCall.Invocation EDSL.Arithmetic64.multiplyModulo}
+    {initial : EDSL.X86.State}
+    (pre : EDSL.PureCall.Pre EDSL.Arithmetic64.multiplyModulo
+      (EDSL.Corpus.V1.MultiplyCode.bytes compiler) input initial)
+    {choices : EDSL.X86.Sequential.ChoiceStream EDSL.X86.Sequential.FlagChoices}
+    {result : EDSL.X86.Sequential.Result}
+    (execution : EDSL.X86.Sequential.ExecutesWith choices initial result) :
+    result.instructions = (match compiler with | .defaultGCC => 4 | .defaultClang => 3) := by
+  have observed := EDSL.Corpus.V1.MultiplyBodies.observations compiler pre execution
+  cases compiler <;> exact observed.2.2.1
+
+
+end EDSL.Corpus.AcceptanceChecks
 #audit_edsl
 LEAN
 
@@ -652,6 +764,10 @@ def certificate($manifest; $operation; $symbol; $proof):
     (has("model") | not) and
     ([$manifest.functions[] | select(.symbol == $symbol)][0] |
       .definition_id == "12" and .contract_id == "v1:12:c_parity_loop")
+   elif $operation == "unsigned_multiplication_modulo64" then
+    .model == "sequential-x86-flags-callable-v1" and .registry_id == "multiplyModulo64" and
+    ([$manifest.functions[] | select(.symbol == $symbol)][0] |
+      .definition_id == "07" and .contract_id == "v1:07:c_mul_mod64")
    elif $operation == "rotate_left64" then
     (has("model") | not) and
     ([$manifest.functions[] | select(.symbol == $symbol)][0] |
@@ -680,6 +796,10 @@ def unary_extent($compiler; $operation):
      elif $compiler == "gcc" and $operation == "swap" then [11760, 4206064, 11]
      elif $compiler == "clang" and $operation == "swap" then [4960, 4199264, 7]
      else [] end);
+def multiply_extent($compiler):
+  [.file_offset, .address, .size] ==
+    (if $compiler == "gcc" then [11696, 4206000, 12]
+     elif $compiler == "clang" then [4912, 4199216, 8] else [] end);
 def plain_extent($compiler; $kind):
   [.file_offset, .address, .size] ==
     (if $compiler == "gcc" and $kind == "load" then [12944, 4207248, 8]
@@ -693,7 +813,7 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
   type == "object" and .compiler == $compiler and .path == $path and
   .bytes == $bytes and $manifest.elf_size == $bytes and
   .match == "complete_byte_equality" and
-  (.certificates | type == "array" and length == 18) and
+  (.certificates | type == "array" and length == 19) and
   (.certificates[0] | certificate($manifest; "unsigned_minimum64"; "c_min_u64";
     "EDSL.Corpus.V1.Comparisons.certificate " + $enum + " minimum")) and
   (.certificates[1] | certificate($manifest; "unsigned_maximum64"; "c_max_u64";
@@ -730,6 +850,9 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
     "c_atomic_load_acquire64"; "EDSL.Corpus.Reporting.plainNamedCertificate " + $enum + " loadAcquire")) and
   (.certificates[17] | certificate($manifest; "full64_store_release_concurrent";
     "c_atomic_store_release64"; "EDSL.Corpus.Reporting.plainNamedCertificate " + $enum + " storeRelease")) and
+  (.certificates[18] | certificate($manifest; "unsigned_multiplication_modulo64";
+    "c_mul_mod64"; "EDSL.Corpus.V1.MultiplyRegistered.certificate " + $enum) and
+    multiply_extent($compiler)) and
   (.certificates[16] | plain_extent($compiler; "load") and plain_cohort($enum)) and
   (.certificates[17] | plain_extent($compiler; "store") and plain_cohort($enum)) and
   (.certificates[6] | search_extent($compiler; "byte")) and
@@ -753,9 +876,9 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
     (if $compiler == "gcc" then [12240, 4206544, 46, 64, 32]
      elif $compiler == "clang" then [5376, 4199680, 68, 128, 32] else [] end)) and
   all(.certificates[]; .file_offset + .size <= $bytes) and
-  ([.certificates[].symbol] | unique | length == 18) and
-  ([.certificates[].operation] | unique | length == 18) and
-  ([.certificates[] | [.file_offset, .address, .size]] | unique | length == 18) and
+  ([.certificates[].symbol] | unique | length == 19) and
+  ([.certificates[].operation] | unique | length == 19) and
+  ([.certificates[] | [.file_offset, .address, .size]] | unique | length == 19) and
   (.certificates as $certificates | all($certificates[]; . as $a |
     all($certificates[]; . as $b | $a.symbol == $b.symbol or
       (($a.file_offset + $a.size <= $b.file_offset or
@@ -770,19 +893,19 @@ def artifact($compiler; $path; $bytes; $manifest; $enum):
 length == 1 and (.[0] |
   type == "object" and .schema == "edsl.compiler-corpus.certificates.v1" and
   .status == "certified_under_recorded_model_assumptions" and
-  .score == {functions_certified_end_to_end: 18,
+  .score == {functions_certified_end_to_end: 19,
     functions_total: ($gccNames | length),
-    compiler_artifacts_certified_end_to_end: 36,
+    compiler_artifacts_certified_end_to_end: 38,
     compiler_artifacts_total: (($gccNames | length) + ($clangNames | length)),
     concurrency_contracts_proved: 3} and
   (.files | type == "array" and length == 2) and
   (.files[0] | artifact("gcc"; $gcc; $gccBytes; $gccManifest[0]; "defaultGCC")) and
   (.files[1] | artifact("clang"; $clang; $clangBytes; $clangManifest[0]; "defaultClang")) and
   ([.files[] | .compiler as $compiler | .certificates[] |
-      [$compiler, .operation, .symbol]] | unique | length == 36) and
-  ([.files[].certificates[].proof] | unique | length == 36) and
-  ([.files[].certificates[].symbol] | unique | length == 18) and
-  ([.files[].certificates[].operation] | unique | length == 18) and
+      [$compiler, .operation, .symbol]] | unique | length == 38) and
+  ([.files[].certificates[].proof] | unique | length == 38) and
+  ([.files[].certificates[].symbol] | unique | length == 19) and
+  ([.files[].certificates[].operation] | unique | length == 19) and
   ([.files[].certificates[] | select(.operation == "full64_fetch_add_concurrent")] |
     length == 2 and (map(.symbol) | unique | length == 1)) and
   ([.files[].certificates[16:18][].cohort_proof] | unique | length == 2) and
@@ -803,7 +926,7 @@ length == 1 and (.[0] |
     all(.complete_file_identity, .elf_symbol_binding, .cfg, .symbolic_vc,
       .registered_semantics, .unary_semantics, .unary_progress, .population_count_semantics,
       .average_semantics, .average_progress, .parity_semantics,
-      .rotation_semantics, .rotation_progress,
+      .rotation_semantics, .rotation_progress, .multiply_semantics, .multiply_progress,
       .buffer_semantics, .index_search_semantics,
       .byte_comparison_semantics, .byte_comparison_resources, .byte_comparison_progress,
       .byte_equality_semantics, .byte_equality_resources, .byte_equality_progress,
@@ -819,12 +942,13 @@ length == 1 and (.[0] |
     .stages.index_search_semantics, .stages.unary_semantics, .stages.unary_progress,
     .stages.population_count_semantics, .stages.average_semantics, .stages.average_progress,
     .stages.parity_semantics, .stages.rotation_semantics, .stages.rotation_progress,
+    .stages.multiply_semantics, .stages.multiply_progress,
     .stages.byte_comparison_semantics,
     .stages.byte_comparison_resources, .stages.byte_comparison_progress,
     .stages.byte_equality_semantics, .stages.byte_equality_resources,
     .stages.byte_equality_progress, .stages.plain_semantics, .stages.plain_resources,
     .stages.plain_progress, .stages.plain_useful_domain] |
-      unique | length == 32) and
+      unique | length == 34) and
   .stages.plain_semantics == "managed closed cohort full64 acquire loads into RAX and release stores from RSI at RDI; arbitrary full64 initial and stored words; every successful finite returned schedule has one actual access and RET per original worker, exact call/event coverage and ABI frames; closed runs construct initialized legal atomic histories with actual writer keys from nextStore counters, distinct from logical occurrence labels; acquire/release orders are registered interface annotations" and
   .stages.plain_resources == "current original code/caller/managed authority at every successful prefix; full cell descriptors and persistent cell identities; complete installed ELF cells and permissions retained; targets fresh from the entire loaded image; original caller and callee-save registers retained; RSP advances by 8 at return; all flags retained; collection requires an empty own queue" and
   .stages.plain_progress == "every running worker has an enabled actual issue for every AF value; completion after every successful finite prefix for every choice stream; return may precede store publication; drain closure and a positive own-issue upper bound are proved outputs; no fairness, physical timing or minimum-cost claim" and
@@ -957,7 +1081,8 @@ length == 1 and (.[0] |
     any(.[]; contains("not future filesystem or process mappings")) and
     any(.[]; contains("Fresh kernel replay is a separate verification-gate step"))))
 JQ
-gate_inputs=("$output/Audit.lean" "$output/check-report.jq" "$output/scope.txt"
+gate_inputs=("$output/Audit.lean" "$output/source/CorpusCertificateChecks.lean"
+    "$output/check-report.jq" "$output/scope.txt"
     "$output/fresh-target.txt" "$output/fresh-receipt-label.txt")
 if [[ $full_project == true ]]; then
     gate_inputs+=("$output/source/CorpusFullReplay.lean")
@@ -971,7 +1096,8 @@ certificate_targets=(EDSL.Corpus.V1.Comparisons EDSL.Corpus.V1.Arithmetic EDSL.C
     EDSL.Corpus.V1.ByteEqualityCertificates
     EDSL.Corpus.V1.UnaryCertificates EDSL.Corpus.V1.PopcountCertificates
     EDSL.Corpus.V1.AverageCertificates EDSL.Corpus.V1.ParityCertificates
-    EDSL.Corpus.V1.RotationCertificates EDSL.Corpus.PlainMixedWitnesses)
+    EDSL.Corpus.V1.RotationCertificates EDSL.Corpus.V1.MultiplyRegistered
+    EDSL.Corpus.PlainMixedWitnesses)
 if [[ $full_project == true ]]; then
     record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests ParityTests RotationTests Low8Tests ByteEqualityTests CFGProfileTests ChoiceTests ManagedQueue64Tests \
         edsl-proof-export edsl-grade "${certificate_targets[@]}"
@@ -991,6 +1117,10 @@ record source-before-proof-stable cmp -- "$output/source-before.sha256" \
     "$output/commands/source-after-build.stdout"
 record compile-cli "${lean_env[@]}" lean -DwarningAsError=true \
     -o "$output/lib/corpus/Certify.olean" corpus/Certify.lean
+record compile-certificate-checks "${lean_env[@]}" lean -j1 -DwarningAsError=true \
+    -DautoImplicit=false -DmaxHeartbeats=300000 -DmaxRecDepth=128 \
+    --root="$output/source" -o "$output/lib/CorpusCertificateChecks.olean" \
+    "$output/source/CorpusCertificateChecks.lean"
 if [[ $full_project == true ]]; then
     record compile-project-corpus-aggregate "${lean_env[@]}" lean -DwarningAsError=true \
         --root="$output/source" -o "$output/lib/CorpusFullReplay.olean" \
@@ -1103,6 +1233,8 @@ reject_report reject-report-pre-equality-function-count '.score.functions_certif
 reject_report reject-report-pre-equality-artifact-count '.score.compiler_artifacts_certified_end_to_end = 30'
 reject_report reject-report-pre-plain-function-count '.score.functions_certified_end_to_end = 16'
 reject_report reject-report-pre-plain-artifact-count '.score.compiler_artifacts_certified_end_to_end = 32'
+reject_report reject-report-pre-multiply-function-count '.score.functions_certified_end_to_end = 18'
+reject_report reject-report-pre-multiply-artifact-count '.score.compiler_artifacts_certified_end_to_end = 36'
 reject_report reject-report-pre-plain-concurrency-count '.score.concurrency_contracts_proved = 1'
 reject_report reject-report-concurrency-count '.score.concurrency_contracts_proved = 2'
 reject_report reject-report-cet-ibt '.profile.cet_ibt_enabled = true'
@@ -1252,6 +1384,26 @@ missing-row	del(.files[$index].certificates[$entry])
 doubled-row	.files[$index].certificates += [.files[$index].certificates[$entry]]
 MUTATIONS
     done
+    while IFS=$'\t' read -r mutation filter; do
+        reject_report "reject-$label-multiply-$mutation" "$filter" --argjson index "$index"
+    done <<'MUTATIONS'
+missing-model	del(.files[$index].certificates[18].model)
+model	.files[$index].certificates[18].model = "sequential-x86-bool-callable-v1"
+missing-registry	del(.files[$index].certificates[18].registry_id)
+wrong-registry	.files[$index].certificates[18].registry_id = "addModulo64"
+operation	.files[$index].certificates[18].operation = "unsigned_addition_modulo64"
+compiler-proof	.files[$index].certificates[18].proof = .files[1 - $index].certificates[18].proof
+addition-proof	.files[$index].certificates[18].proof = .files[$index].certificates[2].proof
+neutral-proof	.files[$index].certificates[18].proof = "EDSL.Corpus.V1.MultiplyCertificatesFor.certificate defaultGCC"
+symbol	.files[$index].certificates[18].symbol = "c_add_mod64"
+offset	.files[$index].certificates[18].file_offset += 1
+address	.files[$index].certificates[18].address += 1
+size	.files[$index].certificates[18].size -= 1
+missing-row	del(.files[$index].certificates[18])
+duplicate	.files[$index].certificates[2] = .files[$index].certificates[18]
+doubled-row	.files[$index].certificates += [.files[$index].certificates[18]]
+row-swap	.files[$index].certificates |= .[0:2] + [.[18]] + .[3:18] + [.[2]]
+MUTATIONS
     # Same input/output shape, different mathematics: a population-count row
     # or proof cannot supply parity's registered bit-cardinality modulo two.
     while IFS=$'\t' read -r mutation filter; do
@@ -1286,6 +1438,14 @@ publication	.stages.plain_useful_domain |= sub("writer RET strictly before publi
 read-from	.stages.plain_useful_domain |= sub("selected read-from edge belongs to that same ClosedPost"; "equal word values identify the source")
 limits	del(.limits[] | select(startswith("Plain acquire/release")))
 MUTATIONS
+# Required report stages remain part of the receipt schema. Mathematical,
+# resource and count guarantees are checked by named Lean theorems above.
+reject_report reject-multiply-stage-missing 'del(.stages.multiply_semantics)'
+reject_report reject-multiply-progress-missing 'del(.stages.multiply_progress)'
+read -r filter <<'JQ'
+.files[0].certificates[18] as $gcc | .files[0].certificates[18] = .files[1].certificates[18] | .files[1].certificates[18] = $gcc
+JQ
+reject_report reject-multiply-compiler-swap "$filter"
 reject_report reject-unary-stage-missing 'del(.stages.unary_semantics)'
 reject_report reject-unary-domain-weakened \
     '.stages.unary_semantics |= sub("excludes INT32_MIN"; "includes every signed input")'
@@ -1424,7 +1584,7 @@ MUTATIONS
 # Keep the report valid while mutating the selected frozen registration, so a
 # validator that accepts the wrong independent task identity is also caught.
 for label in gcc clang; do
-    for symbol in c_memchr_index c_linear_search_u32 c_memcmp_bytes c_abs_i32 c_byteswap64 c_average_u64 c_parity_loop c_rotl64 c_bytes_equal c_atomic_load_acquire64 c_atomic_store_release64; do
+    for symbol in c_memchr_index c_linear_search_u32 c_memcmp_bytes c_abs_i32 c_byteswap64 c_average_u64 c_parity_loop c_rotl64 c_bytes_equal c_atomic_load_acquire64 c_atomic_store_release64 c_mul_mod64; do
         while IFS=$'\t' read -r mutation filter; do
             name=reject-$label-$symbol-manifest-$mutation
             record "$name-mutate" jq --arg symbol "$symbol" "$filter" \
@@ -1456,7 +1616,7 @@ JQ
 read -r manifest_extent_mutation <<'JQ'
 (.functions[] | select(.symbol == $symbol))[$field] += $delta
 JQ
-for operation in byte-comparison average parity rotation byte-equality plain-load plain-store; do
+for operation in byte-comparison average parity rotation byte-equality plain-load plain-store multiply; do
     case "$operation" in
         byte-comparison) entry=8 symbol=c_memcmp_bytes ;;
         average) entry=12 symbol=c_average_u64 ;;
@@ -1465,6 +1625,7 @@ for operation in byte-comparison average parity rotation byte-equality plain-loa
         byte-equality) entry=15 symbol=c_bytes_equal ;;
         plain-load) entry=16 symbol=c_atomic_load_acquire64 ;;
         plain-store) entry=17 symbol=c_atomic_store_release64 ;;
+        multiply) entry=18 symbol=c_mul_mod64 ;;
     esac
     for index in 0 1; do
         label=${report_compilers[$index]}
@@ -1578,6 +1739,11 @@ clang	popcount	populationCount64	tests.GradingPopcount	EDSL.Tests.GradingPopcoun
 gcc	average	average64	tests.GradingAverage	EDSL.Tests.GradingAverage.raw_gcc	11712	20
 clang	average	average64	tests.GradingAverage	EDSL.Tests.GradingAverage.raw_clang	4928	16
 SCALAR_GRADING
+    # Reuse the dedicated registered raw/ELF packet gate, including its eight
+    # positive acceptances and sixteen code/extent rejections. It acquires its
+    # own per-command Lean lock and records nested receipts inside this run.
+    record multiply-packets env "EDSL_MULTIPLY_OUTPUT=$output/multiply-packets" \
+        bash scripts/verify-multiply-packets.sh
 fi
 
 record selected-offsets jq -r '.files[].certificates[0].file_offset' "$output/report.json"
@@ -1717,6 +1883,36 @@ gcc	store	12960	8	12964
 clang	load	6848	4	6848
 clang	store	6864	4	6864
 PLAIN_EXTENTS
+
+# These multiplication extents are fixed independently of the report and
+# manifest. Check both original artifacts, their final RET, and the actual
+# IMUL REX.W byte; no input ELF is executed or modified in place.
+while IFS=$'\t' read -r compiler offset size rex_offset; do
+    for byte_offset in "$offset" "$((offset + size - 1))"; do
+        name=$compiler-multiply-byte-$byte_offset
+        changed=$output/mutations/$name.elf
+        flip_byte "$name" "corpus/v1/$compiler/final.elf" "$byte_offset" "$changed"
+        reject 1 "reject-$name" "--$compiler" "$changed"
+    done
+    name=$compiler-multiply-width
+    changed=$output/mutations/$name.elf
+    record "$name-original-byte" od -An -tu1 -j "$rex_offset" -N 1 "corpus/v1/$compiler/final.elf"
+    read -r original_byte < "$output/commands/$name-original-byte.stdout"
+    record "$name-original-rex-w" test "$original_byte" -eq 72
+    record "$name-copy" cp -- "corpus/v1/$compiler/final.elf" "$changed"
+    record "$name-replacement" printf '\100'
+    record "$name-write" dd "if=$output/commands/$name-replacement.stdout" \
+        "of=$changed" bs=1 "seek=$rex_offset" conv=notrunc status=none
+    expect_status 1 "$name-diff" cmp -l -- "corpus/v1/$compiler/final.elf" "$changed"
+    mapfile -t width_differences < "$output/commands/$name-diff.stdout"
+    record "$name-one-difference" test "${#width_differences[@]}" -eq 1
+    read -r position _ < "$output/commands/$name-diff.stdout"
+    record "$name-difference-position" test "$position" -eq "$((rex_offset + 1))"
+    reject 1 "reject-$name" "--$compiler" "$changed"
+done <<'MULTIPLY_EXTENTS'
+gcc	11696	12	11703
+clang	4912	8	4915
+MULTIPLY_EXTENTS
 
 # ELF identification byte 8 is inside each complete file but outside every
 # certified function. Keep this header-field control alongside the opaque
