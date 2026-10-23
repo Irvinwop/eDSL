@@ -227,6 +227,7 @@ import tests.GradingSignum
 import tests.SignumCertificates
 import tests.StructuralCFG
 import tests.StructuralControl
+import tests.EffectVCGen
 import corpus.Certify
 import CorpusCertificateChecks
 import tests.VerificationImports

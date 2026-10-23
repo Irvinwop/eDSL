@@ -68,6 +68,11 @@ checked node. Before taking the next checked step, a consumer must establish
 Atomic event interpretation, store publication, scheduling and lock ownership
 remain separate obligations.
 
+The [effect-aware VCG](effect-vcg.md) now composes these structural certificates
+with a bounded execution formula and an explicit executable-code frame. Its
+shared separation adapter covers the supported store and legacy atomic families;
+current OS resources and scheduling remain separate integration obligations.
+
 ## Retaining read-only verification
 
 The existing `CFG.Valid`, `CFG.checkWith` and read-only execution APIs are

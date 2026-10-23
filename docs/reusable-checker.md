@@ -13,6 +13,11 @@ CFG discovery remains untrusted; the finite `CFG.check` result is proved in the
 kernel. The entire selected window, including any suffix after an early RET,
 must be accounted for by the existing CFG checker.
 
+For bounded programs that write memory or produce legacy DWORD atomic events,
+use the [effect-aware VCG](effect-vcg.md). It shares production execution and
+structural byte authentication, retains ordered events, and requires an explicit
+code frame. The read-only APIs described below retain their existing behavior.
+
 ## Independent inputs
 
 `VCGen.wp graph base AllowedRead fuel node initial Post` generates a proposition.
