@@ -16,6 +16,7 @@ import EDSL.Corpus.V1.AverageCertificates
 import EDSL.Corpus.V1.ParityCertificates
 import EDSL.Corpus.V1.RotationCertificates
 import EDSL.Corpus.V1.MultiplyRegistered
+import EDSL.Corpus.V1.SignumRegistered
 import EDSL.Corpus.PlainMixedWitnesses
 import Lean
 
@@ -178,6 +179,23 @@ theorem acceptedMultiplyCertificates :
   ⟨⟨V1.MultiplyRegistered.certificate .defaultGCC⟩,
     ⟨V1.MultiplyRegistered.certificate .defaultClang⟩⟩
 
+set_option autoImplicit false in
+set_option warningAsError true in
+set_option maxHeartbeats 300000 in
+set_option maxRecDepth 128 in
+/-- Both original complete named ELF functions retain the independent signed
+low32 signum task, every flag-vector stream and useful current loaded callers.
+Stable ordinary RAM, supplied logical authority, four-level canonical addresses,
+alignment checking off, CET/IBT/shadow stacks off and no asynchronous interference
+remain callable-target assumptions; native CPU/OS correspondence is separate. -/
+theorem acceptedSignumCertificates :
+    Nonempty (CertificateFor .signumSigned32
+      (V1.SignumWindows.file .defaultGCC) V1.SignumWindows.name) ∧
+    Nonempty (CertificateFor .signumSigned32
+      (V1.SignumWindows.file .defaultClang) V1.SignumWindows.name) :=
+  ⟨⟨V1.SignumRegistered.certificate .defaultGCC⟩,
+    ⟨V1.SignumRegistered.certificate .defaultClang⟩⟩
+
 /-- Registration retains the original mixed and homogeneous certificate gates. -/
 def plainCohortCertificate (compiler : V1.PlainInputs.Compiler) :
     Plain.CohortCertificate (V1.PlainWindows.file compiler) :=
@@ -199,6 +217,10 @@ theorem acceptedPlainCertificates :
 -- Keep successful CLI stdout machine-readable, while rejecting an unapproved
 -- transitive certificate dependency before main can run. The verification gate
 -- additionally audits the full imported EDSL namespace and fresh-replays it.
+set_option autoImplicit false in
+set_option warningAsError true in
+set_option maxHeartbeats 300000 in
+set_option maxRecDepth 128 in
 run_cmd do
   let allowed := #[``propext, ``Quot.sound, ``Classical.choice]
   for family in #[``EDSL.Corpus.Reporting.acceptedCertificates,
@@ -213,6 +235,7 @@ run_cmd do
       ``EDSL.Corpus.Reporting.acceptedParityCertificates,
       ``EDSL.Corpus.Reporting.acceptedRotationCertificates,
       ``EDSL.Corpus.Reporting.acceptedMultiplyCertificates,
+      ``EDSL.Corpus.Reporting.acceptedSignumCertificates,
       ``EDSL.Corpus.Reporting.acceptedPlainCertificates] do
     for dependency in ← Lean.collectAxioms family do
       unless allowed.contains dependency do
@@ -480,6 +503,26 @@ private def multiplyJson (compiler : Corpus.V1.MultiplyCode.Compiler) : Json :=
     ("size", toJson input.bytes.length),
     ("proof", toJson proof)]
 
+set_option autoImplicit false in
+set_option warningAsError true in
+set_option maxHeartbeats 300000 in
+set_option maxRecDepth 128 in
+private def signumJson (compiler : Corpus.V1.SignumCode.Compiler) : Json :=
+  let input := (Corpus.V1.SignumRegistered.certificate compiler).input
+  let symbol := String.ofList
+    (Corpus.V1.SignumWindows.name.map fun byte => Char.ofNat byte.toNat)
+  let proof := "EDSL.Corpus.V1.SignumRegistered.certificate " ++
+    (match compiler with | .defaultGCC => "defaultGCC" | .defaultClang => "defaultClang")
+  Json.mkObj [
+    ("symbol", toJson symbol),
+    ("operation", toJson ("signed_signum32" : String)),
+    ("model", toJson ("sequential-x86-flags-callable-v1" : String)),
+    ("registry_id", toJson ("signumSigned32" : String)),
+    ("file_offset", toJson input.function.window.offset),
+    ("address", toJson input.function.window.address),
+    ("size", toJson input.bytes.length),
+    ("proof", toJson proof)]
+
 private def plainJson (compiler : Corpus.V1.PlainInputs.Compiler)
     (kind : Grading.ConcurrentTask.Plain64.Kind) : Json :=
   let input := (Corpus.Reporting.plainNamedCertificate compiler kind).named.input
@@ -503,6 +546,10 @@ private def plainJson (compiler : Corpus.V1.PlainInputs.Compiler)
     ("proof", toJson ("EDSL.Corpus.Reporting.plainNamedCertificate " ++ compilerName ++ " " ++ kindName)),
     ("cohort_proof", toJson ("EDSL.Corpus.Reporting.plainCohortCertificate " ++ compilerName))]
 
+set_option autoImplicit false in
+set_option warningAsError true in
+set_option maxHeartbeats 300000 in
+set_option maxRecDepth 128 in
 private def certificateRows (compiler : Corpus.V1.Comparisons.Compiler) : Array Json :=
   #[artifactJson compiler .minimum, artifactJson compiler .maximum,
     additionJson compiler, clampJson compiler, concurrentJson compiler, bufferJson compiler,
@@ -511,7 +558,7 @@ private def certificateRows (compiler : Corpus.V1.Comparisons.Compiler) : Array 
     unaryJson compiler .byteSwap64, popcountJson compiler, averageJson compiler,
     parityJson compiler, rotationJson compiler, byteEqualityJson compiler,
     plainJson compiler .loadAcquire, plainJson compiler .storeRelease,
-    multiplyJson compiler]
+    multiplyJson compiler, signumJson compiler]
 
 private def fileJson (compiler : Corpus.V1.Comparisons.Compiler) (path : System.FilePath)
     (bytes : Nat) : Json := Json.mkObj [
@@ -525,6 +572,10 @@ private def recordedProfile : Bool :=
   let profile := EDSL.X86.VCGen.CompilerComparisons.targetProfile
   profile.longMode && !profile.ibtEnabled && !profile.shadowStackEnabled && profile.multiByteNop
 
+set_option autoImplicit false in
+set_option warningAsError true in
+set_option maxHeartbeats 300000 in
+set_option maxRecDepth 128 in
 private def report (request : Request) (gccBytes clangBytes : Nat) : Json :=
   let profile := EDSL.X86.VCGen.CompilerComparisons.targetProfile
   let artifacts := (certificateRows .defaultGCC ++ certificateRows .defaultClang).toList
@@ -560,6 +611,8 @@ private def report (request : Request) (gccBytes clangBytes : Nat) : Json :=
       ("average_progress", toJson ("exact retired model instructions including RET and GCC ENDBR64: average GCC 7, Clang 6; universal decoded-execution observations; no physical timing or minimum-cost claim" : String)),
       ("multiply_semantics", toJson ("full64 RDI/RSI inputs; unsigned residue of the unbounded natural product modulo 2^64; all full64 pairs including wrapping products admitted; every independent status-flag vector stream terminates, including independent undefined PF/AF/ZF/SF; IMUL CF/OF follow signed full-product truncation overflow; complete RAM and permissions, original caller and RET-slot resources and current code authority retained at every prefix and return; ABI and result established at return" : String)),
       ("multiply_progress", toJson ("exact retired model instructions including RET and GCC ENDBR64: multiplication GCC 4, Clang 3; universal decoded vector-execution observations with the sole original return-slot read; no physical timing or minimum-cost claim" : String)),
+      ("signum_semantics", toJson ("independent integer-order signum of signed low32 RDI returned as signed low32 RAX: negative, zero and positive inputs produce -1, 0 and 1; all signed low32 inputs including INT32_MIN admitted, with arbitrary upper32 RDI; every independent status-flag vector stream terminates; useful INT32_MIN witness does not restrict admission; complete RAM and permissions, original caller and RET-slot resources and current code authority retained at every prefix and return; ABI and result established at return" : String)),
+      ("signum_progress", toJson ("exact retired model instructions including RET and GCC ENDBR64: signum GCC 7, Clang 7; universal decoded vector-execution observations with the sole original return-slot read; full64 RAX zero-extends the signed low32 result bits; no physical timing or minimum-cost claim" : String)),
       ("unary_progress", toJson ("exact retired model instructions including RET and GCC ENDBR64: absolute value GCC 5, Clang 4; byte reversal GCC 4, Clang 3; no physical timing or minimum-cost claim" : String)),
       ("buffer_semantics", toJson ("first bounded NUL length for arbitrary admitted byte snapshots with n < 2^64; all AF streams terminate by dynamic rank; original caller, full RAM and every-prefix read authority retained; n=0 requires no data loan or pointer validity" : String)),
       ("index_search_semantics", toJson ("earliest matching byte or little-endian u32 index, or full64 SIZE_MAX when absent, for arbitrary admitted snapshots with n < 2^64; low8/low32 search key permits arbitrary upper bits; all AF streams terminate by dynamic rank; original caller, full RAM, ABI and every-prefix current read authority retained; n=0 requires no data loan or pointer validity" : String)),
@@ -598,6 +651,7 @@ private def report (request : Request) (gccBytes clangBytes : Nat) : Json :=
       "No source/IR preservation, physical CPU refinement, CET-enabled execution or native Linux startup is proved.",
       "Dynamic linker, relocation, TLS and external calls receive no certificate here; asynchronous interference and concurrency outside the fixed managed closed cohort/profile are unsupported.",
       "Scalar certificates retain their registered caller/resource assumptions and exclude concurrent interference.",
+      "Multiplication and signum use sequential-x86-flags-callable-v1 with stable ordinary RAM, supplied logical authority, four-level canonical addresses, alignment checking off, CET/IBT/shadow stacks off and no asynchronous interference; native loading/authority, CPU/Linux correspondence and source/compiler preservation remain separate obligations.",
       "The concurrent result establishes only the modeled managed profile: no published physical x86-TSO refinement, Linux/GNU memory-order contract, scheduling fairness or hardware-minimum progress bound is proved.",
       "Plain acquire/release uses managed-tso64-plain64-cohort-v1 with stable scalar RAM, stable translations/no hidden aliases, fixed worker population and CET off; closed histories require initially and finally empty FIFOs; no source/compiler ordering preservation, physical x86-TSO/Linux refinement or fairness is proved.",
       "Byte comparison uses the current borrowed sequential callable profile with stable ordinary RAM, absent asynchronous interference and CET off; no source/LLVM preservation, native Linux behavior or concurrent-buffer claim is proved.",
