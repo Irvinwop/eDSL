@@ -5,6 +5,11 @@ SPDX-License-Identifier: Apache-2.0
 import EDSL.X86.CallReturn.Decode
 import EDSL.X86.Sequential.Code
 
+set_option autoImplicit false
+set_option warningAsError true
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
+
 namespace EDSL.X86.CallReturn
 
 variable {α β : Type}
@@ -142,6 +147,9 @@ private theorem sequential_rex_stack {state : State} {opcode : Byte}
     outside (by decide : 0x0f < 256) (by decide),
     outside (by decide : 0x31 < 256) (by decide),
     outside (by decide : 0x33 < 256) (by decide),
+    outside (by decide : 0x09 < 256) (by decide),
+    outside (by decide : 0x0b < 256) (by decide),
+    outside (by decide : 0xc1 < 256) (by decide),
     outside (by decide : 0x03 < 256) (by decide),
     outside (by decide : 0x89 < 256) (by decide),
     outside (by decide : 0x8b < 256) (by decide),
@@ -187,6 +195,9 @@ private theorem rex32_rejects_stack {state : State} {rex opcode : Byte}
       outside (by decide : 0x2b < 256) (by decide),
       outside (by decide : 0x31 < 256) (by decide),
       outside (by decide : 0x33 < 256) (by decide),
+    outside (by decide : 0x09 < 256) (by decide),
+    outside (by decide : 0x0b < 256) (by decide),
+    outside (by decide : 0xc1 < 256) (by decide),
       outside (by decide : 0x39 < 256) (by decide),
       outside (by decide : 0x3b < 256) (by decide),
       outside (by decide : 0x85 < 256) (by decide)]

@@ -3,25 +3,52 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.CallStack.Coverage
+import EDSL.X86.CallReturn.DecodeTransport
 import tests.fixtures.CallStack.CPUFixture
 import EDSL.Audit
 
+set_option autoImplicit false
 set_option warningAsError true
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
 
 namespace EDSL.Tests.CallStackCoverage
 open X86 OS OS.StackFrame CallStack
 open EDSL.Tests.StackFrameCPU
+
+/-- Transport checked finite-code decoding through current code authority rather
+than reducing the entire synthetic allocation/store history in each test. -/
+private theorem decode_current {shared : Shared} {state : X86.State}
+    {offset : Nat} {instruction : CallReturn.Instruction}
+    (current : Current frame shared state) (inside : offset < frame.call.bytes.length)
+    (pc : state.rip = frame.call.code + BitVec.ofNat 64 offset)
+    (decoded : CallReturn.decodeAt (Sequential.codeState frame.call.bytes offset) = .ok instruction) :
+    CallReturn.decodeAt state = .ok instruction := by
+  have code : CodeAt state.memory frame.call.code frame.call.bytes := by
+    rw [current.coupled]
+    exact current.contract.pureCall.code
+  exact CallReturn.decodeAt_code code (by decide) inside state rfl pc decoded
+
+private theorem start_decode : CallReturn.decodeAt start = .ok (.callRelative32 1) :=
+  decode_current startCurrent (offset := 0) (by decide) rfl (by rfl)
+
+private theorem called_decode : CallReturn.decodeAt called = .ok (.sequential (.legacy .ret)) :=
+  decode_current ((callStep false).current startCurrent) (offset := 6) (by decide) rfl (by rfl)
+
+private theorem resumed_decode : CallReturn.decodeAt resumed = .ok (.sequential (.legacy .ret)) :=
+  decode_current ((internalStep false).current ((callStep false).current startCurrent))
+    (offset := 5) (by decide) rfl (by rfl)
 
 -- Reuse the initialized, owned synthetic CALL/helper-RET/caller-RET machine
 -- trace. Each receipt binds the actual decode to the full seven-byte extent.
 theorem covered_trace (choices : CallReturn.Choices) :
     CoveredExecution frame choices seed start calledWorld
       ⟨finished, 3, [⟨.stack,65536,8⟩,⟨.stack,65544,8⟩]⟩ := by
-  exact .next (callStep (choices 0)) ⟨0, .callRelative32 1, rfl, rfl, by decide⟩
+  exact .next (callStep (choices 0)) ⟨0, .callRelative32 1, rfl, start_decode, by decide⟩
     (.next (internalStep ((choices.drop 1) 0))
-      ⟨6, .sequential (.legacy .ret), rfl, rfl, by decide⟩
+      ⟨6, .sequential (.legacy .ret), rfl, called_decode, by decide⟩
       (.ret (terminalStep (((choices.drop 1).drop 1) 0))
-        ⟨5, .sequential (.legacy .ret), rfl, rfl, by decide⟩))
+        ⟨5, .sequential (.legacy .ret), rfl, resumed_decode, by decide⟩))
 
 -- The real whole-code binding and current resources accompany successful
 -- evaluation. The actual terminal target is not even decodable; coverage must
@@ -39,9 +66,9 @@ theorem covered_run (choices : CallReturn.Choices) :
     exact startCurrent.contract.pureCall.code
   · intro fetched
     obtain ⟨_, _, _, observed, _⟩ := fetched
-    have fault : CallReturn.decodeAt finished = .error (.inaccessibleInstruction finished.rip) := rfl
-    rw [fault] at observed
-    cases observed
+    have missing : (CallReturn.decodeAt finished).toOption = none := by decide +kernel
+    rw [observed] at missing
+    cases missing
 
 def shortImmediate : Descriptor :=
   { frame with call := { frame.call with bytes := frame.call.bytes.take 4 } }
@@ -52,7 +79,7 @@ theorem reject_truncated_immediate (choices : CallReturn.Choices) :
     ¬∃ evolved result, CoveredExecution shortImmediate choices seed start evolved result := by
   intro ⟨_, _, trace⟩
   have bound : 5 ≤ 4 := trace.fetchWithin.length_le
-    (show CallReturn.decodeAt start = .ok (.callRelative32 1) from rfl)
+    start_decode
   omega
 
 def shortHelper : Descriptor :=
@@ -72,7 +99,7 @@ theorem reject_truncated_helper (choices : CallReturn.Choices) :
   have fetched := trace.prefix block (by rw [cost]; decide)
   have bound : 6 + 1 ≤ 6 :=
     (FetchWithin.atOffset_iff (frame := shortHelper) (instruction := .sequential (.legacy .ret))
-      (offset := 6) (by decide) (by decide) rfl rfl).mp fetched
+      (offset := 6) (by decide) (by decide) rfl called_decode).mp fetched
   omega
 
 def shortTerminal : Descriptor :=
@@ -85,7 +112,7 @@ theorem reject_truncated_terminal (choices : CallReturn.Choices) :
   intro ⟨_, _, trace⟩
   have bound : 5 + 1 ≤ 5 :=
     (FetchWithin.atOffset_iff (frame := shortTerminal) (instruction := .sequential (.legacy .ret))
-      (offset := 5) (by decide) (by decide) rfl rfl).mp trace.fetchWithin
+      (offset := 5) (by decide) (by decide) rfl resumed_decode).mp trace.fetchWithin
   omega
 
 end EDSL.Tests.CallStackCoverage
