@@ -146,7 +146,7 @@ The axiom audit also imports that aggregate, including all root EDSL declaration
 EOF
         else
             cat >> "$output/READY.md" <<'EOF'
-The fresh replay covers corpus.Certify only; root EDSL replay is not claimed.
+The fresh replay covers the named CorpusCertificateChecks assertions and their corpus.Certify imports; root EDSL replay is not claimed.
 EOF
         fi
     else
@@ -662,6 +662,29 @@ theorem mathematicalResult (compiler : EDSL.Corpus.V1.MultiplyCode.Compiler)
     (resources compiler resource initial pre).1 choices
   exact ⟨result, execution, post.result, post.memory, post.returnAddress,
     post.stackPointer, current⟩
+
+/-- Run every supplied full64 pair through the actual installed caller.
+This checks the result against the supplied operands, independently of how
+the resource and initial-state constructors store or bind their arguments. -/
+theorem allPairsResult (compiler : EDSL.Corpus.V1.MultiplyCode.Compiler)
+    (left right : EDSL.X86.Word) :
+    EDSL.X86.Sequential.AllExecutionsWith
+      (EDSL.Corpus.V1.MultiplyResources.initial compiler (left,right)) (fun result =>
+        (result.state.registers .rax).toNat = (left.toNat * right.toNat) % 2^64 ∧
+        result.state.memory =
+          (EDSL.Corpus.V1.MultiplyResources.initial compiler (left,right)).memory ∧
+        result.state.rip =
+          (EDSL.Corpus.V1.MultiplyResources.resource compiler (left,right)).call.returnAddress ∧
+        result.state.registers .rsp =
+          (EDSL.Corpus.V1.MultiplyResources.initial compiler (left,right)).registers .rsp + 8 ∧
+        EDSL.OS.CallResources.Current
+          (EDSL.Corpus.V1.MultiplyResources.resource compiler (left,right)).call
+          (EDSL.Corpus.V1.MultiplyResources.resource compiler (left,right)).shared
+          result.state) :=
+  mathematicalResult compiler
+    (EDSL.Corpus.V1.MultiplyResources.resource compiler (left,right))
+    (EDSL.Corpus.V1.MultiplyResources.initial compiler (left,right))
+    (allPairs compiler left right)
 
 -- Actual retired instructions, including RET and GCC ENDBR64, are concluded
 -- for arbitrary admitted prestates and all independent flag-vector streams.

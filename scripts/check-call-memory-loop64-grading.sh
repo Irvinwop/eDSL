@@ -401,7 +401,14 @@ for controller in driver exporter; do
 done
 for controller_source in Tools/Grade/Function.lean Tools/Grade/CallStack.lean Tools/Grade/CallMemory64.lean \
     Tools/Grade/CallMemoryLoop64.lean Tools/Grade/AtomicLogical64.lean Tools/Grade/AtomicSet64.lean; do
-    checked grep -Fq 'let env ← trustedEnvironment' "$controller_source"
+    if [[ $controller_source == Tools/Grade/Function.lean ]]; then
+        # The registered CLI keeps legacy packets in the original snapshot.
+        checked grep -Fxq '    let env ← match id with' "$controller_source"
+        checked grep -Fxq '      | .legacy _ => trustedEnvironment' "$controller_source"
+        checked grep -Fxq '      | .multiplyModulo64 => trustedRegistryEnvironment' "$controller_source"
+    else
+        checked grep -Fq 'let env ← trustedEnvironment' "$controller_source"
+    fi
     checked grep -Fq 'let limits : Limits := {}' "$controller_source"
 done
 end_phase
