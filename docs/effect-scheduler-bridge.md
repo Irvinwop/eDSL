@@ -71,6 +71,49 @@ local CPU while publishing the FIFO head into the actual world. This theorem
 concerns the draining worker. Publication can change memory seen by another
 worker, so a resumed peer cannot assume its previous local CPU remains equal.
 
+## Generated blocks and cutpoints
+
+[OneStep](../EDSL/X86/VCGen/Effects/OneStep.lean) generates continuation
+obligations by matching the production executor. Its head-equivalence theorem
+authenticates the same complete observation using current code and decoding.
+The selected flag valuations remain explicit; choosing uniform Bool values
+does not cover instructions with independently undefined flags.
+
+[Passive](../EDSL/OS/TSO64/EffectSimulation/Passive.lean) records connected native
+origins and closes assertions under peer issues and every drain. Existing history
+needs its own initial admission and connected trace. The saved-worker frame
+preserves context, phase, resources and the store counter; shared RAM and pending
+entries can change. [Resources](../EDSL/OS/TSO64/EffectSimulation/Resources.lean)
+transports original worker authority and protected caller reads across origins.
+
+[Resumable.Block](../EDSL/OS/TSO64/EffectSimulation/Resumable/Block.lean) builds
+the bounded ordinary-block WP from these rules. A fixed Descriptor retains the
+exact bytes, checked structural graph and original resources. Every instruction
+boundary regenerates its head and resource gates at the actual resumed state.
+Passive actions retain the residual node and fuel; an own issue consumes fuel.
+Atomic and syscall heads remain outside this ordinary adapter.
+
+[Resumable.Simulation](../EDSL/OS/TSO64/EffectSimulation/Resumable/Simulation.lean)
+constructs the existing native-origin simulation from client cutpoint invariants
+and generated block proofs. A reached cutpoint starts its next residual immediately
+at that state, before another passive action. The caller supplies independent
+entry/ABI facts and discharges the generated obligations; graph discovery alone
+is not a functional certificate.
+
+The returned-position theorem derives a historical response and its Post from
+an actual returned observation. Later publication retains that response prefix
+and the current returned register frame. It does not move a memory-dependent
+Post to the later world. All peer, blocked and publication positions remain in
+the schedule. This is conditional partial correctness and current own-issue
+enabledness; whole-program termination, scheduler fairness, exact accounting
+and native-RMW boundaries need additional proofs.
+
+The identity client derives a fuel-two residual for MOV RAX,RDI; RET from an
+arbitrary input word and present caller/resource admission, allowing nonempty
+initial FIFOs and passive interference at both boundaries. The passive-history
+regression distinguishes saved returned registers from RAM changed by later
+publication and retains a blocked attempt in the original schedule positions.
+
 ## Composing real schedules
 
 `EDSL.OS.TSO64.EffectSimulation.Lifting` supplies a generic proof fold.
@@ -95,7 +138,6 @@ profiles and resource model. They add no opcodes, lifecycle transitions or lock
 protocol. Sequential DWORD atomic events are not converted into the scheduler's
 full64 RMW events.
 
-Whole-program safety under interference, lock transfer, queued release,
-unbounded loops and conditional progress require additional protocol and
-simulation proofs. Source/compiler preservation and physical CPU/OS
+Concrete program contracts, lock transfer, queued release and liveness require
+client invariants and protocol proofs. Source/compiler preservation and physical CPU/OS
 correspondence remain separate obligations.

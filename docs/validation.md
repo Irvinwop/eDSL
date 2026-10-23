@@ -16,7 +16,10 @@ This target covers checked ordinary issue, mixed-width forwarding, pending
 stores at RET, publication after return, peer-publication resumption and
 current-authority rejection under both existing profiles. Scalar/control
 regressions exercise real loop backedges while stores remain pending, original
-code-loan confinement and excluded atomic/vector forms. The
+code-loan confinement and excluded atomic/vector forms. Passive histories retain
+blocked/drain positions and demonstrate memory changes after return. The identity
+client discharges generated block obligations from arbitrary present input and
+caller/resource admission. The
 [bridge guide](effect-scheduler-bridge.md) distinguishes single-step admission
 from the client simulation law required for an actual interleaved schedule.
 These checks add no frozen-corpus coverage or physical CPU/OS correspondence.

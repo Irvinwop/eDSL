@@ -29,6 +29,12 @@ remain buffered. `queue_checked` connects the independent queue-effect contract
 back to actual admission, retaining ordinary-grant priority and the selected
 managed identity. A managed store appends to the queue; it does not publish RAM.
 
+For generated multi-instruction proofs, the [effect/scheduler bridge](effect-scheduler-bridge.md#generated-blocks-and-cutpoints)
+provides current-state bounded block obligations and a sparse-cutpoint adapter.
+Its passive-origin closure regenerates instruction evidence after interference;
+client invariants replace a separate ghost phase for every instruction. Return
+postconditions remain tied to their actual response position.
+
 ## Reusing a return response
 
 `EDSL.OS.TSO64.Return` exposes a common RET origin and response projection for
