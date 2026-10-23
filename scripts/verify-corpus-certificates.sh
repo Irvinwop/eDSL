@@ -36,7 +36,11 @@ lean_lock=(env "PATH=${ELAN_HOME:-$HOME/.elan}/bin:$PATH" LEAN_NUM_THREADS=1
     flock /tmp/edsl-lean-build.lock)
 search_path=$output/lib:$root/.lake/build/lib/lean
 lean_env=("${lean_lock[@]}" lake env env "LEAN_PATH=$search_path")
-cli=("${lean_env[@]}" lean -DwarningAsError=true --run corpus/Certify.lean)
+# Reuse the private corpus.Certify object emitted below. Re-elaborating the
+# same report source for every changed-input control adds no proof evidence.
+# --run executes the imported, compiled main; the full fresh replay is separate.
+printf 'import corpus.Certify\n' > "$output/source/CorpusCLI.lean"
+cli=("${lean_env[@]}" lean -j1 -DwarningAsError=true --run "$output/source/CorpusCLI.lean")
 gcc_file=corpus/v1/gcc/final.elf
 clang_file=corpus/v1/clang/final.elf
 stage=setup
@@ -1177,6 +1181,7 @@ length == 1 and (.[0] |
     any(.[]; contains("Fresh kernel replay is a separate verification-gate step"))))
 JQ
 gate_inputs=("$output/Audit.lean" "$output/source/CorpusCertificateChecks.lean"
+    "$output/source/CorpusCLI.lean"
     "$output/check-report.jq" "$output/scope.txt"
     "$output/fresh-target.txt" "$output/fresh-receipt-label.txt")
 if [[ $full_project == true ]]; then
