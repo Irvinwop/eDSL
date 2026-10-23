@@ -11,6 +11,7 @@ See [validation requirements](../docs/validation.md) for prerequisites and scope
 | Project-wide transitive axiom policy and rejection of an untrusted dependency | `bash scripts/check-audit.sh` after building `EDSL.All` |
 | Import owned named ELF functions, prove doubling/current resources, compose modules and reject stale proofs | `bash scripts/check-named-elf-import.sh` |
 | Reproduce frozen compiler/CFG diagnostics | `bash scripts/verify-corpus-v1.sh` |
+| Registered scalar packet isolation, raw/ELF binding and wrong-task rejection | `bash scripts/verify-multiply-packets.sh`, `bash scripts/verify-signum-packets.sh` (shared `verify-registered-packets.sh`) |
 | Check independent CPU observations for supported search/byte instructions | `bash scripts/check-sequential-search-native.sh`, `bash scripts/check-sequential-byte-order-native.sh` |
 | Capture and kernel-check owned NEG32/BSWAP64 CPU observations | `bash scripts/verify-sequential-unary.sh` |
 | Other compiler, OS, grading and native profiles | Their individual `verify-*.sh` / `check-*.sh` scripts, linked from the [reference index](../docs/README.md) |

@@ -391,6 +391,13 @@ full64 argument pairs; RAX is the unbounded natural product modulo 2^64.
 Original caller loans, every-prefix read authority, ABI preservation and current
 resources at the actual return are part of its claim.
 
+The `signumSigned32` registered task uses the same vector executor and shared
+controller. It admits every signed low32 input, including INT32_MIN, and
+observes signed low32 RAX as -1, 0 or 1 according to the input's integer order.
+Only low32 RDI is bound. Its named-ELF certificates retain the complete current
+resource policy; whole-file admission and native correspondence are distinct
+from raw-code claim checking.
+
 For these registered-model tasks, export with `edsl-proof-export --registered
 MODULE THEOREM OUTPUT.json [--body]`, then submit with `edsl-grade
 multiplyModulo64 INPUT OUTPUT.json`. The exporter uses a fixed snapshot
@@ -405,3 +412,9 @@ acceptance, and rejection of modified code and truncated extents. The original
 complete corpus files have separate exact named-ELF resource certificates.
 This packet gate alone does not promote corpus coverage or establish native
 CPU/OS correspondence.
+
+`scripts/verify-signum-packets.sh` applies the same shared packet gate to the
+signed signum clients. Both task wrappers supply only a registry name, client
+proof names and original frozen extents to `verify-registered-packets.sh`. The
+shared gate additionally rejects a packet submitted for another registered
+task; adding a program does not require another packet checker.

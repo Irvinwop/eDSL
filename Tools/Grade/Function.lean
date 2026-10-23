@@ -4,6 +4,11 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.Grading.RegistryDriver
 
+set_option autoImplicit false
+set_option warningAsError true
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
+
 open EDSLGrader EDSLGrader.Runtime
 
 def main (args : List String) : IO UInt32 := do
@@ -16,7 +21,7 @@ def main (args : List String) : IO UInt32 := do
       pure (id, input, proof, some span)
     | _ => none
   let some (id, input, proof, span) := selected | do
-    stderr.putStrLn "usage: edsl-grade [--elf SPAN_BYTES] {pair32|stride32|write32|storeReturn32|storeReturnValue64|countedStore64|maximum64|minimum64|signedMaximum64|arrayMaximum64|arraySum64|intersection64|union64|symmetricDifference64|addModulo64|clampSigned32|absSigned32|byteSwap64|populationCount64|average64|parity64|rotateLeft64|multiplyModulo64} INPUT PROOF.json"
+    stderr.putStrLn "usage: edsl-grade [--elf SPAN_BYTES] {pair32|stride32|write32|storeReturn32|storeReturnValue64|countedStore64|maximum64|minimum64|signedMaximum64|arrayMaximum64|arraySum64|intersection64|union64|symmetricDifference64|addModulo64|clampSigned32|absSigned32|byteSwap64|populationCount64|average64|parity64|rotateLeft64|multiplyModulo64|signumSigned32} INPUT PROOF.json"
     return 2
   try
     let limits : Limits := {}
@@ -25,6 +30,7 @@ def main (args : List String) : IO UInt32 := do
     let env ← match id with
       | .legacy _ => trustedEnvironment
       | .multiplyModulo64 => trustedRegistryEnvironment
+      | .signumSigned32 => trustedRegistryEnvironment
     let result := do
       let raw ← raw
       let packet ← packet

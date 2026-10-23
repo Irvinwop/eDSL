@@ -406,6 +406,7 @@ for controller_source in Tools/Grade/Function.lean Tools/Grade/CallStack.lean To
         checked grep -Fxq '    let env ← match id with' "$controller_source"
         checked grep -Fxq '      | .legacy _ => trustedEnvironment' "$controller_source"
         checked grep -Fxq '      | .multiplyModulo64 => trustedRegistryEnvironment' "$controller_source"
+        checked grep -Fxq '      | .signumSigned32 => trustedRegistryEnvironment' "$controller_source"
     else
         checked grep -Fq 'let env ← trustedEnvironment' "$controller_source"
     fi

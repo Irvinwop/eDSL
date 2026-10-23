@@ -37,8 +37,23 @@ corresponding generated obligations.
 `EDSL.WordMath.Signum` and `EDSL.Scalar32.Signum` provide an independent signed
 signum contract and reusable shift/order algebra. They include every low32
 input, including the minimum signed value, and leave argument upper halves
-arbitrary. These components alone do not certify a compiler artifact; the
-published corpus measurement remains unchanged.
+arbitrary. The frozen GCC and Clang signum functions reuse the common graph
+checker, vector weakest-precondition generator and caller-resource adapters.
+
+Import `EDSL.Corpus.V1.SignumRegistered` for named-ELF certificates.
+`SignumResources.allInputsResult` binds every supplied low32 value to the
+actual installed RDI argument and proves the independent integer-order result,
+complete memory preservation, original caller return and current resources.
+`SignumBodies.observations` additionally records seven retired instructions,
+the sole original eight-byte return read, zero-extended RAX and preservation
+of registers outside each compiler's scratch set. Seven is a modeled count,
+not an optimality or CPU-cycle claim.
+
+These proofs assume stable ordinary RAM, supplied logical resource authority,
+four-level canonical addresses, disabled alignment checking and CET/IBT/shadow
+stacks, and no asynchronous interference. Native CPU/OS correspondence and
+source/compiler preservation remain separate obligations. Public corpus
+coverage remains unchanged until fresh corpus and packet acceptance checks.
 
 ## Validation
 
@@ -47,4 +62,8 @@ against independent result and flag snapshots, both off-diagonal AF/OF choices,
 masked counts, register banks, operand direction, truncation and per-byte fetch
 permissions. `tests/WordMathSignum.lean` refutes wrong shift kinds, a wrong count,
 XOR in place of OR and a reversed zero test using the independent order contract.
-Both belong to the existing `ChoiceTests` Lake target.
+Both belong to the existing `ChoiceTests` Lake target, alongside
+`tests/SignumBodies.lean`, `tests/SignumResources.lean` and
+`tests/GradingSignum.lean`. The body checks execute the complete compiler
+windows, including signed corners with arbitrary input upper halves, and
+reject owned shift/Boolean mutations against the independent order contract.

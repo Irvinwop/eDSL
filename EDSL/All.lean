@@ -164,4 +164,5 @@ import EDSL.WordMath.Multiplication
 import EDSL.Corpus.V1.MultiplyWindows
 import EDSL.Corpus.V1.MultiplyBodies
 import EDSL.Corpus.V1.MultiplyRegistered
+import EDSL.Corpus.V1.SignumRegistered
 import EDSL.Grading.RegisteredArtifact

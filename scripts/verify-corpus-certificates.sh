@@ -16,7 +16,7 @@ case "$#:${1:-}" in
     1:--help)
         echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]'
         echo 'Builds twenty-two scalar, two managed concurrent fetch-add, two bounded byte-scan, four first-match search, two byte-comparison, two byte-equality and four managed plain load/store certificates, audits axioms and checks file binding.'
-        echo 'Default: fresh-replays the named certificate checks and corpus.Certify. --full-project: also builds the full catalogue and verification, unary, popcount, average, parity, rotation, low-byte, CFG-profile and full-vector multiplication tests; fresh-replays them together and runs multiplication packet controls.'
+        echo 'Default: fresh-replays the named certificate checks and corpus.Certify. --full-project: also builds the full catalogue and verification, unary, popcount, average, parity, rotation, low-byte, CFG-profile and full-vector multiplication/signum tests; fresh-replays them together and runs both registered packet gates.'
         exit 0 ;;
     *) echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]' >&2; exit 2 ;;
 esac
@@ -200,6 +200,8 @@ record parity-certificate-api test -f EDSL/Corpus/V1/ParityCertificates.lean
 record rotation-certificate-api test -f EDSL/Corpus/V1/RotationCertificates.lean
 record multiply-certificate-api test -f EDSL/Corpus/V1/MultiplyRegistered.lean
 record multiply-packet-gate test -f scripts/verify-multiply-packets.sh
+record signum-certificate-api test -f EDSL/Corpus/V1/SignumRegistered.lean
+record signum-packet-gate test -f scripts/verify-signum-packets.sh
 record plain-certificate-api test -f EDSL/Corpus/PlainCertificate.lean
 record plain-witness-api test -f EDSL/Corpus/PlainWitnesses.lean
 record plain-mixed-witness-api test -f EDSL/Corpus/PlainMixedWitnesses.lean
@@ -215,6 +217,10 @@ import tests.FlagChoiceExecution
 import tests.SequentialMultiply
 import tests.MultiplyResources
 import tests.GradingMultiply
+import tests.SignumBodies
+import tests.SignumResources
+import tests.GradingSignum
+import tests.SignumCertificates
 import corpus.Certify
 import CorpusCertificateChecks
 import tests.VerificationImports
@@ -576,11 +582,17 @@ example (compiler : EDSL.Corpus.V1.PlainInputs.Compiler) :
 #print axioms EDSL.Corpus.Reporting.acceptedMultiplyCertificates
 #print axioms EDSL.Corpus.V1.MultiplyRegistered.claim
 #print axioms EDSL.Corpus.V1.MultiplyBodies.observations
+#print axioms EDSL.Tests.SignumCertificates.files
+#print axioms EDSL.Tests.SignumCertificates.initial_binding
+#print axioms EDSL.Tests.SignumCertificates.allInputsResult
+#print axioms EDSL.Tests.SignumCertificates.resources
+#print axioms EDSL.Tests.SignumCertificates.observations
 #audit_edsl
 LEAN
 
 # Named independent obligations are stored and included in both fresh targets.
 cat > "$output/source/CorpusCertificateChecks.lean" <<'LEAN'
+import tests.SignumCertificates
 import corpus.Certify
 import EDSL.Audit
 
@@ -1120,6 +1132,7 @@ certificate_targets=(EDSL.Corpus.V1.Comparisons EDSL.Corpus.V1.Arithmetic EDSL.C
     EDSL.Corpus.V1.UnaryCertificates EDSL.Corpus.V1.PopcountCertificates
     EDSL.Corpus.V1.AverageCertificates EDSL.Corpus.V1.ParityCertificates
     EDSL.Corpus.V1.RotationCertificates EDSL.Corpus.V1.MultiplyRegistered
+    EDSL.Corpus.V1.SignumRegistered tests.SignumCertificates
     EDSL.Corpus.PlainMixedWitnesses)
 if [[ $full_project == true ]]; then
     record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests ParityTests RotationTests Low8Tests ByteEqualityTests CFGProfileTests ChoiceTests ManagedQueue64Tests \
@@ -1762,11 +1775,13 @@ clang	popcount	populationCount64	tests.GradingPopcount	EDSL.Tests.GradingPopcoun
 gcc	average	average64	tests.GradingAverage	EDSL.Tests.GradingAverage.raw_gcc	11712	20
 clang	average	average64	tests.GradingAverage	EDSL.Tests.GradingAverage.raw_clang	4928	16
 SCALAR_GRADING
-    # Reuse the dedicated registered raw/ELF packet gate, including its eight
-    # positive acceptances and sixteen code/extent rejections. It acquires its
-    # own per-command Lean lock and records nested receipts inside this run.
+    # Each registered task uses the shared raw/ELF packet gate: eight positives
+    # and twenty wrong-task/code/extent rejections. Each command takes its own
+    # Lean lock and records nested receipts inside this run.
     record multiply-packets env "EDSL_MULTIPLY_OUTPUT=$output/multiply-packets" \
         bash scripts/verify-multiply-packets.sh
+    record signum-packets env EDSL_SIGNUM_OUTPUT="$output/signum-packets" \
+        bash scripts/verify-signum-packets.sh
 fi
 
 record selected-offsets jq -r '.files[].certificates[0].file_offset' "$output/report.json"

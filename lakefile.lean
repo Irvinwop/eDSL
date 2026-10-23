@@ -202,5 +202,7 @@ lean_lib CFGProfileTests where
 lean_lib ChoiceTests where
   roots := #[`tests.FlagChoiceExecution, `tests.SequentialMultiply,
     `tests.MultiplyResources, `tests.GradingMultiply,
-    `tests.WordMathSignum, `tests.SequentialShiftRight32]
+    `tests.WordMathSignum, `tests.SequentialShiftRight32,
+    `tests.SignumBodies, `tests.SignumResources, `tests.GradingSignum,
+    `tests.SignumCertificates]
   moreLeanArgs := #["-DautoImplicit=false", "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
