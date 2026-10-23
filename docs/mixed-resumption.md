@@ -15,6 +15,9 @@ and their main APIs are listed below; the namespace is
 | `EDSL.OS.TSO64.EffectSimulation.Mixed.Block` | `rwp`, `Residual`, `Residual.resume`, `Residual.resume_of_step` |
 | `EDSL.OS.TSO64.EffectSimulation.Mixed.Simulation` | `Annotations`, `Entry`, `Response`, `Done`, `Annotations.simulation`, `Annotations.schedule`, `Annotations.schedule_cut`, `Annotations.returned_at` |
 | `EDSL.OS.TSO64.EffectSimulation.Mixed.Authority` | `Idle.stable`, `Idle.authorize`, `Idle.atomicFor`, `Idle.atomic_selection` |
+| `EDSL.OS.TSO64.EffectSimulation.Mixed.Counts` | `Counts.countRMW`, `Counts.logRMW`, `Counts.logRMW_idle` |
+| `EDSL.OS.TSO64.EffectSimulation.Mixed.CallerOnly` | `Binding.callerOnly_ready`, `Binding.execute_reference`, `OrdinaryIssued.of_callerOnly_reference` |
+| `EDSL.OS.TSO64.EffectSimulation.Mixed.Completion` | `PostIdleStable`, `Annotations.schedule_completion` |
 
 ## Client workflow
 
@@ -73,6 +76,24 @@ selector at a fixed address with retained resources (`Idle.atomic_selection`).
 It never establishes preservation of shared RAM contents. Current operand reads,
 pending FIFOs and reconstructed memory remain separate execution facts.
 
+## Shared accounting and ordinary nodes
+
+`Counts.countRMW` counts the selected worker's RMW observations as natural
+numbers; `Counts.logRMW` applies it to the complete connected tick log. A peer
+RMW, drain, blocked attempt, ordinary step or RET adds no own RMW. An own RMW
+adds one regardless of its arithmetic delta. `Counts.logRMW_idle` proves exact
+count preservation through authenticated interference and blocking. It does not
+infer an increment count from a modular change in the shared word. Clients
+still prove their program-specific relationship between input and event count.
+
+The caller-only bridge applies to one selected ordinary node whose instruction
+satisfies `Sequential.CallerOnly`; other graph nodes may be locked. The existing
+mixed graph caps authenticate the full window, without an additional 64-byte
+limit. Reference execution uses the actual saved context. Its caller-read
+contract and current protected loan regenerate real read and queue admission,
+then transport the complete observation to current local memory. Pending FIFO
+entries need not be empty. No RAM equality with the reference is assumed.
+
 ## Return and scope
 
 `Response.post` establishes `Post response.after response.history` at the exact
@@ -82,6 +103,13 @@ prefix and current returned-worker frame through later publication or peer work.
 A memory-dependent `Post` at return does not become `Post` of the later state;
 pending stores may remain at RET.
 
+For an assertion explicitly proved `PostIdleStable`,
+`Annotations.schedule_completion` establishes `Post` at the entire final history
+of an actual successful finite schedule whose selected worker has returned.
+The proof uses the real return, subsequent admitted interference, and the
+current worker phase. Stability must be proved for the chosen assertion; a
+memory-dependent return assertion receives no automatic extension.
+
 These results inherit CET-off long mode, aligned non-crossing scalar accesses,
 coherent write-back (WB) RAM, stable translation/permissions, injective physical
 backing and compatible line/page placement. Unmanaged aliases, mixed-width RMW
@@ -90,3 +118,7 @@ code/caller loans, synchronization and resource lifetimes remain explicit
 obligations; see the [bridge scope](effect-scheduler-bridge.md#scope). These results
 add no fairness, global termination, physical CPU or Linux/kernel refinement,
 whole-program instruction counts, lifecycle or ABI guarantees, or corpus coverage.
+
+`tests.MixedEventCounts` exercises the accounting on the independently admitted
+INC/RET client with a peer XADD(+4), two blocked attempts and two FIFO drains.
+It proves one actual RMW per worker while retaining all seven scheduler positions.

@@ -210,6 +210,7 @@ lean_lib EffectSimulationTests where
   roots := #[`tests.EffectTSO64Simulation, `tests.EffectTSO64Interference,
     `tests.EffectTSO64Authority, `tests.TSO64ScalarControl,
     `tests.EffectPassiveHistory, `tests.ResumableIdentity, `tests.MixedResumableBlocking,
+    `tests.MixedEventCounts,
     `tests.CallerOnlyTransport,
     `EDSL.OS.TSO64.EffectSimulation.Resumable.CallerOnly,
     `EDSL.Corpus.V1.CallerOnlyAdapters]
