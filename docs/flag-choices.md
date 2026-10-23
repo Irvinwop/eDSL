@@ -82,10 +82,20 @@ proof through the shared scalar/resource bridge; clients do not need a new
 resource-preservation proof for each program. The original Bool APIs remain
 available, with exact compatibility theorems.
 
-Both frozen multiply functions have neutral vector/resource ELF certificates.
-They are not yet accepted through the objective grader and do not increase
-published coverage: **18/40 functions and 36/80 artifacts**. Grader integration
-and complete corpus acceptance remain required before those totals increase.
+`Grading.registry` binds an execution model and its entire independent task.
+Legacy identifiers retain the original Bool contracts. `multiplyModulo64` fixes
+the vector model and full64 natural multiplication modulo 2^64, together with
+the shared resource policy. `Corpus.CertificateFor` adapts neutral ELF
+certificates to that trusted binding, retaining useful-domain evidence
+separately from universal resource admission.
+
+The objective grader accepts serialized reference/body packets for both frozen
+multiply bodies under its default limits. The packet gate checks client
+isolation, raw and synthetic ELF-container acceptance, and changed-byte/extent
+rejection. Exact original named-ELF binding comes from `MultiplyRegistered`,
+not those synthetic containers. Published corpus accounting remains
+**18/40 functions and 36/80 artifacts** until the full corpus reporting and
+acceptance gates include multiplication.
 Native CPU/Linux correspondence, concurrency and source/compiler preservation
 remain separate obligations. The callable target assumes stable ordinary RAM,
 64-bit mode, disabled CET/IBT/shadow stacks and no asynchronous interference.

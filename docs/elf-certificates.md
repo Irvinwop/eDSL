@@ -128,3 +128,10 @@ The shared route is:
 certificate. There is no conversion that treats IMUL as a Bool instruction.
 A neutral certificate does not select a grading task or establish corpus
 coverage; the grader must bind a trusted execution model and independent task.
+
+`Corpus.CertificateFor id file name` adds trusted registration to this shared
+composition. `Grading.registry id` fixes the execution model and whole task;
+`CertificateFor.ofReadOnly` requires equality with that complete binding. Its
+universal loaded-call resource theorem has no usefulness premise. Existing
+certificates convert through `.ofLegacy` and `.toLegacy` with their original
+Bool semantics, policies, admission and selected-address useful witness.

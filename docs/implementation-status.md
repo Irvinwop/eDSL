@@ -64,7 +64,7 @@ Earlier measurement files retain their historical counts. See
 | Proof infrastructure | Lean 4.35.0, warnings as errors, transitive axiom audit and fresh replay tooling | [Trust](trust.md); no third-party Lean package dependency |
 | Machine execution | Restricted decoder, memory/stack semantics, unbounded execution and evaluator correspondence | [Machine profile and exact-byte functions](coverage.md#supported-machine-profile) |
 | Reusable verification | Production-ISA VCG, sparse loop cutpoints, all-AF execution, real read origins and independent postconditions | [Checker](reusable-checker.md), [CFGs](cfg.md), [scalar calls](pure-call.md) |
-| Independent flag choices | Full flag-vector executor and VCG, register-only IMUL, universal multiply body proofs and exact ELF bindings | [Flag choices](flag-choices.md); grading/resource certificate integration remains open |
+| Independent flag choices | Full flag-vector executor/VCG, reusable resource and named-ELF certificates, trusted execution/task registry and multiplication packet grading | [Flag choices](flag-choices.md); corpus reporting and coverage promotion remain open |
 | Artifact binding | Raw bytes, restricted ELF loading, numeric windows, named symbols and spec-indexed complete-file certificates | [ELF](elf.md), [named functions](elf-function-symbol.md), [certificate API](elf-certificates.md) |
 | Sequential resources | Address spaces, allocation lifetimes/epochs, read loans, checked stores and current-RAM bridges | [Address spaces](address-space.md), [ownership](ownership.md), [borrowing](borrowing.md) |
 | Loops and calls | Restricted sums/scans, owned direct calls, DATA8 effects and counted helper contracts | [Capability index](coverage.md#sequential-functions-and-calls) |

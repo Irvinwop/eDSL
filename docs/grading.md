@@ -380,3 +380,28 @@ instructions for every actual accepted word-store execution on a useful input.
 The checked store/RET routine attains two while retaining its actual OS return
 history. See the [cost model](cost-model.md) for candidate scope, the necessary
 useful-input condition and the distinction from CPU time.
+
+## Execution model registration
+
+The additive `Grading.RegistryID` fixes both the production execution model and
+the complete mathematical/resource task. Existing task names retain their
+original trusted snapshot, Bool claims and packet route. The
+`multiplyModulo64` task uses independent status-flag choices and admits all
+full64 argument pairs; RAX is the unbounded natural product modulo 2^64.
+Original caller loans, every-prefix read authority, ABI preservation and current
+resources at the actual return are part of its claim.
+
+For these registered-model tasks, export with `edsl-proof-export --registered
+MODULE THEOREM OUTPUT.json [--body]`, then submit with `edsl-grade
+multiplyModulo64 INPUT OUTPUT.json`. The exporter uses a fixed snapshot
+matching this task family; only its separate client environment imports MODULE.
+The installed grader independently selects the expected proposition and checks
+packet declarations and exact artifact selection. Neither the packet nor a
+client specification can choose an execution model or replace the task.
+
+`scripts/verify-multiply-packets.sh` checks both frozen bodies in reference/body
+packet form, client/snapshot isolation, raw and synthetic ELF-container
+acceptance, and rejection of modified code and truncated extents. The original
+complete corpus files have separate exact named-ELF resource certificates.
+This packet gate alone does not promote corpus coverage or establish native
+CPU/OS correspondence.
