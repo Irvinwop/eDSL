@@ -6,6 +6,11 @@ import EDSL.X86.Machine
 import EDSL.X86.Memory64
 import EDSL.X86.Sequential.Condition
 
+set_option autoImplicit false
+set_option warningAsError true
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
+
 namespace EDSL.X86.Sequential
 
 /-- Replace exactly bits 0..7. In particular this is neither a full-register
@@ -53,6 +58,12 @@ def LogicalOp.eval (operation : LogicalOp) {width : Nat}
   | .bor => left ||| right
   | .bxor => left ^^^ right
 
+/-- The reviewed low32 right-shift operations. Both read the old destination;
+arithmetic shifting replicates its sign bit. -/
+inductive ShiftRightOp where
+  | logical | arithmetic
+  deriving DecidableEq, Repr
+
 /-- Exact supported alignment encodings, lengths 1..6, 9 and 15
 bytes. These are instruction encodings, not a general prefix grammar. The
 multi-byte forms require a processor supporting 0F 1F /0; `fifteen` additionally
@@ -83,7 +94,7 @@ inductive Instruction where
   | xorSelf32 (destination : Register)
   /-- Low32 logical register operands are captured in the prestate, including
   aliases. The full destination is zero extended. One optional W=0 REX byte
-  records length. Decoding currently admits XOR (31/33) only. -/
+  records length. Decoding admits XOR (31/33) and OR (09/0B). -/
   | logicalReg32 (operation : LogicalOp) (destination source : Register) (prefixed : Bool)
   /-- Low32 group-1 logical operation with a sign-extended imm8. The full
   destination is zero extended; AF is an independent undefined choice.
@@ -109,6 +120,12 @@ inductive Instruction where
   PF/AF/ZF/SF independently; the single-Bool executor rejects this opcode.
   Both operands are captured before the destination is overwritten. -/
   | imulReg64 (destination source : Register)
+  /-- Register-only C1 /5 (SHR) or /7 (SAR), low32 immediate count masked
+  to five bits. Decoding admits nonzero effective counts only, with no prefix
+  or one W=0 REX. AF and, beyond count one, OF are independent choices.
+  The single-Bool executor rejects this vector-only instruction. -/
+  | shiftRightImm32 (operation : ShiftRightOp) (destination : Register)
+      (immediate : Byte) (prefixed : Bool)
   /-- Register-only full64 byte reversal, with every modeled flag preserved.
   Canonical bytes are 48/49 0F C8+rd; REX.B selects the high register bank. -/
   | bswapReg64 (destination : Register)

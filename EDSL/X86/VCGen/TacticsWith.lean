@@ -7,6 +7,8 @@ import EDSL.X86.VCGen.Choices
 
 set_option autoImplicit false
 set_option warningAsError true
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
 
 namespace EDSL.X86.VCGen
 open Sequential
@@ -33,7 +35,8 @@ macro "vcgen_stepWith" graph:ident entry:ident simplify:tactic : tactic => `(tac
     intro choices
     conv in (CFG.Graph.node _ _).instruction =>
       simp [$graph:ident, $entry:ident, CFG.Graph.node]
-    dsimp only [executeWith, imulReg64State, Instruction.selectedChoice,
+    dsimp only [executeWith, Instruction.registerChoiceEffect, imulReg64State,
+      shiftRightImm32State, Instruction.selectedChoice,
       Instruction.choiceFlag, Instruction.choosesAF, FlagChoices.get,
       execute, Instruction.operandReads, Instruction.length, NopEncoding.length,
       Address.eval, executeInstruction, executeJnz, executeShortBranch,

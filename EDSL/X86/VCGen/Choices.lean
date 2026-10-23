@@ -3,9 +3,10 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.X86.VCGen.Core
-import EDSL.X86.Sequential.MachineChoices
+import EDSL.X86.Sequential.CFGChoices
 import EDSL.X86.Sequential.ExecutionChoices
 
+set_option autoImplicit false
 set_option warningAsError true
 set_option maxHeartbeats 300000
 set_option maxRecDepth 128
@@ -89,21 +90,6 @@ def wpWith (graph : CFG.Graph) (base : Word) (AllowedRead : State → Read → P
             (fun result => Post (result.prepend 1 observation.reads))
       | .atomic _ _ | .syscall _ => False
 
-/-- Current production read-only instructions retain complete current RAM.
-This proof uses the vector instruction effect, not a Bool decoded-step equation.
-An extension of the vector executor must preserve this semantic frame proof. -/
-private theorem executeWith_next_memory {initial final : State} {instruction : Sequential.Instruction}
-    {choices : FlagChoices} {observation : Observation}
-    (allowed : CFG.readOnly instruction = true)
-    (success : executeWith initial instruction choices = .ok observation)
-    (next : observation.result = .next final) : final.memory = initial.memory := by
-  rcases instruction.boolChoiceProfile_or_imul with single | ⟨destination, source, rfl⟩
-  · rw [executeWith_eq_execute initial instruction choices single] at success
-    exact CFG.execute_next_memory allowed success next
-  · cases success
-    cases next
-    rfl
-
 /-- Generated obligations yield a real execution for every complete choice
 stream. Decoding is transported from the validated bytes into the actual
 current executable RAM at each instruction. -/
@@ -141,7 +127,7 @@ theorem soundWith {bytes : List Byte} {graph : CFG.Graph} (valid : CFG.Valid byt
         simp only [outcome] at after
         obtain ⟨destination, nextPC, nextVC⟩ := after
         have memory : middle.memory = initial.memory :=
-          executeWith_next_memory (valid.nodes node).2.2.1 effect outcome
+          CFG.executeWith_next_memory (valid.nodes node).2.2.1 effect outcome
         have nextCode : CodeAt middle.memory base bytes := by rwa [memory]
         obtain ⟨result, execution, post, bound, trace⟩ :=
           induction nextCode nextPC nextVC (choices.drop 1)

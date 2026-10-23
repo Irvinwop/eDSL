@@ -7,32 +7,13 @@ import EDSL.Grading.PolicyFor
 
 set_option autoImplicit false
 set_option warningAsError true
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
 
 namespace EDSL.X86.VCGen
 open Sequential
 
 variable {profile : CFG.Profile}
-
-/-- Read-only vector observations are ordinary continuations or returns with
-complete memory preserved. Existing instruction effects use their established
-CFG frames; IMUL uses its production immutable state transformer directly. -/
-private theorem executeWith_policy_memory {initial : State}
-    {instruction : Sequential.Instruction} {choices : FlagChoices}
-    {observation : Observation}
-    (allowed : CFG.readOnly instruction = true)
-    (success : executeWith initial instruction choices = .ok observation) :
-    match observation.result with
-    | .next after | .returned after => after.memory = initial.memory
-    | .atomic _ _ | .syscall _ => False := by
-  rcases instruction.boolChoiceProfile_or_imul with single | ⟨destination, source, rfl⟩
-  · rw [executeWith_eq_execute initial instruction choices single] at success
-    obtain ⟨after, next | ⟨returned, _⟩⟩ := CFG.execute_result allowed success
-    · rw [next]
-      exact CFG.execute_next_memory allowed success next
-    · rw [returned]
-      exact CFG.execute_returned_memory allowed success returned
-  · cases success
-    exact imulReg64State_memory initial destination source choices
 
 /-- Every actual continuing vector prefix retains full initial memory, actual
 executable bytes and a checked node PC with a positive residual WP. The remaining
@@ -74,7 +55,7 @@ theorem block_residualWith {bytes : List Byte} {graph : CFG.Graph}
       simp only [effect] at one
       obtain ⟨destination, nextPC, nextVC⟩ := one.2
       have memory : middle.memory = initial.memory :=
-        executeWith_policy_memory (valid.nodes node).2.2.1 effect
+        CFG.executeWith_memory (valid.nodes node).2.2.1 effect
       have nextCode : CodeAt middle.memory base bytes := by rwa [memory]
       obtain ⟨framed, finalCode, remaining, finalNode, sum, positive, finalPC, residual⟩ :=
         induction nextCode nextPC nextVC
@@ -135,7 +116,7 @@ theorem readOnly_policyWith {bytes : List Byte} {graph : CFG.Graph}
       have actual : stepWith vector before = .ok observation := by
         rw [stepWith_eq_executeWith vector decoded]
         exact effect
-      refine ⟨observation, actual, ?_, executeWith_policy_memory readOnly effect⟩
+      refine ⟨observation, actual, ?_, CFG.executeWith_memory readOnly effect⟩
       intro read member
       exact ⟨one.1 read member, stepWith_reads_succeed actual read member⟩
 

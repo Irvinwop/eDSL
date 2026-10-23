@@ -58,6 +58,7 @@ import EDSL.X86.Sequential.Execution
 import EDSL.OS.ArrayResources
 import EDSL.OS.CallResources
 import EDSL.OS.ReadOnlyArithmetic64
+import EDSL.Scalar32.Signum
 import EDSL.X86.Sequential.ConditionFlags
 import EDSL.Comparison64.Resources
 import EDSL.Comparison64.Domain

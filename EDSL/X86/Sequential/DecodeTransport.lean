@@ -4,6 +4,11 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.X86.Sequential.Decode
 
+set_option autoImplicit false
+set_option warningAsError true
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
+
 namespace EDSL.X86.Sequential
 
 variable {α β : Type}
@@ -197,6 +202,23 @@ private theorem decodeLogicalReg32At_refines {source destination : State} (opcod
       | with_reducible exact SuccessRefines.refl _
       | exact t1
       | exact t2
+      | apply SuccessRefines.ite
+      | apply SuccessRefines.bind
+      | intro value
+
+private theorem decodeShiftRightImm32At_refines {source destination : State} (rex : Byte)
+    (prefixed : Bool) (transport : SuccessfulFetchTransport source destination) :
+    SuccessRefines (decodeShiftRightImm32At source rex prefixed)
+      (decodeShiftRightImm32At destination rex prefixed) := by
+  have t1 := transport 1 (by decide)
+  have t2 := transport 2 (by decide)
+  have t3 := transport 3 (by decide)
+  cases prefixed <;> unfold decodeShiftRightImm32At <;>
+    repeat first
+      | with_reducible exact SuccessRefines.refl _
+      | exact t1
+      | exact t2
+      | exact t3
       | apply SuccessRefines.ite
       | apply SuccessRefines.bind
       | intro value
@@ -406,6 +428,7 @@ private theorem decodeREX32At_refines {source destination : State} (rex : Byte)
     | with_reducible exact decodeCmpReg8At_refines _ _ _ transport
     | with_reducible exact decodeSubReg32At_refines _ _ _ transport
     | with_reducible exact decodeLogicalReg32At_refines _ _ _ transport
+    | with_reducible exact decodeShiftRightImm32At_refines _ _ transport
     | with_reducible exact decodeNegReg32At_refines _ _ transport
     | with_reducible exact decodeCounter32At_refines _ _ _ transport
     | with_reducible exact decodeCompare32At_refines _ _ _ transport
@@ -537,6 +560,7 @@ theorem decodeNewAt_transport {source destination : State} {instruction : Instru
       | with_reducible exact decodeCmpReg8At_refines _ _ _ transport
       | with_reducible exact decodeSubReg32At_refines _ _ _ transport
       | with_reducible exact decodeLogicalReg32At_refines _ _ _ transport
+      | with_reducible exact decodeShiftRightImm32At_refines _ _ transport
       | with_reducible exact decodeNegReg32At_refines _ _ transport
       | with_reducible exact decodeCounter32At_refines _ _ _ transport
       | with_reducible exact decode0F32At_refines transport
@@ -564,6 +588,7 @@ private theorem newJccOpcode_cases : ∀ opcode : Byte, NewJccOpcode opcode ↔
 private def BatchOpcode (opcode : Byte) : Prop :=
   (0xb0 ≤ opcode.toNat ∧ opcode.toNat ≤ 0xb7) ∨
   opcode = 0x33#8 ∨ opcode = 0x80#8 ∨ opcode = 0x38#8 ∨ opcode = 0x3a#8 ∨ opcode = 0x29#8 ∨ opcode = 0x2b#8 ∨
+    opcode = 0x09#8 ∨ opcode = 0x0b#8 ∨ opcode = 0xc1#8 ∨
     opcode = 0xf7#8 ∨ opcode = 0xff#8 ∨
     (opcode = 0x39#8 ∨ opcode = 0x3b#8 ∨ opcode = 0x85#8) ∨
     rex32Prefix opcode = true ∨
@@ -573,6 +598,7 @@ private theorem batchOpcode_cases (opcode : Byte) : BatchOpcode opcode ↔
     opcode = 0xb0 ∨ opcode = 0xb1 ∨ opcode = 0xb2 ∨ opcode = 0xb3 ∨
     opcode = 0xb4 ∨ opcode = 0xb5 ∨ opcode = 0xb6 ∨ opcode = 0xb7 ∨
     opcode = 0x33 ∨ opcode = 0x80 ∨ opcode = 0x38 ∨ opcode = 0x3a ∨ opcode = 0x29 ∨ opcode = 0x2b ∨
+    opcode = 0x09 ∨ opcode = 0x0b ∨ opcode = 0xc1 ∨
     opcode = 0xf7 ∨ opcode = 0xff ∨
     opcode = 0x39 ∨ opcode = 0x3b ∨ opcode = 0x85 ∨
     opcode = 0x40 ∨ opcode = 0x41 ∨ opcode = 0x42 ∨ opcode = 0x43 ∨
@@ -611,10 +637,10 @@ private theorem decodeNewAt_opcode {state : State} {instruction : Instruction} {
       rcases hMissing with ⟨hb9,hbb,hbc,hbd⟩
       rw [rexWPrefix_eq_true] at hrex
       simp only [BatchOpcode, not_or] at hbatch
-      rcases hbatch with ⟨himm8, h33, h80, h38, h3a, h29, h2b, hf7, hff, ⟨h39, h3b, h85⟩, h32, h90, h66, hf3⟩
+      rcases hbatch with ⟨himm8, h33, h80, h38, h3a, h29, h2b, h09, h0b, hc1, hf7, hff, ⟨h39, h3b, h85⟩, h32, h90, h66, hf3⟩
       rw [rex32Prefix_eq_true] at h32
       change ¬(0x70 ≤ opcode.toNat ∧ opcode.toNat ≤ 0x7f ∧ opcode ≠ 0x75#8) at hjcc
-      simp [decodeNewAt, decodeTailAt, fetched, himm8, h33, h80, h38, h3a, h29, h2b, hf7, hff, h39, h3b, h85, h32, h90, h66, hf3, h0f, h83,
+      simp [decodeNewAt, decodeTailAt, fetched, himm8, h33, h80, h38, h3a, h29, h2b, h09, h0b, hc1, hf7, hff, h39, h3b, h85, h32, h90, h66, hf3, h0f, h83,
         hb9, hbb, hbc, hbd, h31, h03, h74, heb, hrex, h89, h8b, hjcc] at decoded
 
 private theorem old_rejects_new_opcode {state : State} {opcode : Byte}
@@ -632,7 +658,7 @@ private theorem old_rejects_new_opcode {state : State} {opcode : Byte}
       rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
         simp [X86.decodeAt, fetched]
   · rcases (batchOpcode_cases opcode).mp batch with
-      rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+      rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
         simp [X86.decodeAt, fetched]
 
 private theorem decodeNewAt_fallback_irrelevant {state : State} {opcode : Byte}
@@ -651,7 +677,7 @@ private theorem decodeNewAt_fallback_irrelevant {state : State} {opcode : Byte}
     · rcases (newJccOpcode_cases opcode).mp jcc with
         rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
     · rcases (batchOpcode_cases opcode).mp batch with
-        rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+        rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
   · rcases mov with rfl | rfl | rfl | rfl <;> rfl
 
 /-- MOV overlaps the legacy ModRM cases, and 0F overlaps SYSCALL. Their

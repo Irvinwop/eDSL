@@ -4,6 +4,11 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.X86.Sequential.Model
 
+set_option autoImplicit false
+set_option warningAsError true
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
+
 namespace EDSL.X86.Sequential
 
 def NopEncoding.length : NopEncoding → Nat
@@ -48,7 +53,7 @@ def Instruction.length : Instruction → Nat
   | .addMem32 _ address | .loadMem32 _ address | .storeMem32 address _ => 2 + address.suffixBytes
   | .lea64 _ address | .loadMem64 _ address | .addMem64 _ address | .storeMem64 address _ =>
     3 + address.suffixBytes
-  | .logicalImm32 _ _ _ prefixed | .addImm32 _ _ prefixed => if prefixed then 4 else 3
+  | .shiftRightImm32 _ _ _ prefixed | .logicalImm32 _ _ _ prefixed | .addImm32 _ _ prefixed => if prefixed then 4 else 3
   | .inc32 _ prefixed => if prefixed then 3 else 2
   | .imulReg64 _ _ | .cmpImm64 _ _ | .addImm64 _ _ | .cmovReg64 _ _ _ => 4
 
@@ -181,19 +186,36 @@ def decodeSubReg32At (state : State) (opcode rex : Byte) (prefixed : Bool) :
   return if opcode = 0x29 then .subReg32 (rexModRMRM rex modrm) (rexModRMReg rex modrm) prefixed
     else .subReg32 (rexModRMReg rex modrm) (rexModRMRM rex modrm) prefixed
 
-/-- Register-only low32 XOR in either direction. The caller authenticates
+/-- Register-only low32 XOR and OR in either direction. The caller authenticates
 no prefix or one W=0 REX; R/B extend the two fields and X is ignored. Preserve
 the historical unprefixed 31 self-XOR constructor exactly. -/
 def decodeLogicalReg32At (state : State) (opcode rex : Byte) (prefixed : Bool) :
     Except Error Instruction := do
-  if opcode ≠ 0x31 ∧ opcode ≠ 0x33 then throw .unsupportedEncoding
+  if opcode ≠ 0x31 ∧ opcode ≠ 0x33 ∧ opcode ≠ 0x09 ∧ opcode ≠ 0x0b then
+    throw .unsupportedEncoding
   let modrm ← fetchByte state.memory (state.rip + (if prefixed then 2 else 1))
   if modrm.toNat / 64 ≠ 3 then throw .unsupportedEncoding
   let rm := rexModRMRM rex modrm
   let reg := rexModRMReg rex modrm
   if !prefixed ∧ opcode = 0x31 ∧ rm = reg then return .xorSelf32 rm
-  return if opcode = 0x31 then .logicalReg32 .bxor rm reg prefixed
-    else .logicalReg32 .bxor reg rm prefixed
+  let operation := if opcode = 0x09 ∨ opcode = 0x0b then LogicalOp.bor else .bxor
+  return if opcode = 0x31 ∨ opcode = 0x09 then .logicalReg32 operation rm reg prefixed
+    else .logicalReg32 operation reg rm prefixed
+
+/-- Continue after authenticated C1, with no prefix or exactly one W=0
+REX. Only register mode /5 and /7 with a nonzero masked count are admitted.
+REX.B extends the destination; REX.R does not extend an opcode group selector,
+and X is ignored in register mode. Every immediate byte is actually fetched. -/
+def decodeShiftRightImm32At (state : State) (rex : Byte) (prefixed : Bool) :
+    Except Error Instruction := do
+  if prefixed ∧ rex32Prefix rex ≠ true then throw .unsupportedEncoding
+  let modrm ← fetchByte state.memory (state.rip + (if prefixed then 2 else 1))
+  let group := modrm.toNat / 8 % 8
+  if modrm.toNat / 64 ≠ 3 ∨ (group ≠ 5 ∧ group ≠ 7) then throw .unsupportedEncoding
+  let immediate ← fetchByte state.memory (state.rip + (if prefixed then 3 else 2))
+  if immediate.toNat % 32 = 0 then throw .unsupportedEncoding
+  return .shiftRightImm32 (if group = 5 then .logical else .arithmetic)
+    (rexModRMRM (if prefixed then rex else 0) modrm) immediate prefixed
 
 /-- Continue after an authenticated F7 opcode. Only /3, mod=3 and no prefix
 or exactly 40/41 are supported. The caller authenticates prefix/opcode;
@@ -453,7 +475,8 @@ def decodeREX32At (state : State) (rex : Byte) : Except Error Instruction := do
     else decodeCmpReg8At state operation rex true
   else if operation = 0x38 then decodeCmpReg8At state operation rex true
   else if operation = 0x29 ∨ operation = 0x2b then decodeSubReg32At state operation rex true
-  else if operation = 0x31 ∨ operation = 0x33 then decodeLogicalReg32At state operation rex true
+  else if operation = 0x31 ∨ operation = 0x33 ∨ operation = 0x09 ∨ operation = 0x0b then decodeLogicalReg32At state operation rex true
+  else if operation = 0xc1 then decodeShiftRightImm32At state rex true
   else if operation = 0xf7 then decodeNegReg32At state rex true
   else if operation = 0x83 ∨ operation = 0xff then decodeCounter32At state operation rex true
   else decodeCompare32At state operation rex true
@@ -610,8 +633,10 @@ Register-only ADD32 admits 83 /0 ib and INC32 admits FF /0, unprefixed or with
 exactly one 40/41 REX. ADD sign-extends the immediate at width32; both clear
 the destination upper32 and INC preserves incoming CF. AND32 additionally admits
 83 /4 ib with the same prefix restriction and a signed imm8. XOR32 admits
-31/33 /r, mod=3, unprefixed or with one W=0 REX40..47 (R/B extend operands;
-X is ignored). CMP64 admits 48/49 83 /7 ib, mod=3, with sign extension to 64.
+31/33 /r and OR32 admits 09/0B /r, mod=3, unprefixed or with one W=0 REX40..47 (R/B extend operands;
+X is ignored). SHR32/SAR32 admit C1 /5 or /7 ib, mod=3, with the same W=0
+REX scope; R/X are ignored and B extends the destination. Masked counts zero
+reject; counts 1..31 retain independent AF and (for counts >1) OF. CMP64 admits 48/49 83 /7 ib, mod=3, with sign extension to 64.
 Other group selectors, memory operands and unused group-1 REX.R/X bits reject.
 Exact ENDBR64 is
 interpreted under the named IBT-disabled target profile. NOPs are restricted
@@ -638,7 +663,8 @@ def decodeNewAt (state : State) (oldError : Error) : Except Error Instruction :=
     if modrm.toNat / 64 = 0 then decodeCmpRegMem8At state 0 false
     else decodeCmpReg8At state opcode 0 false
   else if opcode = 0x29 ∨ opcode = 0x2b then decodeSubReg32At state opcode 0 false
-  else if opcode = 0x31 ∨ opcode = 0x33 then decodeLogicalReg32At state opcode 0 false
+  else if opcode = 0x31 ∨ opcode = 0x33 ∨ opcode = 0x09 ∨ opcode = 0x0b then decodeLogicalReg32At state opcode 0 false
+  else if opcode = 0xc1 then decodeShiftRightImm32At state 0 false
   else if opcode = 0xf7 then decodeNegReg32At state 0 false
   else if opcode = 0x83 ∨ opcode = 0xff then decodeCounter32At state opcode 0 false
   else if opcode = 0x39 then
@@ -686,7 +712,7 @@ theorem SuccessfulFetchTransportWithin.restrict {small large : Nat} {source dest
 
 theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.length := by
   cases instruction with
-  | logicalReg32 _ _ _ prefixed | logicalImm32 _ _ _ prefixed
+  | shiftRightImm32 _ _ _ prefixed | logicalReg32 _ _ _ prefixed | logicalImm32 _ _ _ prefixed
   | test32 _ _ prefixed | cmp32 _ _ prefixed | cmovReg32 _ _ _ prefixed
   | setcc _ _ prefixed | movImm8 _ _ prefixed
   | cmpReg8 _ _ prefixed | subReg32 _ _ prefixed | movzxReg8 _ _ prefixed | negReg32 _ prefixed
@@ -708,7 +734,7 @@ theorem Instruction.length_pos (instruction : Instruction) : 0 < instruction.len
 
 theorem Instruction.length_le_fifteen (instruction : Instruction) : instruction.length ≤ 15 := by
   cases instruction with
-  | logicalReg32 _ _ _ prefixed | logicalImm32 _ _ _ prefixed
+  | shiftRightImm32 _ _ _ prefixed | logicalReg32 _ _ _ prefixed | logicalImm32 _ _ _ prefixed
   | test32 _ _ prefixed | cmp32 _ _ prefixed | cmovReg32 _ _ _ prefixed
   | setcc _ _ prefixed | movImm8 _ _ prefixed
   | cmpReg8 _ _ prefixed | subReg32 _ _ prefixed | movzxReg8 _ _ prefixed | negReg32 _ prefixed

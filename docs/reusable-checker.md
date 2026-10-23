@@ -49,6 +49,29 @@ entry node at offset zero, while an interior-node certificate starts there.
 Neither route trusts external solvers or native evaluation. A rejection or a
 timeout means no certificate was produced; neither establishes a defect.
 
+## Independent undefined flags
+
+The Bool interface above covers instructions with at most one independently
+undefined status bit. For multi-bit families, import
+`EDSL.X86.VCGen.Choices` and use `wpWith`, `soundWith`, `run_soundWith`
+and `CheckedTraceWith`. These use the production `Sequential.executeWith`
+and quantify over complete flag-choice vectors. Finite checking enumerates
+only the active bits after proving that the other choices cannot affect the
+complete execution observation. Uniform Bool vectors alone are insufficient.
+
+Register-local vector families share `RegisterChoiceEffect`: the production
+registration provides the state transformer, active-bit agreement, empty
+operand-read trace and complete memory frame. Generic read provenance and
+`CFG.executeWith_memory` carry those laws into the resource policy. Adding a
+family therefore does not require instruction-specific cases in each policy
+or weakest-precondition soundness proof. Full64 IMUL and
+[low32 right shifts](shift-right32.md) use this interface.
+
+`vcgen_runWith` reduces vector obligations using the same checked successor
+and continuation helpers. The client still supplies its independent mathematical
+contract and code/caller-resource premises; choosing the vector interface does
+not discharge those obligations.
+
 ## The reusable conclusions
 
 `VCGen.sound` yields a real `Sequential.Executes`, the independent contract,

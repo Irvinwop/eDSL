@@ -4,6 +4,11 @@ SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.X86.Sequential.Decode
 
+set_option autoImplicit false
+set_option warningAsError true
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
+
 namespace EDSL.X86.Sequential.Literals
 
 /-- Only typed data enters generated Lean source. Input filenames, symbol
@@ -71,6 +76,10 @@ def instruction : Instruction → String
   | .negReg32 destination prefixed => s!"(.negReg32 {register destination} {prefixed})"
   | .bswapReg64 destination => s!"(.bswapReg64 {register destination})"
   | .shrOne64 destination => s!"(.shrOne64 {register destination})"
+  | .shiftRightImm32 operation destination immediate prefixed =>
+    let shift := match operation with
+      | .logical => ".logical" | .arithmetic => ".arithmetic"
+    s!"(.shiftRightImm32 {shift} {register destination} {immediate.toNat} {prefixed})"
   | .imulReg64 destination source => s!"(.imulReg64 {register destination} {register source})"
   | .rolCL64 destination => s!"(.rolCL64 {register destination})"
   | .movzxReg8 destination source prefixed =>
