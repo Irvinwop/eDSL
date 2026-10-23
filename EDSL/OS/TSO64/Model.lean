@@ -3,6 +3,7 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.OS.TSO64.Queue.Sequence
+import EDSL.X86.Sequential.MachineChoices
 
 namespace EDSL.OS.TSO64
 open X86 AddressSpace
@@ -71,15 +72,16 @@ def decode (state : X86.State) : Except Fault Decoded := do
     return .locked (← (LockedAdd64.decodeAt state).mapError Fault.machine)
   else return .ordinary (← (Sequential.decodeAt state).mapError Fault.machine)
 
-/-- Explicit fail-closed ordinary profile. Branches, arithmetic, syscalls,
-legacy DWORD atomics, fences and all other forms remain unsupported. -/
+/-- Ordinary admission follows the existing Bool-choice scalar/control profile,
+excluding legacy DWORD atomics and syscalls. Vector-only IMUL/shift instructions
+fail closed, preserving their independently undefined flags. Current code,
+lease, read-width/authority and queue gates still apply under both authority
+profiles: in particular `checkRead` rejects DATA1 reads even when their opcode
+is admitted here. Register-only byte operations need no data-width admission. -/
 def supported : Sequential.Instruction → Bool
-  | .movReg32 .. | .movReg64 .. | .loadMem32 .. | .loadMem64 ..
-  | .storeMem32 .. | .storeMem64 .. | .nop _ | .endbr64IbtDisabled => true
-  | .legacy (.mov32 ..) | .legacy .movEaxEdi | .legacy .movEaxEsi
-  | .legacy .loadEaxRdi | .legacy .loadEaxRsi
-  | .legacy .storeEsiRdi | .legacy .storeEaxRsi | .legacy .ret => true
-  | _ => false
+  | .legacy .exchangeEaxRdi | .legacy .fetchAddEaxRdi | .legacy .syscall => false
+  | .legacy _ => true
+  | instruction => instruction.boolChoiceProfile
 
 /-- Production intent classifiers capture both operands BEFORE execution. -/
 def storeIntent (instruction : Sequential.Instruction) (initial : X86.State) : Option Store :=

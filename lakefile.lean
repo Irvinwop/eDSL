@@ -203,7 +203,7 @@ lean_lib CFGProfileTests where
 -- Current-authority admission, mixed FIFO effects and real schedule transport.
 lean_lib EffectSimulationTests where
   roots := #[`tests.EffectTSO64Simulation, `tests.EffectTSO64Interference,
-    `tests.EffectTSO64Authority]
+    `tests.EffectTSO64Authority, `tests.TSO64ScalarControl]
   moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
     "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
 

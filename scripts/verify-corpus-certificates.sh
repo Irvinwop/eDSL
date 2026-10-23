@@ -234,6 +234,7 @@ import tests.EffectChecked
 import tests.EffectTSO64Simulation
 import tests.EffectTSO64Interference
 import tests.EffectTSO64Authority
+import tests.TSO64ScalarControl
 import corpus.Certify
 import CorpusCertificateChecks
 import tests.VerificationImports

@@ -18,11 +18,12 @@ import EDSL.OS.TSO64.Return
 import EDSL.OS.TSO64.DrainClosure
 
 /-!
-Reusable checked fixed-world scheduler for the explicitly admitted Sequential
-MOV/register/padding/RET and aligned scalar32/64 forms, plus the production
-full64 LockedAdd64 family and current Atomics64 fetchAdd bridge. Source/base
-aliases and source RSP inherit that family unchanged. All other instructions
-fail closed. The default `ownedOnly` profile conservatively requires full RW
+Reusable checked fixed-world scheduler for the Sequential Bool-choice scalar
+and control-flow profile, including padding/RET and admitted aligned scalar32/64
+data access, plus the production full64 LockedAdd64 family and current Atomics64
+fetchAdd bridge. Legacy DWORD atomics, syscalls, independently undefined-flag
+vector forms and DATA1 reads fail closed. Source/base aliases and source RSP
+inherit the locked family unchanged. The default `ownedOnly` profile conservatively requires full RW
 ordinary ownership for plain data access. Explicit `sharedCell` also admits
 exact-address managed qword MOV loads/stores through current handle authority.
 Read-only DATA-loan loads are not currently an API. RET has its separate

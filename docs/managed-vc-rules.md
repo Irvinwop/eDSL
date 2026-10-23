@@ -12,6 +12,11 @@ both authority profiles and valid nonempty mixed store queues.
 - Supported-instruction, operand-read and queue-admission obligations.
 - The existing sequential computation and a matching next/return finish effect.
 
+The supported ordinary profile includes existing Bool-choice scalar arithmetic
+and branches. Current read widths and authority remain separate gates; legacy
+DWORD atomics, syscalls and vector-only flag effects remain excluded. A branch
+does not enlarge the original code loan.
+
 No successful scheduler step or desired future history is an input premise.
 These are proof rules; there is no second executor. The existing node transport
 retains its 64-byte checked-window limit and represented scalar/CET-off target

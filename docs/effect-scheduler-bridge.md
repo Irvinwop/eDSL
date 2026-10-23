@@ -32,6 +32,25 @@ The adapter works under either existing authority profile. The scheduler's
 ordinary subset has a proved Bool-choice profile; this does not collapse
 independent flag choices for other instructions in the extended ISA.
 
+## Arithmetic, control flow and data widths
+
+Ordinary admission reuses the existing sequential Bool-choice profile for
+scalar operations and control flow. Legacy DWORD XCHG/XADD and syscalls remain
+excluded. Register operations with independently chosen undefined flags, such
+as the current IMUL and immediate-shift vector forms, also remain excluded;
+acceptance does not replace those choices with one Bool.
+
+Opcode admission is separate from operand authority. Current data-read gates
+admit the existing aligned DWORD/QWORD profiles; a DATA1 read still fails closed.
+Register-only byte operations need no data-memory authority. Every store still
+uses actual prestate intent and the current queue-admission checks.
+
+A branch grants no code authority at its destination. The next issue fetches
+through the retained original code loan, even if other executable memory exists
+in the world. Loops retain pending stores and their occurrence counter through
+ordinary arithmetic and branches. Admission supplies no loop invariant,
+termination argument or new frozen-function certificate.
+
 ## Stores, returns and publication
 
 `ordinary_reifies` derives whole successor-CPU equality from an actual ordinary

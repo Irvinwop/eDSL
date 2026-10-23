@@ -62,9 +62,7 @@ structure OrdinaryReady (state : S) (tid : Nat) (worker : Worker)
 This law does not collapse independent flag choices for the extended ISA. -/
 theorem supported_boolChoiceProfile {instruction : Sequential.Instruction}
     (admitted : supported instruction = true) : instruction.boolChoiceProfile = true := by
-  cases instruction <;>
-    simp_all [supported, Sequential.Instruction.boolChoiceProfile,
-      Sequential.Instruction.registerChoiceEffect]
+  cases instruction <;> first | exact admitted | rfl
 
 private theorem intent_none {instruction : Sequential.Instruction} {initial : X86.State}
     (intent : storeIntent instruction initial = none) :
@@ -236,7 +234,26 @@ private theorem supported_outcome {initial : X86.State}
     exact ⟨output, .inl next⟩
   | rename_i old
     cases old with
+    | leaEaxRdiDisp8 _ | leaEaxRaxDisp8 _ | cmpEaxZero
     | movEaxEdi | movEaxEsi | mov32 _ _ =>
+      cases executed
+      exact ⟨_, .inl rfl⟩
+    | jrcxz displacement =>
+      cases branched : executeJrcxz initial displacement <;>
+        simp only [Sequential.execute, X86.executeInstruction, branched, ok_bind,
+          error_bind, pure_ok, Except.ok.injEq, reduceCtorEq] at executed
+      cases executed
+      exact ⟨_, .inl rfl⟩
+    | loopRcx displacement =>
+      cases branched : executeLoop initial displacement <;>
+        simp only [Sequential.execute, X86.executeInstruction, branched, ok_bind,
+          error_bind, pure_ok, Except.ok.injEq, reduceCtorEq] at executed
+      cases executed
+      exact ⟨_, .inl rfl⟩
+    | jnz displacement =>
+      cases branched : executeJnz initial displacement <;>
+        simp only [Sequential.execute, X86.executeInstruction, branched, ok_bind,
+          error_bind, pure_ok, Except.ok.injEq, reduceCtorEq] at executed
       cases executed
       exact ⟨_, .inl rfl⟩
     | loadEaxRdi =>
@@ -269,8 +286,7 @@ private theorem supported_outcome {initial : X86.State}
           error_bind, pure_ok, Except.ok.injEq, reduceCtorEq] at executed
       cases executed
       exact ⟨_, .inr rfl⟩
-    | leaEaxRdiDisp8 _ | leaEaxRaxDisp8 _ | exchangeEaxRdi | fetchAddEaxRdi
-    | jrcxz _ | loopRcx _ | jnz _ | cmpEaxZero | syscall =>
+    | exchangeEaxRdi | fetchAddEaxRdi | syscall =>
       simp [supported] at admitted
 
 /-- Construct the actual production issue from an existing checked head and

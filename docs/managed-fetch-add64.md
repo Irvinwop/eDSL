@@ -5,8 +5,8 @@ private thread contexts and mixed-width FIFO publication. `OS.TSO64History`
 projects successful schedules to checked OS operations and an independent
 modulo-2^64 counter relation. Their separate
 [concurrent certificate composition](concurrent-fetch-add-certificates.md)
-now covers the frozen fetch-add function for both compilers, bringing conditional
-coverage to **5/40 functions, 10/80 artifacts and one concurrent function**.
+covers the frozen fetch-add function for both compilers. See the
+[current coverage](coverage.md) for the complete corpus measurement.
 
 ## Execution and authority
 
@@ -22,7 +22,10 @@ Current code-loan fetch and production decoders select the instruction. Ordinary
 execution delegates to `Sequential`; full64 LOCK XADD delegates to `LockedAdd64`
 and the checked current OS fetch-add bridge. Dispatch has no expected-PC table.
 
-Ordinary register execution, loads and RET commit private registers/RIP/flags.
+Ordinary Bool-choice scalar/control execution, loads and RET commit private
+registers/RIP/flags. Legacy DWORD atomics, syscalls and vector-only independent
+flag effects remain excluded. Branches retain the original code loan; a later
+fetch rechecks its destination against that loan.
 A store enqueues exactly its actual prestate address, tagged width, value and
 original ticket. Drain rechecks current authority and publishes the FIFO head
 through a real checked OS mutation. It leaves the CPU context unchanged and
