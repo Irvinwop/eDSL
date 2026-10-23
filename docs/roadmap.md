@@ -11,9 +11,9 @@ for present support and [coverage](coverage.md) for the relevant APIs.
 
 Expand reusable verification against the unchanged
 [40-function GCC/Clang corpus](compiler-corpus.md). Current conditional coverage
-is **19/40 functions and 38/80 artifacts**, including **three distinct concurrent
-functions**; **21 functions / 42 artifacts** remain. The
-[multiplication measurement](../corpus/measurements/multiply-modulo64-v1/)
+is **20/40 functions and 40/80 artifacts**, including **three distinct concurrent
+functions**; **20 functions / 40 artifacts** remain. The
+[signed signum measurement](../corpus/measurements/signed-signum32-v1/)
 records the accepted source and full-gate evidence. Both compiler outputs must
 meet the independent contract before a function counts. Compilation, extraction,
 decoding and native tests are separate evidence.

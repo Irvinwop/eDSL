@@ -70,11 +70,11 @@ program can be certified.
 | Languages | Lean models and design work for GNU C23, GNU C++26, LLVM IR, and assembly; complete source frontends and compiler-preservation proofs remain incomplete |
 
 The fixed GCC/Clang `-O2` evaluation corpus has validated conditional
-certificates for **19/40 functions and 38/80 compiler artifacts**, including
+certificates for **20/40 functions and 40/80 compiler artifacts**, including
 **three distinct concurrent functions**: fetch-add, acquire-load and release-store
-under their recorded managed models. **21 functions / 42 artifacts** remain.
+under their recorded managed models. **20 functions / 40 artifacts** remain.
 See the [corpus results](docs/compiler-corpus.md) and
-[multiplication measurement](corpus/measurements/multiply-modulo64-v1/)
+[signed signum measurement](corpus/measurements/signed-signum32-v1/)
 for the accepted source, proof scope and environmental assumptions.
 
 A certificate records the machine and resource assumptions under which its

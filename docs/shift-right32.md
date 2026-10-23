@@ -52,8 +52,10 @@ not an optimality or CPU-cycle claim.
 These proofs assume stable ordinary RAM, supplied logical resource authority,
 four-level canonical addresses, disabled alignment checking and CET/IBT/shadow
 stacks, and no asynchronous interference. Native CPU/OS correspondence and
-source/compiler preservation remain separate obligations. Public corpus
-coverage remains unchanged until fresh corpus and packet acceptance checks.
+source/compiler preservation remain separate obligations. The accepted
+[signed signum measurement](../corpus/measurements/signed-signum32-v1/) records
+the fresh corpus and packet evidence for **20/40 functions and 40/80 artifacts**,
+including three distinct concurrent functions.
 
 ## Validation
 

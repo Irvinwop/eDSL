@@ -13,10 +13,10 @@ for supported capabilities, and [trust](trust.md) for the assumptions behind a
 proof. Source-language frontends and a privileged kernel target remain future
 work.
 
-The latest [multiplication measurement](../corpus/measurements/multiply-modulo64-v1/)
+The latest [signed signum measurement](../corpus/measurements/signed-signum32-v1/)
 records the accepted source and full-gate evidence for validated conditional
-coverage of **19/40 functions and 38/80 artifacts**, including **three distinct
-concurrent functions**; **21 functions / 42 artifacts** remain. Fetch-add and
+coverage of **20/40 functions and 40/80 artifacts**, including **three distinct
+concurrent functions**; **20 functions / 40 artifacts** remain. Fetch-add and
 plain load/store retain their separate managed models.
 
 ## Verify a program

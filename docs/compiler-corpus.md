@@ -125,9 +125,20 @@ initial and final queues.
 The [multiplication milestone](../corpus/measurements/multiply-modulo64-v1/)
 adds both unchanged `c_mul_mod64` outputs. The shared vector VCG, resource
 and named-ELF adapters establish the full64 natural product modulo 2^64 for
-all independent flag streams. Conditional coverage is **19/40 functions and
-38/80 artifacts**, including **three distinct concurrent functions**;
-**21 functions / 42 artifacts** remain.
+all independent flag streams. At that milestone, conditional coverage was
+**19/40 functions and 38/80 artifacts**, including **three distinct concurrent
+functions**; **21 functions / 42 artifacts** remained.
+
+The [signed signum milestone](../corpus/measurements/signed-signum32-v1/) adds
+both unchanged `c_sign_i32` outputs. Shared low32 shift/order algebra, the vector
+VCG and named-ELF/current-resource adapters establish the independent signed
+result for every low32 input, including INT32_MIN, arbitrary incoming upper
+RDI bits and all flag streams. Conditional coverage is **20/40 functions and
+40/80 artifacts**, including **three distinct concurrent functions**;
+**20 functions / 40 artifacts** remain. Both bodies retire seven modeled
+instructions and read only the original eight-byte return slot. The
+[measurement](../corpus/measurements/signed-signum32-v1/) records the accepted
+source, full corpus gate, stored assertions and exact packet controls.
 
 ## What is frozen
 

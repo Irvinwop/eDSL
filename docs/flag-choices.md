@@ -95,11 +95,18 @@ isolation, raw and synthetic ELF-container acceptance, and changed-byte/extent
 rejection. Exact original named-ELF binding comes from `MultiplyRegistered`,
 not those synthetic containers. The [multiplication measurement](../corpus/measurements/multiply-modulo64-v1/)
 records the accepted source, full corpus gate and stored acceptance assertions
-replayed in a fresh kernel environment. Conditional coverage is
+replayed in a fresh kernel environment. At that milestone, coverage was
 **19/40 functions and 38/80 artifacts**, including three distinct concurrent functions.
 Native CPU/Linux correspondence, concurrency and source/compiler preservation
 remain separate obligations. The callable target assumes stable ordinary RAM,
 64-bit mode, disabled CET/IBT/shadow stacks and no asynchronous interference.
+
+The [signed signum measurement](../corpus/measurements/signed-signum32-v1/)
+adds both original `c_sign_i32` artifacts through the same registry, vector VCG
+and resource adapters, together with reusable low32 SHR/SAR rules. Its accepted
+full corpus gate and stored assertions establish conditional coverage of
+**20/40 functions and 40/80 artifacts**, including three concurrent functions.
+See [shift and signum contracts](shift-right32.md) for all-input and flag scope.
 
 The [IMUL regressions](../tests/SequentialMultiply.lean) exercise sixteen literal
 flag words, signed boundaries, aliases, register banks and precise faults.

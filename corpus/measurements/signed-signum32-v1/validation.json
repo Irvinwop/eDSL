@@ -1,0 +1,192 @@
+{
+  "schema": "ediesel-corpus-measurement-v1",
+  "source_commit": "de9b803250efb70caed3801ae801417df5b639e3",
+  "source_tree": "0ec034348222c3cc0b8f919032847e942afd29cd",
+  "score": {
+    "compiler_artifacts_certified_end_to_end": 40,
+    "compiler_artifacts_total": 80,
+    "concurrency_contracts_proved": 3,
+    "functions_certified_end_to_end": 20,
+    "functions_total": 40
+  },
+  "toolchain": "leanprover/lean4:v4.35.0",
+  "warnings_as_errors": true,
+  "allowed_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "original_ci_batch": {
+    "branch": "codex/signum-publication-20261023",
+    "event": "push",
+    "attempt": 1,
+    "successful_workflows": 14,
+    "successful_jobs": 23,
+    "original_manifest_sha256": "e51e89236d12ffd30c7cad91648d73f09feaac8229620b54e5d286abe7287a7b",
+    "runs": [
+      {
+        "id": 39906269576,
+        "path": ".github/workflows/comparison64.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269576"
+      },
+      {
+        "id": 39906269586,
+        "path": ".github/workflows/toolchain.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269586"
+      },
+      {
+        "id": 39906269604,
+        "path": ".github/workflows/array-maximum64.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269604"
+      },
+      {
+        "id": 39906269617,
+        "path": ".github/workflows/array-sum64.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269617"
+      },
+      {
+        "id": 39906269623,
+        "path": ".github/workflows/atomic-logical64-grading.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269623"
+      },
+      {
+        "id": 39906269626,
+        "path": ".github/workflows/lean.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269626"
+      },
+      {
+        "id": 39906269631,
+        "path": ".github/workflows/atomic-logical64.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269631"
+      },
+      {
+        "id": 39906269636,
+        "path": ".github/workflows/atomic-set64-grading.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269636"
+      },
+      {
+        "id": 39906269650,
+        "path": ".github/workflows/compiler-corpus.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269650"
+      },
+      {
+        "id": 39906269651,
+        "path": ".github/workflows/logical64-clients.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269651"
+      },
+      {
+        "id": 39906269664,
+        "path": ".github/workflows/futex-predicate.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269664"
+      },
+      {
+        "id": 39906269668,
+        "path": ".github/workflows/call-stack.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269668"
+      },
+      {
+        "id": 39906269675,
+        "path": ".github/workflows/logical64.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269675"
+      },
+      {
+        "id": 39906269717,
+        "path": ".github/workflows/atomic-set64.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269717"
+      }
+    ]
+  },
+  "production_ci": {
+    "run": 39906269626,
+    "job": 120258842960,
+    "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269626",
+    "audit_declarations": 35458,
+    "fresh": {
+      "target": "EDSL.All",
+      "start": "2026-10-23T06:01:33Z",
+      "end": "2026-10-23T06:09:29Z",
+      "outcome": "completed/success actual CI step; no local replay"
+    },
+    "log": {
+      "run": 39906269626,
+      "job": 120258842960,
+      "name": "build-and-audit",
+      "endpoint": "actions/jobs/120258842960/logs",
+      "bytes": 690872,
+      "sha256": "7d711b8a2dbfbcf9a44369a78bb689e3d26befe8b020e8801b0564c9cf82c594"
+    }
+  },
+  "certificate_gate": {
+    "workflow_run": 39906269650,
+    "job": 120258843411,
+    "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269650",
+    "receipt_run": "run.20261023T053312Z.SXNslB5S",
+    "scope": "full-project-and-corpus-cli",
+    "build_jobs": 1373,
+    "audited_declarations": 37829,
+    "command_records": 3744,
+    "explicit_expected_exit_controls": 825,
+    "direct_report_rejections": 567,
+    "source_files_verified": 1585,
+    "frozen_files_verified": 2,
+    "receipt_files_independently_rehashed": 24619,
+    "private_objects_rehashed": 3,
+    "object_manifest_entries": 1030,
+    "fresh": {
+      "target": "CorpusFullReplay",
+      "started": "2026-10-23T06:06:11Z",
+      "finished": "2026-10-23T06:15:21Z",
+      "exit": 0
+    },
+    "packets": [
+      {
+        "family": "multiply",
+        "run": "run.DYh3x4j0",
+        "filesRehashed": 249,
+        "commands": 58,
+        "positive": 8,
+        "negative": 20,
+        "manifestSha256": "7240f035ce0ecacf353eeef22e180288b193aea28d71543eecf4879a8210ba10"
+      },
+      {
+        "family": "signum",
+        "run": "run.Jwh8GraK",
+        "filesRehashed": 249,
+        "commands": 58,
+        "positive": 8,
+        "negative": 20,
+        "manifestSha256": "71fcf1ab1f1f4359278a40db27b42ca46168673d7e7a6c3585770fa1fc4d9621"
+      }
+    ],
+    "hashes": {
+      "report.json": "e46e2fb53cb4a9f155c8df0b06599c7d8569e9e95a76273fce365b7cf52c9937",
+      "source-before.sha256": "a5c4ad2c1967e757646657e1a244d2af2f6b4c03ae0f33acf5534d51c0ea5013",
+      "frozen-before.sha256": "871135d7ae286968f3a76188085d45be940ae5e35e04b6e5c6f3368406c7f7a1",
+      "modules-before.sha256": "d63e6b056843760470429a11a3b8f3ab1b1d2726712aa3465e6c1cb8b97b2c90",
+      "gate-inputs.sha256": "94d991d522275795d7a676194e046d2401a33151b4b7d65a2cb8a0d955ca57f3",
+      "commands/receipt-manifest.stdout": "e697869af45d37833d92dcf7d4cb2302061defefd495d44d566f63a4248ba94c"
+    },
+    "artifact": {
+      "id": 12482671952,
+      "bytes": 20992657,
+      "sha256": "1248b53b8ec5f6802883ef95a8358e5a31d1d196b58767e7f3cbe9fa03dd4928",
+      "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39906269650/artifacts/12482671952"
+    },
+    "object_scope": "Three private objects were independently rehashed from the archive. External .lake objects were not acquired; their sealed inventory and successful CI stability checks were reviewed."
+  },
+  "local_validation": {
+    "scope": "Strict corpus CLI and stored assertions; real report/manifest mutation controls; direct versus compiled one-import CLI positives and changed-file negatives; fresh CorpusCertificateChecks replay",
+    "fresh_started": "2026-10-23T04:54:29Z",
+    "fresh_finished": "2026-10-23T05:06:16Z",
+    "mutation_controls": 673,
+    "scope_note": "Scoped checks at earlier publication commits; unchanged report proof sources at this accepted source. This record claims no separate local full-project gate."
+  },
+  "limits": [
+    "Conditional modeled sequential execution, exact named artifacts and current logical resources only",
+    "GCC retains original ENDBR64 under recorded CET/IBT/shadow-stack-off assumptions",
+    "Low32 signed result -1/0/1; actual full RAX is zero-extended; all low32 inputs include INT32_MIN",
+    "Seven retired modeled instructions for each compiler; no physical timing or minimum-cost claim",
+    "Synthetic packet ELF containers are parser controls; original named ELFs are certified separately",
+    "No native Linux/CPU, source/compiler preservation, general concurrency or whole-OS/kernel claim"
+  ]
+}
