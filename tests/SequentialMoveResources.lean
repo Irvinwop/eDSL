@@ -29,7 +29,7 @@ private theorem store_decoded {call : Call} {shared : Shared} {before : State}
   have b1 := code.2 1 0x3c (by decide)
   have b2 := code.2 2 0xb7 (by decide)
   simp only [BitVec.ofNat_eq_ofNat, BitVec.add_zero] at b0 b1 b2
-  simp [Sequential.decodeAt, X86.decodeAt, b0, b1, b2, decodeNewAt,
+  simp [Sequential.decodeAt, X86.decodeAt, b0, b1, b2, decodeNewAt, decodeTailAt,
     decodeAddressAt, modRMRM, modRMReg, lowRegister, operand]
 
 private theorem load_decoded {call : Call} {shared : Shared} {before : State}
@@ -48,7 +48,7 @@ private theorem load_decoded {call : Call} {shared : Shared} {before : State}
   have b2 : fetchByte before.memory (before.rip + 2) = .ok 0xb7 := by
     simpa [entry, BitVec.add_assoc] using c5
   simp only [BitVec.ofNat_eq_ofNat] at b0 b1 b2
-  simp [Sequential.decodeAt, X86.decodeAt, b0, b1, b2, decodeNewAt,
+  simp [Sequential.decodeAt, X86.decodeAt, b0, b1, b2, decodeNewAt, decodeTailAt,
     decodeAddressAt, modRMRM, modRMReg, lowRegister, operand]
 
 /-- The actual code and current resources derive both steps. The loaded value
@@ -135,13 +135,13 @@ theorem checked_pointer_copy_store_return {call : Call} {shared : Shared} {befor
       loadDWord final.memory call.targetPointer = .ok ((before.registers .rsi).setWidth 32) ∧
       Mutex.StoreEffect shared evolved call.targetPointer ((before.registers .rsi).setWidth 32) := by
   have copyDecoded := pointer_decoded current codeBytes 0 (by decide) (by simpa using entry)
-    (instruction := .movReg64 .rax .rdi) rfl
+    (instruction := .movReg64 .rax .rdi) (by cbv)
   obtain ⟨copied, actualCopy, currentCopy, assigned, other, _, _, advance⟩ :=
     current_movReg64_step current copyDecoded afCopy
   have copiedPointer : copied.registers .rax = call.targetPointer := assigned.trans pointer
   have copiedPC : copied.rip = call.code + 3 := by simpa [entry] using advance
   have storeDecoded := pointer_decoded currentCopy codeBytes 3 (by decide) copiedPC
-    (instruction := .storeMem32 (.base .rax) .rsi) rfl
+    (instruction := .storeMem32 (.base .rax) .rsi) (by cbv)
   have source : copied.registers .rsi = before.registers .rsi := other .rsi (by decide)
   have intent : Sequential.Instruction.storeIntent (.storeMem32 (.base .rax) .rsi) copied =
       some (call.targetPointer, (before.registers .rsi).setWidth 32) := by
@@ -154,7 +154,7 @@ theorem checked_pointer_copy_store_return {call : Call} {shared : Shared} {befor
   have writtenPC : written.rip = call.code + 5 := by
     simp [written, storeAfterLength, copiedPC, BitVec.add_assoc]
   have retDecoded := pointer_decoded currentWritten codeBytes 5 (by decide) writtenPC
-    (instruction := .legacy .ret) rfl
+    (instruction := .legacy .ret) (by cbv)
   have stackBinding : written.registers .rsp = call.stack :=
     (other .rsp (by decide)).trans stack
   have ret := current_ret_step currentWritten retDecoded stackBinding afRet
