@@ -237,6 +237,7 @@ import tests.EffectTSO64Authority
 import tests.TSO64ScalarControl
 import tests.EffectPassiveHistory
 import tests.ResumableIdentity
+import tests.MixedResumableBlocking
 import tests.CallerOnlyTransport
 import EDSL.OS.TSO64.EffectSimulation.Resumable.CallerOnly
 import EDSL.Corpus.V1.CallerOnlyAdapters

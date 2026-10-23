@@ -8,6 +8,8 @@ import EDSL.OS.TSO64.EffectSimulation.Lifting
 import EDSL.OS.TSO64.EffectSimulation.CheckedLifting
 import EDSL.OS.TSO64.EffectSimulation.Resources
 import EDSL.OS.TSO64.EffectSimulation.Resumable.Simulation
+import EDSL.OS.TSO64.EffectSimulation.Mixed.Simulation
+import EDSL.OS.TSO64.EffectSimulation.Mixed.Authority
 
 /-!
 Checked ordinary effects and current-state admission for the TSO64 scheduler,
@@ -16,4 +18,8 @@ existing simulation fold. Current resource frames and passive-origin closure
 regenerate each head after interference; return postconditions remain historical.
 Clients supply independent entry/cutpoint contracts and their generated block
 proofs. Successful-run transport establishes no fairness or termination.
+
+Mixed blocks additionally retain current locked effects, exact blocked positions
+and historical returns through the checked-step fold. Authority transport
+preserves metadata, permissions and selector order while shared RAM may change.
 -/

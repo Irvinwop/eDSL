@@ -80,7 +80,7 @@ lean_lib GradingFixtures where
 
 -- Opt-in computational equality shared by finite regression observations.
 lean_lib VerificationTestSupport where
-  roots := #[`tests.Support.ExceptDecidable]
+  roots := #[`tests.Support.ExceptDecidable, `tests.Support.MixedBlockingFixture]
   moreLeanArgs := #["-DautoImplicit=false"]
 
 -- Build shared fixtures and their clients once through Lake's input traces.
@@ -209,7 +209,7 @@ lean_lib CFGProfileTests where
 lean_lib EffectSimulationTests where
   roots := #[`tests.EffectTSO64Simulation, `tests.EffectTSO64Interference,
     `tests.EffectTSO64Authority, `tests.TSO64ScalarControl,
-    `tests.EffectPassiveHistory, `tests.ResumableIdentity,
+    `tests.EffectPassiveHistory, `tests.ResumableIdentity, `tests.MixedResumableBlocking,
     `tests.CallerOnlyTransport,
     `EDSL.OS.TSO64.EffectSimulation.Resumable.CallerOnly,
     `EDSL.Corpus.V1.CallerOnlyAdapters]

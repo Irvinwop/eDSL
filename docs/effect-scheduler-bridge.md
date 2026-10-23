@@ -156,9 +156,10 @@ to an executable step.
 `CheckedSimulation.schedule` and `schedule_cut` retain every action and
 observation in `LiftTrace`. `Simulation.toChecked` converts an existing
 origin-based law using the forward step-to-origin theorem. These folds do not
-establish enabledness or completion. Mixed instruction graphs have structural
-certificates; generated mixed ordinary/RMW block obligations and counted-loop
-contracts remain separate work.
+establish enabledness or completion. [Mixed instruction resumption](mixed-resumption.md)
+adds generated ordinary/RMW block obligations, present own-issue enabledness
+and an adapter for complete histories. Counted-loop contracts and eventual
+completion remain separate work.
 
 ## Scope
 
