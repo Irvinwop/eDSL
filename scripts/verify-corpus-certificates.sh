@@ -16,7 +16,7 @@ case "$#:${1:-}" in
     1:--help)
         echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]'
         echo 'Builds twenty-four scalar, two managed concurrent fetch-add, two bounded byte-scan, four first-match search, two byte-comparison, two byte-equality and four managed plain load/store certificates, audits axioms and checks file binding.'
-        echo 'Default: fresh-replays the named certificate checks and corpus.Certify. --full-project: also builds the full catalogue and verification, unary, popcount, average, parity, rotation, low-byte, CFG-profile, effect-scheduler and full-vector multiplication/signum tests; fresh-replays them together and runs both registered packet gates.'
+        echo 'Default: fresh-replays the named certificate checks and corpus.Certify. --full-project: also builds the full catalogue and verification, unary, popcount, average, parity, rotation, low-byte, CFG-profile, effect-scheduler, additive-RMW/OS, padding and full-vector multiplication/signum checks; fresh-replays them together and runs both registered packet gates.'
         exit 0 ;;
     *) echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]' >&2; exit 2 ;;
 esac
@@ -237,7 +237,11 @@ import tests.EffectTSO64Authority
 import tests.TSO64ScalarControl
 import tests.EffectPassiveHistory
 import tests.ResumableIdentity
+import tests.CallerOnlyTransport
+import EDSL.OS.TSO64.EffectSimulation.Resumable.CallerOnly
+import EDSL.Corpus.V1.CallerOnlyAdapters
 import tests.AddRMW64
+import EDSL.OS.AddRMWMachine64
 import tests.CounterPadding13
 import corpus.Certify
 import CorpusCertificateChecks

@@ -55,6 +55,7 @@ import EDSL.OS.Futex.Predicate
 import EDSL.Examples.FutexPredicate
 import EDSL.FutexPredicateCertificate
 import EDSL.X86.Sequential.Execution
+import EDSL.X86.Sequential.CallerOnly
 import EDSL.OS.ArrayResources
 import EDSL.OS.CallResources
 import EDSL.OS.ReadOnlyArithmetic64
@@ -89,6 +90,7 @@ import EDSL.X86.VCGen.PlainMethods
 import EDSL.OS.PlainCall64
 import EDSL.OS.TSO64.Stability
 import EDSL.OS.TSO64.EffectSimulation
+import EDSL.OS.TSO64.EffectSimulation.Resumable.CallerOnly
 import EDSL.X86.VCGen.GradingExamples
 import EDSL.Stride32.Correctness
 import EDSL.Stride32.Accounting
@@ -118,6 +120,7 @@ import EDSL.X86.StoreBuffer.WholeQWord
 import EDSL.X86.LockedAdd64
 import EDSL.X86.AddRMW64
 import EDSL.OS.AtomicFetchAddMachine64
+import EDSL.OS.AddRMWMachine64
 import EDSL.OS.AtomicAccess64
 import EDSL.OS.AtomicFetchAddHistory64
 import EDSL.OS.TSO64
@@ -158,6 +161,7 @@ import EDSL.Corpus.V1.PopcountCertificates
 import EDSL.Corpus.V1.AverageCertificates
 import EDSL.Corpus.V1.ParityCertificates
 import EDSL.Corpus.V1.RotationCertificates
+import EDSL.Corpus.V1.CallerOnlyAdapters
 import EDSL.X86.Sequential.Rotate
 import EDSL.WordMath.Rotation
 import EDSL.X86.Sequential.Low8

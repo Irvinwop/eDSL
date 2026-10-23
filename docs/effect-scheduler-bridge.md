@@ -100,6 +100,11 @@ at that state, before another passive action. The caller supplies independent
 entry/ABI facts and discharges the generated obligations; graph discovery alone
 is not a functional certificate.
 
+For caller-only bodies, the [generic sequential-proof lift](caller-only-os-proofs.md)
+consumes existing bounded or cutpoint WPs and regenerates the current OS gates.
+It retains the sequential proof on reference RAM while executing the actual
+worker against current RAM; clients do not supply instruction-local OS proofs.
+
 The returned-position theorem derives a historical response and its Post from
 an actual returned observation. Later publication retains that response prefix
 and the current returned register frame. It does not move a memory-dependent

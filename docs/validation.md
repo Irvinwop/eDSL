@@ -24,6 +24,16 @@ caller/resource admission. The
 from the client simulation law required for an actual interleaved schedule.
 These checks add no frozen-corpus coverage or physical CPU/OS correspondence.
 
+The same strict target includes `tests.CallerOnlyTransport`, covering production
+RET and ROL decoding/steps across unrelated RAM changes, actual-RSP read faults,
+changed-caller canonicality rejection and exact branch faults. Its register and
+flag contracts and rotation bit-origin specification supply independent behavior
+checks. The [caller-only transport guide](caller-only-transport.md) states the
+finite admitted subset and exact Bool/uniform-vector execution laws. The target
+uses warnings as errors, `autoImplicit=false`, 300000 heartbeats and recursion
+depth 128. The same target compiles the [generic OS WP lift](caller-only-os-proofs.md),
+which reuses sequential body proofs while regenerating current OS authority.
+
 For the [qword arithmetic-RMW CPU family](native-add-rmw64-isa.md):
 
 ```sh
@@ -32,8 +42,12 @@ lake build AddRMW64Tests PaddingTests
 
 `AddRMW64Tests` checks exact XADD/ADD/INC decoding, full-width arithmetic and flags,
 register frames, required fetch/operand permissions and legacy XADD compatibility.
-The family is separate from scheduler dispatch; these checks add no concurrent
-counter certificate or physical LOCK refinement. `PaddingTests` covers the
+Its roots also compile the [universal current-authority OS coupling](native-add-rmw64-os.md)
+in `EDSL.OS.AddRMWMachine64` with warnings as errors, `autoImplicit=false`,
+300000 heartbeats and recursion depth 128. The family is separate from scheduler
+dispatch and the ordinary-only Resumable adapter; these checks add no concurrent
+counter certificate, corpus coverage or physical LOCK refinement. `PaddingTests`
+covers the
 [exact compiler padding forms](byte-compare-padding.md), required-byte fetch
 permissions, complete context frames and instruction boundaries.
 
@@ -76,7 +90,13 @@ arithmetic regressions at standard and nonstandard bit widths.
 
 `EffectSimulationTests` is also included in the full-project build, aggregate
 axiom audit and fresh replay, together with the bridge's production modules
-through `EDSL.All`.
+through `EDSL.All`. That catalogue imports `EDSL.X86.Sequential.CallerOnly`, and
+the stored fresh aggregate explicitly imports `tests.CallerOnlyTransport`.
+
+`AddRMW64Tests` supplies the CPU regressions and OS coupling module to the same
+build. Both `EDSL.All` and the stored fresh-replay aggregate import
+`EDSL.OS.AddRMWMachine64`, so the existing CI full-project gate audits and replays
+its declarations as part of that closure.
 
 For owned finite logical-right-shift observations with independently chosen
 undefined AF and ordinary-kernel production replay:

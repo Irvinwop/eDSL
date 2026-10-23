@@ -200,11 +200,14 @@ lean_lib CFGProfileTests where
     `tests.BufferCallVCGen]
   moreLeanArgs := #["-DautoImplicit=false"]
 
--- Current-authority admission, mixed FIFO effects and real schedule transport.
+-- Current authority, mixed FIFOs, caller-only execution and schedule transport.
 lean_lib EffectSimulationTests where
   roots := #[`tests.EffectTSO64Simulation, `tests.EffectTSO64Interference,
     `tests.EffectTSO64Authority, `tests.TSO64ScalarControl,
-    `tests.EffectPassiveHistory, `tests.ResumableIdentity]
+    `tests.EffectPassiveHistory, `tests.ResumableIdentity,
+    `tests.CallerOnlyTransport,
+    `EDSL.OS.TSO64.EffectSimulation.Resumable.CallerOnly,
+    `EDSL.Corpus.V1.CallerOnlyAdapters]
   moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
     "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
 
@@ -215,9 +218,9 @@ lean_lib PaddingTests where
   moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
     "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
 
--- Exact qword XADD/ADD/INC CPU contracts and independent observations.
+-- Exact qword XADD/ADD/INC CPU observations and current-authority OS coupling.
 lean_lib AddRMW64Tests where
-  roots := #[`tests.AddRMW64]
+  roots := #[`tests.AddRMW64, `EDSL.OS.AddRMWMachine64]
   moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
     "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
 
