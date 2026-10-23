@@ -20,8 +20,8 @@ implemented.
 
 The fixed [compiler corpus](compiler-corpus.md) contains 40 functions and
 80 exact final-ELF windows. Current validated conditional coverage is
-**18/40 functions**, **36/80 artifacts**, and **three distinct concurrent functions**;
-**22 functions / 44 artifacts** remain. Both GCC and Clang
+**19/40 functions**, **38/80 artifacts**, and **three distinct concurrent functions**;
+**21 functions / 42 artifacts** remain. Both GCC and Clang
 outputs must pass for a function to count. Certificates for different routines
 and successful decode/native checks do not increase these totals.
 
@@ -29,6 +29,7 @@ and successful decode/native checks do not increase these totals.
 | --- | --- |
 | `c_min_u64`, `c_max_u64` | [Independent full64 unsigned order](corpus-certificates.md) |
 | `c_add_mod64` | [Addition modulo 2^64, including overflow](corpus-scalar-certificates.md) |
+| `c_mul_mod64` | [Full64 natural product modulo 2^64 under independent flag choices](flag-choices.md) |
 | `c_clamp_i32` | [Signed low32 clamp, equal endpoints and arbitrary upper argument bits](compiler-clamp32.md) |
 | `c_atomic_fetch_add64` | [Managed closed-batch concurrent history and current-resource contract](concurrent-fetch-add-certificates.md) |
 | `c_atomic_load_acquire64`, `c_atomic_store_release64` | [Independent full64 Claim, loaded resources and same-file cohort witnesses](managed-plain-methods.md) |
@@ -51,9 +52,10 @@ and returned-call results permit valid incoming queues and pending stores at RET
 Published/physical x86-TSO, source/compiler ordering preservation and native
 Linux/kernel refinement remain separate obligations.
 
-The [managed plain64 measurement](../corpus/measurements/managed-plain64-v1/)
-records the latest accepted source and full-project/corpus gate evidence,
-including its external fresh replay scope.
+The [multiplication measurement](../corpus/measurements/multiply-modulo64-v1/)
+records the latest accepted source and full-project/corpus gate evidence.
+Both original named ELF functions reuse the vector VCG, resource adapter and
+trusted execution/task registry.
 Earlier measurement files retain their historical counts. See
 [remaining blockers](corpus-blockers.md).
 
@@ -64,7 +66,7 @@ Earlier measurement files retain their historical counts. See
 | Proof infrastructure | Lean 4.35.0, warnings as errors, transitive axiom audit and fresh replay tooling | [Trust](trust.md); no third-party Lean package dependency |
 | Machine execution | Restricted decoder, memory/stack semantics, unbounded execution and evaluator correspondence | [Machine profile and exact-byte functions](coverage.md#supported-machine-profile) |
 | Reusable verification | Production-ISA VCG, sparse loop cutpoints, all-AF execution, real read origins and independent postconditions | [Checker](reusable-checker.md), [CFGs](cfg.md), [scalar calls](pure-call.md) |
-| Independent flag choices | Full flag-vector executor/VCG, reusable resource and named-ELF certificates, trusted execution/task registry and multiplication packet grading | [Flag choices](flag-choices.md); corpus reporting and coverage promotion remain open |
+| Independent flag choices | Full flag-vector executor/VCG, reusable resource and named-ELF certificates, trusted execution/task registry and multiplication packet grading | [Flag choices](flag-choices.md); both original multiplication artifacts included in corpus acceptance |
 | Artifact binding | Raw bytes, restricted ELF loading, numeric windows, named symbols and spec-indexed complete-file certificates | [ELF](elf.md), [named functions](elf-function-symbol.md), [certificate API](elf-certificates.md) |
 | Sequential resources | Address spaces, allocation lifetimes/epochs, read loans, checked stores and current-RAM bridges | [Address spaces](address-space.md), [ownership](ownership.md), [borrowing](borrowing.md) |
 | Loops and calls | Restricted sums/scans, owned direct calls, DATA8 effects and counted helper contracts | [Capability index](coverage.md#sequential-functions-and-calls) |

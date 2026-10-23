@@ -2,10 +2,10 @@
 
 The [corpus guide](../docs/compiler-corpus.md) defines the fixed 40 functions
 and 80 default GCC/Clang final-ELF windows. Current conditional certificate
-coverage is **18/40 functions, 36/80 artifacts**, including **three distinct
-concurrent functions**; **22 functions / 44 artifacts** remain. Both compiler
+coverage is **19/40 functions, 38/80 artifacts**, including **three distinct
+concurrent functions**; **21 functions / 42 artifacts** remain. Both compiler
 outputs must pass for function credit. The latest
-[managed plain64 measurement](measurements/managed-plain64-v1/) records the
+[multiplication measurement](measurements/multiply-modulo64-v1/) records the
 accepted source and full-gate evidence. Fetch-add retains
 `managed-tso64-closed-batch-v1`; load/store use
 `managed-tso64-plain64-cohort-v1`. Acquire/release are declared interface

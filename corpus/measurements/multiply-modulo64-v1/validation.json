@@ -1,0 +1,621 @@
+{
+  "schema": "ediesel-corpus-measurement-v1",
+  "source_commit": "ba6f8a9533c2a13ba3c55966c01478ed062a4f5e",
+  "source_tree": "4bc0bea805a4f23ccf8932b6198f19a0ba1fac81",
+  "score": {
+    "compiler_artifacts_certified_end_to_end": 38,
+    "compiler_artifacts_total": 80,
+    "concurrency_contracts_proved": 3,
+    "functions_certified_end_to_end": 19,
+    "functions_total": 40
+  },
+  "toolchain": "leanprover/lean4:v4.35.0",
+  "warnings_as_errors": true,
+  "allowed_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "local_certificate_gate": {
+    "receipt_run": "run.20261023T005809Z.gfWdf8VH",
+    "scope": "full-project-and-corpus-cli",
+    "build_jobs": 1350,
+    "audited_declarations": 37415,
+    "command_expectations": 3455,
+    "report_rejections": 605,
+    "fresh": {
+      "target": "CorpusFullReplay",
+      "started": "2026-10-23T01:16:45Z",
+      "finished": "2026-10-23T01:31:05Z",
+      "exit": 0
+    },
+    "source_files_verified": 1564,
+    "frozen_files_verified": 2,
+    "object_files_verified": 1118,
+    "receipt_files_independently_verified": 22460,
+    "packets": {
+      "expectedCommands": 50,
+      "requiredPositiveAcceptances": 8,
+      "completedPositiveAcceptances": 8,
+      "requiredKernelRejections": 16,
+      "completedKernelRejections": 16
+    },
+    "manifests": {
+      "source-before.sha256": {
+        "sha256": "20c8f436565952ce731423bb1be02c57e113b8e3e52c9cf3152ea6e3b24bc7a2",
+        "files": 1564,
+        "bytes": 13963364
+      },
+      "frozen-before.sha256": {
+        "sha256": "871135d7ae286968f3a76188085d45be940ae5e35e04b6e5c6f3368406c7f7a1",
+        "files": 2,
+        "bytes": 85256
+      },
+      "gate-inputs.sha256": {
+        "sha256": "df6ab25fb9aab1092ae7a9f615546849b862469e581b3aa7747ae728988a2b78",
+        "files": 7,
+        "bytes": 53047
+      },
+      "modules-before.sha256": {
+        "sha256": "141149e5a187bb31b493d953f945faf3414d092ab0f911a3f2d3c9d2566a323f",
+        "files": 1118,
+        "bytes": 508124504
+      },
+      "cli-binaries-before.sha256": {
+        "sha256": "4c704e5654eb66c51adb74d7d466f0e229747ab712a887e1e548b7d60f503ac2",
+        "files": 2,
+        "bytes": 238225792
+      },
+      "receipt-manifest": {
+        "sha256": "9b6fd50bb67f5e42c604874a4a67351fbb27d594c7f40408ec8bbee23c6dcf84",
+        "files": 22460,
+        "bytes": 48264847
+      },
+      "nested-packet-manifest": {
+        "sha256": "272ac104c709fd4f1f098f5fd5870a466a3c4b8e2cb7d37244c7a76f77958568",
+        "files": 217,
+        "bytes": 2125864
+      },
+      "nested-packet-inputs": {
+        "sha256": "871135d7ae286968f3a76188085d45be940ae5e35e04b6e5c6f3368406c7f7a1",
+        "files": 2,
+        "bytes": 85256
+      }
+    }
+  },
+  "original_ci_batch": {
+    "branch": "codex/multiply-vector-20261022",
+    "event": "push",
+    "attempt": 1,
+    "workflows": 14,
+    "jobs": 23,
+    "original_manifest_sha256": "58e234a8e9ec7fa5ac3303580f48893563fdedda6a6e682bf41bc76ff3d7f5f2",
+    "runs": [
+      {
+        "id": 39881286848,
+        "path": ".github/workflows/array-maximum64.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881286848"
+      },
+      {
+        "id": 39881286872,
+        "path": ".github/workflows/atomic-logical64.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881286872"
+      },
+      {
+        "id": 39881286878,
+        "path": ".github/workflows/logical64.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881286878"
+      },
+      {
+        "id": 39881286912,
+        "path": ".github/workflows/atomic-set64.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881286912"
+      },
+      {
+        "id": 39881286920,
+        "path": ".github/workflows/array-sum64.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881286920"
+      },
+      {
+        "id": 39881286921,
+        "path": ".github/workflows/call-stack.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881286921"
+      },
+      {
+        "id": 39881286947,
+        "path": ".github/workflows/atomic-logical64-grading.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881286947"
+      },
+      {
+        "id": 39881286962,
+        "path": ".github/workflows/futex-predicate.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881286962"
+      },
+      {
+        "id": 39881286981,
+        "path": ".github/workflows/lean.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881286981"
+      },
+      {
+        "id": 39881287002,
+        "path": ".github/workflows/atomic-set64-grading.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881287002"
+      },
+      {
+        "id": 39881287016,
+        "path": ".github/workflows/logical64-clients.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881287016"
+      },
+      {
+        "id": 39881287059,
+        "path": ".github/workflows/compiler-corpus.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881287059"
+      },
+      {
+        "id": 39881287061,
+        "path": ".github/workflows/comparison64.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881287061"
+      },
+      {
+        "id": 39881287081,
+        "path": ".github/workflows/toolchain.yml",
+        "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881287081"
+      }
+    ],
+    "successful_workflows": 14,
+    "successful_jobs": 23,
+    "authored_steps_checked": 624,
+    "observed_at": "2026-10-23T01:43:05.557Z",
+    "status": "passed within workflow/API and production-log scope"
+  },
+  "production_ci": {
+    "run": 39881286981,
+    "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881286981",
+    "status": "passed actual production API/log review",
+    "id": 120179009411,
+    "checkout": "ba6f8a9533c2a13ba3c55966c01478ed062a4f5e",
+    "buildJobs": 1713,
+    "actualBuiltRoots": [
+      "tests.ManagedQueue64",
+      "tests.TSO64SharedCells",
+      "tests.TSO64ReadSource",
+      "tests.TSO64PublishedWriters",
+      "tests.TSOWordProjection",
+      "tests.TSO64StoreIdentities",
+      "tests.TSO64StoreTrace",
+      "tests.TSO64AtomicTrace",
+      "tests.ManagedRules",
+      "tests.TSO64DrainClosure",
+      "tests.PlainMethods",
+      "tests.PlainMethodAdmission",
+      "tests.PlainCallOrigins",
+      "tests.PlainCallInterference",
+      "tests.PlainCallBatch",
+      "tests.PublishedPositionViews",
+      "tests.PlainEventCorrespondence",
+      "tests.PlainMethodHistories",
+      "tests.PlainCohortCompletion",
+      "tests.PlainCallAdmission64",
+      "tests.PlainCallHistory64",
+      "tests.PlainCallBehavior64",
+      "tests.PlainCallClaim64",
+      "tests.CorpusPlainResources",
+      "tests.PlainWitnessAudit64",
+      "tests.PendingPublicationViews",
+      "tests.ExecutionViews",
+      "tests.MixedWriteOrder",
+      "tests.AccessSourceRanks",
+      "tests.RMWSourceRanks",
+      "tests.AccessGraphRanks",
+      "tests.TSO64CrossCellFixtures",
+      "tests.PublicationCoverage",
+      "tests.PublicationCoverageBoundary",
+      "tests.PublicationCoverageLoads",
+      "tests.PublicationCoverageAudit",
+      "tests.ViewTransfer",
+      "tests.WriteViewRanks",
+      "tests.GraphOperationalCoherence",
+      "tests.GraphHappensBefore",
+      "tests.GraphHBCoherence",
+      "tests.GraphConstruction",
+      "tests.C23AtomicEvents",
+      "tests.C23MessagePassing",
+      "tests.C23AtomicCheck",
+      "tests.C23AtomicWeakening",
+      "tests.AtomicInterface",
+      "tests.FlagChoiceExecution",
+      "tests.SequentialMultiply",
+      "tests.MultiplyResources",
+      "tests.GradingMultiply"
+    ],
+    "actualReplayedRoots": [],
+    "rootBuildEvidence": [
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.ManagedQueue64",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.TSO64SharedCells",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.TSO64ReadSource",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.TSO64PublishedWriters",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.TSOWordProjection",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.TSO64StoreIdentities",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.TSO64StoreTrace",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.TSO64AtomicTrace",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.ManagedRules",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.TSO64DrainClosure",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PlainMethods",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PlainMethodAdmission",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PlainCallOrigins",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PlainCallInterference",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PlainCallBatch",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PublishedPositionViews",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PlainEventCorrespondence",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PlainMethodHistories",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PlainCohortCompletion",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PlainCallAdmission64",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PlainCallHistory64",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PlainCallBehavior64",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PlainCallClaim64",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.CorpusPlainResources",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PlainWitnessAudit64",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PendingPublicationViews",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.ExecutionViews",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.MixedWriteOrder",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.AccessSourceRanks",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.RMWSourceRanks",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.AccessGraphRanks",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.TSO64CrossCellFixtures",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PublicationCoverage",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PublicationCoverageBoundary",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PublicationCoverageLoads",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.PublicationCoverageAudit",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.ViewTransfer",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.WriteViewRanks",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.GraphOperationalCoherence",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.GraphHappensBefore",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.GraphHBCoherence",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ManagedQueue64Tests",
+        "root": "tests.GraphConstruction",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "C23AtomicTests",
+        "root": "tests.C23AtomicEvents",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "C23AtomicTests",
+        "root": "tests.C23MessagePassing",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "C23AtomicTests",
+        "root": "tests.C23AtomicCheck",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "C23AtomicTests",
+        "root": "tests.C23AtomicWeakening",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "C23AtomicTests",
+        "root": "tests.AtomicInterface",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ChoiceTests",
+        "root": "tests.FlagChoiceExecution",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ChoiceTests",
+        "root": "tests.SequentialMultiply",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ChoiceTests",
+        "root": "tests.MultiplyResources",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      },
+      {
+        "target": "ChoiceTests",
+        "root": "tests.GradingMultiply",
+        "lakeMessage": "Built",
+        "basis": "actual Lake output"
+      }
+    ],
+    "directChecks": [
+      {
+        "module": "tests.FlagChoiceExecution",
+        "command": "lake env lean -j1 -DwarningAsError=true -DautoImplicit=false -DmaxHeartbeats=300000 -DmaxRecDepth=128 tests/FlagChoiceExecution.lean",
+        "evidence": "successful actual CI regression step; no per-module fresh-replay claim"
+      },
+      {
+        "module": "tests.SequentialMultiply",
+        "command": "lake env lean -j1 -DwarningAsError=true -DautoImplicit=false -DmaxHeartbeats=300000 -DmaxRecDepth=128 tests/SequentialMultiply.lean",
+        "evidence": "successful actual CI regression step; no per-module fresh-replay claim"
+      },
+      {
+        "module": "tests.MultiplyResources",
+        "command": "lake env lean -j1 -DwarningAsError=true -DautoImplicit=false -DmaxHeartbeats=300000 -DmaxRecDepth=128 tests/MultiplyResources.lean",
+        "evidence": "successful actual CI regression step; no per-module fresh-replay claim"
+      },
+      {
+        "module": "tests.GradingMultiply",
+        "command": "lake env lean -j1 -DwarningAsError=true -DautoImplicit=false -DmaxHeartbeats=300000 -DmaxRecDepth=128 tests/GradingMultiply.lean",
+        "evidence": "successful actual CI regression step; no per-module fresh-replay claim"
+      }
+    ],
+    "cacheAcceptance": "Lake explicitly invoked; actual transitive audit and separate production fresh replay succeeded; cache replay is not a rebuild",
+    "auditDeclarations": 35147,
+    "negativeControl": "unapproved transitive dependency rejected",
+    "fresh": {
+      "target": "EDSL.All",
+      "start": "2026-10-23T01:25:08Z",
+      "end": "2026-10-23T01:33:07Z",
+      "outcome": "completed/success actual CI step; no local replay"
+    },
+    "providerBytes": "not acquired; no per-object stability/rehash claim"
+  },
+  "limits": [
+    "Conditional modeled execution and current resources only",
+    "GCC retains original ENDBR64 under recorded CET/IBT/shadow-stack-off assumptions",
+    "Synthetic packet ELF containers are parser controls; original named ELFs are certified separately",
+    "No native Linux/CPU, compiler preservation, whole-OS, physical timing or unrestricted minimum-cost claim"
+  ],
+  "certificate_gate": {
+    "workflow_run": 39881287059,
+    "url": "https://github.com/Irvinwop/eDieSeL/actions/runs/39881287059",
+    "attempt": 1,
+    "receipt_run": "run.20261023T005953Z.3XWkghr5",
+    "scope": "full-project-and-corpus-cli",
+    "build_jobs": 1350,
+    "audited_declarations": 37415,
+    "command_expectations": 3455,
+    "fresh": {
+      "target": "CorpusFullReplay",
+      "started": "2026-10-23T01:32:17Z",
+      "finished": "2026-10-23T01:41:34Z",
+      "exit": 0
+    },
+    "source_files_verified": 1564,
+    "frozen_files_verified": 2,
+    "hashes": {
+      "report": "e6227f59a379c0260977e1d4ab00acc3b38589b9ab2f131f7e9e56fa35542c26",
+      "proofSources": "20c8f436565952ce731423bb1be02c57e113b8e3e52c9cf3152ea6e3b24bc7a2",
+      "frozenFiles": "871135d7ae286968f3a76188085d45be940ae5e35e04b6e5c6f3368406c7f7a1",
+      "receiptManifest": "ef46622ea0018379dbb51a25e3d3f6010a4b866b034af5a12cc4a5608e5be7f6",
+      "gateInputs": "206a087f503c729555a127745f3137909e5e5987902bb56f4d92b8ada73a5322"
+    },
+    "artifact": {
+      "id": 12472840358,
+      "archive_bytes": 18446767,
+      "archive_sha256": "cfed7ecf49ef48ce2ced1f86bf059f7617adfa3d1ecb7a239b67aced1e6c9830",
+      "provider_digest": "sha256:cfed7ecf49ef48ce2ced1f86bf059f7617adfa3d1ecb7a239b67aced1e6c9830"
+    },
+    "object_scope": "CI before/after object inventories and successful stability commands are recorded. CI project objects and CLI binaries are not provided by this artifact; no independent rehash of those bytes is claimed.",
+    "receipt_files_independently_verified": 22460,
+    "private_objects_rehashed": 3,
+    "report_rejections": 605,
+    "packets": {
+      "expectedCommands": 50,
+      "requiredPositiveAcceptances": 8,
+      "completedPositiveAcceptances": 8,
+      "requiredKernelRejections": 16,
+      "completedKernelRejections": 16
+    }
+  }
+}

@@ -670,8 +670,9 @@ above. The full independent Claim, whole-loaded-image resources, overlapping
 high-word homogeneous executions and delayed-publication mixed selected-writer
 execution are implemented for both frozen compiler files. The
 [managed plain64 measurement](../corpus/measurements/managed-plain64-v1/)
-records the accepted final source and full-gate evidence. Validated conditional
-coverage is **18/40 functions and 36/80 artifacts**, including **three distinct
-concurrent functions**; **22 functions / 44 artifacts** remain. See
+records the accepted final source and full-gate evidence. At that milestone, conditional
+coverage was **18/40 functions and 36/80 artifacts**, including **three distinct
+concurrent functions**; **22 functions / 44 artifacts** remained. See
+[implementation status](implementation-status.md) for the current total, and
 [atomic call contracts](atomic-call-contracts.md) and
 [checked finite atomic traces](checked-atomic-traces.md) for the adjacent layers.

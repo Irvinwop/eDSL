@@ -114,13 +114,20 @@ witnesses place both accesses before either return; a same-file mixed run retain
 `writer RET < publication < reader access` and the actual selected-writer RF edge
 in that same closed history. The
 [measurement](../corpus/measurements/managed-plain64-v1/) records the accepted
-source and full-gate evidence. Conditional coverage is **18/40 functions and
+source and full-gate evidence. At that milestone, conditional coverage was **18/40 functions and
 36/80 artifacts**, including **three distinct concurrent functions**;
-**22 functions / 44 artifacts** remain. Fetch-add retains
+**22 functions / 44 artifacts** remained. Fetch-add retains
 `managed-tso64-closed-batch-v1`; plain load/store use
 `managed-tso64-plain64-cohort-v1`. Acquire/release are declared interface
 annotations; closed legal histories require initialized resources and empty
 initial and final queues.
+
+The [multiplication milestone](../corpus/measurements/multiply-modulo64-v1/)
+adds both unchanged `c_mul_mod64` outputs. The shared vector VCG, resource
+and named-ELF adapters establish the full64 natural product modulo 2^64 for
+all independent flag streams. Conditional coverage is **19/40 functions and
+38/80 artifacts**, including **three distinct concurrent functions**;
+**21 functions / 42 artifacts** remain.
 
 ## What is frozen
 

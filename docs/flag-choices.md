@@ -93,9 +93,10 @@ The objective grader accepts serialized reference/body packets for both frozen
 multiply bodies under its default limits. The packet gate checks client
 isolation, raw and synthetic ELF-container acceptance, and changed-byte/extent
 rejection. Exact original named-ELF binding comes from `MultiplyRegistered`,
-not those synthetic containers. Published corpus accounting remains
-**18/40 functions and 36/80 artifacts** until the full corpus reporting and
-acceptance gates include multiplication.
+not those synthetic containers. The [multiplication measurement](../corpus/measurements/multiply-modulo64-v1/)
+records the accepted source, full corpus gate and stored acceptance assertions
+replayed in a fresh kernel environment. Conditional coverage is
+**19/40 functions and 38/80 artifacts**, including three distinct concurrent functions.
 Native CPU/Linux correspondence, concurrency and source/compiler preservation
 remain separate obligations. The callable target assumes stable ordinary RAM,
 64-bit mode, disabled CET/IBT/shadow stacks and no asynchronous interference.

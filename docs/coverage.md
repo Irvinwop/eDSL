@@ -2,11 +2,11 @@
 
 This is the capability index for eDieSeL's implemented verification profiles.
 Use [implementation status](implementation-status.md) for the current
-**18/40-function, 36/80-artifact** validated conditional frozen-corpus total,
-including **three distinct managed concurrent functions**; **22 functions /
-44 artifacts** remain. Other callable fixtures and model proofs remain useful
+**19/40-function, 38/80-artifact** validated conditional frozen-corpus total,
+including **three distinct managed concurrent functions**; **21 functions /
+42 artifacts** remain. Other callable fixtures and model proofs remain useful
 without adding corpus coverage. The latest
-[managed plain64 measurement](../corpus/measurements/managed-plain64-v1/)
+[multiplication measurement](../corpus/measurements/multiply-modulo64-v1/)
 records the accepted source and full-gate evidence.
 
 Every entry below has a restricted contract. Follow its reference for exact

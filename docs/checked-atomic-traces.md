@@ -772,10 +772,11 @@ results with its independent Claim, whole-image resources and actual useful
 homogeneous/mixed executions. Its acquire/release annotations are declared;
 closed legal histories retain initialized resources and empty endpoint queues.
 Fetch-add uses `managed-tso64-closed-batch-v1`; plain load/store use
-`managed-tso64-plain64-cohort-v1`. Validated conditional corpus coverage is
+`managed-tso64-plain64-cohort-v1`. At the managed plain64 milestone, conditional corpus coverage was
 **18/40 functions and 36/80 artifacts**, including **three distinct concurrent
-functions**; **22 functions / 44 artifacts** remain. The
+functions**; **22 functions / 44 artifacts** remained. The
 [managed plain64 measurement](../corpus/measurements/managed-plain64-v1/)
-records the accepted source and full-gate evidence. See the
+records the accepted source and full-gate evidence. See
+[implementation status](implementation-status.md) for the current total, and the
 [store-history API](managed-store-trace.md) and [trust model](trust.md) for the
 supporting boundaries.

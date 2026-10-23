@@ -13,10 +13,10 @@ for supported capabilities, and [trust](trust.md) for the assumptions behind a
 proof. Source-language frontends and a privileged kernel target remain future
 work.
 
-The latest [managed plain64 measurement](../corpus/measurements/managed-plain64-v1/)
+The latest [multiplication measurement](../corpus/measurements/multiply-modulo64-v1/)
 records the accepted source and full-gate evidence for validated conditional
-coverage of **18/40 functions and 36/80 artifacts**, including **three distinct
-concurrent functions**; **22 functions / 44 artifacts** remain. Fetch-add and
+coverage of **19/40 functions and 38/80 artifacts**, including **three distinct
+concurrent functions**; **21 functions / 42 artifacts** remain. Fetch-add and
 plain load/store retain their separate managed models.
 
 ## Verify a program
