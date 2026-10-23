@@ -2,7 +2,7 @@
 Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
-import EDSL.Grading.Export
+import EDSL.Grading.ExportRegistry
 
 open Lean EDSLGrader.Runtime EDSLGrader.Export
 
@@ -15,19 +15,23 @@ private def failureStatus : FailureKind → UInt32
 
 def main (args : List String) : IO UInt32 := do
   let stderr ← IO.getStderr
-  let selected := match args with
+  let (registered, arguments) := match args with
+    | "--registered" :: rest => (true, rest)
+    | _ => (false, args)
+  let selected := match arguments with
     | [mod, theoremText, output] => some (mod, theoremText, output, Mode.reference)
     | [mod, theoremText, output, "--body"] => some (mod, theoremText, output, Mode.body)
     | ["--body", mod, theoremText, output] => some (mod, theoremText, output, Mode.body)
     | _ => none
   let some (mod, theoremText, output, mode) := selected | do
-    stderr.putStrLn "usage: edsl-proof-export MODULE THEOREM OUTPUT.json [--body]"
+    stderr.putStrLn "usage: edsl-proof-export [--registered] MODULE THEOREM OUTPUT.json [--body]"
     return 2
   if mod.isEmpty || theoremText.isEmpty || mod.toName.isAnonymous || theoremText.toName.isAnonymous then
     stderr.putStrLn "usage: MODULE and THEOREM must be nonempty Lean names"
     return 2
   try
-    let (trusted, client) ← loadEnvironments mod.toName
+    let (trusted, client) ← if registered then loadRegisteredEnvironments mod.toName
+      else loadEnvironments mod.toName
     match exportTheorem trusted.toKernelEnv client.toKernelEnv theoremText.toName mode with
     | .error failure =>
       stderr.putStrLn s!"{repr failure.kind}: {failure.message}"

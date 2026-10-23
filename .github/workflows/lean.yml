@@ -146,6 +146,8 @@ jobs:
           lake env lean -DwarningAsError=true tests/SequentialPadding.lean
           lake env lean -j1 -DwarningAsError=true -DautoImplicit=false -DmaxHeartbeats=300000 -DmaxRecDepth=128 tests/FlagChoiceExecution.lean
           lake env lean -j1 -DwarningAsError=true -DautoImplicit=false -DmaxHeartbeats=300000 -DmaxRecDepth=128 tests/SequentialMultiply.lean
+          lake env lean -j1 -DwarningAsError=true -DautoImplicit=false -DmaxHeartbeats=300000 -DmaxRecDepth=128 tests/MultiplyResources.lean
+          lake env lean -j1 -DwarningAsError=true -DautoImplicit=false -DmaxHeartbeats=300000 -DmaxRecDepth=128 tests/GradingMultiply.lean
           lake env lean -DwarningAsError=true tests/SequentialExecution.lean
           lake env lean -DwarningAsError=true tests/SequentialMoves.lean
           lake env lean -DwarningAsError=true tests/SequentialMoves64.lean
@@ -224,6 +226,8 @@ jobs:
           lake env lean -DwarningAsError=true tests/StrideMov.lean
           lake env lean -DwarningAsError=true tests/WriteIntermediate.lean
           lake env lean -DwarningAsError=true tests/WriteMoves.lean
+      - name: Check multiplication packet isolation and byte binding
+        run: bash scripts/verify-multiply-packets.sh
       - name: Audit transitive axiom dependencies
         run: bash scripts/check-audit.sh
       - name: Check bounded byte scans and current buffer resources

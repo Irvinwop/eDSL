@@ -103,3 +103,28 @@ dependency closure, startup/auxv/TLS, privileged transitions, exception handling
 and whole-process or whole-OS execution are outside this theorem. Source/IR
 preservation is a separate optional guarantee; a final-byte proof does not
 require a source-language frontend.
+
+## Independent flag choices
+
+For an instruction with several independently undefined flags, import
+`EDSL.PureCall.ELFCertificateFor` and select `ExecutionModel.flags`.
+`ELFCertificateFor model spec file name` uses the same `ELFLoadedCall`,
+complete-file/name checker, original caller loans and independently useful
+selected-address witness as the Bool certificate. Its `resource` theorem
+quantifies over all streams of the selected model, including each independent
+undefined flag. Usefulness restricts only the existential witness; an admitted
+zero input is covered by universal correctness even when it is not useful.
+
+The shared route is:
+
+1. Prove a vector `wpWith` for a graph authenticated by `CFG.Valid` against the
+   exact executable bytes. The postcondition comes from an independent spec.
+2. Apply `VCGen.pureCall_semantics_of_generatedWith` to obtain universal raw
+   and current-resource semantics, with the original return-slot read policy.
+3. Apply `ELFCertificateFor.ofCaller` using the existing complete named-ELF
+   check, caller facts, fresh mappings and code/stack separation.
+
+`ELFCertificateFor.ofBool` and `.toBool` preserve the complete original Bool
+certificate. There is no conversion that treats IMUL as a Bool instruction.
+A neutral certificate does not select a grading task or establish corpus
+coverage; the grader must bind a trusted execution model and independent task.

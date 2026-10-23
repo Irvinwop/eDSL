@@ -162,3 +162,5 @@ import EDSL.X86.Sequential.ExecutionChoices
 import EDSL.WordMath.Multiplication
 import EDSL.Corpus.V1.MultiplyWindows
 import EDSL.Corpus.V1.MultiplyBodies
+import EDSL.Corpus.V1.MultiplyRegistered
+import EDSL.Grading.RegisteredArtifact

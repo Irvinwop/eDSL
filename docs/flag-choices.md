@@ -73,11 +73,19 @@ bounded total-correctness proofs transfer without new admission assumptions,
 because their universal totality supplies that safety. Finite simulation
 alone does not imply unbounded termination.
 
-The grading registry and its end-to-end resource certificates still use the
-Bool execution profile. The multiply body and ELF-binding theorems do not yet
-constitute a registered corpus certificate. Published coverage remains
-**18/40 functions and 36/80 artifacts**. Extending the shared execution-indexed
-resource/policy and registry bridges is required before those totals increase.
+`ExecutionModel` selects either the original Bool executor or the complete
+flag-vector executor. `ReadOnlyPolicyFor`, `ReadOnlySemanticClaimFor` and
+`PureCall.ELFCertificateFor` retain the original admission and current-resource
+contracts for that selected execution domain.
+`VCGen.pureCall_semantics_of_generatedWith` lifts one byte-checked vector WP
+proof through the shared scalar/resource bridge; clients do not need a new
+resource-preservation proof for each program. The original Bool APIs remain
+available, with exact compatibility theorems.
+
+Both frozen multiply functions have neutral vector/resource ELF certificates.
+They are not yet accepted through the objective grader and do not increase
+published coverage: **18/40 functions and 36/80 artifacts**. Grader integration
+and complete corpus acceptance remain required before those totals increase.
 Native CPU/Linux correspondence, concurrency and source/compiler preservation
 remain separate obligations. The callable target assumes stable ordinary RAM,
 64-bit mode, disabled CET/IBT/shadow stacks and no asynchronous interference.

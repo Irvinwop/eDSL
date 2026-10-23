@@ -200,5 +200,6 @@ lean_lib CFGProfileTests where
 
 -- Independent flag components, decoded schedules and generic choice refinement.
 lean_lib ChoiceTests where
-  roots := #[`tests.FlagChoiceExecution, `tests.SequentialMultiply]
+  roots := #[`tests.FlagChoiceExecution, `tests.SequentialMultiply,
+    `tests.MultiplyResources, `tests.GradingMultiply]
   moreLeanArgs := #["-DautoImplicit=false", "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
