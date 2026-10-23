@@ -16,7 +16,7 @@ case "$#:${1:-}" in
     1:--help)
         echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]'
         echo 'Builds twenty-four scalar, two managed concurrent fetch-add, two bounded byte-scan, four first-match search, two byte-comparison, two byte-equality and four managed plain load/store certificates, audits axioms and checks file binding.'
-        echo 'Default: fresh-replays the named certificate checks and corpus.Certify. --full-project: also builds the full catalogue and verification, unary, popcount, average, parity, rotation, low-byte, CFG-profile and full-vector multiplication/signum tests; fresh-replays them together and runs both registered packet gates.'
+        echo 'Default: fresh-replays the named certificate checks and corpus.Certify. --full-project: also builds the full catalogue and verification, unary, popcount, average, parity, rotation, low-byte, CFG-profile, effect-scheduler and full-vector multiplication/signum tests; fresh-replays them together and runs both registered packet gates.'
         exit 0 ;;
     *) echo 'usage: scripts/verify-corpus-certificates.sh [--full-project]' >&2; exit 2 ;;
 esac
@@ -231,6 +231,9 @@ import tests.StructuralDiscovery
 import tests.EffectVCGen
 import tests.EffectReflection
 import tests.EffectChecked
+import tests.EffectTSO64Simulation
+import tests.EffectTSO64Interference
+import tests.EffectTSO64Authority
 import corpus.Certify
 import CorpusCertificateChecks
 import tests.VerificationImports
@@ -1206,7 +1209,7 @@ certificate_targets=(EDSL.Corpus.V1.Comparisons EDSL.Corpus.V1.Arithmetic EDSL.C
     EDSL.Corpus.V1.SignumRegistered tests.SignumCertificates
     EDSL.Corpus.PlainMixedWitnesses)
 if [[ $full_project == true ]]; then
-    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests ParityTests RotationTests Low8Tests ByteEqualityTests CFGProfileTests ChoiceTests ManagedQueue64Tests \
+    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests ParityTests RotationTests Low8Tests ByteEqualityTests CFGProfileTests EffectSimulationTests ChoiceTests ManagedQueue64Tests \
         edsl-proof-export edsl-grade "${certificate_targets[@]}"
 else
     record build "${lean_lock[@]}" lake build "${certificate_targets[@]}"

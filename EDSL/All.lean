@@ -87,6 +87,7 @@ import EDSL.X86.VCGen.ManagedRules
 import EDSL.X86.VCGen.PlainMethods
 import EDSL.OS.PlainCall64
 import EDSL.OS.TSO64.Stability
+import EDSL.OS.TSO64.EffectSimulation
 import EDSL.X86.VCGen.GradingExamples
 import EDSL.Stride32.Correctness
 import EDSL.Stride32.Accounting

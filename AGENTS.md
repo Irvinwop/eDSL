@@ -24,3 +24,8 @@
   the behavior under test. Skip new tests without meaningful evidence.
 - Run checks appropriate to the change. Keep bootstrap compiler checks distinct
   from future runtime, eDSL, ABI, and memory-model validation.
+
+- Use descriptive branch names with normal prefixes such as `feature/`, `fix/`,
+  `docs/`, or `test/`; do not include agent or tool names. Remove completed task
+  branches after their changes are accepted on `main`. Preserve active work and
+  cached proof dependencies when cleaning branch references.

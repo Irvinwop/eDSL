@@ -200,6 +200,13 @@ lean_lib CFGProfileTests where
     `tests.BufferCallVCGen]
   moreLeanArgs := #["-DautoImplicit=false"]
 
+-- Current-authority admission, mixed FIFO effects and real schedule transport.
+lean_lib EffectSimulationTests where
+  roots := #[`tests.EffectTSO64Simulation, `tests.EffectTSO64Interference,
+    `tests.EffectTSO64Authority]
+  moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
+    "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
+
 -- Independent flag components, decoded schedules and generic choice refinement.
 lean_lib ChoiceTests where
   roots := #[`tests.FlagChoiceExecution, `tests.SequentialMultiply,

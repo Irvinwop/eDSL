@@ -90,12 +90,31 @@ PF/ZF choices. [`tests/EffectChecked.lean`](../tests/EffectChecked.lean) connect
 combined acceptance to a production run and rejects changed executable text and
 a wrong entry RIP even where the raw WP accepts the proposed instructions.
 
-These APIs establish bounded sequential model behavior. The separation policy
-protects only the selected code; caller-slot ownership and other resource frames
-need additional obligations. A CPU predicate closed over an initial OS world
-does not establish coherent current-world or ownership/epoch evolution after
-writes. OS authority, TSO publication, scheduling, lock transfer and
-linearizability require a proved bridge to the concurrent models. Cutpoints
-provide no unbounded-loop rule here. Physical CPU/OS correspondence and
-source/compiler preservation remain separate refinement obligations. Rejection
-or exhausted fuel does not establish a program defect.
+## Connecting an ordinary step to the scheduler
+
+Import `EDSL.OS.TSO64.EffectSimulation` for the
+[ordinary scheduler bridge](effect-scheduler-bridge.md). `Effects.Trace.head`
+extracts the first actual checked step. `EffectSimulation.OrdinaryReady` supplies
+the separate current prestate OS gates; `issue_from_head` derives a successful
+production issue and whole successor-CPU equality. Ordinary stores retain their
+actual DWORD/QWORD FIFO intent. RET retains pending stores, and a successful own
+drain preserves the issuing worker's local CPU while publishing to shared RAM.
+Peer publication may change a resumed worker's memory, so an old sequential
+trace alone does not justify its next issue.
+
+`EffectSimulation.Simulation.schedule` and `schedule_cut` transport a client
+relation through successful actual schedules, retaining blocks and drains. The
+client must prove a universal lift law for the production origins; the successful
+schedule premise does not establish fault freedom, fairness or termination.
+The bridge extends neither the scheduler's opcodes nor its authority profiles
+and does not convert sequential DWORD atomic events into full64 RMW events.
+
+These APIs establish conditional model behavior. The separation policy protects
+only the selected code; caller-slot ownership and other resource frames need
+additional obligations. A CPU predicate closed over an initial OS world does
+not establish coherent current-world or ownership/epoch evolution after writes.
+Lock transfer, linearizability and whole-program interference invariants remain
+client or future protocol proofs. Cutpoints provide no unbounded-loop rule here.
+Physical CPU/OS correspondence and source/compiler preservation remain separate
+refinement obligations. Rejection or exhausted fuel does not establish a
+program defect.

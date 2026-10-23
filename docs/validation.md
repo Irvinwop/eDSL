@@ -6,6 +6,19 @@ Run from the repository root. For the reusable API and new-function checks:
 lake build EDSL VerificationTests UnaryTests PopcountTests AverageTests
 ```
 
+For the current-state effect/scheduler bridge and its synthetic regressions:
+
+```sh
+lake build EffectSimulationTests
+```
+
+This target covers checked ordinary issue, mixed-width forwarding, pending
+stores at RET, publication after return, peer-publication resumption and
+current-authority rejection under both existing profiles. The
+[bridge guide](effect-scheduler-bridge.md) distinguishes single-step admission
+from the client simulation law required for an actual interleaved schedule.
+These checks add no frozen-corpus coverage or physical CPU/OS correspondence.
+
 For named-function extraction, generated-module composition, independent
 functional/current-resource verification and exact-file rejection checks on an
 owned real compiler output:
@@ -42,6 +55,10 @@ and grading regressions built through `PopcountTests`. `AverageTests` adds
 shared logical-shift semantics, generated average bodies, full64 overflow and
 current-resource checks, fixed-task packet rejection controls and independent
 arithmetic regressions at standard and nonstandard bit widths.
+
+`EffectSimulationTests` is also included in the full-project build, aggregate
+axiom audit and fresh replay, together with the bridge's production modules
+through `EDSL.All`.
 
 For owned finite logical-right-shift observations with independently chosen
 undefined AF and ordinary-kernel production replay:

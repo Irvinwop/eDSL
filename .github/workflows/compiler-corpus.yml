@@ -11,8 +11,9 @@ permissions:
 jobs:
   frozen-corpus:
     runs-on: ubuntu-24.04
-    # Complete literal-file certificates also replay their proof closure fresh.
-    timeout-minutes: 45
+    # Include cold rebuilds and the complete fresh kernel replay. This is a job
+    # wall-clock limit; theorem budgets and required checks remain unchanged.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
