@@ -12,7 +12,8 @@ set_option maxRecDepth 128
 namespace EDSL.X86.Sequential
 
 def NopEncoding.length : NopEncoding → Nat
-  | .one => 1 | .two => 2 | .three => 3 | .four => 4 | .five => 5 | .six => 6 | .nine => 9 | .fifteen => 15
+  | .one => 1 | .two => 2 | .three => 3 | .four => 4 | .five => 5 | .six => 6
+  | .nine => 9 | .thirteen => 13 | .fifteen => 15
 
 def NopEncoding.bytes : NopEncoding → List Byte
   | .one => [0x90]
@@ -22,6 +23,8 @@ def NopEncoding.bytes : NopEncoding → List Byte
   | .five => [0x0f, 0x1f, 0x44, 0x00, 0x00]
   | .six => [0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00]
   | .nine => [0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00]
+  | .thirteen => [0x66, 0x66, 0x66, 0x66, 0x2e, 0x0f, 0x1f, 0x84,
+      0x00, 0x00, 0x00, 0x00, 0x00]
   | .fifteen => [0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x2e, 0x0f, 0x1f, 0x84,
       0x00, 0x00, 0x00, 0x00, 0x00]
 
@@ -317,15 +320,23 @@ fetch: `opcode` must be that authenticated byte. Every required suffix byte,
 including ModRM/SIB/displacement, is fetched here. This helper alone does not
 authenticate its supplied first byte. Other /0 operands, nonzero displacements,
 unlisted repeated prefixes, ENDBR32 and reserved hint-NOP aliases are unsupported.
-The sole repeated-prefix form is the exact fifteen-byte assembler padding. -/
+Repeated prefixes are limited to the exact thirteen- and fifteen-byte assembler
+forms. Their common prefix is authenticated before choosing the exact suffix. -/
 def decodePaddingAt (state : State) (opcode : Byte) : Except Error Instruction := do
   if opcode = 0x90 then return .nop .one
   let second ← fetchByte state.memory (state.rip + 1)
   if opcode = 0x66 then
     if second = 0x90 then return .nop .two
     if second = 0x66 then
-      fetchExactAt state 2 [0x66, 0x66, 0x66, 0x66, 0x2e, 0x0f, 0x1f, 0x84, 0, 0, 0, 0, 0]
-      return .nop .fifteen
+      fetchExactAt state 2 [0x66, 0x66]
+      let fifth ← fetchByte state.memory (state.rip + 4)
+      if fifth = 0x2e then
+        fetchExactAt state 5 [0x0f, 0x1f, 0x84, 0, 0, 0, 0, 0]
+        return .nop .thirteen
+      else if fifth = 0x66 then
+        fetchExactAt state 5 [0x66, 0x2e, 0x0f, 0x1f, 0x84, 0, 0, 0, 0, 0]
+        return .nop .fifteen
+      else throw .unsupportedEncoding
     if second ≠ 0x0f then throw .unsupportedEncoding
     let third ← fetchByte state.memory (state.rip + 2)
     if third ≠ 0x1f then throw .unsupportedEncoding

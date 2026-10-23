@@ -459,8 +459,11 @@ private theorem decodePaddingAt_refines {source destination : State} (opcode : B
   have t4 := transport 4 (by decide)
   have exactSix := fetchExactAt_refines [0, 0] transport 4 (by decide)
   have exactNine := fetchExactAt_refines [0, 0, 0, 0, 0] transport 4 (by decide)
+  have repeatedLead := fetchExactAt_refines [0x66, 0x66] transport 2 (by decide)
+  have exactThirteen := fetchExactAt_refines
+    [0x0f, 0x1f, 0x84, 0, 0, 0, 0, 0] transport 5 (by decide)
   have exactFifteen := fetchExactAt_refines
-    [0x66, 0x66, 0x66, 0x66, 0x2e, 0x0f, 0x1f, 0x84, 0, 0, 0, 0, 0] transport 2 (by decide)
+    [0x66, 0x2e, 0x0f, 0x1f, 0x84, 0, 0, 0, 0, 0] transport 5 (by decide)
   unfold decodePaddingAt
   apply SuccessRefines.ite
   · exact SuccessRefines.refl _
@@ -470,9 +473,19 @@ private theorem decodePaddingAt_refines {source destination : State} (opcode : B
     · apply SuccessRefines.ite
       · exact SuccessRefines.refl _
       · apply SuccessRefines.ite
-        · apply SuccessRefines.bind exactFifteen
-          intro completed
-          exact SuccessRefines.refl _
+        · apply SuccessRefines.bind repeatedLead
+          intro authenticated
+          apply SuccessRefines.bind t4
+          intro fifth
+          apply SuccessRefines.ite
+          · apply SuccessRefines.bind exactThirteen
+            intro completed
+            exact SuccessRefines.refl _
+          · apply SuccessRefines.ite
+            · apply SuccessRefines.bind exactFifteen
+              intro completed
+              exact SuccessRefines.refl _
+            · exact SuccessRefines.refl _
         · repeat first
             | exact t2
             | exact t3

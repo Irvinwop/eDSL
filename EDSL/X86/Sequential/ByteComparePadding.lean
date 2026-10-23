@@ -11,12 +11,29 @@ set_option warningAsError true
 
 namespace EDSL.X86.Sequential
 
+private def decodeResultDecidableEq {ε α : Type} [DecidableEq ε] [DecidableEq α] :
+    DecidableEq (Except ε α) :=
+  fun left right =>
+    match left, right with
+    | .error leftFault, .error rightFault =>
+      match decEq leftFault rightFault with
+      | .isTrue same => isTrue (congrArg Except.error same)
+      | .isFalse different => isFalse (fun same => different (Except.error.inj same))
+    | .ok leftValue, .ok rightValue =>
+      match decEq leftValue rightValue with
+      | .isTrue same => isTrue (congrArg Except.ok same)
+      | .isFalse different => isFalse (fun same => different (Except.ok.inj same))
+    | .error _, .ok _ => isFalse (fun same => by cases same)
+    | .ok _, .error _ => isFalse (fun same => by cases same)
+
+local instance : DecidableEq (Except Error Instruction) := decodeResultDecidableEq
+
 /-- Canonical encodings round trip through the production decoder, with no
 following byte in the finite code memory. No general NOP-prefix grammar is
 inferred from this finite encoding family. -/
 theorem NopEncoding.decode_bytes (encoding : NopEncoding) :
     decodeAt (codeState encoding.bytes 0) = .ok (.nop encoding) := by
-  cases encoding <;> rfl
+  cases encoding <;> decide +kernel
 
 /-- Full register/memory frames and all six defined arithmetic flags. The
 left byte and address refer to the same prestate, without alias restrictions.
@@ -93,15 +110,27 @@ theorem cmpRegMem8_effects (before : State) (left : Register) (address : Address
     CFG.readOnly (.cmpRegMem8 left address prefixed) = true := by
   exact ⟨rfl,rfl,rfl,rfl,rfl,rfl⟩
 
-/-- All NOPs, including exact NOP15, preserve the complete state except RIP.
+/-- All NOPs, including exact NOP13 and NOP15, preserve the complete state except RIP.
 Their memory-like suffix never evaluates an operand address or queries DATA.
 This is a model theorem. Hardware correspondence requires `targetProfile`
-and support of the exact repeated-prefix `fifteen` form on the selected CPU. -/
+and support of the exact repeated-prefix `thirteen`/`fifteen` forms on the selected CPU. -/
 theorem execute_nop_context (before : State) (encoding : NopEncoding) :
     ∃ after, (∀ choice, execute before (.nop encoding) choice = .ok ⟨.next after,[]⟩) ∧
       after.registers = before.registers ∧ after.memory = before.memory ∧
       after.flags = before.flags ∧ after.rip = before.rip + BitVec.ofNat 64 encoding.length :=
   ⟨_, fun _ => rfl, rfl, rfl, rfl, rfl⟩
+
+/-- Authenticate exactly NOP13 in arbitrary current memory, then preserve every
+GPR, flag and Memory field with no operand reads and RIP+13 for either choice.
+No permission or readability is required at byte14 or an apparent operand.
+This model contract retains the exact-form target-support assumption above. -/
+theorem step_nop13_context (before : State)
+    (code : CodeAt before.memory before.rip (NopEncoding.bytes .thirteen)) (choice : Bool) :
+    step choice before = .ok ⟨.next { before with rip := before.rip + 13 },[]⟩ := by
+  have fetched := code_fetch_transport_of_bound code (by decide) 0 (by decide)
+    before rfl (by simp)
+  have decoded := decodeAt_transport fetched (NopEncoding.decode_bytes .thirteen)
+  exact (step_eq_execute choice decoded).trans (execute_nop before .thirteen choice)
 
 theorem execute_cmpRegMem8_choice_independent (before : State) (left : Register) (address : Address)
     (prefixed first second : Bool) :

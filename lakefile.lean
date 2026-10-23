@@ -208,6 +208,19 @@ lean_lib EffectSimulationTests where
   moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
     "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
 
+-- Exact compiler padding, fetch boundaries and complete context frames.
+lean_lib PaddingTests where
+  roots := #[`tests.CounterPadding13, `tests.SequentialByteComparePadding,
+    `tests.SequentialPadding, `tests.ByteComparePaddingAudit]
+  moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
+    "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
+
+-- Exact qword XADD/ADD/INC CPU contracts and independent observations.
+lean_lib AddRMW64Tests where
+  roots := #[`tests.AddRMW64]
+  moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
+    "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
+
 -- Independent flag components, decoded schedules and generic choice refinement.
 lean_lib ChoiceTests where
   roots := #[`tests.FlagChoiceExecution, `tests.SequentialMultiply,

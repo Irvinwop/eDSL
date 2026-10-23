@@ -95,7 +95,7 @@ def instruction : Instruction → String
   | .nop encoding =>
     let name := match encoding with
       | .one => ".one" | .two => ".two" | .three => ".three" | .four => ".four" | .five => ".five"
-      | .six => ".six" | .nine => ".nine" | .fifteen => ".fifteen"
+      | .six => ".six" | .nine => ".nine" | .thirteen => ".thirteen" | .fifteen => ".fifteen"
     s!"(.nop {name})"
   | .xorSelf32 destination => s!"(.xorSelf32 {register destination})"
   | .test64 left right => s!"(.test64 {register left} {register right})"

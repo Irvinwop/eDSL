@@ -237,6 +237,8 @@ import tests.EffectTSO64Authority
 import tests.TSO64ScalarControl
 import tests.EffectPassiveHistory
 import tests.ResumableIdentity
+import tests.AddRMW64
+import tests.CounterPadding13
 import corpus.Certify
 import CorpusCertificateChecks
 import tests.VerificationImports
@@ -1212,7 +1214,7 @@ certificate_targets=(EDSL.Corpus.V1.Comparisons EDSL.Corpus.V1.Arithmetic EDSL.C
     EDSL.Corpus.V1.SignumRegistered tests.SignumCertificates
     EDSL.Corpus.PlainMixedWitnesses)
 if [[ $full_project == true ]]; then
-    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests ParityTests RotationTests Low8Tests ByteEqualityTests CFGProfileTests EffectSimulationTests ChoiceTests ManagedQueue64Tests \
+    record build-full-project "${lean_lock[@]}" lake build EDSL.All VerificationTests UnaryTests PopcountTests AverageTests ParityTests RotationTests Low8Tests ByteEqualityTests CFGProfileTests EffectSimulationTests AddRMW64Tests PaddingTests ChoiceTests ManagedQueue64Tests \
         edsl-proof-export edsl-grade "${certificate_targets[@]}"
 else
     record build "${lean_lock[@]}" lake build "${certificate_targets[@]}"

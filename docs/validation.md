@@ -24,6 +24,19 @@ caller/resource admission. The
 from the client simulation law required for an actual interleaved schedule.
 These checks add no frozen-corpus coverage or physical CPU/OS correspondence.
 
+For the [qword arithmetic-RMW CPU family](native-add-rmw64-isa.md):
+
+```sh
+lake build AddRMW64Tests PaddingTests
+```
+
+`AddRMW64Tests` checks exact XADD/ADD/INC decoding, full-width arithmetic and flags,
+register frames, required fetch/operand permissions and legacy XADD compatibility.
+The family is separate from scheduler dispatch; these checks add no concurrent
+counter certificate or physical LOCK refinement. `PaddingTests` covers the
+[exact compiler padding forms](byte-compare-padding.md), required-byte fetch
+permissions, complete context frames and instruction boundaries.
+
 For named-function extraction, generated-module composition, independent
 functional/current-resource verification and exact-file rejection checks on an
 owned real compiler output:

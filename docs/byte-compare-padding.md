@@ -54,7 +54,13 @@ zero extended from32 bits, all other registers/flags/Memory are preserved,
 and no operand memory read occurs. Prefixed forms remain unsupported by this
 completion. The original legacy decoder and its supported subset are unchanged.
 
-## One exact fifteen-byte NOP
+## Exact thirteen- and fifteen-byte NOPs
+
+`NopEncoding.thirteen` and its canonical `bytes` are exactly:
+
+```text
+66 66 66 66 2e 0f 1f 84 00 00 00 00 00
+```
 
 `NopEncoding.fifteen` and its canonical `bytes` are exactly:
 
@@ -62,15 +68,20 @@ completion. The original legacy decoder and its supported subset are unchanged.
 66 66 66 66 66 66 2e 0f 1f 84 00 00 00 00 00
 ```
 
-The decoder fetches and authenticates all fifteen bytes in order. A missing or
+The decoder fetches and authenticates all thirteen or fifteen required bytes in
+order. It checks the common four `66` bytes, then admits only the exact suffix
+selected by byte5 (`2e` for NOP13, `66` for NOP15). A missing or
 nonexecutable byte reports `inaccessibleInstruction` at that byte's address;
-a fetched mismatch reports unsupported encoding. It does not fetch byte16,
+a fetched mismatch reports unsupported encoding before any later fetch. It does
+not fetch byte14 for NOP13 or byte16 for NOP15,
 split the sequence, strip prefixes, evaluate the apparent address or read DATA.
 Every GPR, every flag and the complete Memory remain unchanged. The ordinary
-fallthrough is RIP+15 for every choice. Other supported NOPs remain the exact
+fallthrough is RIP+13 or RIP+15 for every choice. Other supported NOPs remain the exact
 1..6 and9 byte forms; this is not a general prefix or hint-NOP grammar.
 Unlisted forms reject conservatively. `execute_nop_context` and `wp_nop_iff`
-share the existing execution and WP machinery.
+share the existing execution and WP machinery. `step_nop13_context` binds the
+thirteen current bytes through `CodeAt`, preserving arbitrary registers, flags
+and Memory without requiring byte14 execute permission or apparent-operand RAM.
 
 The architectural basis is Intel SDM **253666-060US / 253667-060US, September
 2016**: Volume2A CMP pp.3-153..154, REX §2.2.1 and maximum instruction length;
@@ -80,13 +91,14 @@ See the official [Volume2A](https://www.intel.com/content/dam/www/public/us/en/d
 and [Volume2B](https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-2b-manual.pdf).
 
 Intel's recommended NOP table ends at9 bytes; it does **not** specify an
-arbitrary repeated-prefix grammar. The exact15-byte sequence has separate
+arbitrary repeated-prefix grammar. The exact13- and15-byte sequences have separate
 primary assembler evidence: GNU binutils maintainer H.J. Lu's
 [20 March 2015 committed patch](https://ecos.sourceware.org/ml/binutils/2015-03/msg00260.html),
-the removed `alt_long_15` in `gas/config/tc-i386.c`. It names this same sequence
-as a single long NOP; the patch reduces the assembler's preferred padding
-length for performance. Modeling this exact repeated-prefix encoding assumes
-a target supporting that assembler form, in addition to the existing
+the removed `alt_long_13` and `alt_long_15` in `gas/config/tc-i386.c`. Its removed
+assembler test expectations also contain the exact13-byte sequence as a single
+long NOP. The patch reduces the assembler's preferred padding length for
+performance. Modeling these exact repeated-prefix encodings assumes
+a target supporting those assembler forms, in addition to the existing
 `targetProfile` assumptions (64-bit mode, multi-byte NOP, CET/IBT and shadow
 stacks disabled). This assumption is explicit, not inferred from successful
 decoding or from the Intel recommendation table. Stable ordinary RAM and the
@@ -125,6 +137,12 @@ current data failures, caller-only policy rejection and a real bounded VCG run
 combining CMP, NOP15, SETae and RET. The shared arbitrary-state contracts retain
 all banks and aliases without distinct-register assumptions. No decoder,
 interpreter or checker is mocked or copied.
+
+`tests/CounterPadding13.lean` specifies independent literal NOP13/NOP15 windows,
+every NOP13 truncation, missing-byte and execute-denial boundary, ordered
+mismatch/fetch failures, malformed and unlisted prefixes, a present but
+nonexecutable byte14, inaccessible apparent operands, arbitrary-state framing,
+CallReturn lifting, literal emission and exact CFG instruction boundaries.
 
 The frozen GCC46-byte and Clang68-byte symbol windows are tested through
 production discovery and checker. Clang uses explicit128 bytes/32 nodes;

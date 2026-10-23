@@ -116,6 +116,7 @@ import EDSL.OS.MutexReplay.Footprints
 import EDSL.X86.StoreBuffer.Mixed
 import EDSL.X86.StoreBuffer.WholeQWord
 import EDSL.X86.LockedAdd64
+import EDSL.X86.AddRMW64
 import EDSL.OS.AtomicFetchAddMachine64
 import EDSL.OS.AtomicAccess64
 import EDSL.OS.AtomicFetchAddHistory64
