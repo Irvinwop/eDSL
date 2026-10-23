@@ -56,7 +56,7 @@ and lower-bound claims.
 | Writable calls and private stacks | [Call stack](call-stack.md), [DATA8 calls](call-memory64.md), [counted helper calls](call-memory-loop64.md) |
 | Threads and shared atomics | [Threads](threads.md), [exchange](atomic-exchange.md), [atomic handles](atomic-handles.md), [fetch-add](fetch-add.md) |
 | Full64 managed concurrency | [Atomic foundations](atomic-fetch-add64.md), [scheduler and histories](managed-fetch-add64.md), [frozen certificates](concurrent-fetch-add-certificates.md) |
-| Arithmetic RMW and current OS authority | [Universal XADD/ADD/INC coupling and retained resources](native-add-rmw64-os.md) |
+| Arithmetic RMW and current OS authority | [Universal XADD/ADD/INC coupling and retained resources](native-add-rmw64-os.md), [captured-delta event origins](arithmetic-rmw-origin.md) |
 | Declared atomic interface graphs | [C23 event graphs](c23-atomic-events.md), [sound finite admission](c23-atomic-checker.md), and [checked graphs from actual finite executions](checked-atomic-traces.md) |
 | Scheduler proof rules | [Instruction admission, buffered execution and shared RET facts](managed-vc-rules.md) |
 | Checked effects in the scheduler | [Current-state admission, private FIFO effects and actual schedule simulation](effect-scheduler-bridge.md) |

@@ -3,10 +3,16 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.Concurrency.CallTrace
+import EDSL.OS.ArithmeticRMWOrigin64
 import EDSL.OS.TSO64History
 import EDSL.OS.TSO64.Access
 import EDSL.OS.TSO64.Return
 import EDSL.X86.Sequential.Return
+
+set_option warningAsError true
+set_option autoImplicit false
+set_option maxHeartbeats 300000
+set_option maxRecDepth 128
 
 namespace EDSL.OS.FetchAddCalls64
 open X86 Concurrency
@@ -69,8 +75,11 @@ def targetEvent (target : Atomics64.CellId64) : TSO64.Observation →
 def call (id : Id) (tid : Nat) (event : Atomics64.FetchAddEvent) : Call Id :=
   ⟨id, tid, event.arithmetic.delta, event.arithmetic.event.before⟩
 
-/-- The full source is authenticated by the actual decoded joint effect.
-Scheduler list index and resource actor are separate, explicitly related facts. -/
+/-- XADD compatibility origin, retaining the existing public contract.
+The source input and legacy joint effect specialize the common captured-delta
+interface; `RMWOrigin.arithmetic` requires the actual step as well to recover
+the current code/caller leases, bounds and selected worker's atomic grant.
+Scheduler list index and resource actor remain separate identities. -/
 def RMWOrigin (target : Atomics64.CellId64) (before : TSO64.State)
     (action : TSO64.Action) (result : TSO64.State × TSO64.Observation) (point : Call Id) : Prop :=
   ∃ event af worker instruction identifier machine,
@@ -97,6 +106,38 @@ theorem rmw_origin {target : Atomics64.CellId64} {before : TSO64.State}
   exact ⟨event, af, worker, instruction, identifier, machine, observed, issued, live,
     running, empty, fetched, effect, selected, effect.delta, rfl,
     (Atomics64.fetchAdd_sound _ _ _ _ _ effect.checked).2.2.2.1, installed⟩
+
+/-- Lift the legacy XADD view without treating it alone as a scheduler
+authorization oracle. The actual step supplies the current worker gates. -/
+theorem RMWOrigin.arithmetic {target : Atomics64.CellId64} {before : TSO64.State}
+    {action : TSO64.Action} {result : TSO64.State × TSO64.Observation} {point : Call Id}
+    (origin : RMWOrigin target before action result point)
+    (success : TSO64.step before action = .ok result) :
+    ArithmeticRMWOrigin64.Origin target before action result point := by
+  obtain ⟨event, _af, _worker, _instruction, _identifier, _machine, observed, _issued,
+    _live, _running, _empty, _fetched, effect, selected, input, output, _actor, _installed⟩ := origin
+  have captured : point.input = event.arithmetic.delta := input.trans effect.delta.symm
+  have pointEq : call point.id point.thread event = point := by
+    change (⟨point.id, point.thread, event.arithmetic.delta,
+      event.arithmetic.event.before⟩ : Call Id) = point
+    rw [← captured, ← output]
+  have actual : TSO64.step before action = .ok (result.1, .rmw point.thread event) :=
+    success.trans (congrArg Except.ok (Prod.ext rfl observed))
+  have lifted := ArithmeticRMWOrigin64.of_step point.id actual selected
+  have resultEq : (result.1, TSO64.Observation.rmw point.thread event) = result :=
+    Prod.ext rfl observed.symm
+  change ArithmeticRMWOrigin64.Origin target before action
+    (result.1, .rmw point.thread event) (call point.id point.thread event) at lifted
+  rw [resultEq, pointEq] at lifted
+  exact lifted
+
+theorem arithmetic_origin {target : Atomics64.CellId64} {before : TSO64.State}
+    {action : TSO64.Action} {result : TSO64.State × TSO64.Observation}
+    {tid : Nat} {event : Atomics64.FetchAddEvent} (id : Id)
+    (success : TSO64.step before action = .ok result)
+    (observed : result.2 = .rmw tid event) (selected : event.cell = target) :
+    ArithmeticRMWOrigin64.Origin target before action result (call id tid event) :=
+  (rmw_origin id success observed selected).arithmetic success
 
 /-- A response is at actual RET, with the original caller loan and current
 original-slot read, the local machine step, and the exact installed context.
@@ -283,6 +324,26 @@ theorem point_at {target cell} {before : CheckedState target cell} {entries : Li
         exact ⟨earlier, later, current, observations, priorEvents, _, _, _, same, earlierRun,
           by simpa only [Nat.add_zero] using length, Run.underlying earlierRun, step_underlying first, origin⟩
 
+/-- The same exact indexed boundary, exposing common arithmetic evidence.
+This remains an actual XADD step of the current dispatcher. -/
+theorem point_at_arithmetic {target cell} {before : CheckedState target cell}
+    {entries : List (Entry Id)} {index : Nat} {point : Call Id}
+    (located : CallTrace.EventAt (adapter Id target cell) before entries index (.point point)) :
+    ∃ (earlier later : List (Entry Id)) (current : CheckedState target cell)
+      (observations : List TSO64.Observation) (priorEvents : List (Event Id))
+      (action : TSO64.Action) (mark : Mark Id)
+      (result : CheckedState target cell × TSO64.Observation),
+      entries = earlier ++ .execute action mark :: later ∧
+      Run target cell before earlier observations current priorEvents ∧
+      priorEvents.length = index ∧
+      TSO64.schedule before.state (CallTrace.actions earlier) = .ok (current.state, observations) ∧
+      TSO64.step current.state action = .ok (result.1.state, result.2) ∧
+      ArithmeticRMWOrigin64.Origin target current.state action (result.1.state, result.2) point := by
+  obtain ⟨earlier, later, current, observations, priorEvents, action, mark, result,
+    same, earlierRun, length, scheduled, success, origin⟩ := point_at located
+  exact ⟨earlier, later, current, observations, priorEvents, action, mark, result,
+    same, earlierRun, length, scheduled, success, origin.arithmetic success⟩
+
 /-- A response's exact indexed prefix contains the real RET and its current
 original caller authority. It is not evidence of FIFO publication or release. -/
 theorem response_at {target cell} {before : CheckedState target cell} {entries : List (Entry Id)}
@@ -326,13 +387,8 @@ private theorem Emission.sequential {target cell} {before after : CheckedState t
     subst next
     exact .nil _
   | @point id tid event observed selected origin =>
-    change observation = .rmw tid event at observed
-    have projected := (TSO64History.step_history (step_underlying success)).projection
-      before.valid.1 target cell before.live prior next readBefore readAfter
-    change AtomicFetchAddHistory64.Projection target (TSO64History.label observation) prior next at projected
-    have arithmetic : ModuloCounter.Step prior event.arithmetic.delta event.arithmetic.event.before next := by
-      simpa only [observed, TSO64History.label, AtomicFetchAddHistory64.Projection,
-        selected, ↓reduceIte] using projected
+    have arithmetic := (origin.arithmetic (step_underlying success)).projection
+      before.live readBefore readAfter
     exact .cons arithmetic (.nil _)
 
 private theorem sequential_append {prior middle final : Word} {first last : List (Call Id)}
@@ -343,7 +399,7 @@ private theorem sequential_append {prior middle final : Word} {first last : List
   | nil => exact tail
   | cons arithmetic rest ih => exact .cons arithmetic (ih tail)
 
-/-- Derive arithmetic from actual OS projection at each selected action.
+/-- Derive arithmetic from the captured-delta joint effect at each selected action.
 Annotation IDs are kept per occurrence, never assigned by event-value lookup. -/
 theorem Run.sequential {target cell} {before after : CheckedState target cell}
     {entries : List (Entry Id)} {observations : List TSO64.Observation} {events : List (Event Id)}
@@ -398,4 +454,8 @@ theorem checked_complete {Id : Type} [DecidableEq Id] {target cell}
 
 end EDSL.OS.FetchAddCalls64
 
+#print axioms EDSL.OS.FetchAddCalls64.RMWOrigin.arithmetic
+#print axioms EDSL.OS.FetchAddCalls64.arithmetic_origin
+#print axioms EDSL.OS.FetchAddCalls64.point_at_arithmetic
+#print axioms EDSL.OS.FetchAddCalls64.checked_complete
 #audit_edsl
