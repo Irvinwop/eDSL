@@ -100,6 +100,7 @@ remains open. They are separate profiles, not one interchangeable backend.
 | Full independent counted-call contract | `CounterCounted.claim compiler` proves unchanged `Counted64.Claim (CounterCounted.image compiler)`: every successful prefix, complete same-run Post, running-slot enabledness, exact-cut chosen completion and positive per-slot own-issue bounds across all successful finite interleavings | [Public Claim and client example](counter-contracts.md#use-the-independent-counted-call-contract); both complete frozen compiler functions and every independently admitted finite population, including empty; full optional memory cells outside the target, exact unit-RMW/RET positions and actual old/current full64 reads; finite completion and own-progress have separate quantifiers; no fairness, minimum cost or native correspondence |
 | Generic rank budgets, memory cells and execution positions | Reusable proofs retain exact collective trace ghosts, bound own issues plus residual rank, frame full optional memory cells, preserve chronological RMW occurrences under relabeling, recover actual ordered-handle selection and unique RET boundaries, and derive no-drain/all-retired trace facts | [Direct helper imports](counter-contracts.md#reuse-the-completion-infrastructure); explicit rank/closure, target-coverage and no-drain hypotheses; both RMW families for generic cell frames, `.ownedOnly` for history conservation; unit deltas and independent request totals require separate client proofs; existing instructions and compiler ranks are reused |
 | Counter cohort value, frame and queue closure | Actual returned two-slot schedules derive the common cell’s modular sum from independent requests; caller-only cohorts retain empty queues; registered-cell framing preserves every published byte outside the target qword | [Counter verification](counter-contracts.md); value theorem permits inherited owned-only FIFOs; closure and byte frame require initially empty FIFOs; compiler windows must be independently admitted together in the same state |
+| Reusable counted-stage ranks | `RankLaws.ofCountedStages` derives local rank laws from a stage table, ordinary-edge descent and invariant-implied room at locked nodes; both compiler adapters use it | [Rank construction](counter-contracts.md#construct-a-counted-stage-rank); arbitrary request and stride, actual retirement labels, both cut and interior arrivals; payload, target, ABI and complete-call behavior remain separate obligations |
 | Ranked mixed-cohort completion | Every-node invariants on exact current ghosts, reusable local ranks and finite-sum decrease construct one actual returned suffix for arbitrary per-thread AF choices, with complete histories and an issue upper bound; checked prefixes resume with continuous per-thread choices | [Completion infrastructure](counter-contracts.md#reuse-the-completion-infrastructure); exhaustive actual slots, common profile/family, caller-only policy and present empty queues; no fairness, minimum-operation or native-refinement claim |
 | Frozen counter loaded inputs, completion and cleanup | Actual manager setup and two attachments in one complete frozen compiler ELF derive present admission, empty queues, cleanup shape and separation; `CounterLoadedInputs.complete` constructs one finite returned execution, its modular sum, outside-byte frame, exact loaded cells/permissions and actual logical cleanup | [Loaded counter inputs](counter-contracts.md#construct-inputs-from-the-complete-loaded-elf); arbitrary old64, two independent uint32 counts, upper RSI halves, complete modeled flags and AF choices; other GPRs use documented fixed values; GCC and Clang are separate homogeneous cases; adds no corpus credit |
 | Frozen counter overlapping prefix | `CounterOverlap.construct_prefix` constructs actual RMW issuers `[0, 1, 0]`, exact observation/ghost counts 2/1 and two live running workers; `complete` resumes the exact cut ghosts with continuous AF choices, then logically cleans up that same execution with modular old+12 and an outside-byte frame | [Overlapping counter execution](counter-contracts.md#construct-an-overlapping-prefix-and-complete-the-same-execution); fixed uint32 requests 3/9, arbitrary old64, upper RSI halves, modeled flags and choices; no additional full loaded-cell output field; adds no corpus credit |
@@ -131,8 +132,8 @@ remains open. They are separate profiles, not one interchangeable backend.
 | Standalone processes | Exit42 and bounded stream-write/exit ELF certificates | [Exit](process-exit.md), [write](process-write.md); progress, loader and syscall implementation contracts remain explicit |
 
 These modules are registered in the catalogue and full-project fresh imports.
-`CounterContractSupport` has 45 roots, retaining the earlier 27 and adding all
-18 independent-contract, candidate and generic-helper modules. The full
+`CounterContractSupport` has 51 roots covering the independent contract,
+compiler adapters, complete-file certificates and shared helper modules. The full
 modeled counted-call Claim takes independent admission and reuses the existing
 compiler annotations and ranks. Its positive own-issue bounds apply to all
 successful finite interleavings, and its chosen completion resumes the exact
@@ -142,10 +143,11 @@ No fairness premise forces a scheduler to give a worker turns.
 The arbitrary-count `CounterLoadedInputs` result retains its exact loaded-cell
 preservation; `CounterOverlap` still constructs the prescribed overlap for
 requests 3/9 and completes and logically cleans up that same execution. These
-earlier adapters keep their documented parameter restrictions. A new
-`CountedCertificate`, exact complete-final-file task/execution registration,
-grading and a same-file useful-execution certificate remain unimplemented;
-see [certificate boundaries](counter-contracts.md#artifact-certificates-and-coverage).
+earlier adapters keep their documented parameter restrictions. The generic
+`CountedCertificate` and both complete-file useful-execution certificates are
+implemented. Installed task/execution registration, data-only grading and
+complete corpus admission remain pending; see
+[certificate boundaries](counter-contracts.md#artifact-certificates-and-coverage).
 There is no additional corpus or support-program credit. No physical CPU/Linux,
 whole-kernel, source/compiler or native join correspondence, fairness or
 minimum-cost guarantee follows from these modeled results.

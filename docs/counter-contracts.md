@@ -224,8 +224,8 @@ and low-byte AND1 modulo two. Arithmetic parity is separate from the CPU parity
 flag; ADD and SUB retain their different flag semantics.
 
 Build the support directly with `lake build CounterContractSupport`. The target
-has 45 roots: the existing 27 plus the 18 independent-contract, candidate and
-generic-helper modules. Their imports also
+has 51 roots for the independent contract, compiler adapters, complete-file
+certificates and generic helper modules. Their imports also
 belong to `EDSL.All` and the full-project fresh certificate aggregate.
 Universal Lean proofs check the stated laws; no additional fixed-value tests
 are needed for these adapters.
@@ -511,6 +511,41 @@ caller-only closure and its independently required empty initial queues.
 Position history permits arbitrary deltas; unit increments and request totals
 are separate counter proofs. The rank-budget helper consumes the same lifted
 trace and never replaces its ghosts with another closure witness.
+
+## Construct a counted-stage rank
+
+Import `EDSL.OS.TSO64.EffectSimulation.Mixed.CountedRank` to build the existing
+`Mixed.RankLaws` from a counted-loop stage certificate. Call
+`Mixed.RankLaws.ofCountedStages rules requested stride stage bounds ordinary room`.
+The descriptor, postcondition and local rules can describe any supported mixed
+graph; the constructor contains no compiler-specific graph or stage table.
+
+| Input | Required evidence |
+| --- | --- |
+| `rules` | Existing local invariant and actual instruction continuations |
+| `requested` | Independent Nat bound on this thread's RMW occurrences |
+| `stride`, `stage` | Every graph node has a positive stage strictly below the stride |
+| `ordinary` | Stage decreases across every ordinary graph edge, including arrivals at cutpoints |
+| `room` | At a locked node, the invariant implies the full own-RMW count is still below the request |
+
+The returned rank is
+`stride * (requested - Counts.logRMW d.tid history) + stage node`.
+The shared proof derives idle stability and strict successor decrease from the
+actual retirement evidence and issued observation. Both cut and interior
+arrivals retain their invariant. A RET retains the original postcondition.
+Strict room prevents Nat subtraction from saturating when another RMW occurs;
+the positive stage also accounts for ordinary instructions on a zero-request
+return path.
+
+The GCC and Clang `CounterRanks.rankLaws` adapters now supply their existing
+stage and room witnesses to this constructor. Their public contracts and the
+independent completed-call Claim remain unchanged. The older compiler rank
+helper names delegate retirement and arrival proofs to the shared implementation.
+
+This rank counts occurrences regardless of an RMW's payload. Correct target,
+unit delta, ABI and memory preservation require their separate proofs. The
+constructor supplies no fairness, minimum-operation, hardware correspondence,
+packet-admission or additional corpus result.
 
 ## Artifact certificates and coverage
 

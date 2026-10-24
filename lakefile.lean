@@ -232,6 +232,7 @@ lean_lib CounterContractSupport where
     `EDSL.Corpus.V1.CounterRetirement,
     `EDSL.Corpus.V1.CounterGCCRank,
     `EDSL.Corpus.V1.CounterClangRank,
+    `EDSL.OS.TSO64.EffectSimulation.Mixed.CountedRank,
     `EDSL.Corpus.V1.CounterRanks,
     `EDSL.Corpus.V1.CounterFrame,
     `EDSL.Corpus.V1.CounterCompletion,

@@ -3,6 +3,7 @@ Copyright 2026 Irvinwop
 SPDX-License-Identifier: Apache-2.0
 -/
 import EDSL.Corpus.V1.CounterGCC
+import EDSL.OS.TSO64.EffectSimulation.Mixed.CountedRank
 import EDSL.Audit
 
 set_option autoImplicit false
@@ -197,11 +198,7 @@ private theorem jump_with_rank {site : Site .defaultGCC} {call : Call}
       (fun node state past => invariant site call node state past ∧
         rank site call node state past < rank site call source before history)
       source rip after extended := by
-  obtain ⟨destination, edge, pc, next⟩ := follows
-  refine ⟨destination, edge, pc, ?_⟩
-  have nextInvariant : invariant site call destination after extended := by
-    split at next <;> exact next
-  split <;> exact ⟨nextInvariant, decreases destination edge⟩
+  exact Mixed.CountedRank.jump_with_rank decreases follows
 
 /-- The rank adapter consumes the existing actual retirement and compiler
 continuation. Ordinary labels preserve k; locked labels increment it exactly.
@@ -218,42 +215,11 @@ theorem follow_rank_decreases {site : Site .defaultGCC} {call : Call} {node : In
       (fun destination state past => invariant site call destination state past ∧
         rank site call destination state past < rank site call node before history)
       node before history af result retirement := by
-  cases issued with
-  | @ordinary observation evidence =>
-    obtain ⟨_worker, _instruction, _update, _binding, selected, _ready, _head, _queue, _finish⟩ :=
-      evidence.witnesses
-    cases outcome : observation.result with
-    | next output =>
-      obtain ⟨_current, _live, reified⟩ := evidence.reifies
-      have label : result.2 = .ordinary site.tid := by
-        simp only [outcome] at reified
-        exact reified.1
-      have sameCount : Mixed.Counts.logRMW site.tid
-          (Mixed.issueLog (descriptor site call) before history af result) =
-          Mixed.Counts.logRMW site.tid history := by
-        unfold Mixed.issueLog
-        rw [Mixed.Counts.logRMW_snoc]
-        simp only [label, Mixed.Counts.ownRMW_ordinary, Nat.add_zero]
-      simp only [Mixed.Follow, outcome] at follows ⊢
-      apply jump_with_rank (follows := follows)
-      intro destination edge
-      exact ordinary_rank_decreases selected edge sameCount
-    | returned output => simpa only [Mixed.Follow, outcome] using follows
-    | atomic event output => simp only [Mixed.Follow, outcome] at follows
-    | syscall request => simp only [Mixed.Follow, outcome] at follows
-  | @rmw output machine evidence =>
-    obtain ⟨_worker, _instruction, _identifier, _handle, _cell, _binding, selected,
-      _empty, _decoded, _chosen, _changed, _executed, _effect, installed⟩ := evidence.witnesses
-    have label : result.2 = .rmw site.tid output.2 := congrArg Prod.snd installed
-    have increment : Mixed.Counts.logRMW site.tid
-        (Mixed.issueLog (descriptor site call) before history af result) =
-        Mixed.Counts.logRMW site.tid history + 1 := by
-      unfold Mixed.issueLog
-      rw [Mixed.Counts.logRMW_snoc, label, Mixed.Counts.ownRMW_rmw, ite_eq_left rfl]
-    simp only [Mixed.Follow] at follows ⊢
-    apply jump_with_rank (follows := follows)
-    intro destination _edge
-    exact rmw_rank_decreases prior selected increment
+  exact Mixed.CountedRank.retired (invariant site call) call.iterations.toNat 16 stage
+    (fun node => ⟨stage_positive node, stage_lt_sixteen node⟩)
+    (fun _ _ _ selected edge => ordinary_stage_decreases selected edge)
+    (fun _ _ _ _ current selected => locked_count_lt_requested current selected)
+    prior issued follows
 
 #print axioms index_values
 #print axioms arithmetic_count_le_requested
