@@ -17,6 +17,7 @@ and their main APIs are listed below; the namespace is
 | `EDSL.OS.TSO64.EffectSimulation.Mixed.Authority` | `Idle.stable`, `Idle.authorize`, `Idle.atomicFor`, `Idle.atomic_selection` |
 | `EDSL.OS.TSO64.EffectSimulation.Mixed.Counts` | `Counts.countRMW`, `Counts.logRMW`, `Counts.logRMW_idle` |
 | `EDSL.OS.TSO64.EffectSimulation.Mixed.CallerOnly` | `Binding.callerOnly_ready`, `Binding.execute_reference`, `OrdinaryIssued.of_callerOnly_reference` |
+| `EDSL.OS.TSO64.EffectSimulation.Mixed.CallerContinuation` | `callerContinuation`, `One.of_callerContinuation` |
 | `EDSL.OS.TSO64.EffectSimulation.Mixed.Completion` | `PostIdleStable`, `Annotations.schedule_completion` |
 
 ## Client workflow
@@ -45,6 +46,9 @@ The shared effect checker, graph transport, resumption rules and checked schedul
 folds are reused across programs. Each new program still needs independent
 contracts, invariants and generated block proofs; it reuses the instruction rules.
 Graph discovery supplies structural evidence, without automatic invariant synthesis.
+[Counter contract support](counter-contracts.md) packages the shared call, history
+and return assertions for the two frozen counter windows; their complete compiler
+annotations are still required.
 
 ## Current execution and resumption
 

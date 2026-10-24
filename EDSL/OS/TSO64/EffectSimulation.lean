@@ -12,6 +12,7 @@ import EDSL.OS.TSO64.EffectSimulation.Mixed.Simulation
 import EDSL.OS.TSO64.EffectSimulation.Mixed.Authority
 import EDSL.OS.TSO64.EffectSimulation.Mixed.Counts
 import EDSL.OS.TSO64.EffectSimulation.Mixed.CallerOnly
+import EDSL.OS.TSO64.EffectSimulation.Mixed.CallerContinuation
 import EDSL.OS.TSO64.EffectSimulation.Mixed.Completion
 
 /-!

@@ -217,6 +217,14 @@ lean_lib EffectSimulationTests where
   moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
     "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
 
+-- Shared counter call, increment history, completion and current-step adapters.
+lean_lib CounterContractSupport where
+  roots := #[`EDSL.Corpus.V1.CounterAssertions, `EDSL.OS.TSO64.Increment64,
+    `EDSL.X86.Sequential.CounterArithmetic,
+    `EDSL.OS.TSO64.EffectSimulation.Mixed.CallerContinuation]
+  moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
+    "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
+
 -- Width32 register SUB/CMP, signed immediates and complete subtraction flags.
 lean_lib Immediate32Tests where
   roots := #[`tests.Immediate32]
