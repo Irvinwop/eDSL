@@ -88,9 +88,12 @@ remains open. They are separate profiles, not one interchangeable backend.
 | --- | --- | --- |
 | Read and atomic workers | Actual instruction dispatch, current shared cells, retained results and resource revocation through join | [Managed lifecycles](threads.md) and [atomic workers](atomic-workers.md) assume logical actors and guarded histories |
 | Checked ordinary effects in TSO64 | Checked step admission from current OS gates, complete local-CPU reconstruction, mixed DWORD/QWORD FIFO forwarding, pending stores at RET and own-drain CPU preservation; generic actual-schedule simulation and cut transport | [Effect/scheduler bridge](effect-scheduler-bridge.md); clients prove the universal origin lift law; successful schedules supply no independent fault-freedom or progress theorem; no opcode, authority-profile or corpus-coverage extension |
-| Family-indexed traces and checked lifts | Explicit RMW families throughout connected histories, passive/resource frames, ordinary readiness and actual-schedule folds; current-step laws retain executor selection evidence | [Shared simulation laws](effect-scheduler-bridge.md#instruction-families-and-checked-steps); default XADD clients remain supported; mixed blocks use the separate adapter below; counted loops and independent progress remain separate obligations |
+| Family-indexed traces and checked lifts | Explicit RMW families throughout connected histories, passive/resource frames, ordinary readiness and actual-schedule folds; current-step laws retain executor selection evidence | [Shared simulation laws](effect-scheduler-bridge.md#instruction-families-and-checked-steps); default XADD clients remain supported; mixed blocks use the separate adapter below; program-specific counted behavior and progress require client proofs |
 | Resumable mixed instruction blocks | Present-state admission and generated ordinary/RMW obligations, exact FIFO-blocked idle histories, current selector/effect evidence, checked schedule/cut/return transport, shared Nat RMW accounting, caller-only ordinary-node transport, explicit idle-stable completion and stable metadata/permission/selector authority | [Mixed resumption](mixed-resumption.md); clients prove independent contracts, cutpoint invariants and block obligations; general Post is historical at RET; stable assertions extend to full finite returned histories; program-specific counts remain client obligations; no fairness, termination, hardware/OS, lifecycle, ABI or corpus-coverage extension |
 | Frozen counter per-worker annotations | Complete 49-byte GCC and 86-byte Clang windows, independent current admission, all uint32 counts, exact full-history unit-RMW counts and void-call return frames under production TSO64 | [Counter annotations](counter-contracts.md); conditional returned-run APIs and separate ranked-completion adapters; native/join correspondence and complete corpus admission remain open; no new corpus credit |
+| Independent counted-call admission | `Counted64.Entry`, `Pre` and `Requests` describe current code/caller/resources, the first authorized matching handle and all actual `Fin before.workers.length` slots; each low32 RSI request targets the common full64 cell | [Independent contract](counter-contracts.md#use-the-independent-counted-call-contract); initially empty FIFOs, `.ownedOnly`/`.arithmetic`, scalar ABI entry with clear DF and disjoint private callers; zero/max uint32, arbitrary upper RSI, target word and store counters; actors may coincide and differ from tids; no future behavior or annotations in Pre |
+| Full independent counted-call contract | `CounterCounted.claim compiler` proves unchanged `Counted64.Claim (CounterCounted.image compiler)`: every successful prefix, complete same-run Post, running-slot enabledness, exact-cut chosen completion and positive per-slot own-issue bounds across all successful finite interleavings | [Public Claim and client example](counter-contracts.md#use-the-independent-counted-call-contract); both complete frozen compiler functions and every independently admitted finite population, including empty; full optional memory cells outside the target, exact unit-RMW/RET positions and actual old/current full64 reads; finite completion and own-progress have separate quantifiers; no fairness, minimum cost or native correspondence |
+| Generic rank budgets, memory cells and execution positions | Reusable proofs retain exact collective trace ghosts, bound own issues plus residual rank, frame full optional memory cells, preserve chronological RMW occurrences under relabeling, recover actual ordered-handle selection and unique RET boundaries, and derive no-drain/all-retired trace facts | [Direct helper imports](counter-contracts.md#reuse-the-completion-infrastructure); explicit rank/closure, target-coverage and no-drain hypotheses; both RMW families for generic cell frames, `.ownedOnly` for history conservation; unit deltas and independent request totals require separate client proofs; existing instructions and compiler ranks are reused |
 | Counter cohort value, frame and queue closure | Actual returned two-slot schedules derive the common cell’s modular sum from independent requests; caller-only cohorts retain empty queues; registered-cell framing preserves every published byte outside the target qword | [Counter verification](counter-contracts.md); value theorem permits inherited owned-only FIFOs; closure and byte frame require initially empty FIFOs; compiler windows must be independently admitted together in the same state |
 | Ranked mixed-cohort completion | Every-node invariants on exact current ghosts, reusable local ranks and finite-sum decrease construct one actual returned suffix for arbitrary per-thread AF choices, with complete histories and an issue upper bound; checked prefixes resume with continuous per-thread choices | [Completion infrastructure](counter-contracts.md#reuse-the-completion-infrastructure); exhaustive actual slots, common profile/family, caller-only policy and present empty queues; no fairness, minimum-operation or native-refinement claim |
 | Frozen counter loaded inputs, completion and cleanup | Actual manager setup and two attachments in one complete frozen compiler ELF derive present admission, empty queues, cleanup shape and separation; `CounterLoadedInputs.complete` constructs one finite returned execution, its modular sum, outside-byte frame, exact loaded cells/permissions and actual logical cleanup | [Loaded counter inputs](counter-contracts.md#construct-inputs-from-the-complete-loaded-elf); arbitrary old64, two independent uint32 counts, upper RSI halves, complete modeled flags and AF choices; other GPRs use documented fixed values; GCC and Clang are separate homogeneous cases; adds no corpus credit |
@@ -123,13 +126,24 @@ remains open. They are separate profiles, not one interchangeable backend.
 | Standalone processes | Exit42 and bounded stream-write/exit ELF certificates | [Exit](process-exit.md), [write](process-write.md); progress, loader and syscall implementation contracts remain explicit |
 
 These modules are registered in the catalogue and full-project fresh imports.
-Complete counter corpus, native, grader and certificate support remains open.
-The arbitrary-count `CounterLoadedInputs` result includes exact loaded-cell
-preservation; `CounterOverlap` constructs the prescribed overlap for requests
-3/9 and retains its same-execution completion and logical cleanup. Neither
-establishes all-schedule termination, fairness, optimal cost, native/hardware/
-source/compiler refinement or whole-OS security. No corpus or support-program
-credit is added.
+`CounterContractSupport` has 45 roots, retaining the earlier 27 and adding all
+18 independent-contract, candidate and generic-helper modules. The full
+modeled counted-call Claim takes independent admission and reuses the existing
+compiler annotations and ranks. Its positive own-issue bounds apply to all
+successful finite interleavings, and its chosen completion resumes the exact
+supplied cut with each thread's prior issue count included in its AF offset.
+No fairness premise forces a scheduler to give a worker turns.
+
+The arbitrary-count `CounterLoadedInputs` result retains its exact loaded-cell
+preservation; `CounterOverlap` still constructs the prescribed overlap for
+requests 3/9 and completes and logically cleans up that same execution. These
+earlier adapters keep their documented parameter restrictions. A new
+`CountedCertificate`, exact complete-final-file task/execution registration,
+grading and a same-file useful-execution certificate remain unimplemented;
+see [certificate boundaries](counter-contracts.md#artifact-certificates-and-coverage).
+There is no additional corpus or support-program credit. No physical CPU/Linux,
+whole-kernel, source/compiler or native join correspondence, fairness or
+minimum-cost guarantee follows from these modeled results.
 
 `Executed` does not require initial quiescence. Ordinary incoming queues and
 views outside the graph's access events remain permitted, but `Built` still

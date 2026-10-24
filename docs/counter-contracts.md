@@ -1,5 +1,144 @@
 # Compiled counter verification
 
+`EDSL.Corpus.V1.CounterCounted.claim compiler` proves the full independent
+`EDSL.Grading.ConcurrentTask.Counted64.Claim (CounterCounted.image compiler)`
+for each complete frozen GCC or Clang `c_counter_worker` function. It covers
+every independently admitted finite worker population, every uint32 request
+per actual slot and every successful finite interleaving in the production
+TSO64 model. Each requested operation is a unit RMW of a shared full64 cell.
+
+The independent contract and the compiler candidate proof have separate
+modules. The candidate reuses the existing compiler loop annotations and ranks;
+admission supplies current machine and resource facts. Exact complete-file
+certification, grading registration and a useful-execution certificate remain
+separate integration work. Coverage remains **20/40 functions**, **40/80
+artifacts** and **three distinct concurrent functions**.
+
+## Use the independent counted-call contract
+
+Import `EDSL.Grading.ConcurrentTask.Counted64.Contract` for the behavioral
+specification, in namespace `EDSL.Grading.ConcurrentTask.Counted64`. Import
+`EDSL.Corpus.V1.CounterCounted.Claim` for the proved frozen candidates, in
+namespace `EDSL.Corpus.V1.CounterCounted`. Its `image compiler` names the
+original callable base and complete function bytes: 49 bytes for GCC and
+86 bytes for Clang. One Claim concerns one compiler's image shared by all slots.
+
+`Requests before` is `Fin before.workers.length → BitVec 32`. The actual worker
+list determines every slot, including the empty-population case. Independent
+`Pre image target cell before requests` requires a well-formed `.ownedOnly`
+state, initially empty FIFOs, a live valid common target and current entry
+facts for every slot. RDI names that cell's address; low32 RSI equals that
+slot's unsigned request. Zero and the maximum uint32 value are admitted, upper
+RSI bits are arbitrary, and the initial target word is any full64 value.
+Resource actors need not equal scheduler indices or be pairwise distinct.
+Initial ordinary-store sequence counters are arbitrary.
+
+Entry also requires the exact function code and original protected caller read,
+current resources and grants, and the first authorized matching atomic handle
+in the actual ordered handle list. Caller regions are pairwise disjoint and
+separate from the function window. `ScalarCall64.Entry` supplies scalar stack
+alignment, a clear direction flag, a nonwrapping stack pop and canonical
+post-pop RSP; the protected continuation is canonical. Other initial registers
+and flag bits are constrained only by these entry facts. `Pre` has no future
+schedule, desired final value, compiler annotation, rank, or completion premise.
+
+The full Claim proves all five obligations:
+
+| Claim field | Guarantee from independent admission |
+| --- | --- |
+| `prefixes` | Every successful finite schedule satisfies `SafePrefix`, with full memory-cell frames, exact original resources/selectors and authenticated unit RMWs; own RMW counts never exceed requests |
+| `completed` | Any such execution whose workers have returned has the complete same-run `Post`, including exact RET positions, per-slot counts, chronological history and the modular total |
+| `enabled` | After any successful prefix, every current running slot has a successful retiring issue for either AF choice |
+| `completion` | From every successful cut, a finite chosen suffix reaches `Finished` and the full `Post`; its issue bound is chosen before all future choice functions and offsets |
+| `ownProgress` | One positive input-dependent bound per original slot applies to every successful finite interleaving and AF choice; no trace exceeds it, and reaching it entails an actual returned worker with an empty queue |
+
+`SafePrefix.memory` equates the entire optional `AddressSpace.Cell` outside
+`AddressSpace.qwordRegion cell.address`. It preserves mappedness, stored bytes
+even behind inaccessible permissions, and every permission bit. Prefixes also
+retain empty queues, the original population, resources, ordinary-store
+counters, code, protected caller reads, the exact ordered selector and the
+nonarithmetic flag mask. Every original observation retires one instruction;
+drains and blocked attempts are excluded by the candidate proof. Callee-saved
+registers have their ABI preservation obligation at return.
+
+Each `Outcome` identifies the unique actual RET in the original action and
+observation lists, with its checked `ReturnOrigin` and actual prefix state.
+Every own RMW position is strictly before that RET, and the entire same-run
+own count equals the independent request. A zero request still requires a RET.
+`ReturnFrame` retains the original protected continuation, callee-saved GPRs,
+nonarithmetic flags, clear DF, canonical RSP after adding eight, current
+resources, an empty queue and the original store counter. `collect` observes
+the actual returned RAX; this void call prescribes no RAX result and performs
+no resource retirement through collection.
+
+`Post` reads both the initial and current full64 counter words from the actual
+RAM. Its `incrementCalls` history contains every RMW in chronological order,
+using original observation indices and actual scheduler tids. Repeated event
+payloads retain separate occurrences. The proof authenticates all events
+against the common cell and unit delta; the history has no target or
+expected-value filter and no supplied serial permutation. Peers may increment
+between any two of a call's own increments. A whole void invocation is never
+treated as one atomic fetch-add. The final equation is
+
+`current.toNat = (old.toNat + Counted64.requestedTotal requests) % 2^64`.
+
+`requestedTotal` sums the independent uint32 requests in Nat across all actual
+Fin slots; reduction occurs only at the final full64 word.
+
+Completion starts from the same collectively lifted ghosts at the exact
+supplied cut. For `choices : Nat → Nat → Bool` and `offset : Nat → Nat`, a
+suffix uses index `offset tid + ChoiceTrace.issues tid prior` for each thread.
+The prior need not match those choices. When it does, the concatenated trace
+retains the choices continuously; otherwise the suffix alone has the stated
+choice property. Its full `Post` is for that concatenated actual execution.
+Already-returned slots keep their replies and require no further own issues.
+
+The separate `ownProgress` bound is fixed before all actual traces, using the
+positive initial measure of each slot's existing compiler rank. Its proof
+retains those exact trace ghosts and bounds own issues plus residual measure
+by the initial measure. It covers every successful finite interleaving, beyond
+the particular suffix constructed by completion. A scheduler may still
+withhold a worker's turns. These bounds require no fairness and establish no
+minimum operation count, CPU-time bound or wall-clock termination guarantee.
+
+This client uses only independent inputs and the public proved Claim:
+
+```lean
+import EDSL.Corpus.V1.CounterCounted.Claim
+
+open EDSL EDSL.OS
+open EDSL.Grading.ConcurrentTask.Counted64
+
+example (compiler : Corpus.V1.CounterCommon.Compiler)
+    (before : TSO64.State) (target : Atomics64.CellId64)
+    (cell : Atomics64.Cell) (requests : Requests before)
+    (pre : Pre (Corpus.V1.CounterCounted.image compiler)
+      target cell before requests)
+    (actions : List TSO64.Action)
+    (actual : TSO64.State × List TSO64.Observation)
+    (run : TSO64.schedule before actions .ownedOnly .arithmetic = .ok actual) :
+    SafePrefix (Corpus.V1.CounterCounted.image compiler)
+      target cell before requests actual := by
+  have proved : Claim (Corpus.V1.CounterCounted.image compiler) :=
+    Corpus.V1.CounterCounted.claim compiler
+  exact proved.prefixes before target cell requests pre actions actual run
+```
+
+The candidate's `Admission` module derives the existing per-slot subjects,
+ranked cohort and initial ghosts from independent `Pre`. `PrefixEvents`,
+`PrefixMemory` and `PrefixFrames` prove prefix safety. `Conservation`, `Outcomes`
+and `Post` supply the complete history and returns; `Progress` supplies
+enabledness and the universal own-issue budgets. `Completion` connects the
+chosen suffix to the full output, and `Claim` assembles all five fields.
+
+These are conditional machine-model results. The coherent scalar WB RAM,
+full64 address/alignment profile, stable translation without hidden aliases,
+long-mode/CET-off, represented CPU feature state and protected-resource
+assumptions remain explicit. Physical CPU/Linux, whole-kernel, source/compiler
+and native join correspondence remain outside the result.
+
+## Compiler annotations and earlier adapters
+
 The complete frozen GCC and Clang `c_counter_worker` windows have per-worker
 annotations against the production TSO64 scheduler. For every admitted actual
 finite schedule whose selected worker has returned, the proofs establish exactly
@@ -19,7 +158,7 @@ GCC retains both RET paths and its two-increment loop; Clang retains the
 remainder loop, eight-increment loop and zero-remainder path with arbitrary RDX.
 Their complete checked graphs are described in [mixed instruction graphs](mixed-cfg.md).
 
-The APIs below compose these annotations over the production scheduler.
+The earlier APIs below compose these annotations over the production scheduler.
 Returned-run theorems apply to a supplied successful execution. Ranked completion
 constructs one finite returned execution from present admission, exact worker
 slots and empty queues. It can then establish the two-worker value, byte frame
@@ -85,7 +224,8 @@ and low-byte AND1 modulo two. Arithmetic parity is separate from the CPU parity
 flag; ADD and SUB retain their different flag semantics.
 
 Build the support directly with `lake build CounterContractSupport`. The target
-has 27 roots, including the four modules described below. Their imports also
+has 45 roots: the existing 27 plus the 18 independent-contract, candidate and
+generic-helper modules. Their imports also
 belong to `EDSL.All` and the full-project fresh certificate aggregate.
 Universal Lean proofs check the stated laws; no additional fixed-value tests
 are needed for these adapters.
@@ -305,15 +445,12 @@ compares the cleaned current RAM with the actual initial RAM. This output has
 no additional full loaded-ELF cell-preservation field; the arbitrary-count
 `CounterLoadedInputs.Output.image` theorem above is a separate result.
 
-These four modules are registered in the catalogue and full-project fresh
-imports. Complete counter corpus, native, grader and certificate support
-remains open. The overlap result is for requests 3/9 and one constructed model
-execution; it adds no fairness,
-all-schedule termination, minimum-cost or native/hardware/source/compiler
-refinement claim. The existing model and authority assumptions still apply.
-These modules add no certified corpus row or support-program credit: coverage
-remains **20/40 functions**, **40/80 artifacts** and
-**three distinct concurrent functions**.
+These loaded-input and overlap modules are registered in the catalogue and
+full-project fresh imports. The overlap result remains specific to requests
+3/9 and one constructed model execution. The universal counted-call Claim
+above applies separately to every independently admitted finite population.
+Neither result supplies native correspondence, fairness, minimum cost or
+additional corpus credit.
 
 ## Reuse the completion infrastructure
 
@@ -353,6 +490,43 @@ prefix, including repeated and interleaved issuers. The separate
 predicate equals the existing Plain64 grading predicate. OS modules have no
 grading dependency. Program-specific functional results, target-cell evidence
 and lifecycle admission remain separate obligations.
+
+The following additional helpers are reusable through their direct imports.
+They supply generic proofs; counter-specific unit deltas, independent requests
+and entry-to-candidate admission are proved in `CounterCounted`.
+
+| Direct import | Public API and scope |
+| --- | --- |
+| `EDSL.OS.TSO64.EffectSimulation.Mixed.RankBudget` | `RankedCohort.prefix_with_own_issue_budget`, `own_issue_budget_of_schedule` and `returned_at_own_issue_budget`: own issues plus residual rank for the exact trace ghosts, with actual returned phase at the budget |
+| `EDSL.OS.TSO64.CellFrame` | `CellFrame.schedule_frame`: whole optional cells outside a registered qword for actual schedules without drains, with every actual RMW targeting that cell; either authority profile and RMW family |
+| `EDSL.OS.TSO64.PositionHistory` | `PositionHistory.schedule_sequential`: chronological original positions and actual tids, preserving every RMW occurrence and the actual initial/current words under complete target coverage in `.ownedOnly` |
+| `EDSL.Concurrency.ModuloCounter.Relabel` | `ModuloCounter.Sequential.relabel`: preserve chronological input/output values while changing point and thread labels, without an injectivity requirement |
+| `EDSL.OS.TSO64.RMWSelection` | `TSO64.rmw_selection`: recover the actual RMW's first current authorized matching handle, selected cell, operand address and resource actor |
+| `EDSL.OS.TSO64.ReturnPositions` | `ReturnPositions.returned_position_of_final`, `returned_unique` and `rmw_before_return`: recover exact RET boundaries and origin, preserve returned frames and exclude later own issues/RMWs |
+| `EDSL.OS.TSO64.EffectSimulation.Mixed.RetirementTrace` | `Cohort.RetirementTrace.no_drains` and `all_retired`: derive whole-trace facts from the classification of every original scheduler position |
+
+The generic cell frame does not require initially empty queues: its explicit
+no-drain premise is enough. The counted candidate derives that premise from
+caller-only closure and its independently required empty initial queues.
+Position history permits arbitrary deltas; unit increments and request totals
+are separate counter proofs. The rank-budget helper consumes the same lifted
+trace and never replaces its ghosts with another closure witness.
+
+## Artifact certificates and coverage
+
+The proved callable-image Claim is complete. A `CountedCertificate` connecting
+it to an exact complete final file has not been implemented. Remaining work
+includes complete-file and named-symbol binding, the independent task and
+execution registry entries, grading acceptance, and a useful-execution
+certificate tied to that same file. Such a certificate must retain actual
+loaded resource admission and useful execution evidence, including the
+interleaving, RMW/RET positions, choices and memory frames it advertises.
+
+`CounterLoadedInputs` and `CounterOverlap` already provide the narrower
+loaded-execution results described above. They do not yet package the new
+independent Claim with a registered final-file or useful-execution certificate.
+There is no new certified corpus row: coverage remains **20/40 functions**,
+**40/80 artifacts** and **three distinct concurrent functions**.
 
 All results retain the existing long-mode/CET-off, coherent scalar WB RAM,
 stable translation/no-alias, ownership and protected-loan assumptions. Complete
