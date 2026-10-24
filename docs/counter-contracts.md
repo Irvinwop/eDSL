@@ -1,10 +1,27 @@
-# Counter contract support
+# Compiled counter annotations
 
-The complete GCC and Clang `c_counter_worker` windows share call, history and
-return assertions. These support modules reduce the work needed for their
-compiler-specific proofs. They do **not** yet certify either complete function
-or add corpus coverage. The checked byte graphs are described in
-[mixed instruction graphs](mixed-cfg.md).
+The complete frozen GCC and Clang `c_counter_worker` windows have per-worker
+annotations against the production TSO64 scheduler. For every admitted actual
+finite schedule whose selected worker has returned, the proofs establish exactly
+`iterations.toNat` unit increments and the common void-call return contract.
+They cover every unsigned 32-bit iteration count, arbitrary upper RSI bits and
+initial flags, and well-formed incoming FIFOs.
+
+| Direct import | Complete window | Public APIs |
+| --- | --- | --- |
+| `EDSL.Corpus.V1.CounterGCC` | 49 bytes / 17 nodes | `rules`, `annotations`, `entry_of_pre`, `completed_count` |
+| `EDSL.Corpus.V1.CounterClang` | 86 bytes / 28 nodes | `rules`, `annotations`, `entry_of_pre`, `completed_count` |
+
+The namespaces match their modules. `entry_of_pre` derives the current Entry
+from the common independent `Pre`; it takes no future run or generated block.
+The builders use canonical caller and original-stack facts supplied by that Pre.
+GCC retains both RET paths and its two-increment loop; Clang retains the
+remainder loop, eight-increment loop and zero-remainder path with arbitrary RDX.
+Their complete checked graphs are described in [mixed instruction graphs](mixed-cfg.md).
+
+Closed-cohort final-value, lifetime/join and completion gates remain, so these
+annotations add no corpus coverage. Successful finite-run correctness does not
+assert that every scheduler returns the worker.
 
 Import `EDSL.Corpus.V1.CounterAssertions` for the common assertions, in namespace
 `EDSL.Corpus.V1.CounterCommon`:
@@ -33,6 +50,16 @@ Import `EDSL.Corpus.V1.CounterAssertions` for the common assertions, in namespac
   list of a successful finite returned schedule **given separately proved
   compiler annotations and current Entry**.
 
+The shared `EDSL.Corpus.V1.CounterIncrement` adapter constructs current locked
+continuations from the actual selected effect, preserving the complete typed
+issue, next frame and context, historical unit-increment witnesses and exact
+Nat tally. The compiler modules supply their register arithmetic and graph edges.
+
+`Mixed.LocalRules` combines an idle-stable invariant and one current instruction
+rule per graph node. `LocalRules.annotations` generates the existing finite
+blocks from the checked depth decrease, so neither compiler repeats scheduler
+or block-induction proofs. See [mixed resumption](mixed-resumption.md).
+
 The generic current ordinary-step adapter is in
 `EDSL.OS.TSO64.EffectSimulation.Mixed.CallerContinuation` and the public
 `EDSL.OS.TSO64.EffectSimulation` umbrella. `One.of_callerContinuation` takes CPU
@@ -55,8 +82,8 @@ modules also belong to the complete catalogue and the fresh certificate gate.
 Universal Lean proofs check the stated laws; no additional fixed-value tests
 are needed for these adapters.
 
-Compiler-specific block proofs, full function annotations, concurrent cohort
-accounting, lifecycle/resource release and completion remain separate work.
+Concurrent cohort accounting, lifecycle/resource release and constructive
+completion remain separate work.
 An inherited FIFO may still drain writes, so the count assertion does not claim
 that the call causes no other shared writes. All results retain the existing
 long-mode/CET-off, coherent scalar WB RAM, stable translation/no-alias,

@@ -167,6 +167,8 @@ import EDSL.X86.VCGen.MixedCFGDiscovery
 import EDSL.X86.VCGen.MixedCFGTransport
 import EDSL.Corpus.V1.CounterMixedGraphs
 import EDSL.Corpus.V1.CounterAssertions
+import EDSL.Corpus.V1.CounterGCC
+import EDSL.Corpus.V1.CounterClang
 import EDSL.OS.TSO64.Increment64
 import EDSL.X86.Sequential.CounterArithmetic
 import EDSL.X86.Sequential.Rotate

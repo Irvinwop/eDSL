@@ -14,6 +14,7 @@ and their main APIs are listed below; the namespace is
 | `EDSL.OS.TSO64.EffectSimulation.Mixed.Idle` | `IdleStep`, `Idle`, `IdleBox` |
 | `EDSL.OS.TSO64.EffectSimulation.Mixed.Block` | `rwp`, `Residual`, `Residual.resume`, `Residual.resume_of_step` |
 | `EDSL.OS.TSO64.EffectSimulation.Mixed.Simulation` | `Annotations`, `Entry`, `Response`, `Done`, `Annotations.simulation`, `Annotations.schedule`, `Annotations.schedule_cut`, `Annotations.returned_at` |
+| `EDSL.OS.TSO64.EffectSimulation.Mixed.Local` | `One.enrich`, `LocalRules`, `LocalRules.annotations` |
 | `EDSL.OS.TSO64.EffectSimulation.Mixed.Authority` | `Idle.stable`, `Idle.authorize`, `Idle.atomicFor`, `Idle.atomic_selection` |
 | `EDSL.OS.TSO64.EffectSimulation.Mixed.Counts` | `Counts.countRMW`, `Counts.logRMW`, `Counts.logRMW_idle` |
 | `EDSL.OS.TSO64.EffectSimulation.Mixed.CallerOnly` | `Binding.callerOnly_ready`, `Binding.execute_reference`, `OrdinaryIssued.of_callerOnly_reference` |
@@ -46,6 +47,14 @@ The shared effect checker, graph transport, resumption rules and checked schedul
 folds are reused across programs. Each new program still needs independent
 contracts, invariants and generated block proofs; it reuses the instruction rules.
 Graph discovery supplies structural evidence, without automatic invariant synthesis.
+
+For a client with an invariant at every instruction boundary, `LocalRules`
+packages its idle-stability proof and one `One` preservation rule per node.
+`LocalRules.annotations` generates the existing cutpoint blocks, using the
+checked graph's strict depth decrease between cuts. Clients supply their
+mathematical invariant and instruction reasoning; the adapter handles actual
+retirement evidence, successor bindings and finite block induction. A blocked
+attempt contributes no retirement and consumes no block fuel.
 [Counter contract support](counter-contracts.md) packages the shared call, history
 and return assertions for the two frozen counter windows; their complete compiler
 annotations are still required.

@@ -9,6 +9,7 @@ import EDSL.OS.TSO64.EffectSimulation.CheckedLifting
 import EDSL.OS.TSO64.EffectSimulation.Resources
 import EDSL.OS.TSO64.EffectSimulation.Resumable.Simulation
 import EDSL.OS.TSO64.EffectSimulation.Mixed.Simulation
+import EDSL.OS.TSO64.EffectSimulation.Mixed.Local
 import EDSL.OS.TSO64.EffectSimulation.Mixed.Authority
 import EDSL.OS.TSO64.EffectSimulation.Mixed.Counts
 import EDSL.OS.TSO64.EffectSimulation.Mixed.CallerOnly

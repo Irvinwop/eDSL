@@ -286,6 +286,12 @@ An existing or new theorem for 32-bit `LOCK XADD` does not certify these frozen
 64-bit artifacts. The width, decoded instruction, exact bytes, and OS-resource
 contracts must match; a synthetic 32-bit stress witness remains separate.
 
+The [complete counter annotations](counter-contracts.md) now establish per-worker
+unit-increment histories, exact Nat counts and void-call return frames for both
+frozen outputs under arbitrary admitted interleavings. This conditional
+returned-run result does not yet meet the separate closed-cohort, final-value,
+lifetime/join and completion gates above; it adds no corpus credit.
+
 The [fetch-add certificates](concurrent-fetch-add-certificates.md) compose the
 shared full64 instruction checker, actual-address resources, overlapping calls,
 independent histories and bounded own progress for both frozen outputs. The

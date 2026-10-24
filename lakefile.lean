@@ -219,7 +219,9 @@ lean_lib EffectSimulationTests where
 
 -- Shared counter call, increment history, completion and current-step adapters.
 lean_lib CounterContractSupport where
-  roots := #[`EDSL.Corpus.V1.CounterAssertions, `EDSL.OS.TSO64.Increment64,
+  roots := #[`EDSL.Corpus.V1.CounterAssertions,
+    `EDSL.Corpus.V1.CounterGCC, `EDSL.Corpus.V1.CounterClang,
+    `EDSL.OS.TSO64.EffectSimulation.Mixed.Local, `EDSL.OS.TSO64.Increment64,
     `EDSL.X86.Sequential.CounterArithmetic,
     `EDSL.OS.TSO64.EffectSimulation.Mixed.CallerContinuation]
   moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",

@@ -60,10 +60,12 @@ extents to the original literal ELF files and checks their typed graphs:
 | Clang | 86 / 28 | 128 / 32 | Exact NOP13, nine distinct LOCK INC sites |
 
 Both use `.arithmetic`. Named binding uses the same explicit byte cap as the
-graph. This establishes static admission, with no additional certified function
-count. Exact increment counts, interleavings, ABI, resource lifetimes and
-completion remain separate obligations. The existing ordinary Resumable
-interface continues to accept ordinary graphs only.
+graph. These graph checks establish static admission. The separate
+[counter annotations](counter-contracts.md) prove exact per-worker counts and
+void-call return frames for successful finite returned runs of both windows.
+Closed-cohort results, resource release and constructive completion remain
+separate obligations, so the corpus function count is unchanged. The existing
+ordinary Resumable interface continues to accept ordinary graphs only.
 
 Run `lake build MixedCFGTests`. The regressions check real decoder boundaries,
 insufficient caps, default-family rejection, missing suffixes, branches into
