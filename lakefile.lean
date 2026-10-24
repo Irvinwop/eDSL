@@ -217,11 +217,19 @@ lean_lib EffectSimulationTests where
   moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
     "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
 
+-- Administrative worker cleanup after an actual returned, quiescent run.
+lean_lib TSO64LifecycleSupport where
+  roots := #[`EDSL.OS.TSO64.Lifecycle, `EDSL.OS.TSO64.LifecycleCohort,
+    `EDSL.OS.TSO64.LifecycleSchedule]
+  moreLeanArgs := #["-DwarningAsError=true", "-DautoImplicit=false",
+    "-DmaxHeartbeats=300000", "-DmaxRecDepth=128"]
+
 -- Shared counter call, increment history, completion and current-step adapters.
 lean_lib CounterContractSupport where
   roots := #[`EDSL.Corpus.V1.CounterAssertions,
     `EDSL.Corpus.V1.CounterGCC, `EDSL.Corpus.V1.CounterClang,
     `EDSL.Corpus.V1.CounterCohort, `EDSL.Corpus.V1.CounterCohortClosure,
+    `EDSL.Corpus.V1.CounterRetirement,
     `EDSL.OS.TSO64.EffectSimulation.Mixed.Local, `EDSL.OS.TSO64.Increment64,
     `EDSL.X86.Sequential.CounterArithmetic,
     `EDSL.OS.TSO64.EffectSimulation.Mixed.CallerContinuation]

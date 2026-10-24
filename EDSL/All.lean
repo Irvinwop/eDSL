@@ -171,6 +171,10 @@ import EDSL.Corpus.V1.CounterGCC
 import EDSL.Corpus.V1.CounterClang
 import EDSL.Corpus.V1.CounterCohort
 import EDSL.Corpus.V1.CounterCohortClosure
+import EDSL.Corpus.V1.CounterRetirement
+import EDSL.OS.TSO64.Lifecycle
+import EDSL.OS.TSO64.LifecycleCohort
+import EDSL.OS.TSO64.LifecycleSchedule
 import EDSL.OS.TSO64.Increment64
 import EDSL.X86.Sequential.CounterArithmetic
 import EDSL.X86.Sequential.Rotate

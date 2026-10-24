@@ -124,8 +124,17 @@ partitions RMW occurrences across a duplicate-free exhaustive tid list in Nat,
 and connects same-target unit events to the OS history's mathematical input sum.
 Neither list arithmetic nor queue closure alone establishes a final RAM value.
 
-Lifecycle/resource release, constructive completion, the complete no-other-writes
-contract and corpus certificate admission remain separate work.
+For logical resource cleanup after an actual returned execution, import
+`EDSL.Corpus.V1.CounterRetirement`. `counterCohort_retireAll` derives current
+cleanup admission and capability separation from the original manifests,
+initial empty queues and the same successful schedule.
+`two_completed_retired_total` carries the modular RAM sum through that actual
+cleanup. The three generic lifecycle modules provide the reusable operations
+and proofs; see [Worker resource cleanup](resource-cleanup.md) for admission,
+outputs and limits.
+
+Constructive instruction completion, the complete no-other-writes contract and
+corpus certificate admission remain separate work.
 An inherited FIFO may still drain writes, so the count assertion does not claim
 that the call causes no other shared writes. All results retain the existing
 long-mode/CET-off, coherent scalar WB RAM, stable translation/no-alias,
