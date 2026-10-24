@@ -19,6 +19,7 @@ if [[ $("$gcc" -dumpversion) != 13 ]]; then
 fi
 lake build edsl-grade edsl-proof-export GradingFixtures
 lake env lean -DwarningAsError=true tests/GradingExportClient.lean > "$output/client-tests.txt"
+lake env lean -DwarningAsError=true tests/PreparedExport.lean > "$output/prepared-export-tests.txt"
 lake env lean -DwarningAsError=true tests/GradingPacket.lean > "$output/packet-tests.txt"
 lake env lean -DwarningAsError=true --run tests/GradingIsolation.lean \
     tests.fixtures.WriteIntermediate EDSL.WriteIntermediateSupported.claim > "$output/isolation-write-intermediate.txt"

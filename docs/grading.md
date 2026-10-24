@@ -256,6 +256,84 @@ snapshot isolation is checked before replay. The independent full-pointer
 native oracle executes the same four final artifacts in 336 calls and rejects
 six owned mutants; native observation remains separate from universal proofs.
 
+## Preparing a client export
+
+Lean clients can opt into expression preparation by importing
+`EDSL.Grading.Export`. This API can replace large helper values or inline
+selected constants before discovering the declarations a packet needs. It
+leaves `edsl-proof-export`, its command line and the original `exportTheorem`
+route unchanged.
+
+In namespace `EDSLGrader.Export`, both prepared entry points take the trusted
+and client kernel environments, a theorem name, a `Prepare.Preparation`, and
+optional `Mode`, `Limits` and `PreparedLimits` arguments:
+
+| Entry point | Result |
+| --- | --- |
+| `discoverTheoremPrepared` | `Except Runtime.Failure PreparedClosure`: declarations, root expression, discovery counts and preparation statistics |
+| `exportTheoremPrepared` | `Except Runtime.Failure PreparedPacket`: the same closure encoded with the existing packet codec, subject to the output-byte cap |
+
+`Prepare.Preparation` contains two arrays of `(Lean.Name × Lean.Expr)` pairs:
+
+- `definitionValues` replaces the emitted value of a selected definition while
+  retaining its name and other declaration metadata.
+- `inlineConstants` replaces occurrences of selected constants throughout root
+  expressions and emitted declaration types, values and inductive/constructor
+  headers.
+
+Replacement keys must name fresh, safe, monomorphic singleton definitions in
+the client environment. Trusted or reserved names, duplicate keys and keys
+shared by both arrays reject. Replacement expressions must be closed and
+monomorphic. Validation conservatively rejects chained inline substitutions
+and definition-value substitutions that depend on themselves or another
+override; inline expressions may refer to definitions with overridden values.
+Normal, unchanged auxiliary declarations may retain their declared universe
+parameters.
+
+Preparation finishes each expression before discovering its dependencies.
+Removed references therefore do not pull their old helper bodies into the
+closure. Inductive ownership and reconstruction checks still apply. The
+rewritten target type contributes discovery roots; the grading contract still
+comes from the independent controller.
+
+`discoverTheoremPrepared` is a preview: it does not encode a packet, install
+declarations, infer types, evaluate candidate expressions or establish
+acceptance. `exportTheoremPrepared` adds encoding only. Neither function proves
+that a replacement preserves the original theorem or is well typed. Submit
+the resulting packet through the unchanged `Runtime.checkPacket`, with the
+controller's own trusted snapshot and expected proposition. It reconstructs
+and kernel-checks every auxiliary and the final proof under its existing
+admission policy. Preparation alone earns no corpus certification.
+
+For expression-level tools, `Prepare.validate` builds substitution tables from
+an eligibility predicate, and `Prepare.rewrite` returns an `Outcome` with
+optional output, a failure reason and traversal diagnostics. Its optional
+universe-parameter list scopes the input expression; inserted replacements
+remain independently closed and monomorphic. An incomplete outcome has no
+usable output. `Prepare.prepareDefinitionValue` applies those tables to a
+safe singleton definition's value. These functions do no type checking.
+
+`PreparedLimits` defaults to 2,000,000 aggregate dispatcher steps, 2,000,000
+aggregate name-work units and 4,096 prepared fields across replacement
+validation, roots and emitted expression fields. Its `expression` limits also
+bound each walk; defaults include 500,000 steps/name-work units and 100,000
+structural keys/pending items. Existing limits of 256 declared names,
+100,000 dependency-discovery steps and 4 MiB output remain in force, as do all
+independent runtime limits.
+
+Explicit aggregate/field guards return `.resource`. Incomplete map validation
+or expression traversal returns `.unsupported`, including per-walk bound
+exhaustion; callers must not treat every limit failure as `.resource`.
+`PreparationStats` sums completed walks and replacement validation, including
+cache hits and label replays. Structural-key counts are per-walk totals, not
+the size of a global output DAG. Native expression hashing/equality, name
+comparison, allocation and garbage collection still need external process
+time/memory bounds. These counters establish no CPU-time or memory theorem.
+
+The [prepared-export integration example](../tests/PreparedExport.lean) shows
+closed replacements, both export modes, and replay against a separately
+constructed contract, including rejection of a valid proof for another claim.
+
 ## Packet and checking boundary
 
 New clients emit version 2. Each expression field has its own topologically
