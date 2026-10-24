@@ -336,6 +336,14 @@ the size of a global output DAG. Native expression hashing/equality, name
 comparison, allocation and garbage collection still need external process
 time/memory bounds. These counters establish no CPU-time or memory theorem.
 
+Failures in individual fields and replacement entries identify the root field,
+declaration or constructor header, or replacement key that stopped. The diagnostic includes the effective step and
+name-work allowance, earlier aggregate usage and available scalar traversal
+counters. The effective allowance can be smaller than the per-expression cap
+when aggregate fuel has already been spent. Names are truncated and sanitized;
+large numbers are saturated. These labels are diagnostic text, not serialized
+Lean names or proof evidence, and failed preparation returns no partial closure.
+
 The [prepared-export integration example](../tests/PreparedExport.lean) shows
 closed replacements, both export modes, and replay against a separately
 constructed contract, including rejection of a valid proof for another claim.

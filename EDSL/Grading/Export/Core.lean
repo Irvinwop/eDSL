@@ -261,6 +261,11 @@ private def remainingPreparationLimits (lim : PreparedLimits) (stats : Preparati
     maxSteps := min lim.expression.maxSteps (lim.maxPreparationSteps - stats.steps)
     maxNameWork := min lim.expression.maxNameWork (lim.maxPreparationNameWork - stats.nameWork) }
 
+private def preparationContext (lim : PreparedLimits) (stats : PreparationStats)
+    (site : Prepare.FailureSite) (name : Name) (state : Option Prepare.State := none) : String :=
+  Prepare.failureContext site name (remainingPreparationLimits lim stats)
+    stats.fields stats.steps stats.nameWork state
+
 /-- Validate exactly one immutable map. Even unused requests consume shared
 field/name/work budgets; no candidate declaration supplies typing authority. -/
 private def validatePreparation (trusted client : Kernel.Environment) (lim : PreparedLimits)
@@ -283,16 +288,19 @@ private def validatePreparation (trusted client : Kernel.Environment) (lim : Pre
   return (tables, stats)
 
 /-- Every field receives only the remaining shared fuel. Failed outcomes expose
-no expression, references, partial statistics or closure through this API. -/
+only bounded site labels and scalar diagnostics, never partial expression data. -/
 private def prepareField (lim : PreparedLimits) (stats : PreparationStats)
+    (site : Prepare.FailureSite) (name : Name)
     (walk : Prepare.Limits → Prepare.Outcome) :
     Except Failure (Expr × Array Name × PreparationStats) := do
-  if stats.fields >= lim.maxPreparedFields then return ← fail .resource "client preparation fields"
+  if stats.fields >= lim.maxPreparedFields then
+    return ← fail .resource ("client preparation fields" ++ preparationContext lim stats site name)
   if stats.steps >= lim.maxPreparationSteps then
-    return ← fail .resource "client preparation aggregate steps"
+    return ← fail .resource ("client preparation aggregate steps" ++ preparationContext lim stats site name)
   let outcome := walk (remainingPreparationLimits lim stats)
   let some output := outcome.output
-    | fail .unsupported ("client expression preparation incomplete: " ++ outcome.reason)
+    | fail .unsupported ("client expression preparation incomplete: " ++ outcome.reason ++
+        preparationContext lim stats site name (some outcome.state))
   let next : PreparationStats := {
     fields := stats.fields + 1
     steps := stats.steps + outcome.state.steps
@@ -302,13 +310,15 @@ private def prepareField (lim : PreparedLimits) (stats : PreparationStats)
     rebuilt := stats.rebuilt + outcome.state.rebuilt
     labelReplays := stats.labelReplays + outcome.state.labelReplays }
   if next.steps > lim.maxPreparationSteps || next.nameWork > lim.maxPreparationNameWork then
-    return ← fail .resource "client preparation aggregate expression work"
+    return ← fail .resource ("client preparation aggregate expression work" ++
+      preparationContext lim stats site name (some outcome.state))
   return (output, outcome.state.references, next)
 
 private def prepareExpression (lim : PreparedLimits) (tables : Prepare.Tables)
-    (stats : PreparationStats) (e : Expr) (levelParams : List Name) :
+    (stats : PreparationStats) (site : Prepare.FailureSite) (name : Name)
+    (e : Expr) (levelParams : List Name) :
     Except Failure (Expr × Array Name × PreparationStats) :=
-  prepareField lim stats fun expressionLim =>
+  prepareField lim stats site name fun expressionLim =>
     Prepare.rewrite expressionLim tables.inlineConstants e levelParams
 
 private def addPreparedReferences (seen : NameSet) (references : Array Name) : NameSet :=
@@ -323,23 +333,23 @@ private def prepareDeclaration (lim : PreparedLimits) (tables : Prepare.Tables)
   match decl with
   | .defnDecl original =>
     let (type, typeRefs, stats) ←
-      prepareExpression lim tables stats original.type original.levelParams
-    let (value, valueRefs, stats) ← prepareField lim stats fun expressionLim =>
+      prepareExpression lim tables stats .declarationType original.name original.type original.levelParams
+    let (value, valueRefs, stats) ← prepareField lim stats .declarationValue original.name fun expressionLim =>
       Prepare.prepareDefinitionValue expressionLim tables original
     return (.defnDecl { original with type, value },
       addPreparedReferences (addPreparedReferences {} typeRefs) valueRefs, stats)
   | .thmDecl original =>
     let (type, typeRefs, stats) ←
-      prepareExpression lim tables stats original.type original.levelParams
+      prepareExpression lim tables stats .declarationType original.name original.type original.levelParams
     let (value, valueRefs, stats) ←
-      prepareExpression lim tables stats original.value original.levelParams
+      prepareExpression lim tables stats .declarationValue original.name original.value original.levelParams
     return (.thmDecl { original with type, value },
       addPreparedReferences (addPreparedReferences {} typeRefs) valueRefs, stats)
   | .opaqueDecl original =>
     let (type, typeRefs, stats) ←
-      prepareExpression lim tables stats original.type original.levelParams
+      prepareExpression lim tables stats .declarationType original.name original.type original.levelParams
     let (value, valueRefs, stats) ←
-      prepareExpression lim tables stats original.value original.levelParams
+      prepareExpression lim tables stats .declarationValue original.name original.value original.levelParams
     return (.opaqueDecl { original with type, value },
       addPreparedReferences (addPreparedReferences {} typeRefs) valueRefs, stats)
   | .inductDecl levelParams numParams types isUnsafe =>
@@ -347,12 +357,14 @@ private def prepareDeclaration (lim : PreparedLimits) (tables : Prepare.Tables)
     let mut references : NameSet := {}
     let mut preparedTypes : List InductiveType := []
     for member in types do
-      let (type, refs, next) ← prepareExpression lim tables stats member.type levelParams
+      let (type, refs, next) ←
+        prepareExpression lim tables stats .inductiveHeader member.name member.type levelParams
       stats := next
       references := addPreparedReferences references refs
       let mut ctors : List Constructor := []
       for ctor in member.ctors do
-        let (ctorType, refs, next) ← prepareExpression lim tables stats ctor.type levelParams
+        let (ctorType, refs, next) ←
+          prepareExpression lim tables stats .constructorHeader ctor.name ctor.type levelParams
         stats := next
         references := addPreparedReferences references refs
         ctors := { ctor with type := ctorType } :: ctors
@@ -441,11 +453,13 @@ def discoverTheoremPrepared (trusted client : Kernel.Environment) (theoremName :
   if !target.levelParams.isEmpty then return ← fail .unsupported "polymorphic export theorem"
   if target.all != [target.name] then return ← fail .unsupported "mutual export theorem"
   let (tables, stats) ← validatePreparation trusted client preparedLim preparation
-  let (_, typeRefs, stats) ← prepareExpression preparedLim tables stats target.type []
+  let (_, typeRefs, stats) ←
+    prepareExpression preparedLim tables stats .rootType theoremName target.type []
   let sourceRoot := match mode with
     | .reference => mkConst theoremName
     | .body => target.value
-  let (value, valueRefs, stats) ← prepareExpression preparedLim tables stats sourceRoot []
+  let (value, valueRefs, stats) ←
+    prepareExpression preparedLim tables stats .rootValue theoremName sourceRoot []
   let roots := typeRefs.toList ++ valueRefs.toList
   let (state, stats) ← discoverPrepared trusted client lim preparedLim tables lim.maxSteps
     (roots.map Work.visit) {} stats

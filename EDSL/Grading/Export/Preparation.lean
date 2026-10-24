@@ -105,6 +105,80 @@ def Outcome.complete (o : Outcome) : Bool := o.output.isSome
 private abbrev WalkM := ExceptT String (StateM State)
 private def pending (s : State) : Nat := s.todo.size + s.values.size
 
+/-- Diagnostic sites only; these labels do not affect traversal or admission. -/
+inductive FailureSite where
+  | rootType | rootValue | declarationType | declarationValue
+  | inductiveHeader | constructorHeader
+  | definitionValueRhs | inlineRhs | definitionValueKey | inlineKey
+
+def FailureSite.label : FailureSite → String
+  | .rootType => "root type"
+  | .rootValue => "root value"
+  | .declarationType => "declaration type"
+  | .declarationValue => "declaration value"
+  | .inductiveHeader => "inductive header"
+  | .constructorHeader => "constructor header"
+  | .definitionValueRhs => "definition-value RHS"
+  | .inlineRhs => "inline RHS"
+  | .definitionValueKey => "definition-value key"
+  | .inlineKey => "inline key"
+
+private def diagnosticNat (n : Nat) : String :=
+  if n > 1000000000 then ">1000000000" else toString n
+
+private def diagnosticComponent (value : String) : String := Id.run do
+  let mut pos := value.startPos
+  let mut text := ""
+  for _ in [:32] do
+    if h : pos ≠ value.endPos then
+      let c := pos.get h
+      text := text.push (if c.isAlphanum || c == '_' || c == '\'' then c else '?')
+      pos := pos.next h
+    else break
+  if pos ≠ value.endPos then text := text ++ "~"
+  return if text.isEmpty then "?" else text
+
+/-- At most 16 leafward components and 32 characters per string component.
+ASCII sanitization and numeric saturation keep the output bounded and single-line.
+This deliberately lossy label is not a serialized Lean name. -/
+def diagnosticName (name : Name) : String := Id.run do
+  let mut rest := name
+  let mut parts : List String := []
+  for _ in [:16] do
+    match rest with
+    | .anonymous => break
+    | .str parent value =>
+      parts := diagnosticComponent value :: parts
+      rest := parent
+    | .num parent value =>
+      parts := ("#" ++ diagnosticNat value) :: parts
+      rest := parent
+  let text := String.intercalate "." parts
+  if !rest.isAnonymous then return "..." ++ text
+  return if parts.isEmpty then "<anonymous>" else text
+
+private def diagnosticCounts (counts : List (String × Nat)) : String :=
+  counts.foldl (fun text (label, value) => text ++ "; " ++ label ++ "=" ++ diagnosticNat value) ""
+
+/-- Failure-only scalar projection: no expression, reference list or partial state
+escapes in the string. Prior counters exclude the current walk; limits are effective. -/
+def failureContext (site : FailureSite) (name : Name) (lim : Limits)
+    (previousFields previousSteps previousNameWork : Nat) (state : Option State := none) : String :=
+  let prior := diagnosticCounts [
+    ("effectiveSteps", lim.maxSteps), ("effectiveNameWork", lim.maxNameWork),
+    ("previousFields", previousFields), ("previousSteps", previousSteps),
+    ("previousNameWork", previousNameWork)]
+  let walk := match state with
+    | none => ""
+    | some s => diagnosticCounts [
+      ("walkSteps", s.steps), ("walkNameWork", s.nameWork), ("walkUnique", s.memo.size),
+      ("walkCacheHits", s.cacheHits), ("walkRebuilt", s.rebuilt),
+      ("walkLabelReplays", s.labelReplays), ("walkRewrites", s.rewrites),
+      ("walkReferences", s.references.size), ("walkPending", pending s),
+      ("walkPeakPending", s.peakPending), ("walkLevelVisits", s.levelVisits),
+      ("walkLevelListLinks", s.levelListLinks), ("walkMetadataVisits", s.metadataVisits)]
+  s!" [site={site.label}; name={diagnosticName name}" ++ prior ++ walk ++ "]"
+
 private def pushWork (lim : Limits) (w : Work) : WalkM Unit := do
   let s ← get
   if pending s >= lim.maxPending then throw "pending work/result bound"
@@ -364,23 +438,36 @@ def validate (lim : Limits) (eligible : Name → Bool) (p : Preparation) : Excep
   let mut keys : NameSet := {}
   let mut steps := lim.maxSteps
   let mut nameWork := lim.maxNameWork
-  for entries in #[p.definitionValues, p.inlineConstants] do
+  for (isDefinition, entries) in #[(true, p.definitionValues), (false, p.inlineConstants)] do
     for (n, _) in entries do
-      let (status, state) := (checkName { lim with maxNameWork := nameWork } n).run.run {}
-      if let .error reason := status then throw reason
+      let site : FailureSite := if isDefinition then .definitionValueKey else .inlineKey
+      let effective := { lim with maxNameWork := nameWork }
+      let previousNameWork := lim.maxNameWork - nameWork
+      let (status, state) := (checkName effective n).run.run {}
+      if let .error reason := status then
+        throw (reason ++ failureContext site n effective 0 0 previousNameWork (some state))
       nameWork := nameWork - state.nameWork
-      if n.isAnonymous || !eligible n then throw "ineligible replacement key"
+      if n.isAnonymous || !eligible n then
+        throw ("ineligible replacement key" ++ failureContext site n effective 0 0 previousNameWork)
       if keys.contains n then
-        throw "duplicate or overlapping replacement key"
+        throw ("duplicate or overlapping replacement key" ++
+          failureContext site n effective 0 0 previousNameWork)
       keys := keys.insert n
   for (n, rhs) in p.definitionValues do
     tables := { tables with definitionValues := tables.definitionValues.insert n rhs }
   for (n, rhs) in p.inlineConstants do
     tables := { tables with inlineConstants := tables.inlineConstants.insert n rhs }
+  let mut fields := 0
   for (isDefinition, entries) in #[(true, p.definitionValues), (false, p.inlineConstants)] do
-    for (_, rhs) in entries do
-      let result := rewrite { lim with maxSteps := steps, maxNameWork := nameWork } {} rhs
-      if !result.complete then throw ("replacement RHS incomplete: " ++ result.reason)
+    for (n, rhs) in entries do
+      let site : FailureSite := if isDefinition then .definitionValueRhs else .inlineRhs
+      let effective := { lim with maxSteps := steps, maxNameWork := nameWork }
+      let previousSteps := lim.maxSteps - steps
+      let previousNameWork := lim.maxNameWork - nameWork
+      let result := rewrite effective {} rhs
+      if !result.complete then
+        throw ("replacement RHS incomplete: " ++ result.reason ++
+          failureContext site n effective fields previousSteps previousNameWork (some result.state))
       steps := steps - result.state.steps
       nameWork := nameWork - result.state.nameWork
       tables := { tables with
@@ -388,9 +475,12 @@ def validate (lim : Limits) (eligible : Name → Bool) (p : Preparation) : Excep
         validationCacheHits := tables.validationCacheHits + result.state.cacheHits
         validationRebuilt := tables.validationRebuilt + result.state.rebuilt
         validationLabelReplays := tables.validationLabelReplays + result.state.labelReplays }
-      for n in result.state.references do
-        if tables.inlineConstants.contains n || (isDefinition && tables.definitionValues.contains n) then
-          throw "unsupported replacement dependency (self/cross cycle or chained substitution)"
+      for reference in result.state.references do
+        if tables.inlineConstants.contains reference ||
+            (isDefinition && tables.definitionValues.contains reference) then
+          throw ("unsupported replacement dependency (self/cross cycle or chained substitution)" ++
+            failureContext site n effective fields previousSteps previousNameWork (some result.state))
+      fields := fields + 1
   return { tables with
     validationSteps := lim.maxSteps - steps
     validationNameWork := lim.maxNameWork - nameWork }
