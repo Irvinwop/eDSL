@@ -220,6 +220,7 @@ jobs:
           lake env lean -DwarningAsError=true tests/GradingWrite.lean
           lake env lean -DwarningAsError=true tests/Write32Accounting.lean
           lake env lean -DwarningAsError=true tests/GradingArtifact.lean
+          lake env lean -DwarningAsError=true tests/ExportImports.lean
           lake env lean -DwarningAsError=true tests/GradingDriver.lean
           lake env lean -DwarningAsError=true tests/GradingRuntime.lean
           lake env lean -DwarningAsError=true tests/GradingDAG.lean

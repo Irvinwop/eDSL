@@ -258,8 +258,14 @@ six owned mutants; native observation remains separate from universal proofs.
 
 ## Preparing a client export
 
-Lean clients can opt into expression preparation by importing
-`EDSL.Grading.Export`. This API can replace large helper values or inline
+For a producer with its own trusted snapshot, import
+`EDSL.Grading.Export.Core`. The `EDSL.Grading.Export` facade also provides
+`loadEnvironments` for the default installed snapshot and preserves the existing
+checker imports. `EDSL.Grading.ByteQuotation` provides `EDSLGrader.byteExpr`
+without importing the command-line controller.
+
+Lean clients can opt into expression preparation through either exporter
+module. This API can replace large helper values or inline
 selected constants before discovering the declarations a packet needs. It
 leaves `edsl-proof-export`, its command line and the original `exportTheorem`
 route unchanged.
