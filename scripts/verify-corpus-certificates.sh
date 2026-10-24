@@ -248,6 +248,8 @@ import tests.CounterMixedGraphs
 import EDSL.Corpus.V1.CounterAssertions
 import EDSL.Corpus.V1.CounterGCC
 import EDSL.Corpus.V1.CounterClang
+import EDSL.Corpus.V1.CounterCohort
+import EDSL.Corpus.V1.CounterCohortClosure
 import EDSL.OS.TSO64.Increment64
 import EDSL.X86.Sequential.CounterArithmetic
 import EDSL.OS.TSO64.EffectSimulation.Mixed.CallerContinuation

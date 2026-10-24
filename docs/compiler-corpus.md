@@ -289,8 +289,9 @@ contracts must match; a synthetic 32-bit stress witness remains separate.
 The [complete counter annotations](counter-contracts.md) now establish per-worker
 unit-increment histories, exact Nat counts and void-call return frames for both
 frozen outputs under arbitrary admitted interleavings. This conditional
-returned-run result does not yet meet the separate closed-cohort, final-value,
-lifetime/join and completion gates above; it adds no corpus credit.
+returned-run result now supports a two-worker actual-RAM modular-sum theorem
+and generic caller-only queue closure. Lifecycle/join, constructive completion
+and the complete certificate gates above remain; coverage is unchanged.
 
 The [fetch-add certificates](concurrent-fetch-add-certificates.md) compose the
 shared full64 instruction checker, actual-address resources, overlapping calls,

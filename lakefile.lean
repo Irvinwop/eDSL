@@ -221,6 +221,7 @@ lean_lib EffectSimulationTests where
 lean_lib CounterContractSupport where
   roots := #[`EDSL.Corpus.V1.CounterAssertions,
     `EDSL.Corpus.V1.CounterGCC, `EDSL.Corpus.V1.CounterClang,
+    `EDSL.Corpus.V1.CounterCohort, `EDSL.Corpus.V1.CounterCohortClosure,
     `EDSL.OS.TSO64.EffectSimulation.Mixed.Local, `EDSL.OS.TSO64.Increment64,
     `EDSL.X86.Sequential.CounterArithmetic,
     `EDSL.OS.TSO64.EffectSimulation.Mixed.CallerContinuation]

@@ -1,4 +1,4 @@
-# Compiled counter annotations
+# Compiled counter verification
 
 The complete frozen GCC and Clang `c_counter_worker` windows have per-worker
 annotations against the production TSO64 scheduler. For every admitted actual
@@ -19,9 +19,10 @@ GCC retains both RET paths and its two-increment loop; Clang retains the
 remainder loop, eight-increment loop and zero-remainder path with arbitrary RDX.
 Their complete checked graphs are described in [mixed instruction graphs](mixed-cfg.md).
 
-Closed-cohort final-value, lifetime/join and completion gates remain, so these
-annotations add no corpus coverage. Successful finite-run correctness does not
-assert that every scheduler returns the worker.
+The two-worker final-value theorem below composes these annotations over one
+actual production schedule. Lifecycle/join, constructive completion and the
+complete corpus certificate gates remain, so coverage is unchanged. Successful
+finite-run correctness does not assert that every scheduler returns a worker.
 
 Import `EDSL.Corpus.V1.CounterAssertions` for the common assertions, in namespace
 `EDSL.Corpus.V1.CounterCommon`:
@@ -82,8 +83,49 @@ modules also belong to the complete catalogue and the fresh certificate gate.
 Universal Lean proofs check the stated laws; no additional fixed-value tests
 are needed for these adapters.
 
-Concurrent cohort accounting, lifecycle/resource release and constructive
-completion remain separate work.
+Import `EDSL.Corpus.V1.CounterCohort` for the common
+`two_completed_total` theorem. It takes two independently admitted calls, their
+actual initial scheduler slots zero and one, an exhaustive two-worker initial
+state, an independently registered common cell and its current initial word.
+For an actual successful finite owned-only arithmetic schedule whose two workers
+have returned, it derives an actual final RAM read with
+
+`final.toNat = (initial.toNat + left.iterations.toNat + right.iterations.toNat) % 2^64`.
+
+Either worker may use GCC or Clang, and the uint32 requests may differ. Actors
+remain separate from scheduler slots. Counts retain every occurrence in the
+complete observation list, including identical event payloads. Each worker's
+event facts come from its own checked completion proof; no equality between
+independently produced stateful ghost histories is assumed. The final RAM value
+uses the actual OS history conservation theorem. Nonempty initial FIFOs are
+permitted for this value theorem because checked owned-only publications cannot
+modify registered atomic allocations.
+
+`EDSL.OS.TSO64.EffectSimulation.Mixed.Cohort` supplies the separate generic
+queue-closure API. Independently annotated subjects share a family/profile and
+a source caller-only policy law. Present initial Entries, exhaustive live-slot
+coverage and empty initial FIFOs derive empty FIFOs throughout the actual run.
+Every original action/observation position is retained as an ordinary, RET or
+native RMW issue; successful drains and blocked attempts are excluded. Each
+subject keeps its own related ghost at the same actual prefix state. Each
+subject may have a different instruction graph.
+
+For frozen counter calls, import `EDSL.Corpus.V1.CounterCohortClosure` and provide
+a collection of `CohortSubject` values with their present `Pre` and owned-only
+profile. `counterCohort` selects the existing GCC/Clang annotations, and
+`counterCohort_entries` derives all initial Entries. With exhaustive initial slot
+coverage and empty queues, `counterCohort_closed` supplies the generic closure
+result. Clients do not reprove instruction rules or scheduler induction.
+
+The supporting `Mixed.IssuePreservation` API extracts the actual current typed
+ordinary issue and proves exact queue, store-counter, resource and world
+preservation under the caller-only policy, including RET. `Mixed.EventCounts`
+partitions RMW occurrences across a duplicate-free exhaustive tid list in Nat,
+and connects same-target unit events to the OS history's mathematical input sum.
+Neither list arithmetic nor queue closure alone establishes a final RAM value.
+
+Lifecycle/resource release, constructive completion, the complete no-other-writes
+contract and corpus certificate admission remain separate work.
 An inherited FIFO may still drain writes, so the count assertion does not claim
 that the call causes no other shared writes. All results retain the existing
 long-mode/CET-off, coherent scalar WB RAM, stable translation/no-alias,

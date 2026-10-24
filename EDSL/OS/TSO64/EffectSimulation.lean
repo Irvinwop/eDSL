@@ -15,6 +15,9 @@ import EDSL.OS.TSO64.EffectSimulation.Mixed.Counts
 import EDSL.OS.TSO64.EffectSimulation.Mixed.CallerOnly
 import EDSL.OS.TSO64.EffectSimulation.Mixed.CallerContinuation
 import EDSL.OS.TSO64.EffectSimulation.Mixed.Completion
+import EDSL.OS.TSO64.EffectSimulation.Mixed.IssuePreservation
+import EDSL.OS.TSO64.EffectSimulation.Mixed.EventCounts
+import EDSL.OS.TSO64.EffectSimulation.Mixed.Cohort
 
 /-!
 Checked ordinary effects and current-state admission for the TSO64 scheduler,
