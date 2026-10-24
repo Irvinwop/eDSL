@@ -60,6 +60,7 @@ and lower-bound claims.
 | Declared atomic interface graphs | [C23 event graphs](c23-atomic-events.md), [sound finite admission](c23-atomic-checker.md), and [checked graphs from actual finite executions](checked-atomic-traces.md) |
 | Scheduler proof rules | [Instruction admission, buffered execution and shared RET facts](managed-vc-rules.md) |
 | Checked effects in the scheduler | [Current-state admission, private FIFO effects and actual schedule simulation](effect-scheduler-bridge.md), [resumable ordinary/RMW blocks](mixed-resumption.md) |
+| Counted shared-word workers | [Independent cohort contract](counter-contracts.md), [complete-file certificates and loaded overlaps](counted-certificates.md) |
 | Managed load/store bodies | [One checked method family, resources and useful execution witnesses](managed-plain-methods.md), [accepted corpus measurement](../corpus/measurements/managed-plain64-v1/) |
 | Atomic method foundations | [Independent call contracts, finite queue closure and order weakening](atomic-call-contracts.md) |
 | Weak memory and call histories | [Managed store traces](managed-store-trace.md), [managed-word TSO refinement](word-tso-refinement.md), [mixed-width store buffers](mixed-store-buffer.md), [TSO counter](tso-counter.md), [linearizability](counter-call-linearizability.md) |

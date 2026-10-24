@@ -514,19 +514,24 @@ trace and never replaces its ghosts with another closure witness.
 
 ## Artifact certificates and coverage
 
-The proved callable-image Claim is complete. A `CountedCertificate` connecting
-it to an exact complete final file has not been implemented. Remaining work
-includes complete-file and named-symbol binding, the independent task and
-execution registry entries, grading acceptance, and a useful-execution
-certificate tied to that same file. Such a certificate must retain actual
-loaded resource admission and useful execution evidence, including the
-interleaving, RMW/RET positions, choices and memory frames it advertises.
+The generic [complete-file certificate](counted-certificates.md) is
+implemented in `EDSL.Corpus.CountedCertificate`. It binds an externally
+supplied complete ELF file, exact symbol name and explicit byte cap to the
+unrestricted independent Claim and a separate completed overlapping execution
+from actual loaded resources. `EDSL.Corpus.V1.CountedCertificates.gcc` and
+`.clang` construct these certificates for both complete frozen compiler files.
 
-`CounterLoadedInputs` and `CounterOverlap` already provide the narrower
-loaded-execution results described above. They do not yet package the new
-independent Claim with a registered final-file or useful-execution certificate.
-There is no new certified corpus row: coverage remains **20/40 functions**,
-**40/80 artifacts** and **three distinct concurrent functions**.
+The loaded adapter covers every old64 word, upper RSI pair and DF-clear
+modeled flag pair. Its useful overlap family covers every per-thread AF stream;
+the original 0,1,0 RMW positions precede both actual RETs of the same completed
+execution. The stored Post preserves every installed optional memory cell,
+including permissions, through that execution and its logical cleanup.
+
+An installed data-only Counted64 grader, task/registry integration and complete
+corpus admission remain pending. The existing packet policy has not been
+shown to admit these full-file proofs. There is no new certified corpus row:
+coverage remains **20/40 functions**, **40/80 artifacts** and **three distinct
+concurrent functions**.
 
 All results retain the existing long-mode/CET-off, coherent scalar WB RAM,
 stable translation/no-alias, ownership and protected-loan assumptions. Complete

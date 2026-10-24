@@ -53,6 +53,11 @@ and returned-call results permit valid incoming queues and pending stores at RET
 Published/physical x86-TSO, source/compiler ordering preservation and native
 Linux/kernel refinement remain separate obligations.
 
+Complete-file [counted-worker certificates](counted-certificates.md) also
+package the independent Counted64 contract and a completed loaded interleaving
+for both frozen compiler files. Their installed proof-packet grading and
+corpus registration remain pending, so they do not increase the totals above.
+
 The [signed signum measurement](../corpus/measurements/signed-signum32-v1/)
 records the latest accepted source and full-project/corpus gate evidence.
 Both original named ELF functions reuse the vector VCG, resource adapter and
