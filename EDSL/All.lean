@@ -185,6 +185,10 @@ import EDSL.Corpus.V1.CounterClangRank
 import EDSL.Corpus.V1.CounterRanks
 import EDSL.Corpus.V1.CounterFrame
 import EDSL.Corpus.V1.CounterCompletion
+import EDSL.Corpus.V1.CounterResources.Image
+import EDSL.Corpus.V1.CounterResources
+import EDSL.Corpus.V1.CounterLoadedInputs
+import EDSL.Corpus.V1.CounterOverlap
 import EDSL.OS.TSO64.Lifecycle
 import EDSL.OS.TSO64.LifecycleCohort
 import EDSL.OS.TSO64.LifecycleSchedule

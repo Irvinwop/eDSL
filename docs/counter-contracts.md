@@ -23,8 +23,11 @@ The APIs below compose these annotations over the production scheduler.
 Returned-run theorems apply to a supplied successful execution. Ranked completion
 constructs one finite returned execution from present admission, exact worker
 slots and empty queues. It can then establish the two-worker value, byte frame
-and logical resource cleanup for that same execution. The complete corpus
-certificate gates remain open, so coverage is unchanged. None of these results
+and logical resource cleanup for that same execution. The loaded-input adapter
+constructs the present admissions from one complete frozen ELF and actual
+resource setup and attachment. A fixed-count adapter also constructs an actual
+overlapping prefix and completes and cleans up that same execution. The complete
+corpus certificate gates remain open, so coverage is unchanged. None of these results
 asserts that every scheduler returns a worker.
 
 Import `EDSL.Corpus.V1.CounterAssertions` for the common assertions, in namespace
@@ -81,8 +84,9 @@ signed ADD-imm8(-8), LEA32(base-1) despite arbitrary upper bits, AND7 modulo eig
 and low-byte AND1 modulo two. Arithmetic parity is separate from the CPU parity
 flag; ADD and SUB retain their different flag semantics.
 
-Build the support directly with `lake build CounterContractSupport`. These
-modules also belong to the complete catalogue and the fresh certificate gate.
+Build the support directly with `lake build CounterContractSupport`. The target
+has 27 roots, including the four modules described below. Their imports also
+belong to `EDSL.All` and the full-project fresh certificate aggregate.
 Universal Lean proofs check the stated laws; no additional fixed-value tests
 are needed for these adapters.
 
@@ -182,6 +186,134 @@ of one finite completion for every choice function, with no fairness premise.
 It does not force an arbitrary scheduler to finish, compute a minimum number
 of operations or measure CPU time. The proof does not add a native execution
 witness or corpus certificate.
+
+## Construct inputs from the complete loaded ELF
+
+The following three modules construct and complete two calls to the same frozen
+counter function in one compiler's complete loaded ELF:
+
+| Direct import | Public APIs |
+| --- | --- |
+| `EDSL.Corpus.V1.CounterResources.Image` | `admitted`, `programSpace_eq`, `setup_total`, `resources_setup`, `full_image` |
+| `EDSL.Corpus.V1.CounterResources` | `initial`, `first_attached`, `second_attached`, `pre`, `wellFormed`, `quiescent`, `cleanupShape`, `separate`, `registered`, `initial_read`, `full_image` |
+| `EDSL.Corpus.V1.CounterLoadedInputs` | `Execution`, `Output`, `complete` |
+
+Each namespace matches its module. `Image.admitted` retains the original full
+file, tables, named symbol and entire declared extent, with the original GCC
+64-byte and Clang 128-byte admission caps. The selected functions remain 49 and
+86 bytes respectively. `programSpace_eq` identifies the indexed space with the
+complete installed ELF space, including nontext mappings outside the function
+window.
+
+`Image.resources_setup` records the actual checked `PlainResources.setup`
+operation. The manager adopts the function allocation, borrows it separately
+for the two logical actors, allocates and protects their private caller slots,
+initializes a fresh target qword, enrolls that cell and issues two handles.
+`setup_total` proves success for either compiler and every initial word.
+`CounterResources.initial` is the output of two successive production
+`TSO64.attach` operations; the second consumes the first operation's result.
+The attached workers occupy exactly scheduler slots zero and one. Their logical
+actors are 11 and 12; these are model principals, with no native identity
+authentication claim.
+
+All parameters to `CounterLoadedInputs.complete` are ordinary input values:
+
+| Parameter | Domain |
+| --- | --- |
+| `compiler : CounterCommon.Compiler` | GCC or Clang; one compiler supplies both calls |
+| `old : X86.Word` | Any 64-bit initial counter word |
+| `count : Fin 2 → BitVec 32` | Two independent uint32 counts, including zero and the maximum value |
+| `upper : Fin 2 → BitVec 32` | Independent upper RSI halves; each RSI is `upper slot ++ count slot` |
+| `flags : Fin 2 → X86.Word` | Independent complete modeled initial flag words, without a DF restriction |
+| `choices : Nat → Nat → Bool` | Arbitrary AF choices indexed by scheduler slot and that slot's own issue index, starting at zero |
+
+This constructor fixes RDI to the target at `0x10000`, RSP to `0x700008` or
+`0x710008`, and RIP to the original compiler-specific function address. The
+protected caller words contain `0x654320` and `0x654330`. Every GPR other than
+RDI, RSI and RSP initially equals `0x8877665544332211`; the construction does
+not quantify over all initial GPR assignments. Each store sequence counter
+starts at zero independently of the iteration count.
+
+The actual setup and attachments derive both independent `Pre` proofs,
+well-formedness under `.ownedOnly`, exact worker slots and exhaustive coverage,
+empty queues, cleanup shapes and capability separation. They also derive
+current code, protected caller reads, the ordered atomic selector, the live
+cell registry and the read of `old`. These facts are proved inputs to the
+completion adapter; clients supply no admission proof, setup-success premise,
+future successful schedule, returned state or desired counter value.
+
+`CounterLoadedInputs.complete` proves
+`Nonempty (Output compiler old count upper flags choices)`. Each `Output`
+retains the following evidence for the same constructed execution:
+
+| Output | Meaning |
+| --- | --- |
+| `execution` | Actual finite production TSO64 schedule, well-formed returned endpoint with empty queues, lifted per-worker histories, typed retirement positions, chosen AF issues and a modeled issue upper bound |
+| `retired`, `valid`, `workers`, `contexts`, `history`, `revoked` | Successful `Lifecycle.retireAll execution.final`, a well-formed cleaned state with no workers, contexts in reverse worker order, an actual logical cleanup history and revoked worker capabilities |
+| `resources`, `cells`, `ram`, `targetLive` | Cleanup retains the execution endpoint's resource store, cell registry and current published RAM; the target stays registered |
+| `counter`, `total` | A successful read from the cleaned world's current RAM and `value.toNat = (old.toNat + (count 0).toNat + (count 1).toNat) % 2^64` |
+| `frame` | For every `query` with `8 ≤ (query - PlainResources.standard.target).toNat`, the cleaned RAM byte equals the actual initial RAM byte |
+| `image` | Every cell loaded from the original complete ELF remains exactly equal in the cleaned resource space, including its byte and every permission bit, also in nontext mappings outside the executable function window |
+
+The full-cell result combines target freshness, readable loaded cells, the
+schedule's permission frame and the outside-byte frame. It retains each loaded
+cell's mappedness and complete permission record as well as its contents.
+Cleanup follows this execution's actual returned state and retains its current
+RAM. It does not restore a snapshot from an earlier return.
+
+GCC and Clang are separate homogeneous cases. The constructor does not combine
+the different compiler images in one address space or establish a compatible
+mixed-image admission. The theorem constructs one finite returning model
+execution for each choice function. It does not require fairness or establish
+termination of every schedule, a prescribed overlapping prefix, optimal cost,
+native execution or join correspondence, hardware/source/compiler refinement,
+or whole-OS security. The existing long-mode/CET-off, coherent scalar WB RAM,
+stable translation/no-alias and protected-resource assumptions remain explicit.
+
+## Construct an overlapping prefix and complete the same execution
+
+`EDSL.Corpus.V1.CounterOverlap` provides `construct_prefix` and `complete`,
+`LoadedPrefix` and `LoadedOutput` use the `Prefix`, `Output` and `Cleanup`
+records.
+It uses the same loaded-resource constructor with fixed uint32 requests
+**3 and 9**. The compiler, old64 word, upper RSI halves, complete modeled
+initial flags and per-thread AF choices remain arbitrary; other registers
+retain the documented constructor values. GCC and Clang remain separate
+homogeneous cases.
+
+`construct_prefix` constructs three actual schedule segments selected in order
+zero, one, zero, each ending at its segment's first actual RMW observation. The
+actual concatenated observation list has RMW issuer projection **`[0, 1, 0]`**.
+At the cut, actual observations and the exact final ghost histories each have
+RMW counts **2 and 1**, and both actual workers are still live and running.
+Other instructions remain in the recorded action and observation lists.
+
+`complete` proves `Nonempty (LoadedOutput compiler old upper flags choices)`.
+Its `lead` retains that prefix; `suffix` starts from `lead.final` and precisely
+`lead.finalGhosts`. Each suffix AF offset counts that thread's issues over the
+whole prefix. The `actual`, `lifted` and `chosen` fields retain the concatenated
+production schedule, its same exact ghosts and histories, and continuous AF
+choices for the entire execution. No successful future prefix, schedule, return
+or desired memory value is a caller-supplied premise.
+
+`cleanup` records successful production `Lifecycle.retireAll suffix.final`,
+well-formedness, no remaining workers, reverse-order contexts, revocations and
+an actual logical cleanup history. It retains that endpoint's current resource
+store, cell registry and RAM, keeps the target registered, and proves a current
+counter read equal to **`(old.toNat + 12) % 2^64`**. Its outside-byte frame
+compares the cleaned current RAM with the actual initial RAM. This output has
+no additional full loaded-ELF cell-preservation field; the arbitrary-count
+`CounterLoadedInputs.Output.image` theorem above is a separate result.
+
+These four modules are registered in the catalogue and full-project fresh
+imports. Complete counter corpus, native, grader and certificate support
+remains open. The overlap result is for requests 3/9 and one constructed model
+execution; it adds no fairness,
+all-schedule termination, minimum-cost or native/hardware/source/compiler
+refinement claim. The existing model and authority assumptions still apply.
+These modules add no certified corpus row or support-program credit: coverage
+remains **20/40 functions**, **40/80 artifacts** and
+**three distinct concurrent functions**.
 
 ## Reuse the completion infrastructure
 
